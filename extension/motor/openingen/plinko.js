@@ -265,13 +265,14 @@ vec3 vakKleur(float k){
   return c;
 }
 vec3 omgeving(vec3 r){
-  vec3 c = vec3(.012, .012, .03) + vec3(.22, .26, .42) * smoothstep(-.3, 1., r.y) * .25;
-  c += MAG * pow(max(-r.x * .9 + r.y * .25, 0.), 3.) * 1.2;
-  c += CYA * pow(max(r.x * .9 + r.y * .25, 0.), 3.) * 1.2;
+  vec3 c = mix(vec3(.02, .02, .04), vec3(.55, .62, .85), smoothstep(-.15, .9, r.y));
+  c += vec3(.9, .95, 1.) * smoothstep(.02, .0, abs(r.y - .05)) * .35;
+  c += MAG * pow(max(-r.x, 0.), 4.) * .6;
+  c += CYA * pow(max(r.x, 0.), 4.) * .6;
   c += vec3(1., .97, .92) * pow(max(dot(r, KEY), 0.), 80.) * 12.;
   c += vec3(.7, .78, 1.) * pow(max(dot(r, vec3(.42, .62, .66)), 0.), 8.) * .7;
   c += (MAG + CYA) * exp(-r.z * r.z * 50.) * .18;
-  return c * mix(1., .25, smoothstep(.05, -.7, r.z));
+  return c * mix(1., .45, smoothstep(.05, -.7, r.z));
 }
 float buis(float s, float aa){ return smoothstep(.028 + aa, .028 - aa, abs(s)); }
 vec3 neon(float s, float aa, vec3 k){ float a = abs(s); return mix(k, vec3(1.), .55) * buis(s, aa) * 4.5 + k * (exp(-a * 16.) * 1.1 + exp(-a * 2.4) * .2); }
@@ -296,8 +297,8 @@ void main(){
   float wand = exp(-length(bw * vec2(.05, .045)));
   col += vec3(.12, .07, .3) * (1. - min(min(gw.x, gw.y), 1.)) * .06 * wand;
   float dk = sdKader(bw - vc, vec2(5.8, 7.), 1.);
-  col += (MAG * .55 + CYA * .45) * .07 * exp(-max(dk, 0.) * .3) * aanB;
-  if (uKw < 1.5) col += vec3(.035, .02, .08) * vn(bw * .14 + vec2(t * .04, -t * .02)) * wand * .6;
+  col += (MAG * .55 + CYA * .45) * .035 * exp(-max(dk, 0.) * .6) * aanB;
+  if (uKw < 1.5) col += vec3(.02, .012, .045) * vn(bw * .1 + vec2(t * .04, -t * .02)) * wand * .5;
 
   // ── paneel (z = 0) ──
   float sdP = sdKader(b0 - vc, vec2(5.62, 6.92), .8);
@@ -315,8 +316,8 @@ void main(){
       float kb = floor(b0.x) + 6.;
       float isV = step(abs(kb - uVak.y), .5);
       float h = smoothstep(TIP, VLOER, b0.y);
-      pan += vakKleur(kb) * (.012 + .03 * h) * smoothstep(.6, .9, uBoot);
-      pan += uKl * isV * uVak.z * (.18 + .9 * uVak.w) * (.35 + .65 * h);
+      pan += vakKleur(kb) * (.015 + .06 * h * h) * smoothstep(.6, .9, uBoot);
+      pan += uKl * isV * uVak.z * (.1 + .4 * uVak.w) * (.35 + .65 * h);
     }
     // de cijferplaat
     if (b0.y < -5.08 && b0.y > -6.26 && abs(b0.x) < 5.) {
@@ -327,10 +328,10 @@ void main(){
       vec3 a = textureGrad(uAtlas, vec2(((kb - 1.) + lx) * 102. / 1024., ly * 112. / 512.), gx * sc, gy * sc).rgb;
       float aanD = aanzet(kb + 20., .55 + kb * .025);
       float isV = step(abs(kb - uVak.y), .5) * uVak.z;
-      vec3 dkl = mix(vakKleur(kb), mix(uKl, vec3(1.), .2), isV);
-      float hel = aanD * (1. - .6 * uVak.z * (1. - isV)) * (1. + isV * (1.2 + 5. * uVak.w));
+      vec3 dkl = mix(vakKleur(kb), uKl, isV);
+      float hel = aanD * (1. - .6 * uVak.z * (1. - isV)) * (1. + isV * (.5 + 1.2 * uVak.w));
       pan += vec3(.012, .012, .024) + vec3(.05, .06, .09) * exp(-min(lx, 1. - lx) / (aa + .004)) * .4;
-      pan += (mix(dkl, vec3(1.), .5) * a.r * 1.9 + dkl * a.g * .55) * hel;
+      pan += (mix(dkl, vec3(1.), .5 - .2 * isV) * a.r * 1.9 + dkl * a.g * (.55 + 1.2 * isV)) * hel;
     }
     // onvoldoende | voldoende
     if (b0.y < -6.36 && b0.y > -6.72 && abs(b0.x) < 3.7) {
@@ -338,7 +339,7 @@ void main(){
       vec3 a = textureGrad(uAtlas, vec2((b0.x + 3.6) / 7.2, (420. + (-6.4 - b0.y) / .28 * 40.) / 512.), gx * sc, gy * sc).rgb;
       pan += vec3(.7, .75, .9) * (a.r * .55 + a.g * .12) * smoothstep(.7, .9, uBoot);
     }
-    float vm = exp(-abs(b0.x) / (aa + .008)) * step(-6.7, b0.y) * step(b0.y, TIP - .05);
+    float vm = exp(-abs(b0.x) / (aa + .008)) * step(-6.7, b0.y) * step(b0.y, VLOER - .1);
     pan += vec3(.35, 1., .55) * vm * .45 * smoothstep(.7, .9, uBoot);
     // schaduw van de bal
     vec2 db = b0 - uBal.xy - vec2(.03, -.07);
@@ -382,7 +383,7 @@ void main(){
   float adem = .85 + .15 * sin(t * 1.4 - r * .8 + px * .3);
   float gp = 0.;
   if (uKlim.w > 0.) { float dw = length(pc - vec2(uVak.x, VLOER)) - uKlim.z; gp = uKlim.w * exp(-dw * dw * 3.); }
-  vec3 pk = PIN * (.6 * adem * pAan) + vec3(.75, .92, 1.) * fl * 5. + uKl * gp * 3.;
+  vec3 pk = PIN * (1. * adem * pAan) + vec3(.75, .92, 1.) * fl * 5. + uKl * gp * 3.;
   if (uExtra.x > 0.) {
     float a = uExtra.x - (8. - r) * .075 - abs(px - uVak.x) * .025;
     if (a > 0.) pk += hsv(vec3(r * .11 + px * .04 + t * .35, .7, 1.)) * 3.5 * exp(-a / .55);
@@ -391,10 +392,10 @@ void main(){
   col = mix(col, vec3(.035, .04, .06) + pk * .08, stem * .9);
   float kop = smoothstep(RP + aa, RP - aa, dp);
   float nz = sqrt(max(1. - dp * dp / (RP * RP), 0.));
-  vec3 pn = vec3(dv / RP, nz);
+  vec3 pn = normalize(vec3(dv / max(dp, RP), nz + .05));
   float spec = pow(max(dot(reflect(d, pn), KEY), 0.), 20.);
   col = mix(col, pk * (.45 + .55 * nz) + vec3(1.) * spec * .9 * pAan + vec3(.03, .035, .05), kop);
-  col += pk * (exp(-dp * 18.) * .1 + exp(-dp * 5.) * .018) + fx;
+  col += pk * (exp(-dp * 14.) * .16 + exp(-dp * 4.) * .025) + fx;
 
   // ── tussenschotten en vloer ──
   float onS = smoothstep(.6, .8, uBoot);
@@ -406,7 +407,7 @@ void main(){
     float sdD = sdLijn(q, vec2(xd, VLOER), vec2(xd, TIP)) - .035;
     vec3 rk = mix(abs(xd) < .5 ? vec3(.45, 1., .6) : vec3(.5, .75, 1.), mix(uKl, vec3(1.), .3), isV);
     col = mix(col, col * .6 + vec3(.03, .045, .07), smoothstep(aa, -aa, sdD) * .7);
-    col += rk * exp(-abs(sdD) / (aa + .006)) * (.45 + isV * (.6 + 3. * uVak.w)) * onS;
+    col += rk * exp(-abs(sdD) / (aa + .006)) * (.45 + isV * (.6 + 2. * uVak.w)) * onS;
     float dt = length(q - vec2(xd, TIP));
     col = mix(col, vec3(.75, .85, 1.) * (.5 + 1.5 * pow(max(1. - dt / .05, 0.), 2.)) * onS + vec3(.04), smoothstep(.05 + aa, .05 - aa, dt));
     col += vec3(.5, .75, 1.) * exp(-abs(b1.y - VLOER) / (aa + .006)) * .5 * onS * step(abs(b1.x), 5.);
@@ -433,7 +434,7 @@ void main(){
     float cx = (b0.x - uVak.x) / cw;
     float top = VLOER + uKlim.x;
     float cy = smoothstep(top, top - 1.2, b0.y) * step(VLOER - .1, b0.y);
-    col += mix(uKl, vec3(1.), .4 + .3 * exp(-cx * cx * 8.)) * exp(-cx * cx) * cy * uKlim.y * 2.2;
+    col += mix(uKl, vec3(1.), .3 + .4 * exp(-cx * cx * 8.)) * exp(-cx * cx) * cy * uKlim.y * 1.5;
   }
   // ── bliksem (speciaal) ──
   if (uExtra.y > 0.) {
@@ -468,8 +469,8 @@ void main(){
       vec3 hp = cl - normalize(d1) * sqrt(max(RB * RB - dist * dist, 0.));
       vec3 N = normalize(hp);
       vec3 R = reflect(d, N);
-      float fres = .62 + .38 * pow(1. - max(dot(N, -d), 0.), 4.);
-      vec3 bk = omgeving(R) * vec3(.9, .93, 1.) * fres;
+      float fres = .8 + .2 * pow(1. - max(dot(N, -d), 0.), 4.);
+      vec3 bk = omgeving(R) * vec3(.9, .93, 1.) * fres * 1.9;
       vec2 nr2 = rot2(uBal.z) * N.xy;
       bk += mix(CYA, uKl, uVak.z) * exp(-nr2.x * nr2.x / .0025) * smoothstep(-.2, .4, N.z) * 1.4;
       bk += vec3(.6, .85, 1.) * uBalFl * 3.;
@@ -477,10 +478,11 @@ void main(){
       col = mix(col, bk, cov);
     }
   }
+  col += vec3(.5, .7, 1.) * exp(-length(db1) * 9.) * .12 * (1. - uBal.w);
   if (uBal.w > 0.) col += mix(uKl, vec3(1.), .4) * uBal.w * exp(-length(db1) * 3.5) * 1.6;
 
   // ── overstroming naar het midden, en een eigen vignet ──
-  if (uExtra.z > 0.) col += mix(uKl, vec3(1.), .55) * uExtra.z * (2.6 * exp(-dot(p, p) / (.01 + .12 * uExtra.z)) + .4 * uExtra.z * uExtra.z);
+  if (uExtra.z > 0.) col += mix(uKl, vec3(1.), .55) * uExtra.z * (2.6 * exp(-dot(p, p) / (.008 + .07 * uExtra.z)) + .2 * uExtra.z * uExtra.z);
   col *= 1. - uSpanning * smoothstep(.22, .95, length(p * vec2(.82, 1.12)));
   o = vec4(max(col, 0.) * uAlpha, 1.);
 }`;
@@ -514,5 +516,446 @@ void main(){
   o = vec4(uKleur * a * .9 + vec3(1.) * kern * .8, 1.);
 }`;
 
-  /*__MODULE__*/
+  // ───────────────────────── Camera ─────────────────────────
+  // Een kader (xa, xb, ya, yb) in bordruimte dat in beeld moet; elke rand volgt zijn doel met een gedempte veer.
+  // Die veren rekenen we één keer uit (60 stappen per seconde); per beeld lezen we alleen de tabel.
+  function maakKamera(pad, K0) {
+    const dt = 1 / 60;
+    const n = Math.ceil((K0 + 1.2) / dt) + 2;
+    const tab = { dt, n, r: [new Float32Array(n), new Float32Array(n), new Float32Array(n), new Float32Array(n)] };
+    const st = [0, 0, 0, 0];
+    const vel = [0, 0, 0, 0];
+    const doel = [0, 0, 0, 0];
+    const u = {};
+    const { tR, E, xc, xd } = pad;
+    let w = 3;
+    function zetDoel(t) {
+      if (t < tR) {
+        const a = klem(t / (tR + 0.3), 0, 1);
+        const e = a * a * (3 - 2 * a);
+        doel[0] = -3.4 - 2.35 * e;
+        doel[1] = 3.4 + 2.35 * e;
+        doel[2] = 4.3 - 11.2 * e;
+        doel[3] = 8.1 - 1.9 * e;
+        w = 3.2;
+      } else if (t < E) {
+        balOp(pad, t, u);
+        const j = Math.min(9, u.j);
+        if (u.seg >= pad.iWip - (pad.rand ? 2 : 1)) {
+          doel[0] = Math.min(xd, xc) - 1.25;
+          doel[1] = Math.max(xd, xc) + 1.25;
+          doel[2] = -6.45;
+          doel[3] = TIP + 1.3;
+          w = 2.6;
+        } else {
+          const reik = (9 - j) * 0.5;
+          doel[0] = Math.max(-5.75, Math.min(u.x - 1.3, pad.PX[j] - reik - 0.6));
+          doel[1] = Math.min(5.75, Math.max(u.x + 1.3, pad.PX[j] + reik + 0.6));
+          doel[2] = -6.85;
+          doel[3] = u.y + 1.35;
+          w = 2.4;
+        }
+      } else {
+        const a = klem((t - E - 0.35) / 0.9, 0, 1);
+        doel[0] = xc - 1.1 + 0.55 * a;
+        doel[1] = xc + 1.1 - 0.55 * a;
+        doel[2] = -6.3 + 0.85 * a;
+        doel[3] = -3.7 - 0.35 * a;
+        w = 3.4;
+      }
+    }
+    for (let i = 0; i < n; i++) {
+      const t = i * dt;
+      zetDoel(t);
+      if (i === 0) for (let e = 0; e < 4; e++) st[e] = doel[e];
+      else {
+        const h = dt / 4;
+        for (let s = 0; s < 4; s++) {
+          for (let e = 0; e < 4; e++) {
+            vel[e] += (w * w * (doel[e] - st[e]) - 2 * w * vel[e]) * h;
+            st[e] += vel[e] * h;
+          }
+        }
+      }
+      for (let e = 0; e < 4; e++) tab.r[e][i] = st[e];
+    }
+    return tab;
+  }
+
+  // ───────────────────────── De opening ─────────────────────────
+  SPO.openingen.plinko = {
+    naam: 'plinko',
+    shaders: {
+      bord: { vs: VS_VOL, fs: FS_BORD, teken: 'vol' },
+      spoor: { vs: VS_SPOOR, fs: FS_SPOOR, teken: 'strip' },
+    },
+    _pad: maakPad,
+
+    tijdlijn(d) {
+      const pad = maakPad(d);
+      const E = pad.E;
+      const K0 = E + (d.snel ? 1.0 : 1.4);
+      const h = pad.hits;
+      const mid = (i) => (pad.segs[i].t0 + pad.segs[i].t1) / 2;
+      return {
+        E,
+        K0,
+        staart: 0.5,
+        fotos: [0.45, pad.tR - 0.2, mid(4), mid(7), h[8].t + 0.1, pad.tWip[0] + 0.35 * (pad.tWip[1] - pad.tWip[0]), E + 0.08, E + 0.5, K0 - 0.25],
+      };
+    },
+
+    *art(d, h) {
+      const A = h.art;
+      const cv = A.nieuw(1024, 512);
+      const x = cv.getContext('2d');
+      x.fillStyle = '#000';
+      x.fillRect(0, 0, 1024, 512);
+      // R = scherpe vorm, G = dezelfde vorm vervaagd (de gloed)
+      const gloed = (fn, blur) => {
+        x.save();
+        x.globalCompositeOperation = 'lighter';
+        x.fillStyle = x.strokeStyle = '#ff0000';
+        fn();
+        x.filter = `blur(${blur}px)`;
+        x.fillStyle = x.strokeStyle = '#00ff00';
+        fn();
+        x.restore();
+      };
+      const spatie = (px) => {
+        if ('letterSpacing' in x) x.letterSpacing = px + 'px';
+      };
+      x.textAlign = 'center';
+      x.textBaseline = 'alphabetic';
+      x.font = `800 92px ${A.F_SPORT}`;
+      gloed(() => {
+        for (let i = 1; i <= 10; i++) x.fillText(String(i), (i - 1) * 102 + 51, 90);
+      }, 6);
+      yield;
+      const vak = d.vak.toUpperCase();
+      let fs = 150;
+      x.font = `italic 900 ${fs}px ${A.F_SPORT}`;
+      while (fs > 50 && x.measureText(vak).width > 930) {
+        fs -= 4;
+        x.font = `italic 900 ${fs}px ${A.F_SPORT}`;
+      }
+      gloed(() => x.fillText(vak, 512, 260 + fs * 0.35), 8);
+      yield;
+      let sub = `${d.onder.toUpperCase()}  ·  WEGING ${d.weging}×`;
+      let fs2 = 36;
+      spatie(3);
+      x.font = `800 ${fs2}px ${A.F_SPORT}`;
+      while (fs2 > 18 && x.measureText(sub).width > 960) {
+        fs2 -= 2;
+        x.font = `800 ${fs2}px ${A.F_SPORT}`;
+      }
+      gloed(() => x.fillText(sub, 512, 386 + fs2 * 0.36), 4);
+      x.font = `800 26px ${A.F_SPORT}`;
+      spatie(5);
+      gloed(() => {
+        x.textAlign = 'right';
+        x.fillText('ONVOLDOENDE', 488, 449);
+        x.textAlign = 'left';
+        x.fillText('VOLDOENDE', 536, 449);
+        x.beginPath();
+        x.moveTo(170, 440); x.lineTo(184, 432); x.lineTo(184, 448); x.closePath();
+        x.moveTo(854, 440); x.lineTo(840, 432); x.lineTo(840, 448); x.closePath();
+        x.fill();
+      }, 3);
+      spatie(0);
+      return { atlas: cv };
+    },
+
+    maak(c) {
+      const { d, tl, mix } = c;
+      const pad = maakPad(d);
+      const { E, tR, xc, tier } = Object.assign({ tier: c.tier }, pad);
+      const K0 = tl.K0;
+      const snel = !!d.snel;
+      const kam = maakKamera(pad, K0);
+      const pb = c.prog('bord');
+      const ps = c.prog('spoor');
+      const atlas = c.tekstuur(c.art.atlas, { mip: true });
+      const gl = c.gl;
+      const NEUTRAAL = [0.6, 0.78, 1];
+      const ui = { x: 0, y: 0, vx: 0, vy: 0, spin: 0, knijp: 0, nx: 0, ny: 1, seg: 0, j: 0 };
+      const us = { x: 0, y: 0, vx: 0, vy: 0, spin: 0, knijp: 0, nx: 0, ny: 1, seg: 0, j: 0 };
+      const CP = [0, 0, 0], CR = [1, 0, 0], CU = [0, 1, 0], CF = [0, 0, -1];
+      const scr = [0, 0];
+      const hitArr = new Float32Array(16);
+      const spArr = new Float32Array(64);
+      const flArr = new Float32Array(12);
+      const hits = pad.hits;
+      const iLand = hits.findIndex((h) => h.soort === 'vloer');
+
+      // ── camera per beeld ──
+      function kamera(t, tilt, asp) {
+        const f = klem(t / kam.dt, 0, kam.n - 1.001);
+        const i = f | 0;
+        const a = f - i;
+        const R = kam.r;
+        const xa = R[0][i] + (R[0][i + 1] - R[0][i]) * a;
+        const xb = R[1][i] + (R[1][i + 1] - R[1][i]) * a;
+        const ya = R[2][i] + (R[2][i + 1] - R[2][i]) * a;
+        const yb = R[3][i] + (R[3][i + 1] - R[3][i]) * a;
+        const phi = 0.14 + 0.22 * c.sm(t, 0, tR + 0.5) + 0.08 * c.sm(t, tR + 2, E) - 0.12 * c.sm(t, E, K0) + 0.04 * tilt[1];
+        const psi = 0.025 * Math.sin(t * 0.37) + 0.05 * tilt[0];
+        const rol = 0.008 * Math.sin(t * 0.51);
+        const hb = yb - ya;
+        const hv = Math.max(hb * Math.cos(phi) * 1.06, ((xb - xa) / asp) * 1.04);
+        const D = hv * FOC;
+        const half = (hv * asp) / 2;
+        const vrij = c.sm(t, E - 0.2, E + 0.6);
+        const tx = mix((half >= 5.75 ? 0 : klem((xa + xb) / 2, -5.75 + half, 5.75 - half)), (xa + xb) / 2, vrij);
+        const ty = (ya + yb) / 2 - hb * 0.05 * Math.sin(phi);
+        const cp = Math.cos(phi), sp = Math.sin(phi), cs = Math.cos(psi), ss = Math.sin(psi);
+        const wx = ss * cp, wy = -sp, wz = cs * cp;
+        CF[0] = -wx; CF[1] = -wy; CF[2] = -wz;
+        let rx = -CF[2], rz = CF[0];
+        const rl = Math.hypot(rx, rz);
+        rx /= rl; rz /= rl;
+        // U = R × F
+        const ux = 0 * CF[2] - rz * CF[1];
+        const uy = rz * CF[0] - rx * CF[2];
+        const uz = rx * CF[1] - 0 * CF[0];
+        const cr2 = Math.cos(rol), sr2 = Math.sin(rol);
+        CR[0] = rx * cr2 + ux * sr2; CR[1] = uy * sr2; CR[2] = rz * cr2 + uz * sr2;
+        CU[0] = ux * cr2 - rx * sr2; CU[1] = uy * cr2; CU[2] = uz * cr2 - rz * sr2;
+        CP[0] = tx + D * wx; CP[1] = ty + D * wy; CP[2] = D * wz;
+      }
+      // bordpunt → p-ruimte (zonder schudden)
+      function scherm(x, y, z) {
+        const vx = x - CP[0], vy = y - CP[1], vz = z - CP[2];
+        const zc = vx * CF[0] + vy * CF[1] + vz * CF[2];
+        scr[0] = ((vx * CR[0] + vy * CR[1] + vz * CR[2]) * FOC) / zc;
+        scr[1] = ((vx * CU[0] + vy * CU[1] + vz * CU[2]) * FOC) / zc;
+        return scr;
+      }
+
+      // ── geluid en klappen ──
+      const L = c.L;
+      for (const h of hits) {
+        const voor = h.t < E - 0.01;
+        if (h.soort === 'pin') {
+          const rate = Math.min(2, 0.7 * Math.pow(2, PENTA[h.r] / 12));
+          c.at(h.t, () => c.audio.speel('plinko-tok', { gain: 0.6 + 0.04 * h.r, rate, pan: klem(h.x / 6, -0.7, 0.7) }));
+          c.schok(h.t, (0.0035 + 0.0006 * h.r) / L.schud, 0.08);
+        } else if (h.soort === 'wand' || h.soort === 'tip') {
+          c.at(h.t, () => c.audio.speel('plinko-tok', { gain: 0.9, rate: h.soort === 'tip' ? 1.0 : 0.85, pan: klem(h.x / 6, -0.7, 0.7) }));
+          c.schok(h.t, 0.006 / L.schud, 0.1);
+        } else if (h.soort === 'stuit') {
+          c.at(h.t, () => c.audio.speel('plinko-tok', { gain: 0.5 * h.s, rate: 1.3 }));
+        }
+        if (voor && h.soort === 'tip') {
+          const [w0, w1] = pad.tWip;
+          c.at(w0 + 0.25 * (w1 - w0), () => c.audio.hartslag(0.5));
+          c.at(w0 + 0.6 * (w1 - w0), () => c.audio.hartslag(0.65));
+        }
+      }
+      c.at(0.25, () => c.audio.whoosh(0.35));
+      for (let i = 0; i < 3; i++) c.at(0.12 + i * 0.22 * (snel ? 0.6 : 1), () => c.audio.speel('klik', { gain: 0.2, rate: 0.6 + 0.15 * i }));
+      c.at(tR - 0.06, () => {
+        c.audio.speel('plinko-tok', { gain: 0.5, rate: 0.6 });
+        c.audio.zwiep(0.3, 1.5);
+      });
+      const tRiser = hits[6].t;
+      c.at(tRiser, () => c.audio.riser(E - tRiser, 0.75));
+      c.at(E, () => {
+        c.audio.speel('plinko-vak', { gain: 1 });
+        c.audio.boem(0.5 + 0.5 * c.I);
+        c.trillen(tier >= 3 ? [40, 30, 90] : [30, 20, 60]);
+      });
+      c.at(E + 0.25, () => c.audio.speel('plinko-bel', { gain: 0.9, rate: [0.84, 1, 1.12, 1.26, 1.5][tier], galmen: 0.3 }));
+      if (tier === 2) for (let i = 0; i < 3; i++) c.at(E + 0.45 + i * 0.13, () => c.audio.speel('plinko-bel', { gain: 0.25, rate: 1.7 + i * 0.1 }));
+      if (tier === 4) for (let j = 0; j < 9; j++) c.at(E + 0.3 + j * 0.075, () => c.audio.speel('plinko-tok', { gain: 0.5, rate: Math.min(2, 0.9 * Math.pow(2, PENTA[j] / 12)) }));
+      c.at(E + (snel ? 0.45 : 0.7), () => c.audio.whoosh(0.55));
+
+      // ── klap bij de landing ──
+      const T = [
+        { n: 140, sp: 0.8, golf: 0.5, gr: 4.5, zuil: 0.7, flits: 0.3 },
+        { n: 320, sp: 1.2, golf: 0.85, gr: 9, zuil: 1, flits: 0.45 },
+        { n: 520, sp: 1.5, golf: 1.05, gr: 11, zuil: 1.25, flits: 0.6 },
+        { n: 700, sp: 1.7, golf: 1.2, gr: 12, zuil: 1.45, flits: 0.7 },
+        { n: 950, sp: 2, golf: 1.4, gr: 14, zuil: 1.8, flits: 0.85 },
+      ][tier];
+      c.schok(E, 0.035, 0.25);
+      c.flits(E, T.flits * 0.6, 0.03);
+      c.flits(E, 0.15 + 0.2 * c.I, 0.15);
+      // schaal: hoeveel p-eenheden is één bord-eenheid bij de landing
+      kamera(E, [0, 0], c.asp);
+      const sc0 = scherm(xc, VLOER, 0)[1];
+      const sch = Math.abs(scherm(xc, VLOER + 1, 0)[1] - sc0);
+      c.golf(E, 1.3, 0.6 + 0.3 * c.I, klem(sc0, -0.4, 0.4));
+      const WIT = [1, 0.97, 0.9];
+      const vonken = [];
+      // vonken bij elke klap tegen een pin of schot
+      for (const h of hits) {
+        if (h.soort === 'stuit' || h.t >= E - 0.01) continue;
+        kamera(h.t, [0, 0], c.asp);
+        const s1 = Math.abs(scherm(h.x, h.y, 0.2)[1] - scherm(h.x, h.y + 1, 0.2)[1]);
+        const em = c.e({ mode: 0, t0: h.t, life: 0.5, delay: 0.02, n: h.soort === 'pin' ? 22 : 34, org: [0, 0], angle: Math.atan2(h.ny, h.nx), spread: 2.4, spd: [0.6 * s1, 2.4 * s1], grav: [0, -3 * s1], drag: 2.2, size: [0.0012, 0.003], col1: [0.55, 0.82, 1], col2: [1, 1, 1], seed: 30 + vonken.length });
+        vonken.push({ em, h });
+      }
+      const groot = [];
+      const bron = (o, bx, by) => groot.push({ em: c.e(o), bx, by });
+      bron({ mode: 0, t0: E, delay: 0.06, life: 1.3, n: T.n, org: [0, 0], angle: Math.PI / 2, spread: tier === 4 ? c.TWEE_PI : 1.8 + 0.3 * tier, spd: [0.25 * sch, T.sp * 1.4 * sch], grav: [0, -1.3 * sch], drag: 1, size: [0.0018, 0.005], col1: c.kl, col2: tier === 0 ? [0.75, 0.45, 0.25] : WIT, regen: tier === 4 ? 1 : 0, seed: 7 }, xc, VLOER + 0.3);
+      if (tier === 2) bron({ mode: 5, t0: E + 0.05, life: 1.8, n: 70, org: [0, 0], angle: Math.PI / 2, spread: 1.8, spd: [0.5 * sch, 1.4 * sch], grav: [0, -1.8 * sch], drag: 0.5, size: [0.008, 0.016], col1: [1, 0.78, 0.2], col2: [1, 0.95, 0.55], blend: 'alpha', seed: 8 }, xc, VLOER + 0.4);
+      if (tier === 3) bron({ mode: 0, t0: E + 0.05, delay: 0.5, life: 0.4, n: 260, org: [0, 0], angle: Math.PI / 2, spread: 3, spd: [0.6 * sch, 3 * sch], grav: [0, 0], drag: 3, size: [0.0012, 0.003], col1: [0.3, 0.9, 1], col2: [0.6, 0.4, 1], seed: 9 }, xc, VLOER + 0.5);
+      if (tier === 4) {
+        const prng2 = prng(91);
+        for (let i = 0; i < 7; i++) bron({ mode: 0, t0: E + 0.2 + i * 0.13, life: 1.1, n: 170, org: [0, 0], angle: 0, spread: c.TWEE_PI, spd: [0.2 * sch, 1.2 * sch], grav: [0, -0.6 * sch], drag: 1.4, size: [0.0018, 0.0045], col1: c.kl, col2: WIT, regen: 1, seed: 40 + i }, xc + (prng2() - 0.5) * 5, VLOER + 1.5 + prng2() * 4);
+      }
+      // bliksem van het bakje naar pinnen erboven
+      for (let i = 0; i < 3; i++) {
+        flArr[i * 4] = xc + (i - 1) * 0.15;
+        flArr[i * 4 + 1] = VLOER + 0.4;
+        flArr[i * 4 + 2] = Math.round(xc + (i - 1) * 1.5 - 0.5) + 0.5 * ((8 - i) % 2 ? 0 : 0);
+        flArr[i * 4 + 3] = RIJ0 - (8 - i) * RH;
+      }
+      for (let i = 0; i < 3; i++) {
+        const r = 8 - i;
+        flArr[i * 4 + 2] = klem(Math.round(xc + (i - 1) * 1.6 - 0.5 * r) + 0.5 * r, -4, 4);
+      }
+
+      function tekenBord(t, alpha, wachten) {
+        const onth = !wachten && t >= E;
+        pb.gebruik();
+        c.basis(pb);
+        pb.f3('uCP', CP[0], CP[1], CP[2]);
+        pb.f3('uCR', CR[0], CR[1], CR[2]);
+        pb.f3('uCU', CU[0], CU[1], CU[2]);
+        pb.f3('uCF', CF[0], CF[1], CF[2]);
+        pb.f1('uFoc', FOC);
+        pb.f1('uTime', t);
+        pb.f1('uBoot', wachten ? 1 : c.ramp(t, 0.02, tR * 0.9));
+        pb.f1('uRust', c.reduceer ? 1 : 0);
+        pb.f1('uAlpha', alpha);
+        pb.f1('uKw', c.motor.kwaliteit);
+        pb.v3('uKl', onth ? c.kl : NEUTRAAL);
+        pb.tex('uAtlas', 0, atlas);
+        const q = wachten ? 0 : t - E;
+        // balletje
+        const licht = onth ? c.sm(t, E + 0.55, K0 - 0.15) : 0;
+        pb.f4('uBal', ui.x, ui.y, ui.spin, licht);
+        pb.f4('uKnijp', ui.nx, ui.ny, ui.knijp, wachten ? 0 : c.ramp(t, tR - 0.1, tR));
+        let fl = 0;
+        hitArr.fill(0);
+        let n = 0;
+        for (let i = hits.length - 1; i >= 0 && n < 4 && !wachten; i--) {
+          const age = t - hits[i].t;
+          if (age < 0 || age > 1.2) continue;
+          hitArr[n * 4] = hits[i].x;
+          hitArr[n * 4 + 1] = hits[i].y;
+          hitArr[n * 4 + 2] = age;
+          hitArr[n * 4 + 3] = hits[i].s;
+          fl = Math.max(fl, hits[i].s * Math.exp(-age / 0.12));
+          n++;
+        }
+        pb.v4s('uHit[0]', hitArr);
+        pb.f1('uBalFl', fl * 0.3);
+        pb.f4('uVak', xc, pad.k, onth ? 1 : 0, onth ? Math.exp(-q / 0.35) : 0);
+        pb.f4('uKlim', onth ? 9 * c.sm(t, E + 0.25, K0) : 0, onth ? T.zuil * c.sm(t, E + 0.2, E + 0.9) : 0, onth ? q * 9 : 0, onth ? T.golf * Math.exp(-q / 0.9) * (q < T.gr / 9 ? 1 : 0) : 0);
+        const wiebel = tier === 0 && onth ? 0.06 * Math.sin(q * 26) * Math.exp(-q / 0.35) * (c.reduceer ? 0.3 : 1) : 0;
+        pb.f4('uExtra', tier === 4 && onth ? q - 0.1 : -1, tier === 3 && onth ? c.sm(q, 0.05, 0.2) * (1 - c.sm(t, K0 - 0.4, K0)) : 0, onth ? Math.pow(c.ramp(t, E + 0.8, K0), 2) : 0, wiebel);
+        pb.v4s('uFlits[0]', flArr);
+        pb.f1('uSpanning', wachten ? 0.3 : 0.3 + 0.35 * c.sm(t, hits[4].t, E) - 0.2 * (onth ? c.sm(q, 0, 0.3) : 0));
+        c.motor.mengen('optel');
+        c.motor.volledig();
+      }
+
+      function tekenSpoor(t) {
+        let som = 0;
+        for (let j = 0; j < 16; j++) {
+          const tj = t - j * (snel ? 0.013 : 0.017);
+          balOp(pad, tj, us);
+          const v = Math.hypot(us.vx, us.vy);
+          const a = tj < tR ? 0 : klem(v * 0.3 - 0.15, 0, 1);
+          spArr[j * 4] = us.x;
+          spArr[j * 4 + 1] = us.y;
+          spArr[j * 4 + 2] = 0;
+          spArr[j * 4 + 3] = a;
+          som += a;
+        }
+        if (som < 0.05) return;
+        ps.gebruik();
+        ps.f3('uCP', CP[0], CP[1], CP[2]);
+        ps.f3('uCR', CR[0], CR[1], CR[2]);
+        ps.f3('uCU', CU[0], CU[1], CU[2]);
+        ps.f3('uCF', CF[0], CF[1], CF[2]);
+        ps.f1('uFoc', FOC);
+        ps.f1('uAsp', c.asp);
+        ps.f1('uZoom', c.cam.zoom);
+        ps.f2('uShake', c.cam.x, c.cam.y);
+        ps.f1('uBreed', 0.9);
+        ps.v4s('uSp[0]', spArr);
+        ps.f3('uKleur', 0.45, 0.75, 1);
+        c.motor.mengen('optel');
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 32);
+      }
+
+      return {
+        teken(t, dt, inv) {
+          const asp = c.asp;
+          balOp(pad, t, ui);
+          kamera(t, inv.tilt, asp);
+          const alpha = 1 - c.sm(t, K0 - 0.02, K0 + 0.45);
+          tekenBord(t, alpha, false);
+          if (t > tR && t < E + 0.8) tekenSpoor(t);
+          // vonken: de oorsprong schuift mee met de camera
+          for (let i = 0; i < vonken.length; i++) {
+            const v = vonken[i];
+            if (t < v.h.t - 0.01 || t > v.h.t + 0.6) continue;
+            scherm(v.h.x + v.h.nx * RP, v.h.y + v.h.ny * RP, 0.2);
+            v.em.org[0] = scr[0];
+            v.em.org[1] = scr[1];
+            c.zend(t, v.em);
+          }
+          if (t >= E) {
+            const q = t - E;
+            for (let i = 0; i < groot.length; i++) {
+              const g = groot[i];
+              if (t < g.em.t0 - 0.01 || t > g.em.t0 + g.em.delay + g.em.life + 0.1) continue;
+              scherm(g.bx, g.by, 0.2);
+              g.em.org[0] = scr[0];
+              g.em.org[1] = scr[1];
+              c.zend(t, g.em);
+            }
+            scherm(xc, VLOER + 0.3, 0.2);
+            const b = Math.exp(-q / (0.3 + 0.25 * c.I));
+            c.licht(t, scr[0], scr[1], 0.15 * b, 0.03, (0.3 + 0.5 * c.I) * Math.exp(-q / 0.5), (0.25 + 0.45 * c.I) * Math.exp(-q / 0.8), t * 0.3);
+            const s = c.sm(t, E + 0.15, E + 0.6) * (1 - c.sm(t, K0, K0 + 0.4));
+            if (s > 0.01) c.stralen(t, s * alpha, 0.25 + 0.5 * c.I, 0.12 + 0.3 * c.sm(t, E + 0.5, K0), 0.15, scr[0], scr[1], t * 0.25, 0);
+          }
+          // nabewerking: vóór de landing neutraal (geen tier-afhankelijke verzadiging, bloom, kleurfouten of vignetkleur)
+          const P = c.post;
+          if (t < E) {
+            P.sat = 1 / L.sat;
+            P.bloom = 0.6 / (L.bloom * 0.9 * (0.9 + 0.2 * c.I));
+            P.ca = 0.0011 / Math.max(1e-4, L.ca * 0.5 * (0.5 + 1.5 * c.I));
+            P.vig = 0.12 / L.vig;
+            P.streak = -0.12;
+            P.zoom = 1 + 0.03 * c.sm(t, hits[6].t, E);
+          } else {
+            const q = t - E;
+            P.rad = 0.12 * Math.exp(-q / 0.2) + 0.25 * c.sm(t, K0 - 0.5, K0);
+            P.zoom = 1.03 + 0.04 * Math.exp(-q / 0.15) + 0.06 * c.sm(t, E + 0.6, K0);
+            P.streak = 0.4 * Math.exp(-q / 0.5);
+          }
+        },
+        wacht(t) {
+          balOp(pad, 0, ui);
+          kamera(tR + 0.4, [0, 0], c.asp);
+          tekenBord(t, 0.8, true);
+        },
+        schud(t) {
+          const [w0, w1] = pad.tWip;
+          return t > w0 && t < w1 ? 0.0015 : 0;
+        },
+        sprong(t) {
+          if (t < E - 0.8) return { doel: E - 0.45, riser: true };
+          return undefined;
+        },
+      };
+    },
+  };
 })();

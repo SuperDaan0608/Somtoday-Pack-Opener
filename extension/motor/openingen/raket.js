@@ -45,7 +45,7 @@ uniform vec2 uPadM, uDrift, uLampL;
 ${GEMEEN}
 float wolk(vec2 q){
   float n = vn(q) * .56 + vn(q * 2.07 + vec2(3.1, 8.7)) * .29;
-  n += uQ < 1.5 ? vn(q * 4.31 + vec2(11.3, 4.1)) * .15 : .075;
+  n += uQ < .5 ? vn(q * 4.31 + vec2(11.3, 4.1)) * .15 : .075;
   return n;
 }
 float bundel(vec2 p, vec2 o0, float ang, float w){
@@ -150,8 +150,8 @@ void main(){
       vec2 kf = fract(kc) - .5 - (h22(ki) - .5) * .35;
       float kr = length(kf);
       float rad = .14 + .18 * h21(ki + 3.);
-      float krater = step(.5, h21(ki + 9.)) * (smoothstep(rad * 1.15, rad * .85, kr) * smoothstep(rad * .55, rad * .9, kr) * .16 - smoothstep(rad * .8, rad * .4, kr) * .1);
-      alb += krater;
+      float krater = step(.72, h21(ki + 9.)) * (smoothstep(rad * 1.15, rad * .85, kr) * smoothstep(rad * .55, rad * .9, kr) * .16 - smoothstep(rad * .8, rad * .4, kr) * .1);
+      alb += krater * .3 * smoothstep(.95, .4, md);
       vec3 mc = vec3(.96, .94, .9) * alb * (lam * 1.35 + .012) + vec3(.03, .05, .1) * (1. - lam) * .3;
       float rand = smoothstep(1., 1. - 2.2 / (uMaan.z * uRes.y), md);
       col = mix(col, mc, rand * uMaan.w);
@@ -223,8 +223,7 @@ void main(){
       float al = dot(p - L.xy, dir);
       float stop = smoothstep(lenB + .03 * zm, lenB - .05 * zm, al);
       float b = (bundel(p, L.xy, L.z, .02 * zm) + .5 * bundel(p, L.xy, L.z + (i == 0 ? .07 : -.07), .014 * zm)) * stop;
-      float hz = .6 + .8 * vn(vec2(p.x * 9. - uTime * .2, p.y * 6. + uTime * .09)) * vn(vec2(p.x * 3. + uTime * .05, p.y * 2.));
-      col += vec3(.55, .66, .9) * b * L.w * .5 * hz * vis;
+      if (b > .004) col += vec3(.55, .66, .9) * b * L.w * .5 * (.55 + .7 * vn(vec2(p.x * 9. - uTime * .2, p.y * 6. + uTime * .09))) * vis;
       float dl = length((p - L.xy) * vec2(1., 1.25));
       col += vec3(.8, .88, 1.) * L.w * (.0011 / (dl * dl + .00025)) * vis;
       col += vec3(.6, .75, 1.) * L.w * exp(-abs(p.y - L.y) * 420.) * exp(-abs(p.x - L.x) * 9.) * .5 * vis;
@@ -1548,13 +1547,13 @@ void main(){
       // ───── rook (eigen deeltjes) ─────
       const rook = [
         // grote wolken over de grond bij de start
-        { soort: 0, t0: P.TI + 0.04, duur: 2.4, life: 4.2, n: 300, org: [0, YM], spd: [0.25, 1.6], size: [0.09, 0.2], wereld: 1, seed: 3, alpha: 1, kl: [0.86, 0.87, 0.9] },
+        { soort: 0, t0: P.TI + 0.04, duur: 2.2, life: 3.8, n: 130, org: [0, YM], spd: [0.25, 1.6], size: [0.1, 0.2], wereld: 1, seed: 3, alpha: 1, kl: [0.86, 0.87, 0.9] },
         // stoom uit de raket (loopt door)
         { soort: 1, t0: 0, duur: 0, life: 2.8, n: 44, org: [0, YM + 0.22], spd: [0, 0.2], size: [0.024, 0.03], wereld: 1, seed: 5, alpha: 0.42, kl: [0.85, 0.88, 0.95] },
       ];
 
       function zendRook(t, R, camX, camY, camZ, camW, org0, org1) {
-        const n = Math.max(1, Math.round(R.n * c.lod));
+        const n = Math.max(1, Math.round(R.n * c.lod * (kw() >= 2 ? 0.6 : 1)));
         pR.f1('uTijd', t);
         pR.f1('uT0', R.t0);
         pR.f1('uDuur', R.duur);
@@ -1968,9 +1967,9 @@ void main(){
         const p = pS.gebruik();
         c.basis(p);
         const asp = c.asp;
-        const hh = Math.min(0.62, 0.62);
+        const hh = asp < 1 ? 0.46 : 0.62;
         const hw = (hh * HUD_W) / HUD_H;
-        const cx = -asp / 2 + 0.035 + hw / 2;
+        const cx = -asp / 2 + (asp < 1 ? 0.012 : 0.035) + hw / 2;
         const cy = -0.03;
         p.i1('uModus', 0);
         p.tex('uTex', 0, tex.hud);
