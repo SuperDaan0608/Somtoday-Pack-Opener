@@ -29,12 +29,14 @@
     ster: ['ster-vlucht', 'ster-inslag', 'ster-nacht'],
     raket: ['raket-piep', 'raket-start', 'raket-motor', 'raket-trap', 'raket-knal'],
   };
+  // Het volume van de nieuwe opnames is afgestemd op de oude (gemeten in het gedeelte boven 200 Hz, dat laptopspeakers wel weergeven).
   Object.assign(NIVEAU, {
-    'kluis-klik': -12, 'kluis-slot': -4, 'kluis-wiel': -6, 'kluis-deur': -4,
-    'plinko-tok': -9, 'plinko-vak': -5, 'plinko-bel': -6,
-    'ster-vlucht': -6, 'ster-inslag': -3, 'ster-nacht': -14,
-    'raket-piep': -10, 'raket-start': -4, 'raket-motor': -7, 'raket-trap': -5, 'raket-knal': -3,
+    'kluis-klik': -11, 'kluis-slot': -6, 'kluis-wiel': -5, 'kluis-deur': -5,
+    'plinko-tok': -13, 'plinko-vak': -5, 'plinko-bel': -2,
+    'ster-vlucht': -5, 'ster-inslag': -1, 'ster-nacht': -12,
+    'raket-piep': -12, 'raket-start': -2, 'raket-motor': -6, 'raket-trap': -5, 'raket-knal': -1,
   });
+
 
   const dB = (x) => Math.pow(10, x / 20);
   const basis = window.chrome && chrome.runtime && chrome.runtime.getURL ? chrome.runtime.getURL('sounds/') : 'sounds/';

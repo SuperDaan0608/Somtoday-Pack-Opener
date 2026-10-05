@@ -26,6 +26,25 @@ const bas = ({ drive = 16, omhoog = 3, wegingen = '1 1.1 0.8' }) =>
   `[u]asetrate=${44100 * omhoog},aresample=44100,highpass=f=70,lowpass=f=1800,volume=-3dB[up];` +
   `[d][harm][up]amix=inputs=3:weights='${wegingen}':normalize=0`;
 
+// De nieuwe openingen (kluis, plinko, ster, raket) gebruiken twee kleine hulpjes.
+// MARGE: volumedetect meet na een omzetting naar 16 bit die bij 0 dB afkapt. Door de keten eerst 12 dB zachter
+//   te maken kan er tijdens het meten niets afkappen (ook niet als meerdere paden bij elkaar worden opgeteld); de
+//   winst die daaruit volgt telt die 12 dB er weer bij op, dus de uitvoer komt precies op `piek` uit.
+// MONO: een echt gemiddelde van links en rechts. De standaard omzetting van ffmpeg (-ac 1) telt de kanalen met
+//   0,707 op en klinkt bij gelijke kanalen 3 dB harder dan gemeten.
+const MARGE = ',volume=-12dB';
+const MONO = 'pan=mono|c0=0.5*c0+0.5*c1';
+
+// Aanhoudend, diep gebrul (raketmotor). Anders dan bas() geen opgetilde kopie: die zou bij een lang geluid veel te
+// vroeg ophouden. Het droge pad gaat door een steile hoogdoorlaat bij 100 Hz (de tonen daaronder hoor je op een laptop
+// toch niet, maar ze nemen wel de hele piek in beslag); het laagste stuk wordt daarnaast verzadigd tot harmonischen
+// boven 200 Hz die je wél hoort. Zo blijft de opname even zwaar maar komt er ongeveer 3 dB meer hoorbaar geluid uit.
+const rommel = ({ drive = 12, harm = 1 }) =>
+  '[0:a]aresample=44100,asplit=2[d][h];' +
+  '[d]highpass=f=100,highpass=f=100[dry];' +
+  `[h]lowpass=f=190,lowpass=f=190,volume=${drive}dB,asoftclip=type=tanh,highpass=f=200,highpass=f=200,lowpass=f=1500,volume=-2dB[harm];` +
+  `[dry][harm]amix=inputs=2:weights='1 ${harm}':normalize=0`;
+
 const GELUIDEN = [
   { naam: 'tear', ketting: '[0:a]aresample=44100,highpass=f=300,afade=t=in:d=0.002,afade=t=out:st=0.55:d=0.1', piek: -1 },
   { naam: 'whoosh', ketting: '[0:a]aresample=44100,highpass=f=120,afade=t=in:d=0.04,afade=t=out:st=1.05:d=0.4', piek: -1.5 },
@@ -49,6 +68,64 @@ const GELUIDEN = [
   { naam: 'speciaal', ketting: '[0:a]aresample=44100,highpass=f=70,afade=t=in:d=0.004,afade=t=out:st=3.2:d=0.8', piek: -3 },
   { naam: 'icoon', ketting: '[0:a]aresample=44100,highpass=f=70,afade=t=in:d=0.01,afade=t=out:st=4.0:d=1.0', piek: -3 },
   { naam: 'klik', ketting: '[0:a]aresample=44100,atrim=0:0.2,highpass=f=200,afade=t=in:d=0.001,afade=t=out:st=0.12:d=0.08', piek: -1, kanalen: 1 },
+
+  // ---- Nieuwe openingen ----
+  // Kluis kraken
+  {
+    // Het tikje zit helemaal in het begin van de opname (0,05 tot 0,09 s) en wordt tientallen keren afgespeeld: alleen dat stukje.
+    naam: 'kluis-klik',
+    ketting: `[0:a]aresample=44100,${MONO},atrim=start=0.046:end=0.166,asetpts=PTS-STARTPTS,highpass=f=400,afade=t=in:d=0.001,afade=t=out:st=0.07:d=0.05${MARGE}`,
+    piek: -1,
+    kanalen: 1,
+  },
+  { naam: 'kluis-slot', ketting: `[0:a]aresample=44100,highpass=f=40,atrim=0:0.95,afade=t=in:d=0.002,afade=t=out:st=0.7:d=0.25${MARGE}`, piek: -2 },
+  { naam: 'kluis-wiel', ketting: `[0:a]aresample=44100,highpass=f=40,atrim=0:2.3,afade=t=in:d=0.004,afade=t=out:st=1.7:d=0.6${MARGE}`, piek: -2 },
+  { naam: 'kluis-deur', ketting: `[0:a]aresample=44100,highpass=f=40,atrim=0:3.5,afade=t=in:d=0.01,afade=t=out:st=2.5:d=1.0${MARGE}`, piek: -3 },
+
+  // Plinko
+  {
+    // De eerste opname was bijna stil (piek -35 dB) en bestond uit drie doffe bonzen; deze tweede heeft één scherpe tok (bij 0,03 s).
+    naam: 'plinko-tok',
+    ketting: `[0:a]aresample=44100,${MONO},atrim=start=0.022:end=0.22,asetpts=PTS-STARTPTS,highpass=f=500,afade=t=in:d=0.001,afade=t=out:st=0.11:d=0.088${MARGE}`,
+    piek: -1,
+    kanalen: 1,
+  },
+  {
+    // De opname begint met een zwakke bons en 0,2 s stilte; de klak waar het om gaat begint bij 0,28 s en na 0,8 s is het stil.
+    naam: 'plinko-vak',
+    ketting: `[0:a]aresample=44100,atrim=start=0.268:end=0.86,asetpts=PTS-STARTPTS,highpass=f=100,afade=t=in:d=0.003,afade=t=out:st=0.44:d=0.15${MARGE}`,
+    piek: -2,
+  },
+  { naam: 'plinko-bel', ketting: `[0:a]aresample=44100,highpass=f=150,atrim=0:1.9,afade=t=in:d=0.002,afade=t=out:st=1.3:d=0.6${MARGE}`, piek: -2 },
+
+  // Wensster
+  { naam: 'ster-vlucht', ketting: `[0:a]aresample=44100,highpass=f=150,atrim=0:3.3,afade=t=in:d=0.02,afade=t=out:st=2.5:d=0.8${MARGE}`, piek: -2 },
+  { naam: 'ster-inslag', ketting: `[0:a]aresample=44100,highpass=f=40,atrim=0:3.2,afade=t=in:d=0.003,afade=t=out:st=2.4:d=0.8${MARGE}`, piek: -3 },
+  {
+    // Een rustig bed: zacht erin en eruit. De opname valt na 5,4 s abrupt stil, daar zijn we dan al uit.
+    naam: 'ster-nacht',
+    ketting: `[0:a]aresample=44100,highpass=f=100,atrim=0:5.5,afade=t=in:d=0.8,afade=t=out:st=4.0:d=1.5${MARGE}`,
+    piek: -3,
+  },
+
+  // Raket
+  {
+    // De opname bevat drie pieptonen achter elkaar; de derde (de langste, 0,25 tot 0,36 s) knippen we eruit als één piep.
+    naam: 'raket-piep',
+    ketting: `[0:a]aresample=44100,${MONO},atrim=start=0.243:end=0.382,asetpts=PTS-STARTPTS,highpass=f=300,afade=t=in:d=0.002,afade=t=out:st=0.12:d=0.019${MARGE}`,
+    piek: -1,
+    kanalen: 1,
+  },
+  { naam: 'raket-start', ketting: `${rommel({ drive: 14 })},atrim=0:3.9,afade=t=in:d=0.02,afade=t=out:st=3.2:d=0.7${MARGE}`, piek: -3 },
+  {
+    // De app herhaalt dit geluid en laat het in elkaar overlopen: daarom maar een korte in- en uitfade, en precies 5 s lang.
+    naam: 'raket-motor',
+    ketting: `${rommel({ drive: 16 })},atrim=0:5.0,afade=t=in:d=0.15,afade=t=out:st=4.6:d=0.4${MARGE}`,
+    piek: -3,
+  },
+  // Het sissen na de klap is erg zacht; de hoogdoorlaat haalt ook het brommen onder 100 Hz weg dat de hele opname doorloopt.
+  { naam: 'raket-trap', ketting: `[0:a]aresample=44100,highpass=f=150,atrim=0:0.8,afade=t=in:d=0.002,afade=t=out:st=0.4:d=0.4${MARGE}`, piek: -2 },
+  { naam: 'raket-knal', ketting: `[0:a]aresample=44100,highpass=f=45,atrim=0:1.4,afade=t=in:d=0.002,afade=t=out:st=1.0:d=0.4${MARGE}`, piek: -3 },
 ];
 
 // ffmpeg schrijft zijn uitvoer (ook de meting) naar stderr.
@@ -80,5 +157,5 @@ for (const g of GELUIDEN) {
     '-q:a', '2',
     uit,
   ]);
-  console.log(`${g.naam.padEnd(9)} ${(statSync(uit).size / 1024).toFixed(0).padStart(4)} kB  (${winst >= 0 ? '+' : ''}${winst.toFixed(1)} dB)`);
+  console.log(`${g.naam.padEnd(12)} ${(statSync(uit).size / 1024).toFixed(0).padStart(4)} kB  (${winst >= 0 ? '+' : ''}${winst.toFixed(1)} dB)`);
 }
