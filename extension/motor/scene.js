@@ -907,7 +907,7 @@
       p.f1('uStreakTexel', 1 / sd.w);
       p.v3('uStreakCol', kl);
       p.f1('uVig', L.vig * (1 + 0.55 * rust2) * (pk ? pk.vig : 1));
-      p.v3('uVigCol', kl2);
+      p.v3('uVigCol', rustig ? koel2 : kl2); // op het startscherm nog geen tint van het niveau
       p.f1('uGrain', motor.kwaliteit < 3 ? 0.03 : 0);
       p.f1('uFade', rustig ? 1 : sm(t, 0, 0.45));
       let bars = 0;
@@ -949,7 +949,7 @@
       p.f1('uZoom', zoom);
       p.f1('uRoll', rustig ? 0 : (Math.sin(t * 0.7) * 0.004 + (pk ? pk.roll : t >= E && t < E + 0.6 ? 0.012 * Math.exp(-(t - E) / 0.2) * Math.sin(t * 40) : 0)) * (reduceer ? 0.2 : 1));
       p.f2('uShake', 0, 0);
-      p.f1('uSat', L.sat * (pk ? pk.sat : 1));
+      p.f1('uSat', rustig ? 1 : L.sat * (pk ? pk.sat : 1));
       if (pk) p.f3('uGrade', pk.grade[0], pk.grade[1], pk.grade[2]);
       else p.f3('uGrade', 1, 1, 1);
       p.f1('uShockW', 0.035);
