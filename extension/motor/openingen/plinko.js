@@ -331,7 +331,7 @@ void main(){
       vec3 dkl = mix(vakKleur(kb), uKl, isV);
       float hel = aanD * (1. - .6 * uVak.z * (1. - isV)) * (1. + isV * (.5 + 1.2 * uVak.w));
       pan += vec3(.012, .012, .024) + vec3(.05, .06, .09) * exp(-min(lx, 1. - lx) / (aa + .004)) * .4;
-      pan += (mix(dkl, vec3(1.), .5 - .2 * isV) * a.r * 1.9 + dkl * a.g * (.55 + 1.2 * isV)) * hel;
+      pan += (mix(dkl, vec3(1.), .5 - .25 * isV) * a.r * (1.9 - .5 * isV) + dkl * a.g * (.55 + .15 * isV)) * hel;
     }
     // onvoldoende | voldoende
     if (b0.y < -6.36 && b0.y > -6.72 && abs(b0.x) < 3.7) {
@@ -702,7 +702,7 @@ void main(){
         const psi = 0.025 * Math.sin(t * 0.37) + 0.05 * tilt[0];
         const rol = 0.008 * Math.sin(t * 0.51);
         const hb = yb - ya;
-        const hv = Math.max(hb * Math.cos(phi) * 1.06, ((xb - xa) / asp) * 1.04);
+        const hv = Math.max(hb * Math.cos(phi) * 1.06, ((xb - xa) / asp) * 1.12);
         const D = hv * FOC;
         const half = (hv * asp) / 2;
         const vrij = c.sm(t, E - 0.2, E + 0.6);
@@ -854,7 +854,7 @@ void main(){
         pb.v4s('uHit[0]', hitArr);
         pb.f1('uBalFl', fl * 0.3);
         pb.f4('uVak', xc, pad.k, onth ? 1 : 0, onth ? Math.exp(-q / 0.35) : 0);
-        pb.f4('uKlim', onth ? 9 * c.sm(t, E + 0.25, K0) : 0, onth ? T.zuil * c.sm(t, E + 0.2, E + 0.9) : 0, onth ? q * 9 : 0, onth ? T.golf * Math.exp(-q / 0.9) * (q < T.gr / 9 ? 1 : 0) : 0);
+        pb.f4('uKlim', onth ? 9 * c.sm(t, E + 0.25, K0) : 0, onth ? T.zuil * c.sm(t, E + 0.2, E + 0.9) * (1 - 0.7 * c.sm(t, K0 - 0.7, K0)) : 0, onth ? q * 9 : 0, onth ? T.golf * Math.exp(-q / 0.9) * (q < T.gr / 9 ? 1 : 0) : 0);
         const wiebel = tier === 0 && onth ? 0.06 * Math.sin(q * 26) * Math.exp(-q / 0.35) * (c.reduceer ? 0.3 : 1) : 0;
         pb.f4('uExtra', tier === 4 && onth ? q - 0.1 : -1, tier === 3 && onth ? c.sm(q, 0.05, 0.2) * (1 - c.sm(t, K0 - 0.4, K0)) : 0, onth ? Math.pow(c.ramp(t, E + 0.8, K0), 2) : 0, wiebel);
         pb.v4s('uFlits[0]', flArr);
@@ -922,7 +922,7 @@ void main(){
             }
             scherm(xc, VLOER + 0.3, 0.2);
             const b = Math.exp(-q / (0.3 + 0.25 * c.I));
-            c.licht(t, scr[0], scr[1], 0.15 * b, 0.03, (0.3 + 0.5 * c.I) * Math.exp(-q / 0.5), (0.25 + 0.45 * c.I) * Math.exp(-q / 0.8), t * 0.3);
+            c.licht(t, scr[0], scr[1], 0.1 * b, 0.03, (0.3 + 0.5 * c.I) * Math.exp(-q / 0.5), (0.25 + 0.45 * c.I) * Math.exp(-q / 0.8), t * 0.3);
             const s = c.sm(t, E + 0.15, E + 0.6) * (1 - c.sm(t, K0, K0 + 0.4));
             if (s > 0.01) c.stralen(t, s * alpha, 0.25 + 0.5 * c.I, 0.12 + 0.3 * c.sm(t, E + 0.5, K0), 0.15, scr[0], scr[1], t * 0.25, 0);
           }
@@ -940,6 +940,7 @@ void main(){
             P.rad = 0.12 * Math.exp(-q / 0.2) + 0.25 * c.sm(t, K0 - 0.5, K0);
             P.zoom = 1.03 + 0.04 * Math.exp(-q / 0.15) + 0.06 * c.sm(t, E + 0.6, K0);
             P.streak = 0.4 * Math.exp(-q / 0.5);
+            P.bloom = 0.8;
           }
         },
         wacht(t) {

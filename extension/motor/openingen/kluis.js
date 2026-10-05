@@ -608,7 +608,7 @@ void main(){
     col += mix(uKl, vec3(1.), .55) * boog * uBoog * 1.8;
   }
   if (uFlood > .001) {
-    col += mix(k1, vec3(1.), .45) * uFlood * (2.4 / (1. + 7. * rr * rr) + .45 * uFlood * uFlood);
+    col += mix(k1, vec3(1.), .5) * uFlood * (3.5 / (1. + 9. * rr * rr) + .35 * uFlood * uFlood);
   }
   o = vec4(col * uFade, 1.);
 }`;
@@ -852,7 +852,7 @@ void main(){
       }
       const extra = [];
       const ex = (o) => extra.push(c.e(Object.assign({ org: [0, 0] }, o)));
-      const t1 = E + (snel ? 0.4 : 0.6);
+      const t1 = E + 0.5 * (K0 - E);
       if (tier === 0) {
         ex({ mode: 0, t0: E + 0.2, delay: 1.2, life: 1.6, n: 70, spread: c.TWEE_PI, spd: [0.05, 0.25], grav: [0, 0.06], drag: 2.5, size: [0.0015, 0.0035], col1: c.kl, col2: [1, 0.5, 0.2], seed: 61 });
       } else if (tier === 1) {
@@ -948,7 +948,7 @@ void main(){
         const bn = rust ? 0 : binnen(t);
         const th = rust ? 0 : hoekDeur(t);
         const open = Math.min(1, th / 1.0);
-        const flood = rust ? 0 : Math.pow(c.sm(t, E + 0.8, K0), 1.6) * (1 - c.sm(t, K0 + 0.05, K0 + 0.45));
+        const flood = rust ? 0 : Math.pow(c.sm(t, E + 0.68 * (K0 - E), K0), 1.6) * (1 - c.sm(t, K0 + 0.05, K0 + 0.45));
         const stoom = rust ? 0 : c.sm(t, K.B0, K.B0 + 0.3) * (1 - c.sm(t, E + 0.2, E + 1.2));
         const flik = tier === 0 && !red ? 0.84 + 0.16 * (0.5 + 0.5 * Math.sin(ta * 23) * Math.sin(ta * 7.3 + 1)) : 1;
         const boog = tier === 3 && !rust ? 0.5 * c.sm(t, E - 1.2, E) + 0.8 * c.sm(t, E, E + 0.2) : 0;
@@ -1088,7 +1088,7 @@ void main(){
         for (let i = 0; i < extra.length; i++) {
           const x = extra[i];
           if (t < x.t0 - 0.01) continue;
-          x.org[0] = gx;
+          x.org[0] = gx + (x.mode === 1 ? 0 : 0.42 * R * sch);
           x.org[1] = gy;
           c.zend(t, x);
         }
