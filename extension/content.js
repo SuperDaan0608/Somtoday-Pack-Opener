@@ -233,6 +233,23 @@
     st.sig = null;
   }
 
+  // Staat er een afgedekt cijfer op de pagina? Dan halen we in een rustig moment alvast de lettertypes en
+  // geluiden op, zodat er bij de klik niets meer geladen hoeft te worden.
+  let voorgeladen = false;
+  function voorladen() {
+    if (voorgeladen || !rijen.some((r) => r.vergrendeld)) return;
+    voorgeladen = true;
+    const doe = () => {
+      try {
+        if (typeof window.__somPackVoorlaad === 'function') window.__somPackVoorlaad();
+      } catch (x) {
+        /* voorladen is een extraatje */
+      }
+    };
+    if (window.requestIdleCallback) requestIdleCallback(doe, { timeout: 4000 });
+    else setTimeout(doe, 1500);
+  }
+
   // ───────────────────────── Scannen ─────────────────────────
   function scan() {
     if (!geladen) return;
@@ -275,6 +292,7 @@
 
     rijen = nieuweRijen;
     groepen = nieuweGroepen;
+    voorladen();
     document.documentElement.setAttribute('data-spo-klaar', '');
     observer.takeRecords(); // onze eigen wijzigingen negeren
   }
@@ -376,6 +394,24 @@
     },
     true,
   );
+
+  // Zodra je met de muis (of het toetsenbord) bij een afgedekt cijfer komt, zetten we de videokaart alvast
+  // klaar. Dan begint de animatie bij de klik zonder haperen.
+  const opwarmen = (e) => {
+    const host = vergrendeldeRij(e);
+    if (!host) return;
+    try {
+      const rij = rijen.find((r) => r.host === host);
+      // dezelfde gegevens als bij open(): zo herkent de animatie dat de afbeeldingen al klaarstaan
+      if (typeof window.__somPackWarm === 'function') {
+        window.__somPackWarm(rij && { vak: rij.d.vak, cijfer: rij.d.cijfer, onderwerp: rij.d.onderwerp || 'Nieuw cijfer', weging: rij.d.weging, snel: !!instellingen.snel });
+      }
+    } catch (x) {
+      /* opwarmen is een extraatje */
+    }
+  };
+  document.addEventListener('pointerover', opwarmen, true);
+  document.addEventListener('focusin', opwarmen, true);
 
   for (const soort of ['keydown', 'keyup', 'keypress']) {
     document.addEventListener(

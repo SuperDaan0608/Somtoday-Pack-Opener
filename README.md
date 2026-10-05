@@ -1,8 +1,8 @@
 # Somtoday Pack Opener
 
 Open je Somtoday-cijfers als een FIFA-pakket. Een nieuw cijfer staat afgedekt in je cijferlijst; klik erop en
-je cijfer komt binnen met een tunnel, een pakje dat openscheurt, een walkout (vanaf een 7) en je eigen kaart
-voor dat vak.
+je cijfer komt binnen met een tunnel van licht, een 3D-pakje dat openscheurt, een walkout in een stadion (vanaf een 7)
+en je eigen kaart voor dat vak.
 
 > Fanproject. Niet verbonden aan Somtoday of Topicus.
 
@@ -12,18 +12,25 @@ voor dat vak.
   afgedekt. Klik je erop, dan start het pakket met je echte vak, cijfer, onderwerp en weging.
 - **Vijf niveaus**, net als bij FIFA: Brons (onder de 5,5), Zilver, Goud (walkout vanaf een 7),
   Speciaal (9+) en Icoon (een 10). Hoe hoger het cijfer, hoe heftiger alles wordt.
-- **Walkout** met spots, fotografen, een hartslag en de info-plaatjes: vak, onderwerp en weging.
-- **Eigen kaart** met je cijfer, vakafkorting, embleem, weging, onderwerp en zes stats
-  (INZ, FOC, KEN, TMP, TEC, MOT).
+- **Filmische animatie op de videokaart (WebGL):** hyperspace-tunnel, een glanzend 3D-pakje dat oplaadt en echt
+  openscheurt, lichtbundels, schokgolven, bloom, confetti en vuurwerk. Elk niveau heeft een eigen uitstraling.
+- **Walkout** (vanaf een 7): de leerling loopt door de lichtbundel een stadion in, met fotografen, een hartslag en
+  plaatjes voor vak, onderwerp en weging, in letterbalk-beeld.
+- **Eigen kaart** in sportletters, met een pictogram per vak, je cijfer, weging, onderwerp en zes stats
+  (INZ, FOC, KEN, TMP, TEC, MOT). De kaart draait uit het licht, het cijfer telt op en daarna glanst de folie mee
+  met je muis.
+- **Geen haperingen:** alles wordt vooraf klaargezet (zodra je met de muis boven een afgedekt cijfer komt), er is
+  geen zware blur boven de animatie, en de kwaliteit past zich vanzelf aan als je computer moeite heeft.
 - **Echte geluiden**, gemaakt met ElevenLabs: scheurend folie, een stadion vol publiek, een fanfare, een
   treurige trombone voor een onvoldoende. Alles staat in de extensie, er wordt niets gedownload.
 - **Opslaan als afbeelding**, zodat je de kaart kunt delen.
 - **Popup** met je aantal ongeopende cijfers, instellingen en een handmatige modus om een eigen cijfer te proberen.
-- **Snelle modus** voor als je niet op de tunnel wilt wachten. Klikken of spatie slaat ook over.
+- **Snelle modus** voor als je niet op de tunnel wilt wachten. Klikken of spatie slaat ook over (eerst naar het
+  scheuren, dan naar de kaart).
 
 ## Installeren
 
-1. Download `somtoday-pack-opener-v0.2-beta.zip` bij de [releases](../../releases) (of uit de map
+1. Download `somtoday-pack-opener-v0.3-beta.zip` bij de [releases](../../releases) (of uit de map
    [`downloads`](downloads)) en pak hem uit.
 2. Ga in Chrome (of Edge, Brave, Opera) naar `chrome://extensions`.
 3. Zet rechtsboven **Ontwikkelaarsmodus** aan.
@@ -71,7 +78,11 @@ herlaad-icoon bij de extensie in `chrome://extensions`.
 | --- | --- |
 | `manifest.json` | Manifest V3 |
 | `content.js` / `content.css` | De koppeling met Somtoday: cijfers lezen, afdekken, onthouden |
-| `pack.js` | De volledige animatie en het geluid (canvas in een shadow DOM, zodat de pagina er niets van merkt) |
+| `motor/main.js` | De overlay (shadow DOM), de hoofdlus, bediening en het opwarmen |
+| `motor/scene.js` | De regie: tijdlijn, camera, schokken, deeltjes en wat wanneer getekend wordt |
+| `motor/shaders.js` / `motor/gl.js` | De GLSL-shaders en de kleine WebGL2-laag (bloom, nabewerking) |
+| `motor/art.js` | De getekende afbeeldingen: pakje, kaart (drie lagen), plaatjes, titel, pictogrammen per vak |
+| `motor/audio.js` / `motor/data.js` | De geluiden (Web Audio) en de gegevens van één pakket |
 | `popup.html` / `popup.css` / `popup.js` | De popup |
 | `stage.html` / `stage.js` | Reservepagina voor tabbladen waar injecteren niet mag |
 | `geluiden.html` | Alle geluiden naast elkaar beluisteren |
@@ -88,8 +99,8 @@ bouwscript werkt.
 ### Een release maken
 
 ```sh
-./scripts/package.sh v0.2-beta      # maakt dist/somtoday-pack-opener-v0.2-beta.zip
-git tag v0.2-beta && git push origin v0.2-beta
+./scripts/package.sh v0.3-beta      # maakt dist/somtoday-pack-opener-v0.3-beta.zip
+git tag v0.3-beta && git push origin v0.3-beta
 ```
 
 Bij een nieuwe tag die met `v` begint, bouwt GitHub Actions de zip en zet hij een release online.
@@ -98,5 +109,5 @@ Tags met `beta`, `alpha` of `rc` worden een pre-release.
 ## Credits
 
 - Geluiden: [ElevenLabs Sound Effects](https://elevenlabs.io/sound-effects).
-- Lettertypes: [Unbounded](https://github.com/googlefonts/unbounded) en
-  [Inter](https://github.com/rsms/inter), beide onder de SIL Open Font License (zie `extension/fonts`).
+- Lettertypes: [Barlow Condensed](https://github.com/jpt/barlow), [Unbounded](https://github.com/googlefonts/unbounded) en
+  [Inter](https://github.com/rsms/inter), alle onder de SIL Open Font License (zie `extension/fonts`).

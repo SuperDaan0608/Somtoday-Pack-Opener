@@ -2,6 +2,9 @@
 (function () {
   'use strict';
 
+  // De bestanden van de animatie, in de volgorde waarin ze geladen moeten worden (zie manifest.json).
+  const PAKKET_BESTANDEN = ['motor/data.js', 'motor/audio.js', 'motor/shaders.js', 'motor/gl.js', 'motor/art.js', 'motor/scene.js', 'motor/main.js'];
+
   const $ = (id) => document.getElementById(id);
   const SOMTODAY = /^https:\/\/leerling\.somtoday\.nl\//;
   const CIJFERS_URL = 'https://leerling.somtoday.nl/cijfers';
@@ -379,7 +382,7 @@
         },
         args: [data],
       });
-      await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['pack.js'] });
+      await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: PAKKET_BESTANDEN });
     } catch (err) {
       // Op chrome://-pagina's, de Web Store of pdf's mag niets geïnjecteerd worden:
       // dan openen we het pakket in een eigen tabblad.
