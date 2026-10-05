@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8" />
+    <title>Somtoday Pack Opener</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="kop">
+      <div class="merk">
+        <img src="icons/icon-48.png" width="30" height="30" alt="" />
+        <div>
+          <small>Somtoday</small>
+          <strong>Pack Opener</strong>
+        </div>
+      </div>
+      <span class="versie">0.1 bèta</span>
+    </header>
+
+    <section class="voorbeeld" id="voorbeeld" aria-live="polite">
+      <div class="mini-kaart" id="mini-kaart">
+        <span class="mk-cijfer" id="mk-cijfer">7,5</span>
+        <span class="mk-vak" id="mk-vak">WIS</span>
+        <span class="mk-naam" id="mk-naam">Wiskunde</span>
+      </div>
+      <div class="voorbeeld-tekst">
+        <span class="tier" id="tier-naam">Goud</span>
+        <strong id="tier-label">Walkout!</strong>
+        <span id="tier-uitleg">Vanaf een 7 krijg je een walkout.</span>
+      </div>
+    </section>
+
+    <form id="formulier" autocomplete="off" novalidate>
+      <label class="veld">
+        <span>Vak</span>
+        <input id="vak" list="vakken" maxlength="40" placeholder="bijv. Wiskunde" />
+        <datalist id="vakken">
+          <option value="Wiskunde"></option>
+          <option value="Nederlands"></option>
+          <option value="Engels"></option>
+          <option value="Frans"></option>
+          <option value="Duits"></option>
+          <option value="Biologie"></option>
+          <option value="Natuurkunde"></option>
+          <option value="Scheikunde"></option>
+          <option value="Geschiedenis"></option>
+          <option value="Aardrijkskunde"></option>
+          <option value="Economie"></option>
+          <option value="Informatica"></option>
+          <option value="Latijn"></option>
+          <option value="Grieks"></option>
+          <option value="Lichamelijke opvoeding"></option>
+          <option value="CKV"></option>
+          <option value="Maatschappijleer"></option>
+        </datalist>
+      </label>
+
+      <div class="veld">
+        <span>Cijfer</span>
+        <div class="cijfer-rij">
+          <input id="cijfer" inputmode="decimal" maxlength="4" placeholder="7,5" aria-label="Cijfer van 1 tot 10" />
+          <input id="schuif" type="range" min="1" max="10" step="0.1" value="7.5" aria-label="Cijfer schuifregelaar" />
+        </div>
+      </div>
+
+      <label class="veld">
+        <span>Waar ging de toets over?</span>
+        <input id="onderwerp" maxlength="80" placeholder="bijv. Hoofdstuk 4: Functies" />
+      </label>
+
+      <div class="veld">
+        <span>Weging</span>
+        <div class="segment" id="weging" role="group" aria-label="Weging">
+          <button type="button" data-w="1">1×</button>
+          <button type="button" data-w="2">2×</button>
+          <button type="button" data-w="3">3×</button>
+          <button type="button" data-w="4">4×</button>
+        </div>
+      </div>
+
+      <div class="schakelaars">
+        <label class="schakel"><input type="checkbox" id="geluid" /><span class="knopje"></span>Geluid</label>
+        <label class="schakel"><input type="checkbox" id="snel" /><span class="knopje"></span>Snelle modus</label>
+      </div>
+
+      <button type="submit" class="open" id="open">
+        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7.5 4.27 9 5.15M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/></svg>
+        Pakket openen
+      </button>
+      <p class="fout" id="fout" role="alert"></p>
+    </form>
+
+    <section class="geschiedenis" id="geschiedenis" hidden>
+      <div class="g-kop">
+        <strong>Recente pakketten</strong>
+        <span id="gemiddelde"></span>
+      </div>
+      <ul id="lijst"></ul>
+      <button type="button" class="wis" id="wis">Geschiedenis wissen</button>
+    </section>
+
+    <footer class="voet">Fanproject · niet verbonden aan Somtoday of Topicus</footer>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

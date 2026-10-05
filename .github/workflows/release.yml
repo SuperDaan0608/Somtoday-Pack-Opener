@@ -1,0 +1,51 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      versie:
+        description: 'Versie-tag, bijv. v0.1-beta'
+        required: true
+        default: 'v0.1-beta'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      VERSIE: ${{ github.event_name == 'workflow_dispatch' && inputs.versie || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Zip maken
+        run: |
+          chmod +x scripts/package.sh
+          ./scripts/package.sh "$VERSIE"
+
+      - name: Release-notities uit CHANGELOG.md halen
+        run: |
+          awk -v kop="## $VERSIE" '
+            $0 == kop { aan = 1; next }
+            aan && /^## / { exit }
+            aan { print }
+          ' CHANGELOG.md > notities.md
+          printf '\n### Installeren\n\n1. Download de zip hieronder en pak hem uit.\n2. Ga naar `chrome://extensions` en zet **Ontwikkelaarsmodus** aan.\n3. Klik **Uitgepakte extensie laden** en kies de map `somtoday-pack-opener`.\n' >> notities.md
+
+      - name: Release publiceren
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VLAG=""
+          case "$VERSIE" in *beta*|*alpha*|*rc*) VLAG="--prerelease" ;; esac
+          TITEL="Somtoday Pack Opener ${VERSIE#v}"
+          TITEL="${TITEL/-beta/ bèta}"
+          # Bij handmatig starten maakt gh de tag zelf aan op deze commit.
+          gh release create "$VERSIE" dist/*.zip \
+            --target "$GITHUB_SHA" \
+            --title "$TITEL" \
+            --notes-file notities.md \
+            $VLAG

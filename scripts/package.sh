@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Maakt de zip voor een release: dist/somtoday-pack-opener-<versie>.zip
+# Gebruik: ./scripts/package.sh v0.1-beta
+set -euo pipefail
+
+VERSIE="${1:?gebruik: package.sh <versie, bijv. v0.1-beta>}"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+NAAM="somtoday-pack-opener"
+UIT="$ROOT/dist"
+ZIP="$UIT/$NAAM-$VERSIE.zip"
+
+# De versie in manifest.json moet bij de tag passen (v0.1-beta -> 0.1.x).
+MANIFEST_VERSIE="$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$ROOT/extension/manifest.json")"
+KERN="$(echo "$VERSIE" | sed -E 's/^v//; s/-.*$//')"
+case "$MANIFEST_VERSIE" in
+  "$KERN" | "$KERN".*) ;;
+  *) echo "manifest.json heeft versie $MANIFEST_VERSIE, maar de tag is $VERSIE" >&2; exit 1 ;;
+esac
+
+WERK="$(mktemp -d)"
+trap 'rm -rf "$WERK"' EXIT
+cp -R "$ROOT/extension" "$WERK/$NAAM"
+cat > "$WERK/$NAAM/LEESMIJ.txt" <<EOF
+Somtoday Pack Opener $VERSIE
+
+Installeren:
+1. Ga in Chrome naar chrome://extensions
+2. Zet rechtsboven Ontwikkelaarsmodus aan
+3. Klik op "Uitgepakte extensie laden" en kies deze map
+4. Pin de extensie en klik op het icoon (of druk op Alt+Shift+P)
+
+Fanproject. Niet verbonden aan Somtoday of Topicus.
+EOF
+
+mkdir -p "$UIT"
+rm -f "$ZIP"
+(cd "$WERK" && zip -rqX "$ZIP" "$NAAM")
+echo "$ZIP"
