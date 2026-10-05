@@ -1,0 +1,38 @@
+/*
+ * Somtoday Pack Opener — stijlen op leerling.somtoday.nl.
+ * Wordt vóór de pagina getekend geladen, zodat een cijfer nooit even zichtbaar is voordat
+ * content.js heeft bepaald of het al geopend is.
+ */
+
+/* Zolang content.js nog niet klaar is, blijven de cijfers verborgen. Gaat er iets mis,
+   dan komen ze na 2,5 seconde vanzelf terug: je ziet je cijfers dus altijd. */
+html:not([data-spo-klaar]) sl-laatste-resultaat-item .wegingcijfer {
+  visibility: hidden;
+  animation: spo-veilig 0s linear 2.5s forwards;
+}
+
+@keyframes spo-veilig {
+  to {
+    visibility: visible;
+  }
+}
+
+/* Een afgedekt cijfer: de rij zelf blijft op zijn plek (zodat de lijst niet verspringt),
+   maar de inhoud is onzichtbaar, ook voor schermlezers en bij selecteren/kopiëren. */
+.spo-vergrendeld {
+  position: relative !important;
+  cursor: pointer !important;
+}
+
+.spo-vergrendeld > :not(spo-afdekking) {
+  visibility: hidden !important;
+}
+
+spo-afdekking {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: block;
+  border-radius: inherit;
+  visibility: visible !important;
+}
