@@ -1,5 +1,16 @@
 # Wijzigingen
 
+## v0.4-beta
+
+Meer manieren om je cijfer te openen. Naast het pakje zijn er vier nieuwe openingen. Kies er één in de popup, of kies **Verras me**:
+
+- **Kluis kraken:** een enorme kluisdeur met een draaiknop die klikt, lampjes, een handwiel en bouten. Door de naad lekt licht (in de kleur van je niveau), de deur zwaait open en de kaart komt uit het licht.
+- **Plinko:** een neonbord waar een chromen bal door de pennen valt. In welk vak hij landt is je cijfer, en waar in het vak hij blijft laat de decimalen zien.
+- **Wensster:** een nachthemel boven een meer. De kleur van de vallende ster verraadt je niveau; de inslag op het water brengt je kaart.
+- **Raket:** aftellen en lanceren. Hoe hoog de raket komt is je cijfer (met een streepje bij de 5,5), en op het hoogste punt opent de capsule.
+- 15 nieuwe geluiden (ElevenLabs), en een eigen startscherm per opening.
+- Onder de motorkap: elke opening is een eigen module in `motor/openingen/` (handleiding: `LEESMIJ.md`); de kaartonthulling is voor alle openingen gelijk. Werkt een opening niet op jouw videokaart, dan valt de animatie vanzelf terug op het pakje.
+
 ## v0.3.1-beta
 
 Verfijning van de onthulling.
