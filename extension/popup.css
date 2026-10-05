@@ -739,6 +739,65 @@ input::placeholder {
   padding: 2px 2px 0;
 }
 
+/* Keuze van de opening */
+
+.opening-keuze {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-bottom: 3px;
+}
+
+.ok-kop {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--tekst-3);
+}
+
+.ok-raster {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.ok-raster button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 10px 4px 8px;
+  border-radius: 12px;
+  border: 1px solid var(--lijn);
+  background: var(--paneel);
+  color: var(--tekst-2);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.15s;
+}
+
+.ok-raster button:hover {
+  background: rgba(255, 255, 255, 0.085);
+  color: var(--tekst);
+}
+
+.ok-raster button:active {
+  transform: scale(0.97);
+}
+
+.ok-raster button[aria-checked='true'] {
+  color: #fff;
+  border-color: #ffb040;
+  background: linear-gradient(160deg, rgba(255, 176, 64, 0.2), rgba(255, 122, 61, 0.1));
+  box-shadow: 0 0 0 1px rgba(255, 176, 64, 0.3), 0 8px 22px -12px rgba(255, 140, 40, 0.9);
+}
+
+.ok-raster button[aria-checked='true'] svg {
+  color: #ffd24a;
+}
+
 .link {
   align-self: flex-start;
   font-size: 12px;

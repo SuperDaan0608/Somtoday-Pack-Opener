@@ -10,7 +10,8 @@
   const CIJFERS_URL = 'https://leerling.somtoday.nl/cijfers';
   const SLEUTEL_GEOPEND = 'spo_geopend';
   const SLEUTEL_INSTELLINGEN = 'spo_instellingen';
-  const STANDAARD = { afdekking: true, geluid: true, snel: false };
+  const STANDAARD = { afdekking: true, geluid: true, snel: false, opening: 'pak' };
+  const OPENINGEN = ['pak', 'kluis', 'plinko', 'ster', 'raket', 'willekeurig'];
 
   // Het formulier onthoudt zijn invoer in localStorage (zelfde sleutels als versie 0.1).
   const opslag = {
@@ -53,8 +54,34 @@
     } catch (e) {
       /* standaardwaarden */
     }
-    for (const k of Object.keys(STANDAARD)) $(k).checked = !!instellingen[k];
+    if (!OPENINGEN.includes(instellingen.opening)) instellingen.opening = 'pak';
+    for (const k of Object.keys(STANDAARD)) if (k !== 'opening') $(k).checked = !!instellingen[k];
+    toonOpening();
   }
+
+  // De keuze van de opening: één rij knoppen, altijd precies één gekozen (radiogroep).
+  function toonOpening() {
+    $('opening').querySelectorAll('button').forEach((b) => {
+      const aan = b.dataset.opening === instellingen.opening;
+      b.setAttribute('aria-checked', String(aan));
+      b.tabIndex = aan ? 0 : -1;
+    });
+  }
+  $('opening').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    bewaarInstelling('opening', b.dataset.opening);
+    toonOpening();
+  });
+  $('opening').addEventListener('keydown', (e) => {
+    const pijl = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+    if (!pijl) return;
+    e.preventDefault();
+    const i = OPENINGEN.indexOf(instellingen.opening);
+    bewaarInstelling('opening', OPENINGEN[(i + pijl + OPENINGEN.length) % OPENINGEN.length]);
+    toonOpening();
+    $('opening').querySelector('[aria-checked="true"]').focus();
+  });
 
   function bewaarInstelling(k, v) {
     instellingen[k] = v;
@@ -62,6 +89,7 @@
   }
 
   for (const k of Object.keys(STANDAARD)) {
+    if (k === 'opening') continue;
     $(k).addEventListener('change', (e) => {
       bewaarInstelling(k, e.target.checked);
       if (k === 'afdekking') setTimeout(toonSomtoday, 150); // de pagina heeft even nodig om te reageren
@@ -367,6 +395,7 @@
       weging,
       snel: !!instellingen.snel,
       stil: !instellingen.geluid,
+      opening: instellingen.opening,
     };
 
     const lijst = leesGeschiedenis();

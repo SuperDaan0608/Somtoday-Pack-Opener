@@ -20,6 +20,9 @@ esac
 WERK="$(mktemp -d)"
 trap 'rm -rf "$WERK"' EXIT
 cp -R "$ROOT/extension" "$WERK/$NAAM"
+# Alleen voor ontwikkelaars: het proef-voorbeeld en de handleiding voor het bouwen van openingen horen niet in de zip.
+rm -f "$WERK/$NAAM/motor/openingen/proef.js" "$WERK/$NAAM/motor/openingen/LEESMIJ.md"
+sed -i '/openingen\/proef\.js/d' "$WERK/$NAAM/stage.html"
 cat > "$WERK/$NAAM/LEESMIJ.txt" <<EOF
 Somtoday Pack Opener $VERSIE
 

@@ -18,7 +18,8 @@
 
   const SLEUTEL_GEOPEND = 'spo_geopend';
   const SLEUTEL_INSTELLINGEN = 'spo_instellingen';
-  const STANDAARD = { afdekking: true, geluid: true, snel: false };
+  const STANDAARD = { afdekking: true, geluid: true, snel: false, opening: 'pak' };
+  const OPENINGEN = ['pak', 'kluis', 'plinko', 'ster', 'raket'];
 
   const RIJ = 'sl-laatste-resultaat-item'; // de klikbare rij in "Laatste cijfers"
   const ITEM = 'sl-resultaat-item'; // daarbinnen: vak, onderwerp, weging en cijfer
@@ -241,7 +242,7 @@
     voorgeladen = true;
     const doe = () => {
       try {
-        if (typeof window.__somPackVoorlaad === 'function') window.__somPackVoorlaad();
+        if (typeof window.__somPackVoorlaad === 'function') window.__somPackVoorlaad(OPENINGEN.includes(instellingen.opening) ? instellingen.opening : 'pak');
       } catch (x) {
         /* voorladen is een extraatje */
       }
@@ -338,6 +339,19 @@
     /* geen opslag beschikbaar */
   }
 
+  // ───────────────────────── Welke opening? ─────────────────────────
+  // Bij "Verras me" kiezen we er één per cijfer, en houden die vast tot je het cijfer opent: dan kiezen het opwarmen
+  // (zodra je met de muis boven het cijfer hangt) en het echte openen dezelfde opening.
+  function openingVoor(rij) {
+    const keuze = instellingen.opening;
+    if (OPENINGEN.includes(keuze)) return keuze;
+    if (keuze !== 'willekeurig') return 'pak';
+    let st = staat.get(rij.host);
+    if (!st) staat.set(rij.host, (st = {}));
+    if (!st.willekeur) st.willekeur = OPENINGEN[Math.floor(Math.random() * OPENINGEN.length)];
+    return st.willekeur;
+  }
+
   // ───────────────────────── Pakket openen ─────────────────────────
   function markeer(sig) {
     geopend[sig] = (geopend[sig] || 0) + 1;
@@ -357,6 +371,7 @@
       weging: d.weging,
       snel: !!instellingen.snel,
       stil: !instellingen.geluid,
+      opening: openingVoor(rij),
       direct,
       opOnthuld() {
         if (gemarkeerd) return;
@@ -365,6 +380,8 @@
       },
       opGesloten() {
         bezig = false;
+        const st = staat.get(rij.host);
+        if (st) st.willekeur = null; // de volgende keer weer een nieuwe verrassing
         scan();
       },
     };
@@ -404,7 +421,7 @@
       const rij = rijen.find((r) => r.host === host);
       // dezelfde gegevens als bij open(): zo herkent de animatie dat de afbeeldingen al klaarstaan
       if (typeof window.__somPackWarm === 'function') {
-        window.__somPackWarm(rij && { vak: rij.d.vak, cijfer: rij.d.cijfer, onderwerp: rij.d.onderwerp || 'Nieuw cijfer', weging: rij.d.weging, snel: !!instellingen.snel });
+        window.__somPackWarm(rij && { vak: rij.d.vak, cijfer: rij.d.cijfer, onderwerp: rij.d.onderwerp || 'Nieuw cijfer', weging: rij.d.weging, snel: !!instellingen.snel, opening: openingVoor(rij) });
       }
     } catch (x) {
       /* opwarmen is een extraatje */
