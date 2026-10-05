@@ -3,7 +3,7 @@
   'use strict';
 
   // De bestanden van de animatie, in de volgorde waarin ze geladen moeten worden (zie manifest.json).
-  const PAKKET_BESTANDEN = ['motor/data.js', 'motor/audio.js', 'motor/shaders.js', 'motor/gl.js', 'motor/art.js', 'motor/scene.js', 'motor/main.js'];
+  const PAKKET_BESTANDEN = ['motor/data.js', 'motor/audio.js', 'motor/shaders.js', 'motor/gl.js', 'motor/art.js', 'motor/openingen/kluis.js', 'motor/openingen/plinko.js', 'motor/openingen/ster.js', 'motor/openingen/raket.js', 'motor/scene.js', 'motor/main.js'];
 
   const $ = (id) => document.getElementById(id);
   const SOMTODAY = /^https:\/\/leerling\.somtoday\.nl\//;

@@ -1230,21 +1230,31 @@
   };
   const maakKaartLagen = (data) => draai(kaartGen(data));
 
-  // Alles wat de animatie nodig heeft, in stukjes.
+  // Alles wat de animatie nodig heeft, in stukjes. De kaart en de titel zijn voor elke opening hetzelfde; het
+  // pakje en de plaatjes bestaan alleen bij de pakje-opening, en de andere openingen maken hun eigen
+  // afbeeldingen (SPO.openingen[naam].art, als gewone functie of als generator die tussendoor yield).
   function* allesGen(d) {
     const kleur = d.T.kleur;
     const lagen = yield* kaartGen(d);
     yield;
-    const pak = maakPak(d);
+    const pakje = d.opening === 'pak';
+    const pak = pakje ? maakPak(d) : null;
     yield;
     const titel = maakTitel(d);
     // de vliegende teksten zijn koel en neutraal: het niveau mag nog niet te zien zijn
     const koel = [0.55, 0.75, 1];
-    const vakTekst = d.snel ? null : maakVliegTekst('Vak', d.vak, koel);
-    const onderTekst = d.snel ? null : maakVliegTekst('Onderwerp', d.onder, koel);
+    const vakTekst = pakje && !d.snel ? maakVliegTekst('Vak', d.vak, koel) : null;
+    const onderTekst = pakje && !d.snel ? maakVliegTekst('Onderwerp', d.onder, koel) : null;
     yield;
-    const platen = d.walkout ? [maakPlaat('Vak', d.vak, kleur), maakPlaat('Onderwerp', d.onder, kleur), maakPlaat('Weging', `${d.weging}×  ·  Cijfer ???`, kleur)] : null;
-    return { lagen, pak, titel, vakTekst, onderTekst, platen };
+    const platen = pakje && d.walkout ? [maakPlaat('Vak', d.vak, kleur), maakPlaat('Onderwerp', d.onder, kleur), maakPlaat('Weging', `${d.weging}×  ·  Cijfer ???`, kleur)] : null;
+    let opening = null;
+    const op = SPO.openingen && SPO.openingen[d.opening];
+    if (op && op.art) {
+      yield;
+      const g = op.art(d, { art: SPO.art });
+      opening = g && typeof g.next === 'function' ? yield* g : g;
+    }
+    return { lagen, pak, titel, vakTekst, onderTekst, platen, opening };
   }
 
   // pauze: een functie die een belofte geeft; daarin mag de browser andere dingen doen.

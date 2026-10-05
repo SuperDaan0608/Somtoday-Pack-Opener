@@ -57,6 +57,27 @@
 
   const STATS = ['INZ', 'FOC', 'KEN', 'TMP', 'TEC', 'MOT'];
 
+  // De manieren waarop je een cijfer kunt openen. De animatie zelf staat per opening in motor/openingen/;
+  // dit zijn alleen de teksten, zodat het startscherm, de popup en content.js ze kennen zonder de rest te laden.
+  const OPENINGEN = {
+    pak: { naam: 'Pakje', knop: 'Pakket openen', tekst: 'Durf jij het pakket te openen?', aria: 'Pakket openen' },
+    kluis: { naam: 'Kluis kraken', knop: 'Kluis kraken', tekst: 'Durf jij de kluis te kraken?', aria: 'Kluis kraken' },
+    plinko: { naam: 'Plinko', knop: 'Bal laten vallen', tekst: 'Laat de bal vallen: waar komt hij terecht?', aria: 'Plinko spelen' },
+    ster: { naam: 'Wensster', knop: 'Doe een wens', tekst: 'Een ster valt voor jou. Wat brengt hij mee?', aria: 'Een wens doen' },
+    raket: { naam: 'Raket', knop: 'Lanceren', tekst: 'Hoe hoog komt jouw raket?', aria: 'Raket lanceren' },
+  };
+  const OPENING_LIJST = Object.keys(OPENINGEN);
+  // Bij 'willekeurig' kiezen we er één. Dat gebeurt één keer per cijfer (content.js), zodat het opwarmen en het openen hetzelfde kiezen.
+  // Een opening telt alleen mee als haar module ook echt geladen is (motor/openingen/<naam>.js).
+  const kiesOpening = (v) => {
+    const ok = (n) => n === 'pak' || !!(SPO.openingen && SPO.openingen[n]);
+    if (v === 'willekeurig') {
+      const l = OPENING_LIJST.filter(ok);
+      return l[Math.floor(Math.random() * l.length)];
+    }
+    return OPENINGEN[v] && ok(v) ? v : 'pak';
+  };
+
   SPO.klem = klem;
   SPO.mix = mix;
   SPO.glad = glad;
@@ -69,6 +90,9 @@
   SPO.hex3 = hex3;
   SPO.hsv = hsv;
   SPO.TIERS = TIERS;
+  SPO.OPENINGEN = OPENINGEN;
+  SPO.OPENING_LIJST = OPENING_LIJST;
+  SPO.kiesOpening = kiesOpening;
 
   SPO.maakData = function (d) {
     const n = parseFloat(String(d.cijfer).replace(',', '.'));
@@ -90,6 +114,7 @@
       tier,
       T,
       walkout: g >= 7,
+      opening: kiesOpening(d.opening),
       vak,
       onder: tekst(d.onderwerp, 'Toets', 80),
       weging: klem(Math.round(+d.weging) || 1, 1, 10),

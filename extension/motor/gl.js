@@ -93,6 +93,23 @@
       const l = this.l(n);
       if (l) this.motor.gl.uniform4fv(l, arr);
     }
+    // Lijsten (uniform float u[N], vec2 u[N], vec3 u[N]): geef de naam van het eerste element ('uLijst[0]') en een Float32Array.
+    f1v(n, arr) {
+      const l = this.l(n);
+      if (l) this.motor.gl.uniform1fv(l, arr);
+    }
+    f2v(n, arr) {
+      const l = this.l(n);
+      if (l) this.motor.gl.uniform2fv(l, arr);
+    }
+    f3v(n, arr) {
+      const l = this.l(n);
+      if (l) this.motor.gl.uniform3fv(l, arr);
+    }
+    m3(n, arr) {
+      const l = this.l(n);
+      if (l) this.motor.gl.uniformMatrix3fv(l, false, arr);
+    }
     // Koppelt een tekstuur aan een sampler: eenheid u.
     tex(n, u, t) {
       const gl = this.motor.gl;
@@ -115,6 +132,7 @@
       this.vao = gl.createVertexArray();
       gl.bindVertexArray(this.vao);
       this.p = {};
+      this.extra = new Set(); // namen van de openingen waarvan de programma's al zijn toegevoegd
       this.doelen = null;
       this.breedte = 0;
       this.hoogte = 0;
@@ -208,8 +226,30 @@
       return klaar;
     }
 
+    // Programma's van een opening (motor/openingen/<naam>.js) worden pas gecompileerd als die opening aan de
+    // beurt is. Elke shader heet <opening>.<naam>; teken zegt hoe opwarmen() hem droog moet tekenen:
+    //   'vol' (één grote driehoek, de standaard), 'strip' (vierkant van 4 punten), 'inst' (4 punten, 2 keer),
+    //   'geen' (niet opwarmen) of een functie (gl, programma) => {...}.
+    voegToe(opening) {
+      if (!opening || !opening.shaders || this.extra.has(opening.naam)) return;
+      this.extra.add(opening.naam);
+      for (const k in opening.shaders) {
+        const sh = opening.shaders[k];
+        const p = new Programma(this, opening.naam + '.' + k, sh.vs, sh.fs);
+        p.soort = sh.teken || 'vol';
+        this.p[opening.naam + '.' + k] = p;
+      }
+    }
+
+    // Het geheel: de basisprogramma's moeten werken. De programma's van een opening tellen apart (openingGelukt),
+    // want als één daarvan op jouw videokaart niet compileert, vallen we terug op het pakje.
     get gelukt() {
-      return Object.values(this.p).every((p) => p.ok);
+      return Object.keys(this.p).every((n) => n.indexOf('.') >= 0 || this.p[n].ok);
+    }
+
+    openingGelukt(naam) {
+      const voor = naam + '.';
+      return Object.keys(this.p).every((n) => n.indexOf(voor) !== 0 || this.p[n].ok);
     }
 
     // ───────── render-doelen ─────────
@@ -377,6 +417,11 @@
           gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, 2);
         } else if (n === 'kaart' || n === 'plaat') {
           gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        } else if (p.soort) {
+          if (typeof p.soort === 'function') p.soort(gl, p);
+          else if (p.soort === 'strip') gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+          else if (p.soort === 'inst') gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, 2);
+          else if (p.soort !== 'geen') gl.drawArrays(gl.TRIANGLES, 0, 3);
         } else {
           gl.drawArrays(gl.TRIANGLES, 0, 3);
         }

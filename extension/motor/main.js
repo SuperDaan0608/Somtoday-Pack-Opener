@@ -18,13 +18,13 @@
 (function () {
   'use strict';
   const SPO = (window.__SPO = window.__SPO || {});
-  const { klem, esc } = SPO;
+  const { klem, esc, OPENINGEN } = SPO;
 
   const HOST_ID = '__somPackHost';
   let warmStaat = null; // een alvast klaargezette motor (zie warm)
   let artCache = null; // { sleutel, belofte }: de afbeeldingen van het cijfer waar je het laatst boven hing
 
-  const sleutelVan = (d) => [d.vak, d.cijferTekst, d.onder, d.weging, d.snel ? 1 : 0].join('|');
+  const sleutelVan = (d) => [d.vak, d.cijferTekst, d.onder, d.weging, d.snel ? 1 : 0, d.opening].join('|');
   const pauzeRustig = () => new Promise((r) => (window.requestIdleCallback ? requestIdleCallback(() => r(), { timeout: 150 }) : setTimeout(r, 12)));
   const pauzeSnel = () => new Promise((r) => setTimeout(r, 0));
 
@@ -47,11 +47,29 @@
     warmStaat = null;
   }
 
+  // Wacht tot alle programma's van een warme motor klaar zijn en tekent ze dan één keer droog.
+  function opwarmVolg(staat) {
+    const poll = () => {
+      if (warmStaat !== staat) return;
+      if (staat.motor.alleKlaar()) {
+        if (staat.motor.gelukt) {
+          staat.motor.zetGrootte(64, 64);
+          staat.motor.opwarmen();
+        }
+        staat.klaar = true;
+      } else setTimeout(poll, 40);
+    };
+    poll();
+  }
+
   function warm(data) {
+    let mod = null;
     // De afbeeldingen van dit cijfer maken we alvast, in kleine stukjes tussen de rest door.
     if (data) {
       try {
         const dd = SPO.maakData(data);
+        mod = dd.opening !== 'pak' ? SPO.openingen[dd.opening] : null;
+        SPO.audio.voorlaad(dd.opening);
         const sleutel = sleutelVan(dd);
         if (!artCache || artCache.sleutel !== sleutel) {
           const belofte = SPO.art.laadLettertypes().then(() => SPO.art.maakAllesAsync(dd, pauzeRustig));
@@ -64,26 +82,26 @@
         artCache = null;
       }
     }
-    if (warmStaat || !SPO.Motor) return;
+    if (!SPO.Motor) return;
+    if (warmStaat) {
+      // de motor staat al klaar; de programma's van deze opening komen er nog bij
+      if (mod && !warmStaat.motor.extra.has(mod.naam) && !warmStaat.motor.gl.isContextLost()) {
+        warmStaat.klaar = false;
+        warmStaat.motor.voegToe(mod);
+        opwarmVolg(warmStaat);
+      }
+      return;
+    }
     try {
       SPO.art.laadLettertypes();
       SPO.audio.voorlaad();
       const canvas = document.createElement('canvas');
       const motor = SPO.Motor.maak(canvas, {});
       if (!motor) return;
+      if (mod) motor.voegToe(mod);
       const staat = { canvas, motor, klaar: false, timer: 0 };
       warmStaat = staat;
-      const poll = () => {
-        if (warmStaat !== staat) return;
-        if (motor.alleKlaar()) {
-          if (motor.gelukt) {
-            motor.zetGrootte(64, 64);
-            motor.opwarmen();
-          }
-          staat.klaar = true;
-        } else setTimeout(poll, 40);
-      };
-      poll();
+      opwarmVolg(staat);
       // Een kwartier niets gedaan? Dan geven we de videokaart weer vrij.
       staat.timer = setTimeout(ontwarm, 15 * 60 * 1000);
     } catch (e) {
@@ -126,7 +144,7 @@
     };
 
     // ───── geluid: de AudioContext moet tijdens de klik worden gemaakt ─────
-    const audio = SPO.audio.maak({ tier: d.tier, stil });
+    const audio = SPO.audio.maak({ tier: d.tier, stil, opening: d.opening });
     const geluidKlaar = audio.laad();
 
     // ───── overlay (shadow DOM) ─────
@@ -193,7 +211,7 @@
     host.style.cssText = 'all:initial;position:fixed;inset:0;z-index:2147483647;';
     const root = host.attachShadow({ mode: 'open' });
     root.innerHTML = `<style>${CSS}</style>
-      <div class="wrap" role="dialog" aria-modal="true" aria-label="Pakket openen: ${esc(d.vak)}">
+      <div class="wrap" role="dialog" aria-modal="true" aria-label="${esc(OPENINGEN[d.opening].aria)}: ${esc(d.vak)}">
         <div class="canvasplek"></div>
         <div class="reserve"></div>
         <div class="top">
@@ -207,9 +225,9 @@
           <div class="melding">
             <div class="m-kop"><span class="m-app">${LOGO}Somtoday Pack Opener</span><span>nu</span></div>
             <div class="m-titel">Nieuw cijfer!</div>
-            <div class="m-tekst">Er staat een nieuw cijfer klaar voor <b>${esc(d.vak)}</b>. Durf jij het pakket te openen?</div>
+            <div class="m-tekst">Er staat een nieuw cijfer klaar voor <b>${esc(d.vak)}</b>. <span class="m-vraag">${esc(OPENINGEN[d.opening].tekst)}</span></div>
             <div class="m-sub"><span class="chip">${esc(d.onder)}</span><span class="chip">Weging ${d.weging}×</span></div>
-            <button class="knop goud m-knop" data-a="start">${svg('pakket')}<span>Pakket openen</span></button>
+            <button class="knop goud m-knop" data-a="start">${svg('pakket')}<span class="m-knoptekst">${esc(OPENINGEN[d.opening].knop)}</span></button>
             <div class="m-hint">of druk op spatie</div>
           </div>
         </div>
@@ -353,6 +371,13 @@
       scene.teken(t, dt, inv);
       beeldTeller++;
       regel(nu, ft);
+      // Geeft de opening steeds een fout? Dan slaan we haar over en gaan we meteen naar de kaart.
+      if (scene.opFouten > 4 && fase === 'reeks' && t < scene.tl.K0 - 0.4) {
+        const doel = scene.tl.K0 - 0.4;
+        for (const e of scene.ev) if (e.tijd < doel) e.klaar = true;
+        audio.stopAlles();
+        start = nuMs() - doel * 1000;
+      }
 
       const tl = scene.tl;
       if (fase === 'reeks') {
@@ -383,17 +408,13 @@
     function overslaan() {
       if (fase !== 'reeks' || !scene) return;
       const t = tNu(nuMs());
-      const { E, K0, RV, wo } = scene.tl;
-      let doel;
-      if (t < E - 0.6) doel = E - 0.45;
-      else if (t < E + 0.5) return; // net voor of tijdens het scheuren: dat laten we even gebeuren
-      else if (wo && t < K0 - 0.5) doel = K0 - 0.4;
-      else if (t < RV - 0.6) doel = RV - 0.5;
-      else return;
+      const sp = scene.sprong(t);
+      if (!sp) return;
+      const doel = sp.doel;
       for (const e of scene.ev) if (e.tijd < doel) e.klaar = true;
       audio.stopAlles();
       audio.zwiep(0.5);
-      if (doel === E - 0.45) audio.riser(0.45, 0.8);
+      if (sp.riser) audio.riser(0.45, 0.8);
       start = nuMs() - doel * 1000;
     }
 
@@ -565,17 +586,30 @@
         if (!motor) throw new Error('geen webgl');
         motor.debug = debug;
         motor.kwaliteit = 0;
+        const opMod = d.opening !== 'pak' ? SPO.openingen[d.opening] : null;
+        if (opMod) motor.voegToe(opMod);
 
         // de afbeeldingen: uit de voorraad als je er al boven hing, anders nu maken
         const sleutel = sleutelVan(d);
         const belofte = artCache && artCache.sleutel === sleutel ? artCache.belofte : SPO.art.maakAllesAsync(d, pauzeSnel);
         artCache = null;
-        const art = await belofte;
+        let art = await belofte;
         lagen = art.lagen;
         log('afbeeldingen klaar');
         let wacht = 0;
         while (!motor.alleKlaar() && wacht++ < 200) await new Promise((r) => setTimeout(r, 20));
         if (!motor.gelukt) throw new Error('shaders mislukt: ' + motor.fouten.join(' | '));
+        if (opMod && !motor.openingGelukt(opMod.naam)) {
+          // Deze opening werkt niet op deze videokaart: dan maar het pakje.
+          if (debug) console.error('[pakket] opening ' + opMod.naam + ' mislukt, terug naar het pakje: ' + motor.fouten.join(' | '));
+          d.opening = 'pak';
+          art = await SPO.art.maakAllesAsync(d, pauzeSnel);
+          lagen = art.lagen;
+          const kt = root.querySelector('.m-knoptekst');
+          const vr = root.querySelector('.m-vraag');
+          if (kt) kt.textContent = OPENINGEN.pak.knop;
+          if (vr) vr.textContent = OPENINGEN.pak.tekst;
+        }
         if (gesloten) return;
         await volgendBeeld();
         canvas.addEventListener('webglcontextlost', (e) => {
@@ -607,6 +641,7 @@
             motor,
             d,
             tl: scene.tl,
+            opening: d.opening,
             seek(t, tx = 0, ty = 0) {
               fase = 'reeks';
               actief = false;
@@ -639,9 +674,9 @@
     })();
   }
 
-  function voorlaad() {
+  function voorlaad(opening) {
     SPO.art.laadLettertypes();
-    SPO.audio.voorlaad();
+    SPO.audio.voorlaad(opening);
   }
 
   window.__somPackRun = run;

@@ -22,6 +22,20 @@
   };
   const TIER_GELUID = ['brons', 'zilver', 'goud', 'speciaal', 'icoon'];
 
+  // Geluiden die alleen bij één opening horen: die worden pas opgehaald en gedecodeerd als die opening aan de beurt is.
+  const GROEPEN = {
+    kluis: ['kluis-klik', 'kluis-slot', 'kluis-wiel', 'kluis-deur'],
+    plinko: ['plinko-tok', 'plinko-vak', 'plinko-bel'],
+    ster: ['ster-vlucht', 'ster-inslag', 'ster-nacht'],
+    raket: ['raket-piep', 'raket-start', 'raket-motor', 'raket-trap', 'raket-knal'],
+  };
+  Object.assign(NIVEAU, {
+    'kluis-klik': -12, 'kluis-slot': -4, 'kluis-wiel': -6, 'kluis-deur': -4,
+    'plinko-tok': -9, 'plinko-vak': -5, 'plinko-bel': -6,
+    'ster-vlucht': -6, 'ster-inslag': -3, 'ster-nacht': -14,
+    'raket-piep': -10, 'raket-start': -4, 'raket-motor': -7, 'raket-trap': -5, 'raket-knal': -3,
+  });
+
   const dB = (x) => Math.pow(10, x / 20);
   const basis = window.chrome && chrome.runtime && chrome.runtime.getURL ? chrome.runtime.getURL('sounds/') : 'sounds/';
 
@@ -33,14 +47,20 @@
   const buffers = {};
   const actief = new Set();
 
-  // Haalt de bestanden op zonder iets af te spelen of een AudioContext te maken (dat mag pas na een klik).
-  function voorlaad() {
-    for (const naam of GELUIDEN) {
-      if (ruw[naam]) continue;
+  function haal(naam) {
+    if (!ruw[naam]) {
       ruw[naam] = fetch(basis + naam + '.mp3')
         .then((r) => (r.ok ? r.arrayBuffer() : null))
         .catch(() => null);
     }
+    return ruw[naam];
+  }
+
+  // Haalt de bestanden op zonder iets af te spelen of een AudioContext te maken (dat mag pas na een klik).
+  // opening: ook de geluiden van die opening (zie GROEPEN).
+  function voorlaad(opening) {
+    for (const naam of GELUIDEN) haal(naam);
+    for (const naam of GROEPEN[opening] || []) haal(naam);
   }
 
   function init(stil) {
@@ -82,8 +102,7 @@
 
   function decodeer(naam) {
     if (!gedecodeerd[naam]) {
-      voorlaad();
-      gedecodeerd[naam] = ruw[naam]
+      gedecodeerd[naam] = haal(naam)
         .then((ab) => (ab ? AC.decodeAudioData(ab) : null))
         .then((b) => {
           if (b) buffers[naam] = b;
@@ -96,10 +115,11 @@
   }
 
   // Speelt één opname af. offset en duur in seconden van de opname; rate verandert snelheid en toonhoogte.
-  function speel(naam, { gain = 1, rate = 1, offset = 0, duur, fadeIn = 0.004, fadeOut = 0.06, galmen = 0, pan = 0 } = {}) {
+  // delay: laat het geluid pas over zoveel seconden beginnen. Geeft een handvat terug: h.stop(fade) laat het wegsterven.
+  function speel(naam, { gain = 1, rate = 1, offset = 0, duur, fadeIn = 0.004, fadeOut = 0.06, galmen = 0, pan = 0, delay = 0 } = {}) {
     const buf = buffers[naam];
-    if (!AC || !master || !buf) return;
-    const nu = AC.currentTime;
+    if (!AC || !master || !buf) return null;
+    const nu = AC.currentTime + Math.max(0, delay);
     const max = Math.max(0.05, (buf.duration - offset) / rate);
     const d = Math.min(duur || max, max);
     const vol = dB(NIVEAU[naam] || 0) * gain;
@@ -133,19 +153,27 @@
     const spoor = { g };
     actief.add(spoor);
     src.onended = () => actief.delete(spoor);
+    return {
+      stop(fade = 0.08) {
+        const t = AC.currentTime;
+        g.gain.cancelScheduledValues(t);
+        g.gain.setTargetAtTime(0, t, Math.max(0.005, fade / 3));
+      },
+    };
   }
 
   // Maakt de geluiden voor één pakket. tier: 0 (brons) tot 4 (icoon).
-  function maak({ tier, stil }) {
+  function maak({ tier, stil, opening }) {
     init(stil);
+    const eigen = GROEPEN[opening] || [];
     let eerste = Promise.resolve();
     let alles = Promise.resolve();
     return {
       // Decodeert alles. De belofte gaat open zodra de eerste geluiden klaar zijn; de rest volgt.
       laad() {
         if (!AC) return Promise.resolve();
-        eerste = Promise.all(EERST.map(decodeer));
-        alles = Promise.all(GELUIDEN.map(decodeer));
+        eerste = Promise.all(EERST.concat(eigen).map(decodeer));
+        alles = Promise.all(GELUIDEN.concat(eigen).map(decodeer));
         return eerste;
       },
       get klaar() {
@@ -233,8 +261,13 @@
       knop() {
         speel('klik');
       },
+      // Voor de openingen: elk geluid bij naam, met alle opties van speel().
+      speel,
+      get tier() {
+        return tier;
+      },
     };
   }
 
-  SPO.audio = { maak, voorlaad, GELUIDEN };
+  SPO.audio = { maak, voorlaad, GELUIDEN, GROEPEN, NIVEAU };
 })();
