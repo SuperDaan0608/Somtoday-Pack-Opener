@@ -63,13 +63,14 @@ vec3 dek(vec3 col, vec2 p, float a, vec4 D, float idx){
   if (D.x > 0.) {
     if (a <= 0.) return col;
     float z = D.x / (a + .015);
-    vec2 q = vec2(p.x * z * 1.15, z * 1.6) + vec2(idx * 17.3 + uDrift.x, idx * 7.1 + uDrift.y);
+    vec2 q = vec2(p.x * z * 1.15, z * 1.6) * (1. + 2.5 / (1. + z * 3.)) + vec2(idx * 17.3 + uDrift.x, idx * 7.1 + uDrift.y);
     float n = wolk(q * 1.3);
     float cov = smoothstep(.66 - .4 * D.z, .8 - .28 * D.z, n);
     cov = mix(D.z * .85, cov, exp(-z * .1)) * smoothstep(0., .03, a);
-    vec3 cc = mix(vec3(.022, .026, .04), vec3(.36, .4, .48), D.w) * (.45 + .7 * n);
-    float vl = uVlam.z * exp(-D.x * 5.) * exp(-abs(p.x - uVlam.x) * 2.2 / (1. + z * .5));
-    cc += uVlamK * vl * (.1 + .35 * n) * .6;
+    vec3 cc = mix(vec3(.024, .028, .042), vec3(.36, .4, .48), D.w) * (.45 + .7 * n);
+    vec2 dv = (p - uVlam.xy) * vec2(.8, 1.);
+    float vl = uVlam.z * exp(-D.x * 3.2) * exp(-length(dv) * 1.6 / (1. + z * .3));
+    cc += uVlamK * vl * (.12 + .5 * n) * .9;
     float mist = exp(-D.x * 16.);
     cc = mix(cc, mistK, mist);
     return mix(col, cc, max(cov, mist));
@@ -94,7 +95,8 @@ vec3 dek(vec3 col, vec2 p, float a, vec4 D, float idx){
     cc = mix(cc, mistK, mist);
     return mix(col, cc, max(cov, mist));
   }
-  return mix(col, mistK + uVlamK * uVlam.z * .06, D.z);
+  float gl = uVlam.z * exp(-length((p - uVlam.xy) * vec2(.9, .7)) * 2.6);
+  return mix(col, mistK + uVlamK * gl * .55, D.z);
 }
 void main(){
   vec2 p = (gl_FragCoord.xy - .5 * uRes) / uRes.y;
@@ -1519,7 +1521,7 @@ void main(){
       const KL = KLAP[tier];
       c.schok(E, 0.02 + 0.03 * c.I, 0.25);
       c.flits(E, KL.flits * 0.6, 0.025);
-      c.flits(E, KL.flits * 0.5, 0.12 + 0.1 * c.I);
+      c.flits(E, KL.flits * 0.3, 0.1 + 0.08 * c.I);
       for (let i = 0; i < KL.golven; i++) c.golf(E + i * 0.11, 1.15 + i * 0.25, 0.9 - i * 0.12, neusY);
 
       // ───── deeltjes ─────
@@ -1596,35 +1598,30 @@ void main(){
         o[2] = z / l;
       }
       function lichtRaket(t) {
-        // het licht om de raket heen, afhankelijk van de hoogte en het moment
+        // het licht om de raket heen: schijnwerpers op het platform, maanlicht in de nacht, de zon boven de wolken
         const f = S.f;
-        const pad = 1 - sm(f, 0.004, 0.03);
+        const lamp = 1 - sm(f, 0.012, 0.05);
         const zon = sm(f, 0.11, 0.2);
+        const nacht = (1 - lamp) * (1 - zon);
         const ruimte = sm(f, 0.45, 0.7);
-        if (pad > 0.5) {
-          // schijnwerpers links en rechts
-          zetDir(keyDir, -0.72, -0.05, 0.68);
-          zetDir(key2Dir, 0.78, -0.08, 0.6);
-        } else {
-          zetDir(keyDir, 0.75, 0.22, 0.62);
-          zetDir(key2Dir, -0.35, -0.75, 0.55);
-        }
-        const kp = pad > 0.5 ? pad : 0;
-        const kI = 1.05 * kp + (1 - kp) * (0.05 + 1.05 * zon + 0.25 * ruimte);
-        keyK[0] = kI * mix(0.86, 1.0, zon);
-        keyK[1] = kI * mix(0.93, 0.95, zon);
-        keyK[2] = kI * mix(1.1, 0.9, zon) * mix(1, 1.08, ruimte);
-        const k2 = 0.62 * kp + (1 - kp) * (0.08 * zon + 0.14 * ruimte);
+        zetDir(keyDir, -0.72 * lamp + 0.5 * nacht + 0.75 * zon, -0.05 * lamp + 0.5 * nacht + 0.22 * zon, 0.68 * lamp + 0.7 * nacht + 0.62 * zon);
+        zetDir(key2Dir, 0.78 * lamp - 0.35 * (1 - lamp), -0.08 * lamp - 0.75 * (1 - lamp), 0.6);
+        const kz = 1.05 + 0.25 * ruimte;
+        keyK[0] = 1.0 * lamp * 0.92 + 0.28 * nacht + kz * zon * 1.0;
+        keyK[1] = 1.0 * lamp * 0.98 + 0.33 * nacht + kz * zon * 0.95;
+        keyK[2] = 1.0 * lamp * 1.12 + 0.46 * nacht + kz * zon * mix(0.9, 0.98, ruimte);
+        const k2 = 0.62 * lamp + (1 - lamp) * (0.06 + 0.08 * zon + 0.12 * ruimte);
         key2K[0] = k2 * 0.62;
         key2K[1] = k2 * 0.72;
         key2K[2] = k2 * 0.95;
         const dag = zon * (1 - ruimte);
-        luchtK[0] = mix(0.025, 0.1, dag) + 0.008;
-        luchtK[1] = mix(0.03, 0.15, dag) + 0.01;
-        luchtK[2] = mix(0.06, 0.27, dag) + 0.025;
-        bodemK[0] = mix(0.02, 0.22, dag) + 0.02 * ruimte;
-        bodemK[1] = mix(0.022, 0.22, dag) + 0.04 * ruimte;
-        bodemK[2] = mix(0.032, 0.27, dag) + 0.09 * ruimte;
+        const gl = S.kr * (1 - zon * 0.6) * 0.16;
+        luchtK[0] = mix(0.025, 0.1, dag) + 0.008 + gl * 0.5;
+        luchtK[1] = mix(0.03, 0.15, dag) + 0.01 + gl * 0.3;
+        luchtK[2] = mix(0.06, 0.27, dag) + 0.025 + gl * 0.12;
+        bodemK[0] = mix(0.02, 0.22, dag) + 0.02 * ruimte + gl * 1.6;
+        bodemK[1] = mix(0.022, 0.22, dag) + 0.04 * ruimte + gl * 0.9;
+        bodemK[2] = mix(0.032, 0.27, dag) + 0.09 * ruimte + gl * 0.36;
         // het raampje: binnenverlichting, na E in de kleur van het niveau
         const na = t >= E ? sm(t, E - 0.02, E + 0.12) : 0;
         raamK[0] = mix(0.3, c.kl[0] * 3, na);
@@ -1647,7 +1644,8 @@ void main(){
           D[1] = 0;
         } else if (f > range[1]) {
           D[0] = 0;
-          D[1] = (f - range[1]) * KD;
+          const x = (f - range[1]) * KD;
+          D[1] = x / (1 + x * 1.1);
         } else {
           D[0] = 0;
           D[1] = 0;
@@ -1787,11 +1785,11 @@ void main(){
           const q = t - P.sep;
           if (q < 1.8) {
             // waar was het anker toen de trap losliet? De camera volgt de tweede trap; de eerste valt achter.
-            const val = (0.3 * q + 0.5 * 1.1 * q * q) * z;
+            const val = (0.55 * q + 0.5 * 1.8 * q * q) * z;
             const bth = th + 0.25 * q * q + 0.08 * q;
-            const bx = ax - 0.035 * q * z;
+            const bx = ax - 0.09 * q * z;
             const by = ay - val;
-            p.f1('uAlpha', fade * (1 - sm(q, 1.1, 1.75)));
+            p.f1('uAlpha', fade * (1 - sm(q, 0.7, 1.3)));
             raketDeel(bx, by, bth, z * (1 - 0.06 * q), 0, 320, Y_TRAP, Y_BODEM, CX, Y_NAAD);
             p.f1('uAlpha', fade);
           }
@@ -1899,8 +1897,8 @@ void main(){
         let wit = 0;
         if (P.knal !== null && t >= P.knal && t < P.knal + 1.2) {
           const q = t - P.knal;
-          ring = 0.9 * Math.exp(-q / 0.35);
-          ringR = 0.05 + 1.1 * q;
+          ring = 0.75 * Math.exp(-q / 0.16);
+          ringR = 0.04 + 1.9 * q;
           wit = 0.1 * Math.exp(-q / 0.05);
         }
         if (t >= P.TI && t < P.TI + 0.6) wit += 0.18 * Math.exp(-(t - P.TI) / 0.08) * (c.reduceer ? 0.4 : 1);
@@ -2014,7 +2012,7 @@ void main(){
         const cx = S.ax;
         const cy = S.ay + 0.012;
         const kern = KL.kern * (Math.exp(-q / 0.35) * 1.4 + 0.5 * sm(q, 0, 0.3)) * fade;
-        c.licht(t, cx, cy, kern * 0.5, 0.012 + 0.05 * Math.min(q, 0.8), KL.kern * 0.9 * Math.exp(-q / 0.6) * fade, KL.stralen * 0.6 * Math.exp(-q / 0.9) * fade, t * 0.3);
+        c.licht(t, cx, cy, kern * 0.3, 0.012 + 0.05 * Math.min(q, 0.8), KL.kern * 0.9 * Math.exp(-q / 0.6) * fade, KL.stralen * 0.6 * Math.exp(-q / 0.9) * fade, t * 0.3);
         const op = sm(q, 0, 0.08) * fade;
         c.stralen(t, op * KL.stralen * 0.9, 0.25 + 0.55 * I + 0.25 * sm(t, E + 0.5, K0), 0.1 + 0.4 * KL.kern * Math.exp(-q / 0.5), 0.15, cx, cy, t * (0.2 + 0.3 * I), 0);
       }
