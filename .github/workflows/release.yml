@@ -1,0 +1,41 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Zip maken
+        run: |
+          chmod +x scripts/package.sh
+          ./scripts/package.sh "$GITHUB_REF_NAME"
+
+      - name: Release-notities uit CHANGELOG.md halen
+        run: |
+          awk -v kop="## $GITHUB_REF_NAME" '
+            $0 == kop { aan = 1; next }
+            aan && /^## / { exit }
+            aan { print }
+          ' CHANGELOG.md > notities.md
+          printf '\n### Installeren\n\n1. Download de zip hieronder en pak hem uit.\n2. Ga naar `chrome://extensions` en zet **Ontwikkelaarsmodus** aan.\n3. Klik **Uitgepakte extensie laden** en kies de map `somtoday-pack-opener`.\n' >> notities.md
+
+      - name: Release publiceren
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VLAG=""
+          case "$GITHUB_REF_NAME" in *beta*|*alpha*|*rc*) VLAG="--prerelease" ;; esac
+          TITEL="Somtoday Pack Opener ${GITHUB_REF_NAME#v}"
+          TITEL="${TITEL/-beta/ bèta}"
+          gh release create "$GITHUB_REF_NAME" dist/*.zip \
+            --title "$TITEL" \
+            --notes-file notities.md \
+            $VLAG
