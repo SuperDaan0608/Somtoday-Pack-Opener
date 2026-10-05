@@ -272,7 +272,7 @@
       e({ mode: 3, t0: RV, life: 5, delay: 0.2, n: 160, alpha: 0.8, seed: 9, blend: 'alpha' });
       e({ mode: 6, t0: RV, life: 3.2, delay: 0.5, n: 14, org: [0, -0.2], size: [0.18, 0.4], col1: [0.16, 0.12, 0.1], col2: [0.3, 0.22, 0.16], blend: 'alpha', seed: 10, lod: false });
     } else if (d.g >= 6) {
-      e({ mode: 2, t0: RV + 0.1, life: 4.6, delay: 1.1, n: Math.round(60 + 520 * Math.max(0, I - 0.5) * 2 * (d.g >= 9 ? 1.4 : 1)), org: [0, 0.62], angle: -Math.PI / 2, spread: 0.7, spd: [0.1, 0.45], grav: [0, -0.09], drag: 0.45, size: [0.008, 0.017], alpha: 1, blend: 'alpha', seed: 12 });
+      e({ mode: 2, t0: RV + 0.1, life: 4.6, delay: 1.1, n: Math.round(50 + 330 * Math.max(0, I - 0.5) * 2 * (d.g >= 9 ? 1.4 : 1)), org: [0, 0.62], angle: -Math.PI / 2, spread: 0.7, spd: [0.1, 0.45], grav: [0, -0.09], drag: 0.45, size: [0.008, 0.017], alpha: 1, blend: 'alpha', seed: 12 });
     }
     // een staart van vonken terwijl de kaart de lucht in draait
     e({ mode: 0, t0: K0, delay: tl.spin * 0.9, life: 0.9, n: Math.round(80 + 260 * I), org: [0, 0.01], angle: 0, spread: TWEE_PI, spd: [0.12, 0.7], grav: [0, 0], drag: 2.2, size: [0.0014, 0.0038], col1: kl, col2: wit, alpha: 0.7, seed: 15 });
@@ -476,6 +476,7 @@
       const fit = klem((visB * 0.8) / KAART_B, 0.5, 1);
       const R = (v) => v * fit;
       const laad = t < c1 ? 0 : glad(ramp(t, c1, E));
+      const rustig2 = t >= RV ? sm(t, RV + 0.9, RV + 2.6) : 0; // na de onthulling wordt het beeld rustiger
       const wo = tl.wo;
       const walkoutBezig = !!wo && t >= wo[0] - 0.02 && t < K0 + 0.12;
 
@@ -512,7 +513,8 @@
           }
           haze = 0.22;
         }
-        stralen(t, stralenKans, pow, core, haze, 0, 0.02, t * (0.12 + 0.35 * laad + (t >= RV ? 0.2 : 0)), 1);
+        const dim = 1 - 0.62 * rustig2;
+        stralen(t, stralenKans * (1 - 0.35 * rustig2), pow * dim, core * dim, haze, 0, 0.02, t * (0.12 + 0.35 * laad + (t >= RV ? 0.2 : 0)), 1);
       }
 
       // de walkout-arena
@@ -657,7 +659,7 @@
         const op = veer(ramp(q, 0, 0.6));
         // na de onthulling schuift de kaart wat omlaag en wordt hij iets kleiner, zodat de titel erboven past
         const lay = sm(t, RV + 0.15, RV + 0.9);
-        const sc = KAART_H * R(1) * (0.02 + 0.98 * Math.min(1.12, op)) * mix(1, 0.82, lay);
+        const sc = KAART_H * R(1) * (0.02 + 0.98 * Math.min(1.12, op)) * mix(1, 0.92, lay);
         // tel het cijfer op
         const cp = ramp(t, tl.telStart, RV);
         const val = t >= RV ? d.g : 1 + (d.g - 1) * (1 - Math.pow(1 - cp, 2));
@@ -685,7 +687,7 @@
         kantel[1] = ky;
         const sc2 = sc * (1 + (t >= RV ? 0.08 * Math.exp(-(t - RV) / 0.45) : 0) + 0.012 * Math.sin(t * 1.6) * rust);
         const p = P.kaart.gebruik();
-        obj(p, 0, mix(0.03, -0.13, lay) + Math.sin(t * 1.15) * 0.012 * rust, z, -ky * 0.3 + Math.sin(t * 0.6) * 0.03 * rust, draai + kx * 0.4 + Math.sin(t * 0.8) * 0.05 * rust, 0.04 * (1 - uit) * Math.sin(q * 6), (KAART_B / KAART_H) * sc2, sc2);
+        obj(p, 0, mix(0.03, -0.17, lay) + Math.sin(t * 1.15) * 0.012 * rust, z, -ky * 0.3 + Math.sin(t * 0.6) * 0.03 * rust, draai + kx * 0.4 + Math.sin(t * 0.8) * 0.05 * rust, 0.04 * (1 - uit) * Math.sin(q * 6), (KAART_B / KAART_H) * sc2, sc2);
         p.tex('uBG', 0, tex.bg);
         p.tex('uMid', 1, tex.mid);
         p.tex('uFG', 2, tex.fg);
@@ -719,7 +721,7 @@
         const w = Math.min(2.05 * (0.9 + 0.1 * I), visB * 0.96);
         const hT = w * (360 / 1500);
         // net boven de kaart, die inmiddels wat omlaag en kleiner staat
-        vlak(t, tex.titel, 0, -0.13 + 0.5945 * fit + 0.5 * hT + 0.02, 0, 0, 0, -0.03 * (1 - pop), w * pop, hT * pop, sm(q, 0, 0.12), 2, 0, q < 0.2 ? 1 - q / 0.2 : 0);
+        vlak(t, tex.titel, 0, -0.17 + 0.667 * fit + 0.5 * hT + 0.035, 0, 0, 0, -0.03 * (1 - pop), w * pop, hT * pop, sm(q, 0, 0.12), 2, 0, q < 0.2 ? 1 - q / 0.2 : 0);
       }
 
       // ── deeltjes ──
@@ -778,7 +780,8 @@
           n++;
         }
       }
-      const bl = motor.bloom(0.62);
+      const rust2 = !rustig && t >= RV ? sm(t, RV + 0.9, RV + 2.6) : 0;
+      const bl = motor.bloom(0.62 + 0.12 * rust2);
       motor.doel(null);
       motor.mengen('geen');
       const p = P.post.gebruik();
@@ -789,11 +792,11 @@
       p.f2('uRes', motor.breedte, motor.hoogte);
       p.f1('uTime', t);
       const heftig = Math.min(1, flash);
-      p.f1('uBloomAmt', (L.bloom * 0.9 + 0.3 * heftig) * (0.9 + 0.2 * I));
-      p.f1('uStreakAmt', rustig || motor.kwaliteit >= 2 ? 0 : Math.min(1.5, 0.12 + 1.2 * heftig + (t >= E && t < E + 1 ? 0.7 : 0)));
+      p.f1('uBloomAmt', (L.bloom * 0.9 + 0.3 * heftig) * (0.9 + 0.2 * I) * (1 - 0.4 * rust2));
+      p.f1('uStreakAmt', rustig || motor.kwaliteit >= 2 ? 0 : Math.min(1.5, 0.12 + 1.2 * heftig + (t >= E && t < E + 1 ? 0.7 : 0)) * (1 - 0.7 * rust2));
       p.f1('uStreakTexel', 1 / sd.w);
       p.v3('uStreakCol', kl);
-      p.f1('uVig', L.vig);
+      p.f1('uVig', L.vig * (1 + 0.55 * rust2));
       p.v3('uVigCol', kl2);
       p.f1('uGrain', motor.kwaliteit < 3 ? 0.03 : 0);
       p.f1('uFade', rustig ? 1 : sm(t, 0, 0.45));

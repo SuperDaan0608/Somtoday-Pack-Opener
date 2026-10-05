@@ -1,5 +1,17 @@
 # Wijzigingen
 
+## v0.3.1-beta
+
+Verfijning van de onthulling.
+
+- **Rustiger eindbeeld:** na de onthulling dimmen de lichtstralen, de bloom en de streep-effecten zachtjes weg en
+  wordt de rand donkerder, zodat de kaart het hoofdonderwerp is en niet meer wegvalt in het licht.
+- **Grotere kaart** met meer diepte: donkerder naar de randen, rijkere gouden tinten en een lichtvlek die met je
+  muis meebeweegt. De titel staat niet meer over de kaart heen.
+- **Confetti** in de kleuren van het niveau (met wit en een accent) in plaats van een regenboog, en minder
+  stukjes die het cijfer bedekken.
+- **De leerling in de walkout** is slanker (geen capuchon-cape meer) met tegenlicht langs de randen.
+
 ## v0.3-beta
 
 De animatie is volledig opnieuw gebouwd, en veel mooier en soepeler.

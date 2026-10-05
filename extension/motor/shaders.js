@@ -286,7 +286,7 @@ float figuur(vec2 q, float ph, float amp){
   q = rot2(s1 * .018 * amp) * (q - vec2(0., .5)) + vec2(0., .5);
   float d = ell(q, vec2(0., .915), vec2(.050, .060));
   d = smin(d, cap(q, vec2(0., .865), vec2(0., .83), .022), .02);
-  d = smin(d, ell(q, vec2(0., .868), vec2(.082, .05)), .03);
+  d = smin(d, ell(q, vec2(0., .866), vec2(.068, .042)), .03);
   float sch = cap(q, vec2(-.125, .795), vec2(.125, .795), .036);
   float borst = cap(q, vec2(-.07, .735), vec2(.07, .735), .08);
   float taille = cap(q, vec2(-.045, .60), vec2(.045, .60), .075);
@@ -388,6 +388,11 @@ void main(){
       vec3 fcol = vec3(.004, .005, .011);
       col = mix(col, fcol, sil * uFig.w);
       col += wit * L * (smoothstep(-.016, 0., d) * sil) * 1.6 * uFig.w;
+      // tegenlicht: de stof licht zacht op langs de randen en aan de kant van de bundel
+      float binnen = exp(d * 38.) * sil;
+      float kant = .5 + .5 * clamp(-q.x * 6., -1., 1.) * 0.;
+      col += mix(uTint, vec3(1.), .4) * L * binnen * .5 * uFig.w * (.6 + .8 * smoothstep(.2, .9, q.y));
+      col += uTint2 * L * sil * .035 * uFig.w * (1. - q.y);
       col += uTint * L * exp(-max(d, 0.) * 30.) * (1. - sil) * .22 * uFig.w;
     }
     // reflectie in de vloer
@@ -578,6 +583,12 @@ void main(){
     col = c.rgb + col * (1. - c.a);
   }
 
+  // diepte: donkerder naar de rand, rijkere tinten en een zachte lichtvlek die met je muis meebeweegt
+  float vgn = smoothstep(.0, .95, 1. - length((uv - .5) * vec2(1.25, 1.) * 1.45));
+  col *= .74 + .3 * vgn;
+  col = pow(max(col, 0.), vec3(1.14)) * 1.06;
+  vec2 lp = vec2(.5 + t.x * -.45, .35 + t.y * .35);
+  col += vec3(1., .96, .85) * exp(-dot(uv - lp, uv - lp) * 7.) * .09 * bg.a;
   float fres = pow(1. - abs(dot(N, V)), 3.);
   col += uCol * fres * .35 * uGlow;
   col *= uHelder;
@@ -681,7 +692,7 @@ void main(){
     off = rot2(rt) * q;
     alpha = smoothstep(1., .85, u) * smoothstep(0., .02, u);
     float sh = .65 + .35 * flip;
-    if (uMode == 2) col = hsv(vec3(r5, .8, 1.)) * sh; else col = col * (.7 + .5 * abs(flip));
+    if (uMode == 2) { float pk = fract(r6 * 7.3); col = (uRegen > .5 ? hsv(vec3(r5, .7, 1.)) : pk < .45 ? mix(uCol1, uCol2, r5) * 1.15 : pk < .75 ? vec3(1., .96, .88) : hsv(vec3(fract(r5 + .55), .5, 1.))) * (.5 + .6 * sh); alpha *= .9; } else col = col * (.7 + .5 * abs(flip));
     vK = 2;
   } else if (uMode == 3) {
     // regen
