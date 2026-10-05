@@ -340,7 +340,7 @@ void main(){
     // contactschaduw van wiel en schijf, en de schaduw van de spot
     ao *= .55 + .45 * smoothstep(0., .03, dw);
     ao *= .55 + .45 * smoothstep(.25, .29, rd);
-    if (uKwal < 1.5) {
+    if (uKwal < .5) {
       float lz = max(Lt.z, .25);
       vec3 dn; float dm;
       float ds = wiel(q + Lt.xy / lz * .10, dn, dm);
@@ -385,7 +385,7 @@ vec3 spotI(vec3 P, out vec3 L){
   return vec3(.80, .89, 1.) * uSpot * (.07 + .93 * kegel) * 2.6 / (1. + .2 * l * l);
 }
 float beton(vec2 u){
-  float f = vn(u * 2.2) * .55 + vn(u * 6.1 + 3.) * .3 + vn(u * 21. + 7.) * .15;
+  float f = vn(u * 2.2) * .62 + vn(u * 9.1 + 3.) * .38;
   vec2 g = fract(u / .62) - .5;
   float gat = smoothstep(.035, .02, length(g * .62));
   return (.72 + .45 * f) * (1. - .6 * gat);
@@ -548,12 +548,11 @@ void main(){
     float br = .06 * R + ta * .42;
     bundel = exp(-dist * dist / (br * br) * 1.6) * smoothstep(0., .25 * R, ta) / (1. + ta * ta * .35 / (R * R)) * smoothstep(0., .1 * R, zWand - s + .05 * R);
   }
-  float nb = .6 + .8 * vn(p * 5. + vec2(uT * .05, -uT * .08));
-  col += vec3(.55, .62, .75) * bundel * nb * uSpot * .17;
+  if (bundel > .002) col += vec3(.55, .62, .75) * bundel * (.6 + .8 * vn(p * 5. + vec2(uT * .05, -uT * .08))) * uSpot * .17;
   // stofjes
   float stof = 0.;
   for (int i = 0; i < 2; i++) {
-    if (i == 1 && uKwal > 1.5) break;
+    if (i == 1 && uKwal > .5) break;
     float fi = float(i);
     vec2 pp = p * (26. + fi * 19.) + vec2(fi * 7.3 + sin(uT * .13 + fi), uT * (.11 + fi * .05));
     vec2 id = floor(pp);
@@ -571,7 +570,7 @@ void main(){
   float rr = lp / Rs;
   vec2 dir = pc / max(lp, 1e-4);
   if (uStoom > .002 && rr > .8 && rr < 2.2) {
-    float n = vn(dir * 3. + vec2(rr * 3. - uT * .5, uT * .1)) * .6 + vn(dir * 7. + vec2(rr * 6. - uT * .9, 4.)) * .4;
+    float n = vn(dir * 4. + vec2(rr * 4. - uT * .6, uT * .1));
     float damp = exp(-pow((rr - 1.04) / .07, 2.)) * .35;
     for (int k = 0; k < 12; k++) {
       float fk = float(k);
@@ -979,7 +978,7 @@ void main(){
         pA.v3('uKl', KL);
         pA.v3('uKl2', KL2);
         c.motor.mengen('optel');
-        c.motor.volledig();
+        if (c.aan('k-achter')) c.motor.volledig();
 
         // 2. de deur
         let jx = 0;
@@ -1024,7 +1023,8 @@ void main(){
         pD.f1('uSpot', spotV);
         pD.f1('uKwal', kw);
         c.motor.mengen('alpha');
-        if (th > 0.005) {
+        const deurAan = c.aan('k-deur');
+        if (th > 0.005 && deurAan) {
           pD.f1('uDeel', 1);
           gl.drawArrays(gl.TRIANGLE_STRIP, 0, 258);
           c.motor.teken.draws++;
@@ -1038,7 +1038,7 @@ void main(){
         pD.f1('uDeel', 0);
         pD.f1('uKant', achter ? 1 : 0);
         pD.f1('uZvlak', achter ? -0.3 * R : 0);
-        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        if (deurAan) gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
         c.motor.teken.draws++;
 
         // 3. de lucht ervoor
@@ -1066,7 +1066,7 @@ void main(){
         pL.f3('uGat', gx, gy, R * sch);
         pL.v3('uKl', KL);
         c.motor.mengen('optel');
-        c.motor.volledig();
+        if (c.aan('k-lucht')) c.motor.volledig();
         if (rust) return;
 
         // 4. deeltjes
