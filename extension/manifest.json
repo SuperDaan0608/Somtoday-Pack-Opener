@@ -2,10 +2,22 @@
   "manifest_version": 3,
   "name": "Somtoday Pack Opener",
   "short_name": "Pack Opener",
-  "version": "0.1.0",
-  "version_name": "0.1 bèta",
-  "description": "Open je cijfer als een FIFA-pakket: tunnel, walkout en een eigen kaart voor elk vak.",
-  "permissions": ["activeTab", "scripting"],
+  "version": "0.2.0",
+  "version_name": "0.2 bèta",
+  "description": "Open je Somtoday-cijfers als een FIFA-pakket: tunnel, walkout en een eigen kaart voor elk vak.",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "content_scripts": [
+    {
+      "matches": ["https://leerling.somtoday.nl/*"],
+      "css": ["content.css"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://leerling.somtoday.nl/*"],
+      "js": ["pack.js", "content.js"],
+      "run_at": "document_idle"
+    }
+  ],
   "action": {
     "default_popup": "popup.html",
     "default_title": "Pakket openen",
@@ -30,7 +42,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["fonts/*.woff2"],
+      "resources": ["fonts/*.woff2", "sounds/*.mp3"],
       "matches": ["<all_urls>"]
     }
   ]

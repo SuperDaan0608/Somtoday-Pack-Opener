@@ -1,60 +1,95 @@
 # Somtoday Pack Opener
 
-Open je cijfer als een FIFA-pakket. Vul je vak, cijfer en onderwerp in, en je cijfer komt binnen met
-een tunnel, een pakje dat openscheurt, een walkout (vanaf een 7) en je eigen kaart voor dat vak.
+Open je Somtoday-cijfers als een FIFA-pakket. Een nieuw cijfer staat afgedekt in je cijferlijst; klik erop en
+je cijfer komt binnen met een tunnel, een pakje dat openscheurt, een walkout (vanaf een 7) en je eigen kaart
+voor dat vak.
 
 > Fanproject. Niet verbonden aan Somtoday of Topicus.
 
 ## Wat zit erin
 
+- **Echt gekoppeld aan je cijfers.** Op `leerling.somtoday.nl` worden cijfers die je nog niet hebt geopend
+  afgedekt. Klik je erop, dan start het pakket met je echte vak, cijfer, onderwerp en weging.
 - **Vijf niveaus**, net als bij FIFA: Brons (onder de 5,5), Zilver, Goud (walkout vanaf een 7),
   Speciaal (9+) en Icoon (een 10). Hoe hoger het cijfer, hoe heftiger alles wordt.
 - **Walkout** met spots, fotografen, een hartslag en de info-plaatjes: vak, onderwerp en weging.
 - **Eigen kaart** met je cijfer, vakafkorting, embleem, weging, onderwerp en zes stats
   (INZ, FOC, KEN, TMP, TEC, MOT).
+- **Echte geluiden**, gemaakt met ElevenLabs: scheurend folie, een stadion vol publiek, een fanfare, een
+  treurige trombone voor een onvoldoende. Alles staat in de extensie, er wordt niets gedownload.
 - **Opslaan als afbeelding**, zodat je de kaart kunt delen.
-- **Geluid**, volledig gegenereerd in de browser, met een treurige trombone voor een onvoldoende.
-- **Popup** met live voorbeeld van je kaart, weging, recente pakketten en je (gewogen) gemiddelde.
+- **Popup** met je aantal ongeopende cijfers, instellingen en een handmatige modus om een eigen cijfer te proberen.
 - **Snelle modus** voor als je niet op de tunnel wilt wachten. Klikken of spatie slaat ook over.
-- Werkt op elke pagina. Op pagina's waar extensies niets mogen (zoals `chrome://`) opent het
-  pakket in een eigen tabblad.
 
 ## Installeren
 
-1. Download `somtoday-pack-opener-v0.1-beta.zip` bij de [releases](../../releases) en pak hem uit.
+1. Download `somtoday-pack-opener-v0.2-beta.zip` bij de [releases](../../releases) (of uit de map
+   [`downloads`](downloads)) en pak hem uit.
 2. Ga in Chrome (of Edge, Brave, Opera) naar `chrome://extensions`.
 3. Zet rechtsboven **Ontwikkelaarsmodus** aan.
 4. Klik **Uitgepakte extensie laden** en kies de uitgepakte map `somtoday-pack-opener`.
-5. Pin de extensie, open bijvoorbeeld somtoday.nl en klik op het icoon (of druk op `Alt+Shift+P`).
+5. Pin de extensie en ga naar [leerling.somtoday.nl](https://leerling.somtoday.nl/cijfers).
+
+Chrome vraagt bij de installatie toestemming om je gegevens op `leerling.somtoday.nl` te lezen en te
+wijzigen. Dat is nodig om de cijfers af te dekken.
+
+Heb je Somtoday al open staan tijdens het installeren? Ververs de pagina één keer.
+
+## Zo werkt het op Somtoday
+
+- Op **Cijfers → Laatste cijfers** staat elk nieuw cijfer afgedekt, met de naam van het vak en een knop
+  **Open pakket**. Het cijfer zelf is onzichtbaar (ook voor schermlezers) tot je het opent.
+- Klik op de rij (of druk op Enter) en het pakket opent meteen. Zodra je cijfer onthuld wordt, onthoudt de
+  extensie dat het geopend is. Sluit je de animatie eerder af, dan blijft het cijfer afgedekt.
+- In de popup zie je hoeveel cijfers er nog klaar staan. Daar kun je ook **Alles als geopend markeren**
+  (bijvoorbeeld voor oude cijfers) of **Alles weer afdekken**.
+- Een cijfer als `V` of `G` laat de extensie met rust.
+
+**Let op:** alleen de lijst *Laatste cijfers* wordt afgedekt. In *Vakgemiddelden* en *Cijferoverzicht* blijven
+cijfers gewoon zichtbaar.
+
+### Privacy
+
+Alles gebeurt in je eigen browser. De extensie leest de cijfers alleen op de pagina en verstuurt niets.
+Om te onthouden wat je al hebt geopend, slaat ze een korte hash op (geen vak, geen cijfer).
 
 ## Bediening
 
 | Toets | Wat het doet |
 | --- | --- |
-| Spatie / Enter | Pakket openen, of de animatie overslaan |
-| Klik | Hetzelfde als spatie |
+| Klik of Enter op een afgedekt cijfer | Pakket openen |
+| Spatie / Enter / klik tijdens de animatie | Overslaan |
 | Esc | Sluiten |
+| `Alt+Shift+P` | Popup openen |
 
 ## Ontwikkelen
 
-De extensie staat in [`extension/`](extension). Er is geen build-stap: wijzig de bestanden en klik
-op het herlaad-icoon bij de extensie in `chrome://extensions`.
+De extensie staat in [`extension/`](extension). Er is geen build-stap: wijzig de bestanden en klik op het
+herlaad-icoon bij de extensie in `chrome://extensions`.
 
 | Bestand | Inhoud |
 | --- | --- |
 | `manifest.json` | Manifest V3 |
-| `popup.html` / `popup.css` / `popup.js` | Het invulscherm |
-| `pack.js` | De volledige animatie (canvas in een shadow DOM, zodat de pagina er niets van merkt) |
+| `content.js` / `content.css` | De koppeling met Somtoday: cijfers lezen, afdekken, onthouden |
+| `pack.js` | De volledige animatie en het geluid (canvas in een shadow DOM, zodat de pagina er niets van merkt) |
+| `popup.html` / `popup.css` / `popup.js` | De popup |
 | `stage.html` / `stage.js` | Reservepagina voor tabbladen waar injecteren niet mag |
+| `geluiden.html` | Alle geluiden naast elkaar beluisteren |
+| `sounds/` | De bewerkte geluiden (zie [`geluiden/`](geluiden)) |
 
-Je kunt de animatie ook zonder extensie testen door `extension/stage.html` te openen met
-parameters, bijvoorbeeld `stage.html?vak=Wiskunde&cijfer=8.3&onderwerp=H4&weging=2`.
+Je kunt de animatie ook zonder Somtoday testen door `extension/stage.html` te openen met parameters,
+bijvoorbeeld `stage.html?vak=Wiskunde&cijfer=8.3&onderwerp=H4&weging=2`.
+
+### De geluiden aanpassen
+
+Zie [`geluiden/README.md`](geluiden/README.md) voor de prompts, het vervangen van een geluid en hoe het
+bouwscript werkt.
 
 ### Een release maken
 
 ```sh
-./scripts/package.sh v0.1-beta      # maakt dist/somtoday-pack-opener-v0.1-beta.zip
-git tag v0.1-beta && git push origin v0.1-beta
+./scripts/package.sh v0.2-beta      # maakt dist/somtoday-pack-opener-v0.2-beta.zip
+git tag v0.2-beta && git push origin v0.2-beta
 ```
 
 Bij een nieuwe tag die met `v` begint, bouwt GitHub Actions de zip en zet hij een release online.
@@ -62,5 +97,6 @@ Tags met `beta`, `alpha` of `rc` worden een pre-release.
 
 ## Credits
 
+- Geluiden: [ElevenLabs Sound Effects](https://elevenlabs.io/sound-effects).
 - Lettertypes: [Unbounded](https://github.com/googlefonts/unbounded) en
   [Inter](https://github.com/rsms/inter), beide onder de SIL Open Font License (zie `extension/fonts`).

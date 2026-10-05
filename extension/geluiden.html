@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Geluiden · Somtoday Pack Opener</title>
+    <link rel="icon" href="icons/icon-32.png" />
+    <style>
+      @font-face { font-family: 'SPO Display'; src: url('fonts/unbounded.woff2') format('woff2'); font-weight: 200 900; }
+      @font-face { font-family: 'SPO Text'; src: url('fonts/inter.woff2') format('woff2'); font-weight: 100 900; }
+      :root { color-scheme: dark; }
+      body { margin: 0; padding: 32px 20px 64px; background: #080a14; color: #eef1f8; font: 15px/1.5 'SPO Text', system-ui, sans-serif; }
+      main { max-width: 760px; margin: 0 auto; }
+      h1 { margin: 0 0 6px; font: 700 28px 'SPO Display', system-ui, sans-serif; letter-spacing: -0.03em; }
+      p.lead { margin: 0 0 28px; color: #a5aec4; }
+      h2 { margin: 30px 0 10px; font: 650 13px 'SPO Text', sans-serif; letter-spacing: 0.18em; text-transform: uppercase; color: #6b7490; }
+      .rij { display: grid; grid-template-columns: 1fr minmax(0, 300px); gap: 12px 18px; align-items: center; padding: 12px 14px; margin-bottom: 8px; border-radius: 14px; background: rgba(255, 255, 255, 0.045); border: 1px solid rgba(255, 255, 255, 0.09); }
+      .rij b { display: block; font-weight: 650; }
+      .rij span { display: block; font-size: 13px; color: #a5aec4; }
+      audio { width: 100%; height: 36px; }
+      @media (max-width: 560px) { .rij { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Geluiden</h1>
+      <p class="lead">Alle geluiden van de animatie, zoals ze op de schijf staan. In de animatie zelf worden ze nog op volume gebracht en deels gemengd. Hoor je er een die niet goed klinkt? Geef de naam door, dan wordt hij vervangen.</p>
+
+      <h2>Opbouw</h2>
+      <div class="rij"><div><b>whoosh</b><span>De tunnel: vak, onderwerp en het pakje vliegen op je af.</span></div><audio controls preload="none" src="sounds/whoosh.mp3"></audio></div>
+      <div class="rij"><div><b>riser</b><span>Het pakje schudt en de spanning loopt op.</span></div><audio controls preload="none" src="sounds/riser.mp3"></audio></div>
+      <div class="rij"><div><b>tear</b><span>Het pakje scheurt open.</span></div><audio controls preload="none" src="sounds/tear.mp3"></audio></div>
+      <div class="rij"><div><b>boem</b><span>De klap bij het scheuren en bij de onthulling.</span></div><audio controls preload="none" src="sounds/boem.mp3"></audio></div>
+
+      <h2>Walkout (vanaf een 7)</h2>
+      <div class="rij"><div><b>menigte</b><span>Het publiek in het stadion groeit.</span></div><audio controls preload="none" src="sounds/menigte.mp3"></audio></div>
+      <div class="rij"><div><b>hartslag</b><span>Wordt luider naarmate de leerling dichterbij komt.</span></div><audio controls preload="none" src="sounds/hartslag.mp3"></audio></div>
+      <div class="rij"><div><b>stap</b><span>Zware voetstappen in de tunnel.</span></div><audio controls preload="none" src="sounds/stap.mp3"></audio></div>
+      <div class="rij"><div><b>sluiter</b><span>Fotografen: een klik bij elke flits.</span></div><audio controls preload="none" src="sounds/sluiter.mp3"></audio></div>
+
+      <h2>Onthulling</h2>
+      <div class="rij"><div><b>tik</b><span>Het cijfer telt op; elke tik wordt iets hoger.</span></div><audio controls preload="none" src="sounds/tik.mp3"></audio></div>
+      <div class="rij"><div><b>brons</b><span>Onder de 5,5: de treurige trombone.</span></div><audio controls preload="none" src="sounds/brons.mp3"></audio></div>
+      <div class="rij"><div><b>zilver</b><span>5,5 tot 7: een vrolijk belletje.</span></div><audio controls preload="none" src="sounds/zilver.mp3"></audio></div>
+      <div class="rij"><div><b>goud</b><span>7 tot 9: een fanfare.</span></div><audio controls preload="none" src="sounds/goud.mp3"></audio></div>
+      <div class="rij"><div><b>speciaal</b><span>9 tot 10: een groot orkest.</span></div><audio controls preload="none" src="sounds/speciaal.mp3"></audio></div>
+      <div class="rij"><div><b>icoon</b><span>Een 10: het grote slotakkoord met koor.</span></div><audio controls preload="none" src="sounds/icoon.mp3"></audio></div>
+      <div class="rij"><div><b>gejuich</b><span>Het publiek juicht bij een 6 of hoger.</span></div><audio controls preload="none" src="sounds/gejuich.mp3"></audio></div>
+      <div class="rij"><div><b>vuurwerk</b><span>Vuurwerk bij een 9 of hoger.</span></div><audio controls preload="none" src="sounds/vuurwerk.mp3"></audio></div>
+
+      <h2>Knoppen</h2>
+      <div class="rij"><div><b>klik</b><span>Een druk op een knop.</span></div><audio controls preload="none" src="sounds/klik.mp3"></audio></div>
+    </main>
+  </body>
+</html>

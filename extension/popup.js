@@ -1,15 +1,15 @@
-// Popup: invoer, live voorbeeld, geschiedenis en het starten van de animatie.
+// Popup: je echte cijfers op Somtoday, instellingen, en handmatig een pakket proberen.
 (function () {
   'use strict';
 
   const $ = (id) => document.getElementById(id);
-  const vakEl = $('vak');
-  const cijferEl = $('cijfer');
-  const schuifEl = $('schuif');
-  const onderEl = $('onderwerp');
-  const fout = $('fout');
+  const SOMTODAY = /^https:\/\/leerling\.somtoday\.nl\//;
+  const CIJFERS_URL = 'https://leerling.somtoday.nl/cijfers';
+  const SLEUTEL_GEOPEND = 'spo_geopend';
+  const SLEUTEL_INSTELLINGEN = 'spo_instellingen';
+  const STANDAARD = { afdekking: true, geluid: true, snel: false };
 
-  // Zelfde sleutels als versie 1, zodat oude invoer blijft staan.
+  // Het formulier onthoudt zijn invoer in localStorage (zelfde sleutels als versie 0.1).
   const opslag = {
     lees(k, reserve) {
       try {
@@ -28,6 +28,175 @@
     },
   };
 
+  const maak = (tag, klas, tekst) => {
+    const el = document.createElement(tag);
+    if (klas) el.className = klas;
+    if (tekst != null) el.textContent = tekst;
+    return el;
+  };
+
+  // ───────────────────────── Instellingen (ook gelezen door de pagina zelf) ─────────────────────────
+  let instellingen = { ...STANDAARD };
+
+  async function laadInstellingen() {
+    try {
+      const r = await chrome.storage.local.get(SLEUTEL_INSTELLINGEN);
+      if (r[SLEUTEL_INSTELLINGEN]) {
+        instellingen = { ...STANDAARD, ...r[SLEUTEL_INSTELLINGEN] };
+      } else {
+        // Eerste keer na de update: neem de keuzes uit versie 0.1 over.
+        instellingen = { ...STANDAARD, geluid: opslag.lees('geluid', '1') === '1', snel: opslag.lees('snel', '0') === '1' };
+      }
+    } catch (e) {
+      /* standaardwaarden */
+    }
+    for (const k of Object.keys(STANDAARD)) $(k).checked = !!instellingen[k];
+  }
+
+  function bewaarInstelling(k, v) {
+    instellingen[k] = v;
+    chrome.storage.local.set({ [SLEUTEL_INSTELLINGEN]: instellingen });
+  }
+
+  for (const k of Object.keys(STANDAARD)) {
+    $(k).addEventListener('change', (e) => {
+      bewaarInstelling(k, e.target.checked);
+      if (k === 'afdekking') setTimeout(toonSomtoday, 150); // de pagina heeft even nodig om te reageren
+    });
+  }
+
+  // ───────────────────────── Somtoday-paneel ─────────────────────────
+  const nCijfers = (n) => (n === 1 ? '1 nieuw cijfer' : `${n} nieuwe cijfers`);
+
+  async function actieveTab() {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    return tab;
+  }
+
+  async function stuur(tab, type) {
+    try {
+      return await chrome.tabs.sendMessage(tab.id, { type });
+    } catch (e) {
+      return null; // geen content script op deze pagina (bijv. pagina was al open vóór de installatie)
+    }
+  }
+
+  function kop(getal, titel, tekst, leeg) {
+    const rij = maak('div', 's-kop');
+    rij.append(maak('div', 's-getal' + (leeg ? ' leeg' : ''), getal));
+    const t = maak('div', 's-tekst');
+    t.append(maak('strong', '', titel), maak('span', '', tekst));
+    rij.append(t);
+    return rij;
+  }
+
+  function knop(tekst, klas, actie) {
+    const b = maak('button', 'knop ' + (klas || ''), tekst);
+    b.type = 'button';
+    b.addEventListener('click', actie);
+    return b;
+  }
+
+  function tekstknop(tekst, actie) {
+    const b = maak('button', 'tekstknop', tekst);
+    b.type = 'button';
+    b.addEventListener('click', actie);
+    return b;
+  }
+
+  async function toonSomtoday() {
+    const paneel = $('somtoday');
+    const tab = await actieveTab();
+    const opSomtoday = !!(tab && SOMTODAY.test(tab.url || ''));
+    const status = opSomtoday ? await stuur(tab, 'status') : null;
+    paneel.textContent = '';
+    // De eerste keer: het handmatige deel staat open als je niet op Somtoday bent; daarna blijft het zoals jij het zet.
+    if (!$('handmatig').dataset.klaar) {
+      $('handmatig').dataset.klaar = '1';
+      $('handmatig').open = !(opSomtoday && status && status.ok);
+    }
+
+    const naarCijfers = () => {
+      if (opSomtoday) chrome.tabs.update(tab.id, { url: CIJFERS_URL });
+      else chrome.tabs.create({ url: CIJFERS_URL });
+      window.close();
+    };
+
+    if (!opSomtoday) {
+      paneel.append(
+        kop('?', 'Open je cijfers op Somtoday', 'Nieuwe cijfers staan daar afgedekt tot jij ze opent.', true),
+        knop('Naar mijn cijfers', 'goud', naarCijfers),
+      );
+      return;
+    }
+
+    if (!status || !status.ok) {
+      paneel.append(
+        kop('↻', 'Ververs de pagina', 'De Pack Opener is op deze pagina nog niet actief. Ververs hem om je cijfers te koppelen.', true),
+        knop('Pagina verversen', 'goud', () => {
+          chrome.tabs.reload(tab.id);
+          window.close();
+        }),
+      );
+      return;
+    }
+
+    if (!instellingen.afdekking) {
+      paneel.append(kop('–', 'Afdekken staat uit', 'Zet “Cijfers afdekken” hieronder aan om nieuwe cijfers te verbergen.', true));
+      return;
+    }
+
+    if (status.ongeopend > 0) {
+      paneel.append(kop(String(status.ongeopend), `${nCijfers(status.ongeopend)} klaar`, 'Klik op een afgedekt cijfer in Somtoday, of open het volgende hier.'));
+      const chips = maak('div', 'chips');
+      status.vakken.slice(0, 5).forEach((v) => chips.append(maak('span', 'chip', v)));
+      if (status.vakken.length > 5) chips.append(maak('span', 'chip', `+${status.vakken.length - 5}`));
+      paneel.append(chips);
+      paneel.append(
+        knop('Open volgend pakket', 'goud', async () => {
+          await stuur(tab, 'open-volgende');
+          window.close();
+        }),
+      );
+      const acties = maak('div', 's-acties');
+      acties.append(
+        tekstknop('Alles als geopend markeren', async () => {
+          await stuur(tab, 'alles-geopend');
+          toonSomtoday();
+        }),
+        tekstknop('Alles weer afdekken', async () => {
+          await chrome.storage.local.remove(SLEUTEL_GEOPEND);
+          setTimeout(toonSomtoday, 200);
+        }),
+      );
+      paneel.append(acties);
+      return;
+    }
+
+    const opCijfers = status.pad.indexOf('/cijfers') === 0;
+    if (status.totaal > 0) {
+      paneel.append(kop('0', 'Alles geopend', 'Zodra er een nieuw cijfer is, staat het hier klaar.', true));
+      paneel.append(
+        tekstknop('Alles weer afdekken', async () => {
+          await chrome.storage.local.remove(SLEUTEL_GEOPEND);
+          setTimeout(toonSomtoday, 200);
+        }),
+      );
+    } else {
+      paneel.append(
+        kop('0', 'Geen cijfers op deze pagina', opCijfers ? 'Er staan nog geen cijfers in “Laatste cijfers”.' : 'Je nieuwe cijfers vind je onder “Cijfers”.', true),
+      );
+      if (!opCijfers) paneel.append(knop('Naar mijn cijfers', 'goud', naarCijfers));
+    }
+  }
+
+  // ───────────────────────── Handmatig: live voorbeeld ─────────────────────────
+  const vakEl = $('vak');
+  const cijferEl = $('cijfer');
+  const schuifEl = $('schuif');
+  const onderEl = $('onderwerp');
+  const fout = $('fout');
+
   const TIERS = [
     { naam: 'Brons', label: 'Oei…', uitleg: 'Onder de 5,5. Het pakket gaat toch open.', kleur: '#e08a4a', pal: ['#4a2a12', '#a8692f', '#e3b07e'], tekst: '#2b1808' },
     { naam: 'Zilver', label: 'Voldoende!', uitleg: 'Nog net geen walkout (vanaf een 7).', kleur: '#dfe9f5', pal: ['#5d6878', '#c3cdd9', '#f4f7fa'], tekst: '#202833' },
@@ -43,17 +212,13 @@
   const tierVan = (g) => (g >= 9.95 ? 4 : g >= 9 ? 3 : g >= 7 ? 2 : g >= 5.5 ? 1 : 0);
   const fmt = (g) => g.toFixed(1).replace('.', ',');
 
-  // ── Begintoestand ──────────────────────────────────────────────────────
   vakEl.value = opslag.lees('vak', '');
   onderEl.value = opslag.lees('onderwerp', '');
   const startCijfer = leesCijfer(opslag.lees('cijfer', ''));
   cijferEl.value = startCijfer ? fmt(startCijfer) : '';
   schuifEl.value = startCijfer || 7.5;
   let weging = Math.min(4, Math.max(1, parseInt(opslag.lees('weging', '1'), 10) || 1));
-  $('geluid').checked = opslag.lees('geluid', '1') === '1';
-  $('snel').checked = opslag.lees('snel', '0') === '1';
 
-  // ── Live voorbeeld ─────────────────────────────────────────────────────
   let vorigeTier = -1;
   function werkVoorbeeldBij() {
     const g = leesCijfer(cijferEl.value) ?? Number(schuifEl.value);
@@ -116,10 +281,7 @@
   });
   zetWeging(weging);
 
-  $('geluid').addEventListener('change', (e) => opslag.schrijf('geluid', e.target.checked ? '1' : '0'));
-  $('snel').addEventListener('change', (e) => opslag.schrijf('snel', e.target.checked ? '1' : '0'));
-
-  // ── Geschiedenis ───────────────────────────────────────────────────────
+  // ───────────────────────── Handmatig: geschiedenis ─────────────────────────
   function leesGeschiedenis() {
     try {
       const lijst = JSON.parse(opslag.lees('geschiedenis', '[]'));
@@ -148,13 +310,12 @@
     lijst.slice(0, 5).forEach((x) => {
       const T = TIERS[tierVan(x.cijfer)];
       const li = document.createElement('li');
-      const knop = document.createElement('button');
-      knop.type = 'button';
-      knop.title = 'Opnieuw invullen';
+      const knopEl = document.createElement('button');
+      knopEl.type = 'button';
+      knopEl.title = 'Opnieuw invullen';
       const c = document.createElement('span');
       c.className = 'l-cijfer' + (x.cijfer < 5.5 ? ' onv' : '');
-      c.style.background = `linear-gradient(135deg, ${T.pal[1]}, ${T.pal[2]})`;
-      if (x.cijfer < 5.5) c.style.background = 'linear-gradient(135deg, #b4232f, #ff5a64)';
+      c.style.background = x.cijfer < 5.5 ? 'linear-gradient(135deg, #b4232f, #ff5a64)' : `linear-gradient(135deg, ${T.pal[1]}, ${T.pal[2]})`;
       c.textContent = fmt(x.cijfer);
       const tekst = document.createElement('span');
       tekst.className = 'l-tekst';
@@ -166,8 +327,8 @@
       const w = document.createElement('span');
       w.className = 'l-weging';
       w.textContent = `${x.weging || 1}×`;
-      knop.append(c, tekst, w);
-      knop.addEventListener('click', () => {
+      knopEl.append(c, tekst, w);
+      knopEl.addEventListener('click', () => {
         vakEl.value = x.vak;
         onderEl.value = x.onderwerp;
         cijferEl.value = fmt(x.cijfer);
@@ -176,7 +337,7 @@
         ['vak', 'onderwerp', 'cijfer'].forEach((k) => opslag.schrijf(k, $(k).value));
         werkVoorbeeldBij();
       });
-      li.appendChild(knop);
+      li.appendChild(knopEl);
       ul.appendChild(li);
     });
   }
@@ -186,7 +347,7 @@
     toonGeschiedenis();
   });
 
-  // ── Openen ─────────────────────────────────────────────────────────────
+  // ───────────────────────── Handmatig: openen ─────────────────────────
   $('formulier').addEventListener('submit', async (e) => {
     e.preventDefault();
     fout.textContent = '';
@@ -201,8 +362,8 @@
       cijfer: g,
       onderwerp: onderEl.value.trim() || 'Toets',
       weging,
-      snel: $('snel').checked,
-      stil: !$('geluid').checked,
+      snel: !!instellingen.snel,
+      stil: !instellingen.geluid,
     };
 
     const lijst = leesGeschiedenis();
@@ -210,7 +371,7 @@
     opslag.schrijf('geschiedenis', JSON.stringify(lijst.slice(0, 20)));
 
     try {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      const tab = await actieveTab();
       await chrome.scripting.executeScript({
         target: { tabId: tab.id },
         func: (d) => {
@@ -228,7 +389,11 @@
     window.close();
   });
 
-  werkVoorbeeldBij();
-  toonGeschiedenis();
-  (cijferEl.value ? $('open') : vakEl.value ? cijferEl : vakEl).focus();
+  // ───────────────────────── Start ─────────────────────────
+  (async () => {
+    werkVoorbeeldBij();
+    toonGeschiedenis();
+    await laadInstellingen();
+    await toonSomtoday();
+  })();
 })();
