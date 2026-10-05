@@ -481,14 +481,30 @@ export function registerCleanView(on: On): void {
     const { Box, Text, Button } = $.ui.resolve(e)
 
     const toggle = (
-      <Button
-        key="toggle"
-        label={`● Clean View: ${enabled ? 'ON' : 'OFF'}`}
-        onPress={async () => {
-          const current = await read($, enabledAtom)
-          await setEnabled($, !current)
-        }}
-      />
+      <Box columnGap={1}>
+        <Button
+          key="dock"
+          label="◆ Dock"
+          onPress={() => {
+            void (async () => {
+              try {
+                const opened = await $.ui.open({ id: 'agent-dock', title: 'Agent Dock', columns: 100 })
+                if (!opened.isPlaced) $.ui.toast('The window is too narrow to show the Agent Dock. Widen it or watch the status bar.')
+              } catch {
+                // nothing to do
+              }
+            })()
+          }}
+        />
+        <Button
+          key="toggle"
+          label={`● Clean View: ${enabled ? 'ON' : 'OFF'}`}
+          onPress={async () => {
+            const current = await read($, enabledAtom)
+            await setEnabled($, !current)
+          }}
+        />
+      </Box>
     )
 
     if (!enabled || c.phase === 'idle') {

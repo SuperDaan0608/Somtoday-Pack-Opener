@@ -21,8 +21,37 @@ export type Checklist = {
   isCollapsed: boolean
 }
 
+export type DockCardStatus = 'queued' | 'working' | 'done' | 'stuck'
+
+export type DockCard = {
+  id: string
+  agentId: string | null
+  task: string
+  status: DockCardStatus
+  percent: number
+  hasReported: boolean
+  startedAt: number | null
+  finishedAt: number | null
+}
+
+export type DockModel = {
+  size: number
+  pendingSize: number | null
+  isCustomOpen: boolean
+  helperModel: 'cheap' | 'same'
+  isFolded: boolean
+  cards: DockCard[]
+  doneAgents: string[]
+  mission: string
+  startedAt: number | null
+  finishedAt: number | null
+  agentCalls: number
+  hasNudged: boolean
+  hasMission: boolean
+}
+
 declare module 'claude-code' {
   interface PluginState {
-    'clean-view': { cleanViewEnabled: boolean; checklist: Checklist; tick: number }
+    'clean-view': { cleanViewEnabled: boolean; checklist: Checklist; tick: number; dock: DockModel; dockTick: number }
   }
 }
