@@ -3,6 +3,12 @@ name: Release
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      versie:
+        description: 'Versie-tag, bijv. v0.1-beta'
+        required: true
+        default: 'v0.1-beta'
 
 permissions:
   contents: write
@@ -10,17 +16,19 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      VERSIE: ${{ github.event_name == 'workflow_dispatch' && inputs.versie || github.ref_name }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Zip maken
         run: |
           chmod +x scripts/package.sh
-          ./scripts/package.sh "$GITHUB_REF_NAME"
+          ./scripts/package.sh "$VERSIE"
 
       - name: Release-notities uit CHANGELOG.md halen
         run: |
-          awk -v kop="## $GITHUB_REF_NAME" '
+          awk -v kop="## $VERSIE" '
             $0 == kop { aan = 1; next }
             aan && /^## / { exit }
             aan { print }
@@ -32,10 +40,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           VLAG=""
-          case "$GITHUB_REF_NAME" in *beta*|*alpha*|*rc*) VLAG="--prerelease" ;; esac
-          TITEL="Somtoday Pack Opener ${GITHUB_REF_NAME#v}"
+          case "$VERSIE" in *beta*|*alpha*|*rc*) VLAG="--prerelease" ;; esac
+          TITEL="Somtoday Pack Opener ${VERSIE#v}"
           TITEL="${TITEL/-beta/ bèta}"
-          gh release create "$GITHUB_REF_NAME" dist/*.zip \
+          # Bij handmatig starten maakt gh de tag zelf aan op deze commit.
+          gh release create "$VERSIE" dist/*.zip \
+            --target "$GITHUB_SHA" \
             --title "$TITEL" \
             --notes-file notities.md \
             $VLAG
