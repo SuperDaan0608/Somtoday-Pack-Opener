@@ -1,0 +1,8 @@
+{
+  "manifest_version": 3,
+  "name": "Somtoday Pack Opening",
+  "version": "2.0",
+  "description": "FIFA-style pack opening met walkout voor je cijfer!",
+  "permissions": ["activeTab", "scripting"],
+  "action": { "default_popup": "popup.html", "default_title": "Pack Opening" }
+}

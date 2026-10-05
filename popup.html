@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>
+body{width:260px;margin:0;padding:16px;background:#0d0d12;color:#fff;font-family:system-ui,sans-serif}
+h1{font-size:16px;margin:0 0 12px;color:#ffd24a}
+label{display:block;font-size:12px;margin:10px 0 4px;color:#aaa}
+input{width:100%;box-sizing:border-box;padding:8px;border-radius:6px;border:1px solid #333;background:#1a1a22;color:#fff;font-size:14px}
+button{margin-top:16px;width:100%;padding:11px;border:0;border-radius:8px;background:linear-gradient(90deg,#ffd24a,#ff7a3d);font-weight:700;font-size:15px;cursor:pointer}
+button:hover{filter:brightness(1.1)}
+#err{color:#ff6a6a;font-size:12px;margin-top:8px;min-height:14px}
+</style></head><body>
+<h1>📦 Somtoday Pack Opening</h1>
+<label>Vak</label><input id="vak" placeholder="bijv. Wiskunde">
+<label>Cijfer (1 - 10)</label><input id="cijfer" type="number" min="1" max="10" step="0.1" placeholder="bijv. 7.5">
+<label>Waar ging de toets over?</label><input id="onderwerp" placeholder="bijv. Hoofdstuk 4: Functies">
+<button id="test">Test</button>
+<div id="err"></div>
+<script src="popup.js"></script>
+</body></html>
