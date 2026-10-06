@@ -29,7 +29,8 @@
 <p>De extensie bewaart lokaal in je browser (opslag van de extensie):</p>
 <ul>
 <li>je instellingen (zoals geluid, snelle modus en gekozen opening);</li>
-<li>welke cijfers je al hebt geopend;</li>
+<li>welke cijfers je al hebt geopend (een korte hash, geen leesbaar cijfer);</li>
+<li>van cijfers die je nog niet hebt geopend: alleen het vak, het onderwerp en de weging, nooit het cijfer zelf. Dat gebruikt de extensie om de gemiddelden af te dekken en om je vrienden te laten raden (zie hieronder);</li>
 <li>als je de galerij aan hebt: de kaarten die je hebt geopend (vak, cijfer, onderwerp, weging en een plaatje van de kaart).</li>
 </ul>
 <p>Je kunt de galerij uitzetten en kaarten verwijderen in de extensie. Als je de extensie verwijdert, verdwijnt alles.</p>
@@ -44,6 +45,9 @@
 <li>De server bewaart alleen een willekeurig id, je publieke sleutel, een gehashte toegangscode, welke ids met elkaar bevriend zijn, en de versleutelde pakketjes. De server kan de inhoud niet lezen en kent geen namen. Het ip-adres wordt alleen gehasht gebruikt om misbruik te beperken.</li>
 <li>Jij kiest per vriend: niets, alles, of alleen geselecteerde kaarten. Je kunt een vriend verwijderen of je account wissen; dan verdwijnt alles op de server.</li>
 <li>Namen van vrienden zijn bijnamen die je zelf typt en alleen op jouw computer staan.</li>
+<li><b>Reacties:</b> reageer je met een emoji op een kaart van een vriend, dan gaat die emoji (met het id van die kaart) versleuteld naar die vriend.</li>
+<li><b>Voorspel mijn cijfer:</b> start je een ronde, dan zien de vrienden die jij kiest het vak, het onderwerp en de weging van een cijfer dat je nog niet hebt geopend, maar niet het cijfer. Het cijfer gaat alleen naar die vrienden als je zelf op <i>Toon uitslag aan vrienden</i> klikt. Zolang een ronde loopt wordt de kaart van dat cijfer ook niet met die vrienden gedeeld, ook niet als je ze alles laat zien. Een gok van een vriend gaat versleuteld naar jou.</li>
+<li>De server ziet bij elk pakketje alleen dat er iets van het ene naar het andere id staat, met een tijdstip en een grootte. Wat erin zit, kan de server niet lezen.</li>
 </ul>
 
 <h2>Rechten</h2>

@@ -30,6 +30,8 @@
     raket: ['raket-piep', 'raket-start', 'raket-motor', 'raket-trap', 'raket-knal'],
     dans: ['dans-beat', 'dans-scratch', 'dans-dab'],
     schiet: ['schiet-knal', 'schiet-scherf', 'schiet-spin', 'schiet-laatste'],
+    // seizoensthema's (zie SPO.SEIZOENEN in data.js): geluiden die alleen bij dat thema horen
+    halloween: ['halloween-donder', 'halloween-kraak', 'halloween-klok', 'halloween-huil'],
   };
   // Het volume van de nieuwe opnames is afgestemd op de oude (gemeten in het gedeelte boven 200 Hz, dat laptopspeakers wel weergeven).
   Object.assign(NIVEAU, {
@@ -39,6 +41,8 @@
     'raket-piep': -12, 'raket-start': -2, 'raket-motor': -6, 'raket-trap': -5, 'raket-knal': -1,
     'dans-beat': -8, 'dans-scratch': -5, 'dans-dab': -4,
     'schiet-knal': -6, 'schiet-scherf': -8, 'schiet-spin': -9, 'schiet-laatste': -5,
+    // gesynthetiseerd (scripts/bouw-halloween.py), afgestemd op RMS boven 200 Hz zoals de rest
+    'halloween-donder': -7, 'halloween-kraak': -12, 'halloween-klok': -10, 'halloween-huil': -15,
   });
 
 
@@ -64,10 +68,11 @@
   }
 
   // Haalt de bestanden op zonder iets af te spelen of een AudioContext te maken (dat mag pas na een klik).
-  // opening: ook de geluiden van die opening (zie GROEPEN).
-  function voorlaad(opening) {
+  // opening en seizoen: ook de geluiden van die opening of dat thema (zie GROEPEN).
+  function voorlaad(opening, seizoen) {
     for (const naam of GELUIDEN) haal(naam);
     for (const naam of GROEPEN[opening] || []) haal(naam);
+    for (const naam of GROEPEN[seizoen] || []) haal(naam);
   }
 
   function init(stil) {
@@ -170,9 +175,9 @@
   }
 
   // Maakt de geluiden voor één pakket. tier: 0 (brons) tot 4 (icoon).
-  function maak({ tier, stil, opening }) {
+  function maak({ tier, stil, opening, seizoen }) {
     init(stil);
-    const eigen = GROEPEN[opening] || [];
+    const eigen = (GROEPEN[opening] || []).concat(GROEPEN[seizoen] || []);
     let eerste = Promise.resolve();
     let alles = Promise.resolve();
     return {
@@ -267,6 +272,15 @@
       },
       knop() {
         speel('klik');
+      },
+      // De zeldzame kaart: eerst een glinstering als de kaart uit het licht komt, bij de onthulling een extra fanfare.
+      glinster(vol = 1) {
+        speel('speciaal', { gain: 0.55 * vol, rate: 1.5, duur: 1.6, fadeOut: 0.5, galmen: 0.35 });
+        speel('klik', { gain: 2.2 * vol, rate: 2.2, galmen: 0.3 });
+      },
+      fanfare(vol = 1) {
+        speel('icoon', { gain: 0.9 * vol, galmen: 0.3 });
+        speel('speciaal', { gain: 0.5 * vol, rate: 0.8, galmen: 0.3, delay: 0.12 });
       },
       // Voor de openingen: elk geluid bij naam, met alle opties van speel().
       speel,

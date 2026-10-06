@@ -1,2 +1,3 @@
 dist/
 server/config.php
+__pycache__/

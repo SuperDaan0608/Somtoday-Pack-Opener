@@ -1,0 +1,142 @@
+@font-face { font-family: 'SPO Display'; src: url('fonts/unbounded.woff2') format('woff2'); font-weight: 200 900; }
+@font-face { font-family: 'SPO Text'; src: url('fonts/inter.woff2') format('woff2'); font-weight: 100 900; }
+
+:root {
+  color-scheme: dark;
+  --bg: #080a14;
+  --paneel: rgba(255,255,255,.045);
+  --lijn: rgba(255,255,255,.1);
+  --lijn-2: rgba(255,255,255,.2);
+  --tekst: #eef1f8;
+  --tekst-2: #a5aec4;
+  --tekst-3: #8c95ae; /* iets lichter dan op de andere pagina's: kleine tekst moet goed leesbaar blijven */
+  --goud: linear-gradient(135deg,#fff0b3 0%,#ffd24a 40%,#ff7a3d 100%);
+  --geel: #ffd24a;
+  --groen: #6bff9e;
+  --rood: #ff9a9a;
+  --display: 'SPO Display', system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html { background: var(--bg); }
+body {
+  margin: 0; min-height: 100vh; padding: 28px 16px 56px;
+  font: 14px/1.5 'SPO Text', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color: var(--tekst); background: radial-gradient(90% 40% at 50% -8%, rgba(255,204,51,.14), transparent 70%), var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+body > * { max-width: 1040px; margin-left: auto; margin-right: auto; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--geel); outline-offset: 2px; }
+[hidden] { display: none !important; }
+.skip { position: absolute; left: -999px; } .skip:focus { left: 16px; top: 8px; background: #000; padding: 6px 10px; border-radius: 8px; z-index: 9; }
+
+.kop { margin-bottom: 22px; }
+h1 { font: 800 clamp(26px,5vw,38px)/1 var(--display); margin: 0; letter-spacing: -.02em; background: var(--goud); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.onder { margin: 10px 0 0; color: var(--tekst-2); max-width: 560px; }
+h2 { font: 700 16px/1.25 var(--display); margin: 0 0 14px; }
+
+/* Indeling: een kolom op een telefoon, twee kolommen op een breed scherm */
+.rekenen { display: grid; grid-template-columns: minmax(0,1fr); gap: 16px; align-items: start; }
+.kolom { display: grid; gap: 16px; align-content: start; min-width: 0; }
+@media (min-width: 860px) { .rekenen { grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 24px; } }
+
+.paneel { background: var(--paneel); border: 1px solid var(--lijn); border-radius: 16px; padding: 18px 18px 20px; }
+.paneel > :last-child { margin-bottom: 0; }
+
+/* Velden */
+fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+legend { padding: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--tekst-3); margin-bottom: 8px; }
+.velden { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px 16px; margin-top: 14px; }
+.velden.onder-elkaar { grid-template-columns: minmax(0, 1fr); }
+.veld { display: flex; flex-direction: column; gap: 6px; min-width: 0; margin-top: 0; }
+.veld > label { font-weight: 600; font-size: 14px; color: var(--tekst); }
+.veld + .chips, .veld + .velden { margin-top: 14px; }
+input[type=text], select {
+  width: 100%; min-width: 0; font-size: 16px; /* 16px: iOS zoomt dan niet in */
+  background: rgba(0,0,0,.28); border: 1px solid var(--lijn-2); border-radius: 10px; padding: 10px 12px; color: var(--tekst);
+  font-variant-numeric: tabular-nums;
+}
+input[type=text]::placeholder { color: var(--tekst-3); opacity: 1; }
+input[type=text]:hover, select:hover { border-color: rgba(255,255,255,.35); }
+select option { background: #12152a; }
+input[aria-invalid="true"] { border-color: var(--rood); }
+.hint { font-size: 12.5px; line-height: 1.4; color: var(--tekst-2); margin: 0; }
+.hint.fout { color: var(--rood); }
+p.hint { margin: 0 0 14px; }
+#t-max { margin: 12px 0 0; }
+
+/* Keuze tussen galerij en zelf invullen: twee echte keuzerondjes, opgemaakt als knoppen */
+.keuze { margin-bottom: 16px; }
+.keuzes { display: flex; flex-wrap: wrap; gap: 8px; }
+.optie { position: relative; display: block; }
+.optie input { position: absolute; opacity: 0; inset: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.optie span { display: block; border: 1px solid var(--lijn-2); background: var(--paneel); border-radius: 999px; padding: 8px 16px; font-weight: 600; color: var(--tekst-2); }
+.optie:hover span { border-color: rgba(255,255,255,.35); }
+.optie input:checked + span { border-color: var(--geel); background: rgba(255,210,74,.14); color: var(--tekst); }
+.optie input:focus-visible + span { outline: 2px solid var(--geel); outline-offset: 2px; }
+
+/* Galerij-deel */
+.basis { margin: 14px 0 6px; font-weight: 600; }
+.leeg p { margin: 0 0 12px; color: var(--tekst-2); }
+.afgeleid { margin: 14px 0 0; color: var(--tekst); }
+#g-info .hint { margin: 0; }
+#g-info .velden { margin-top: 12px; }
+.cijfers { margin-top: 14px; color: var(--tekst-2); }
+.cijfers summary { cursor: pointer; }
+.cijfers ul { margin: 8px 0 0; padding-left: 20px; }
+.cijfers li { margin: 2px 0; }
+.cijfers .onderwerp { color: var(--tekst-3); overflow-wrap: anywhere; }
+
+/* Knoppen */
+.knop { display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--lijn-2); background: var(--paneel); border-radius: 12px; padding: 9px 16px; font-weight: 600; cursor: pointer; text-decoration: none; color: var(--tekst); }
+.knop:hover { border-color: rgba(255,255,255,.4); }
+.knop.klein { padding: 6px 12px; font-size: 13px; margin-top: 12px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { background: var(--paneel); border: 1px solid var(--lijn-2); border-radius: 999px; padding: 7px 14px; cursor: pointer; color: var(--tekst-2); font-variant-numeric: tabular-nums; }
+.chip:hover { border-color: rgba(255,255,255,.35); }
+.chip[aria-pressed="true"] { background: rgba(255,210,74,.14); border-color: var(--geel); color: var(--tekst); }
+
+/* Uitkomst */
+.uitkomst { border-color: var(--lijn); }
+.uitkomst.s-haalbaar { border-color: rgba(255,210,74,.55); }
+.uitkomst.s-gehaald { border-color: rgba(107,255,158,.5); }
+.uitkomst.s-onhaalbaar { border-color: rgba(255,154,154,.55); }
+.zin { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; font-size: 18px; line-height: 1.35; font-weight: 600; }
+.zin .getal { font: 800 clamp(44px, 9vw, 60px)/1.05 var(--display); letter-spacing: -.02em; background: var(--goud); -webkit-background-clip: text; background-clip: text; color: transparent; font-variant-numeric: tabular-nums; }
+.zin.gehaald, .zin.onhaalbaar, .zin.melding { display: block; }
+.zin.gehaald { color: var(--groen); }
+.zin.onhaalbaar { color: var(--rood); }
+.zin.melding { color: var(--tekst-2); font-weight: 500; }
+.zin.onhaalbaar .getal, .zin.ok .getal { display: inline; }
+.zin.onhaalbaar .getal { font: 800 1em var(--display); background: none; color: inherit; -webkit-text-fill-color: currentColor; }
+.detail { margin: 12px 0 0; color: var(--tekst-2); font-size: 13.5px; }
+
+/* Wat als ik een X haal? */
+.watals { margin-top: 14px; }
+.watals .zin { font-size: 16px; display: block; }
+.watals .zin .getal { display: inline; font: 800 1.35em var(--display); }
+.watals .zin.melding { font-size: 14px; }
+
+/* Tabel */
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+caption { text-align: left; color: var(--tekst-2); font-size: 12.5px; padding-bottom: 8px; }
+th, td { text-align: left; padding: 9px 8px; border-top: 1px solid var(--lijn); vertical-align: top; }
+thead th { border-top: 0; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--tekst-3); font-weight: 600; padding-top: 4px; }
+tbody th { font-weight: 700; white-space: nowrap; }
+td.nodig { font-weight: 700; white-space: nowrap; }
+td.status { color: var(--tekst-2); white-space: nowrap; }
+tr.s-gehaald td.status { color: var(--groen); }
+tr.s-onhaalbaar td.status { color: var(--rood); }
+tr.s-onhaalbaar td.nodig { color: var(--tekst-3); font-weight: 500; }
+tr.s-haalbaar td.status { color: var(--tekst); }
+
+.voet { margin-top: 32px; padding-top: 18px; border-top: 1px solid var(--lijn); color: var(--tekst-2); font-size: 13px; }
+.voet p { margin: 0 0 8px; max-width: 760px; }
+.voet strong { color: var(--tekst); }
+
+@media (max-width: 420px) {
+  body { padding-top: 20px; }
+  .paneel { padding: 16px 14px 18px; }
+  th, td { padding: 9px 6px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }

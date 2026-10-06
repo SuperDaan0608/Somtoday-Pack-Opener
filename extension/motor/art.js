@@ -852,6 +852,52 @@
       f.strokeStyle = tk;
     }
 
+    // zeldzame kaart: een regenboogrand en een label rechtsboven (blijft ook in de galerij zichtbaar, want dit zit in de voorgrond)
+    if (data.zeldzaam) {
+      const pr = f.createLinearGradient(0, 0, CW, CH);
+      ['#ff6b6b', '#ffd24a', '#6bff9e', '#38e1ff', '#b07bff', '#ff5fd2', '#ff6b6b'].forEach((k, i, l) => pr.addColorStop(i / (l.length - 1), k));
+      kaartPad(f, 5);
+      f.strokeStyle = pr;
+      f.lineWidth = 3;
+      f.globalAlpha = 0.95;
+      f.stroke();
+      f.restore();
+      f.globalAlpha = 1;
+      f.strokeStyle = tk;
+      // het label: een gouden pilletje met een viersterretje
+      f.save();
+      const lx = 196;
+      const ly = 30;
+      f.beginPath();
+      f.roundRect(lx, ly, 86, 20, 10);
+      const lg = f.createLinearGradient(lx, ly, lx + 86, ly + 20);
+      lg.addColorStop(0, '#fff3b0');
+      lg.addColorStop(0.5, '#ffc93a');
+      lg.addColorStop(1, '#ff8a2a');
+      f.fillStyle = lg;
+      f.shadowColor = 'rgba(255,190,60,.8)';
+      f.shadowBlur = 6;
+      f.fill();
+      f.shadowBlur = 0;
+      f.fillStyle = '#2a1802';
+      f.beginPath();
+      const sx = lx + 12;
+      const sy = ly + 10;
+      f.moveTo(sx, sy - 6);
+      f.quadraticCurveTo(sx + 1, sy - 1, sx + 6, sy);
+      f.quadraticCurveTo(sx + 1, sy + 1, sx, sy + 6);
+      f.quadraticCurveTo(sx - 1, sy + 1, sx - 6, sy);
+      f.quadraticCurveTo(sx - 1, sy - 1, sx, sy - 6);
+      f.fill();
+      f.textAlign = 'center';
+      f.textBaseline = 'alphabetic';
+      f.font = `900 11px ${F_SPORT}`;
+      spatie(f, 1.6);
+      f.fillText('ZELDZAAM', lx + 53, ly + 14);
+      spatie(f, 0);
+      f.restore();
+    }
+
     // De naam van de leerling staat op een eigen laag: de galerij gebruikt alleen de laag zonder naam.
     let fgNaam = null;
     if (data.persoon) {
@@ -963,6 +1009,7 @@
 
   // ───────────────────────── Het pakje ─────────────────────────
   function maakPak(data) {
+    const hw = data.seizoen === 'halloween';
     const S = 3.2;
     const cv = nieuw(PW * S, PH * S);
     const c = cv.getContext('2d');
@@ -987,26 +1034,88 @@
     c.save();
     c.clip();
     const bg = c.createLinearGradient(0, 0, PW, PH);
-    bg.addColorStop(0, '#4650d8');
-    bg.addColorStop(0.35, '#262e98');
-    bg.addColorStop(0.72, '#111650');
-    bg.addColorStop(1, '#060818');
+    if (hw) {
+      bg.addColorStop(0, '#6a2bb0');
+      bg.addColorStop(0.35, '#3a1270');
+      bg.addColorStop(0.72, '#1a0838');
+      bg.addColorStop(1, '#07020f');
+    } else {
+      bg.addColorStop(0, '#4650d8');
+      bg.addColorStop(0.35, '#262e98');
+      bg.addColorStop(0.72, '#111650');
+      bg.addColorStop(1, '#060818');
+    }
     c.fillStyle = bg;
     c.fillRect(0, 0, PW, PH);
     // grote, zachte lichtveeg
     const vg = c.createLinearGradient(-40, 60, PW + 40, 250);
     vg.addColorStop(0, 'rgba(255,255,255,0)');
-    vg.addColorStop(0.5, 'rgba(170,200,255,.3)');
+    vg.addColorStop(0.5, hw ? 'rgba(255,150,70,.26)' : 'rgba(170,200,255,.3)');
     vg.addColorStop(1, 'rgba(255,255,255,0)');
     c.fillStyle = vg;
     c.fillRect(0, 0, PW, PH);
-    // sterretjes
+    // sterretjes (bij Halloween: vonkjes)
     let s = 4242;
     const r = () => ((s = (s * 16807) % 2147483647) / 2147483647);
     for (let i = 0; i < 160; i++) {
-      c.fillStyle = `rgba(190,210,255,${0.08 + r() * 0.35})`;
+      c.fillStyle = hw ? `rgba(${r() < 0.6 ? '255,170,70' : '200,140,255'},${0.08 + r() * 0.35})` : `rgba(190,210,255,${0.08 + r() * 0.35})`;
       const z = 0.5 + r() * 1.4;
       c.fillRect(r() * PW, r() * PH, z, z);
+    }
+    if (hw) {
+      // vleermuizen
+      const vleermuis = (x, y, k, rot) => {
+        c.save();
+        c.translate(x, y);
+        c.rotate(rot);
+        c.scale(k, k);
+        c.beginPath();
+        for (const g of [1, -1]) {
+          c.moveTo(0, -3);
+          c.lineTo(g * 3, -9);
+          c.lineTo(g * 5, -3);
+          c.quadraticCurveTo(g * 14, -10, g * 28, -4);
+          c.quadraticCurveTo(g * 24, -1, g * 22, 7);
+          c.quadraticCurveTo(g * 18, 2, g * 14, 8);
+          c.quadraticCurveTo(g * 10, 3, g * 6, 9);
+          c.quadraticCurveTo(g * 3, 5, 0, 10);
+        }
+        c.fillStyle = 'rgba(8,2,18,.9)';
+        c.fill();
+        c.restore();
+      };
+      vleermuis(40, 138, 0.9, -0.2);
+      vleermuis(196, 152, 0.7, 0.25);
+      vleermuis(48, 288, 0.65, 0.15);
+      vleermuis(192, 276, 0.85, -0.3);
+      // spinnenweb in de linkerbovenhoek
+      c.save();
+      c.strokeStyle = 'rgba(255,255,255,.26)';
+      c.lineWidth = 0.7;
+      const ox = 0;
+      const oy = 26;
+      for (let a = 0; a <= 5; a++) {
+        const hoek = (a / 5) * (Math.PI / 2);
+        c.beginPath();
+        c.moveTo(ox, oy);
+        c.lineTo(ox + Math.cos(hoek) * 74, oy + Math.sin(hoek) * 74);
+        c.stroke();
+      }
+      for (const rad of [20, 38, 56, 72]) {
+        c.beginPath();
+        for (let a = 0; a <= 5; a++) {
+          const hoek = (a / 5) * (Math.PI / 2);
+          const px = ox + Math.cos(hoek) * rad;
+          const py = oy + Math.sin(hoek) * rad;
+          if (a === 0) c.moveTo(px, py);
+          else {
+            const hm = ((a - 0.5) / 5) * (Math.PI / 2);
+            c.quadraticCurveTo(ox + Math.cos(hm) * rad * 0.9, oy + Math.sin(hm) * rad * 0.9, px, py);
+          }
+        }
+        c.stroke();
+      }
+      c.restore();
     }
     // kreukels in de folie
     c.fillStyle = 'rgba(255,255,255,.05)';
@@ -1028,7 +1137,7 @@
       c.fillStyle = kleur;
       c.fill();
       c.lineWidth = 1.5;
-      c.strokeStyle = 'rgba(255,214,120,.5)';
+      c.strokeStyle = hw ? 'rgba(255,140,50,.55)' : 'rgba(255,214,120,.5)';
       c.stroke();
       c.restore();
     }
@@ -1086,12 +1195,77 @@
     c.lineWidth = 1;
     c.strokeStyle = 'rgba(255,255,255,.3)';
     c.stroke();
-    c.font = `800 86px ${F_DISPLAY}`;
-    const qg = c.createLinearGradient(0, ey - 40, 0, ey + 40);
-    qg.addColorStop(0, '#ffffff');
-    qg.addColorStop(1, '#ffd98a');
-    c.fillStyle = qg;
-    c.fillText('?', PW / 2 + 2, ey + 6);
+    if (hw) {
+      const px = PW / 2;
+      // de pompoen: vijf bolle lobben, het middelste voorop
+      const lob = (dx, rx, kleur) => {
+        c.beginPath();
+        c.ellipse(px + dx, ey + 6, rx, 33, 0, 0, 6.2832);
+        const pg = c.createLinearGradient(0, ey - 28, 0, ey + 40);
+        pg.addColorStop(0, '#ffb13b');
+        pg.addColorStop(0.55, kleur);
+        pg.addColorStop(1, '#a83300');
+        c.fillStyle = pg;
+        c.fill();
+        c.lineWidth = 1;
+        c.strokeStyle = 'rgba(100,30,0,.55)';
+        c.stroke();
+      };
+      lob(-27, 19, '#ee6a10');
+      lob(27, 19, '#ee6a10');
+      lob(-14, 24, '#ff7a14');
+      lob(14, 24, '#ff7a14');
+      lob(0, 25, '#ff8a1f');
+      // steeltje
+      c.beginPath();
+      c.moveTo(px - 4, ey - 24);
+      c.quadraticCurveTo(px - 2, ey - 36, px + 6, ey - 38);
+      c.lineTo(px + 8, ey - 33);
+      c.quadraticCurveTo(px + 3, ey - 31, px + 4, ey - 24);
+      c.closePath();
+      c.fillStyle = '#4f7a1c';
+      c.fill();
+      // het gezicht: gloeiend uitgesneden, alsof er een kaarsje in staat
+      c.save();
+      c.shadowColor = 'rgba(255,200,60,.95)';
+      c.shadowBlur = 9;
+      const gz = c.createLinearGradient(0, ey - 8, 0, ey + 30);
+      gz.addColorStop(0, '#fff6b0');
+      gz.addColorStop(1, '#ffb020');
+      c.fillStyle = gz;
+      c.beginPath();
+      c.moveTo(px - 20, ey + 6);
+      c.lineTo(px - 6, ey + 6);
+      c.lineTo(px - 13, ey - 6);
+      c.closePath();
+      c.moveTo(px + 6, ey + 6);
+      c.lineTo(px + 20, ey + 6);
+      c.lineTo(px + 13, ey - 6);
+      c.closePath();
+      c.moveTo(px, ey + 9);
+      c.lineTo(px - 4, ey + 17);
+      c.lineTo(px + 4, ey + 17);
+      c.closePath();
+      c.moveTo(px - 24, ey + 20);
+      c.lineTo(px + 24, ey + 20);
+      c.lineTo(px + 18, ey + 32);
+      c.lineTo(px + 12, ey + 25);
+      c.lineTo(px + 6, ey + 34);
+      c.lineTo(px, ey + 26);
+      c.lineTo(px - 6, ey + 34);
+      c.lineTo(px - 12, ey + 25);
+      c.lineTo(px - 18, ey + 32);
+      c.closePath();
+      c.fill();
+      c.restore();
+    } else {
+      c.font = `800 86px ${F_DISPLAY}`;
+      const qg = c.createLinearGradient(0, ey - 40, 0, ey + 40);
+      qg.addColorStop(0, '#ffffff');
+      qg.addColorStop(1, '#ffd98a');
+      c.fillStyle = qg;
+      c.fillText('?', PW / 2 + 2, ey + 6);
+    }
     // naam
     c.font = `italic 900 44px ${F_SPORT}`;
     const ng = c.createLinearGradient(0, 96, 0, 130);
@@ -1103,7 +1277,7 @@
     c.font = `700 10px ${F_SPORT}`;
     spatie(c, 3);
     c.fillStyle = 'rgba(255,255,255,.7)';
-    c.fillText(pas(c, `1 CIJFER · ${data.vak.toUpperCase()}`, PW - 40), PW / 2 + 1.5, PH - 44);
+    c.fillText(pas(c, `${hw ? 'HALLOWEEN' : '1 CIJFER'} · ${data.vak.toUpperCase()}`, PW - 40), PW / 2 + 1.5, PH - 44);
     spatie(c, 0);
     c.restore();
     // metalen rand
@@ -1225,26 +1399,39 @@
     c.textAlign = 'center';
     c.textBaseline = 'alphabetic';
     const T = data.T;
-    const txt = T.label.toUpperCase();
+    const txt = data.zeldzaam ? 'ZELDZAAM!' : T.label.toUpperCase();
     const fs = pasFont(c, txt, 'italic 900', F_SPORT, 215, 90, 1380);
     c.font = `italic 900 ${fs}px ${F_SPORT}`;
     c.lineJoin = 'round';
     c.lineWidth = 14;
     c.strokeStyle = 'rgba(0,0,0,.5)';
     c.strokeText(txt, 750, 12 + fs * 0.86);
-    const g = c.createLinearGradient(0, 12, 0, 12 + fs);
-    g.addColorStop(0, '#ffffff');
-    g.addColorStop(0.55, rgba(T.kleur, 1));
-    g.addColorStop(1, rgba(T.kleur2, 1));
+    let g;
+    if (data.zeldzaam) {
+      // een zeldzame kaart heeft een regenboogtitel, en je cijfer-niveau staat eronder
+      g = c.createLinearGradient(150, 0, 1350, 0);
+      ['#ff6b6b', '#ffd24a', '#6bff9e', '#38e1ff', '#b07bff', '#ff5fd2'].forEach((k, i, l) => g.addColorStop(i / (l.length - 1), k));
+    } else {
+      g = c.createLinearGradient(0, 12, 0, 12 + fs);
+      g.addColorStop(0, '#ffffff');
+      g.addColorStop(0.55, rgba(T.kleur, 1));
+      g.addColorStop(1, rgba(T.kleur2, 1));
+    }
     c.fillStyle = g;
     c.fillText(txt, 750, 12 + fs * 0.86);
     c.font = `800 60px ${F_SPORT}`;
     spatie(c, 8);
-    const regel = `${T.naam.toUpperCase()}  ·  ${T.sub.toUpperCase()}`;
+    const regel = data.zeldzaam ? `${T.label.toUpperCase()}  ·  ${T.naam.toUpperCase()}` : `${T.naam.toUpperCase()}  ·  ${T.sub.toUpperCase()}`;
     c.lineWidth = 9;
     c.strokeStyle = 'rgba(0,0,0,.55)';
     c.strokeText(regel, 750 + 4, 342);
-    c.fillStyle = 'rgba(255,255,255,.95)';
+    if (data.zeldzaam) {
+      const zg = c.createLinearGradient(300, 0, 1200, 0);
+      zg.addColorStop(0, '#fff3b0');
+      zg.addColorStop(0.5, '#ffc93a');
+      zg.addColorStop(1, '#ff9a3a');
+      c.fillStyle = zg;
+    } else c.fillStyle = 'rgba(255,255,255,.95)';
     c.fillText(regel, 750 + 4, 342);
     spatie(c, 0);
     return cv;

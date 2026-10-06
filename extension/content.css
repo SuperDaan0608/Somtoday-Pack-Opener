@@ -36,3 +36,8 @@ spo-afdekking {
   border-radius: inherit;
   visibility: visible !important;
 }
+
+/* Een tabblad (Vakgemiddelden, Cijferoverzicht) dat we vervangen door een melding zolang er een nieuw cijfer dicht is. */
+.spo-verborgen {
+  display: none !important;
+}

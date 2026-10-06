@@ -93,7 +93,18 @@
     const T = d.T;
     const tier = d.tier;
     const I = d.I;
-    const L = LOOK[tier];
+    const zeldzaam = !!d.zeldzaam;
+    // Een zeldzame kaart is overal een stuk heftiger, ook bij een brons cijfer: meer licht, meer glans, meer glitter.
+    const L = zeldzaam
+      ? Object.assign({}, LOOK[tier], {
+          stralen: LOOK[tier].stralen + 6,
+          flits: Math.max(LOOK[tier].flits, 1.1),
+          bloom: Math.max(LOOK[tier].bloom, 0.8),
+          sat: Math.max(LOOK[tier].sat, 1.08),
+          holo: Math.max(LOOK[tier].holo, 1.25),
+          glit: Math.max(LOOK[tier].glit, 1.7),
+        })
+      : LOOK[tier];
     const op = d.opening !== 'pak' && SPO.openingen ? SPO.openingen[d.opening] : null;
     const tl = maakTijdlijn(d);
     const regenboog = tier === 4;
@@ -126,8 +137,10 @@
       : [];
 
     // Kleur van het licht: bij een Icoon wisselt die langzaam van tint.
+    // Een zeldzame kaart krijgt vanaf het moment dat de kaart verschijnt ook het wisselende regenboog-licht.
+    const regenAan = (t) => regenboog || (zeldzaam && t >= tl.K0 - 0.05);
     function kleuren(t) {
-      if (regenboog) {
+      if (regenAan(t)) {
         SPO.hsv(t * 0.12, 0.62, 1, kl);
         SPO.hsv(t * 0.12 + 0.35, 0.8, 1, kl2);
       } else {
@@ -163,6 +176,12 @@
         audio.boem(0.6 + 0.4 * I);
         trillen([30, 20, 60]);
       });
+      if (d.seizoen === 'halloween') {
+        // het spookpakje: het kraakt tijdens het opladen, de scheur klinkt als een donderslag en ergens in de verte huilt iets
+        at(c1 + 0.3, () => audio.speel('halloween-kraak', { gain: 0.6, duur: Math.max(0.8, E - c1 - 0.5), fadeOut: 0.4, galmen: 0.2 }));
+        at(E - 0.1, () => audio.speel('halloween-donder', { gain: 0.9, galmen: 0.25 }));
+        at(E + 0.6, () => audio.speel('halloween-huil', { gain: 0.45, galmen: 0.35, pan: Math.random() < 0.5 ? -0.5 : 0.5 }));
+      }
       if (tl.wo) {
         const [w0, w1] = tl.wo;
         const WO = w1 - w0;
@@ -191,21 +210,34 @@
       }
     }
     at(K0 - 0.05, () => audio.zwiep(0.7, 0.8));
+    if (zeldzaam) {
+      at(E + 0.05, () => audio.glinster(0.6)); // al bij het hoogtepunt van de opening glinstert er iets
+      at(K0 + 0.2, () => audio.glinster(0.9)); // de kaart komt glinsterend uit het licht
+      at(RV + 0.9, () => audio.fanfare(0.8)); // en de fanfare komt nog een keer
+    }
     at(K0 + tl.spin * 0.78, () => audio.boem(0.18 + 0.12 * I, 1.5)); // de kaart landt
     at(RV, () => {
       audio.boem(tier === 0 ? 0.35 : 0.7 + 0.3 * I);
       audio.onthulling(0.8 + 0.2 * I);
       if (d.g >= 6) audio.gejuich(2.5 + 1.5 * I, 0.5 + 0.5 * I);
+      else if (zeldzaam) audio.gejuich(3.2, 0.7);
+      if (zeldzaam) {
+        audio.fanfare(1);
+        audio.publiek(4.2, 0.8);
+        audio.boem(0.9, 0.8);
+        trillen([60, 40, 60, 40, 60, 40, 240]);
+      }
+      if (d.seizoen === 'halloween') audio.speel('halloween-klok', { gain: 0.6, galmen: 0.3, delay: 0.15 });
       onthul();
       trillen(tier >= 3 ? [60, 40, 60, 40, 200] : tier >= 2 ? [40, 30, 80] : 30);
     });
 
-    // vuurwerk vanaf een 9
+    // vuurwerk vanaf een 9 (bij een zeldzame kaart altijd)
     const vuurwerk = [];
-    if (d.g >= 9) {
-      const aantal = tier === 4 ? 14 : 5;
+    if (d.g >= 9 || zeldzaam) {
+      const aantal = zeldzaam ? 16 : tier === 4 ? 14 : 5;
       for (let i = 0; i < aantal; i++) {
-        const tt = RV + 0.5 + i * (tier === 4 ? 0.34 : 0.45);
+        const tt = RV + 0.5 + i * (zeldzaam ? 0.27 : tier === 4 ? 0.34 : 0.45);
         vuurwerk.push({ t: tt, x: (Math.random() - 0.5) * 0.9, y: 0.0 + Math.random() * 0.34, h: Math.random() });
         at(tt + 0.55, () => audio.vuurwerk());
       }
@@ -259,8 +291,20 @@
     flits(RV, 0.12 + 0.18 * I, 0.1 + 0.25 * I);
     golf(RV, 1.2, 0.8, 0.03);
     golf(RV + 0.1, 1.6, 0.6, 0.03);
-    if (tier >= 2) golf(RV + 0.22, 2.0, 0.5, 0.03);
-    if (tier === 4) {
+    if (tier >= 2 || zeldzaam) golf(RV + 0.22, 2.0, 0.5, 0.03);
+    if (zeldzaam) {
+      // een glinstering als de kaart verschijnt, en daarna nog vier klappen na de onthulling
+      flits(E + 0.05, 0.4, 0.15);
+      golf(E + 0.05, 1.3, 0.6, op ? 0 : lekP);
+      flits(K0 + 0.2, 0.45, 0.14);
+      golf(K0 + 0.2, 1.4, 0.7, 0.03);
+      for (let i = 0; i < 4; i++) {
+        golf(RV + 0.35 + i * 0.3, 1.5 + 0.2 * i, 0.75, 0.03);
+        schok(RV + 0.45 + i * 0.3, 0.03, 0.25);
+        flits(RV + 0.45 + i * 0.3, 0.3, 0.1);
+      }
+    }
+    if (tier === 4 || zeldzaam) {
       flits(RV + 0.35, 0.35, 0.3);
       golf(RV + 0.35, 1.6, 0.8, 0.03);
     }
@@ -291,12 +335,20 @@
       e({ mode: 5, t0: E, life: 1.8, n: Math.round(70 + 190 * I), org: [0, lekY], angle: Math.PI / 2, spread: TWEE_PI, spd: [0.25, 1.1], grav: [0, -0.8], drag: 0.6, size: [0.012, 0.03], col1: [0.25, 0.3, 0.85], col2: [1, 0.8, 0.3], alpha: 1, blend: 'alpha', seed: 6 });
     }
     // de onthulling
-    const rvVonken = e({ mode: 0, t0: RV, delay: 0.14, life: 2.2, n: Math.round(300 + 1500 * I), org: [0, 0.02], angle: 0, spread: TWEE_PI, spd: [0.3, 2.3], grav: [0, -0.35], drag: 1.1, size: [0.002, 0.007], col1: kl, col2: kl2, alpha: 0.75, regen: regenboog ? 1 : 0, seed: 8 });
-    if (tier === 0) {
+    const rvVonken = e({ mode: 0, t0: RV, delay: 0.14, life: 2.2, n: Math.round(300 + 1500 * I), org: [0, 0.02], angle: 0, spread: TWEE_PI, spd: [0.3, 2.3], grav: [0, -0.35], drag: 1.1, size: [0.002, 0.007], col1: kl, col2: kl2, alpha: 0.75, regen: regenboog || zeldzaam ? 1 : 0, seed: 8 });
+    if (zeldzaam) {
+      // een gouden regen van vonken van boven, bovenop de gewone onthulling, en een gouden uitbarsting als de kaart verschijnt
+      e({ mode: 0, t0: RV, delay: 1.2, life: 3.6, n: 1500, org: [0, 0.62], angle: -Math.PI / 2, spread: 1.6, spd: [0.15, 0.8], grav: [0, -0.28], drag: 0.7, size: [0.002, 0.0065], col1: [1, 0.82, 0.3], col2: [1, 0.97, 0.8], alpha: 0.9, seed: 17 });
+      e({ mode: 0, t0: K0, delay: 0.2, life: 1.6, n: 900, org: [0, 0.01], angle: 0, spread: TWEE_PI, spd: [0.3, 1.6], grav: [0, -0.1], drag: 1.4, size: [0.002, 0.006], col1: [1, 0.85, 0.35], col2: [1, 1, 0.9], alpha: 0.9, seed: 18 });
+      e({ mode: 0, t0: RV, delay: 0.5, life: 3.2, n: 900, org: [0, 0.02], angle: 0, spread: TWEE_PI, spd: [0.5, 2.6], grav: [0, -0.3], drag: 1.0, size: [0.002, 0.007], col1: kl, col2: kl2, alpha: 0.8, regen: 1, seed: 19 });
+      // een tweede ronde confetti, later
+      e({ mode: 2, t0: RV + 0.1, life: 4.6, delay: 2.2, n: 420, org: [0, 0.62], angle: -Math.PI / 2, spread: 0.9, spd: [0.1, 0.5], grav: [0, -0.09], drag: 0.45, size: [0.008, 0.017], alpha: 1, blend: 'alpha', seed: 21 });
+    }
+    if (tier === 0 && !zeldzaam) {
       e({ mode: 3, t0: RV, life: 5, delay: 0.2, n: 160, alpha: 0.8, seed: 9, blend: 'alpha' });
       e({ mode: 6, t0: RV, life: 3.2, delay: 0.5, n: 14, org: [0, -0.2], size: [0.18, 0.4], col1: [0.16, 0.12, 0.1], col2: [0.3, 0.22, 0.16], blend: 'alpha', seed: 10, lod: false });
-    } else if (d.g >= 6) {
-      e({ mode: 2, t0: RV + 0.1, life: 4.6, delay: 1.1, n: Math.round(50 + 330 * Math.max(0, I - 0.5) * 2 * (d.g >= 9 ? 1.4 : 1)), org: [0, 0.62], angle: -Math.PI / 2, spread: 0.7, spd: [0.1, 0.45], grav: [0, -0.09], drag: 0.45, size: [0.008, 0.017], alpha: 1, blend: 'alpha', seed: 12 });
+    } else if (d.g >= 6 || zeldzaam) {
+      e({ mode: 2, t0: RV + 0.1, life: 4.6, delay: 1.1, n: Math.max(zeldzaam ? 260 : 0, Math.round(50 + 330 * Math.max(0, I - 0.5) * 2 * (d.g >= 9 ? 1.4 : 1))), org: [0, 0.62], angle: -Math.PI / 2, spread: 0.7, spd: [0.1, 0.45], grav: [0, -0.09], drag: 0.45, size: [0.008, 0.017], alpha: 1, blend: 'alpha', seed: 12 });
     }
     // een staart van vonken terwijl de kaart de lucht in draait
     e({ mode: 0, t0: K0, delay: tl.spin * 0.9, life: 0.9, n: Math.round(80 + 260 * I), org: [0, 0.01], angle: 0, spread: TWEE_PI, spd: [0.12, 0.7], grav: [0, 0], drag: 2.2, size: [0.0014, 0.0038], col1: kl, col2: wit, alpha: 0.7, seed: 15 });
@@ -406,7 +458,7 @@
       p.f1('uRot', rot);
       p.f1('uCount', aantal);
       p.f1('uHaze', haze);
-      p.f1('uRegen', regenboog ? 1 : 0);
+      p.f1('uRegen', regenAan(t) ? 1 : 0);
       p.f1('uAlpha', alpha);
       p.f1('uDonker', donker);
       p.v3('uCol', k1);
@@ -426,7 +478,7 @@
       p.f1('uSter', ster);
       p.f1('uRot', rot);
       p.f1('uCount', 6 + L.stralen * 0.9);
-      p.f1('uRegen', regenboog ? 1 : 0);
+      p.f1('uRegen', regenAan(t) ? 1 : 0);
       p.f1('uTime', t);
       p.v3('uCol', k1);
       motor.mengen('optel');
@@ -931,6 +983,7 @@
           if (t >= E) rad = Math.max(rad, 0.25 * Math.exp(-(t - E) / 0.25));
         }
         if (t >= RV) rad = Math.max(rad, 0.22 * Math.exp(-(t - RV) / 0.3));
+        if (zeldzaam && t >= RV + 0.35) rad = Math.max(rad, 0.16 * Math.exp(-((t - RV - 0.35) % 0.3) / 0.1) * (t < RV + 1.5 ? 1 : 0));
         if (t > K0 - 0.3 && t < K0) rad = Math.max(rad, 0.3 * ramp(t, K0 - 0.3, K0));
       }
       p.f3('uRadial', 0.5, 0.5, rad * (reduceer ? 0.2 : 1));
@@ -938,6 +991,7 @@
       if (!rustig) {
         zoom += 0.035 * sm(t, K0, RV) * (t < RV ? 1 : 0);
         if (t >= RV) zoom += 0.06 * Math.exp(-(t - RV) / 0.18);
+        if (zeldzaam && t >= RV + 0.35 && t < RV + 1.5) zoom += 0.03 * Math.exp(-((t - RV - 0.35) % 0.3) / 0.1); // vier kloppen na de onthulling
         if (pk) {
           zoom *= pk.zoom;
         } else {

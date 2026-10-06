@@ -19,8 +19,9 @@
 
   const SLEUTEL_GEOPEND = 'spo_geopend';
   const SLEUTEL_INSTELLINGEN = 'spo_instellingen';
-  const STANDAARD = { afdekking: true, geluid: true, snel: false, opening: 'pak', galerij: true, laag: false, kaartThema: 'auto', kaartRand: 'standaard' };
+  const STANDAARD = { afdekking: true, geluid: true, snel: false, opening: 'pak', galerij: true, laag: false, kaartThema: 'auto', kaartRand: 'standaard', zeldzaam: true, seizoen: true, gemiddelden: true };
   const SLEUTEL_GALERIJ = 'spo_galerij';
+  const SLEUTEL_DICHT = 'spo_dicht';
   const OPENINGEN = ['pak', 'kluis', 'plinko', 'ster', 'raket', 'schiet', 'dans'];
 
   const RIJ = 'sl-laatste-resultaat-item'; // de klikbare rij in "Laatste cijfers"
@@ -34,6 +35,8 @@
   let rijen = []; // uitkomst van de laatste scan
   let groepen = []; // idem, gegroepeerd per lijst en cijfer
   const staat = new WeakMap(); // rij-element -> { cover, sig, oudLabel }
+  let dicht = []; // de ongeopende cijfers die we kennen: [{ id, ts, vak, onderwerp, weging }]. Nooit het cijfer zelf.
+  let toonToch = false; // 'Toch tonen' bij de gemiddelden: geldt tot je de pagina herlaadt
 
   // ───────────────────────── Hulpjes ─────────────────────────
   const tekst = (el) => (el ? el.textContent : '').replace(/\s+/g, ' ').trim();
@@ -59,6 +62,12 @@
     }
     return uit;
   };
+
+  const schoonDicht = (v) =>
+    (Array.isArray(v) ? v : [])
+      .filter((x) => x && typeof x.id === 'string' && typeof x.vak === 'string')
+      .slice(0, 20)
+      .map((x) => ({ id: x.id, ts: Number(x.ts) || 0, vak: x.vak.slice(0, 60), onderwerp: String(x.onderwerp || '').slice(0, 120), weging: Number(x.weging) || 1 }));
 
   const isDatum = (s) =>
     /^(vandaag|gisteren|eergisteren|morgen|\d{1,2}\s+[a-zé]{3,9}\.?(\s+\d{4})?|(zon|maan|dins|woens|donder|vrij|zater)dag(\s.*)?)$/i.test(s);
@@ -244,7 +253,7 @@
     voorgeladen = true;
     const doe = () => {
       try {
-        if (typeof window.__somPackVoorlaad === 'function') window.__somPackVoorlaad(OPENINGEN.includes(instellingen.opening) ? instellingen.opening : 'pak');
+        if (typeof window.__somPackVoorlaad === 'function') window.__somPackVoorlaad(OPENINGEN.includes(instellingen.opening) ? instellingen.opening : 'pak', seizoenKeuze());
       } catch (x) {
         /* voorladen is een extraatje */
       }
@@ -295,6 +304,8 @@
 
     rijen = nieuweRijen;
     groepen = nieuweGroepen;
+    bewaarDicht(nieuweRijen);
+    bewaakOverzicht();
     voorladen();
     document.documentElement.setAttribute('data-spo-klaar', '');
     observer.takeRecords(); // onze eigen wijzigingen negeren
@@ -320,8 +331,9 @@
 
   async function laad() {
     try {
-      const r = await chrome.storage.local.get([SLEUTEL_GEOPEND, SLEUTEL_INSTELLINGEN]);
+      const r = await chrome.storage.local.get([SLEUTEL_GEOPEND, SLEUTEL_INSTELLINGEN, SLEUTEL_DICHT]);
       geopend = schoonGeopend(r[SLEUTEL_GEOPEND]);
+      dicht = schoonDicht(r[SLEUTEL_DICHT]);
       instellingen = { ...STANDAARD, ...(r[SLEUTEL_INSTELLINGEN] || {}) };
     } catch (e) {
       /* zonder opslag begint alles afgedekt */
@@ -334,6 +346,7 @@
     chrome.storage.onChanged.addListener((wijzigingen, gebied) => {
       if (gebied !== 'local') return;
       if (wijzigingen[SLEUTEL_GEOPEND]) geopend = schoonGeopend(wijzigingen[SLEUTEL_GEOPEND].newValue);
+      if (wijzigingen[SLEUTEL_DICHT]) dicht = schoonDicht(wijzigingen[SLEUTEL_DICHT].newValue);
       if (wijzigingen[SLEUTEL_INSTELLINGEN]) instellingen = { ...STANDAARD, ...(wijzigingen[SLEUTEL_INSTELLINGEN].newValue || {}) };
       scan();
     });
@@ -379,6 +392,21 @@
     return '';
   }
 
+  // Eén op de tien kaarten is zeldzaam (instelling 'zeldzaam'). Net als bij 'Verras me' dobbelen we één keer per cijfer en houden
+  // we de uitkomst vast tot het pakket dicht is: zo zijn het opwarmen (muis erboven) en het echte openen het eens.
+  function zeldzaamVoor(rij) {
+    if (instellingen.zeldzaam === false) return false;
+    let st = staat.get(rij.host);
+    if (!st) staat.set(rij.host, (st = {}));
+    if (st.zeldzaam == null) {
+      const w = new Uint32Array(1);
+      crypto.getRandomValues(w);
+      st.zeldzaam = w[0] / 4294967296 < 0.1;
+    }
+    return st.zeldzaam;
+  }
+  const seizoenKeuze = () => (instellingen.seizoen === false ? 'geen' : 'auto');
+
   function openingVoor(rij) {
     const keuze = instellingen.opening;
     if (OPENINGEN.includes(keuze)) return keuze;
@@ -394,6 +422,120 @@
     geopend[sig] = (geopend[sig] || 0) + 1;
     bewaar();
     scan();
+  }
+
+  // ───────────────────────── Onthouden welke cijfers nog dicht zijn ─────────────────────────
+  // Alleen vak, onderwerp en weging van cijfers die je nog niet hebt geopend, nooit het cijfer zelf. Dat gebruikt de vriendenpagina
+  // ('Voorspel mijn cijfer') en het afdekken van de gemiddelden (die weten zo dat er een nieuw cijfer is, ook als je niet op 'Laatste cijfers' staat).
+  // Staat er op deze pagina geen lijst met cijfers, dan blijft de lijst zoals hij was.
+  function bewaarDicht(rijenNu) {
+    if (!rijenNu.length) return;
+    const oud = new Map(dicht.map((x) => [x.id, x]));
+    const gezien = new Set();
+    const nieuw = [];
+    for (const r of rijenNu) {
+      if (!r.vergrendeld || gezien.has(r.sig)) continue;
+      gezien.add(r.sig);
+      const o = oud.get(r.sig);
+      nieuw.push({ id: r.sig, ts: o ? o.ts : Date.now(), vak: r.d.vak.slice(0, 60), onderwerp: r.d.onderwerp.slice(0, 120), weging: r.d.weging });
+    }
+    if (JSON.stringify(nieuw.slice(0, 20)) === JSON.stringify(dicht)) return;
+    dicht = nieuw.slice(0, 20);
+    try {
+      chrome.storage.local.set({ [SLEUTEL_DICHT]: dicht });
+    } catch (e) {
+      /* extensie is herladen: pagina verversen lost dat op */
+    }
+  }
+
+  // ───────────────────────── Gemiddelden en cijferoverzicht afdekken ─────────────────────────
+  // Zolang er een nieuw cijfer dicht is, verklappen 'Vakgemiddelden' en 'Cijferoverzicht' het (een gemiddelde dat omhoog of omlaag gaat,
+  // of het cijfer zelf in de lijst). Daarom vervangen we dat tabblad door een melding, tot je het cijfer hebt geopend of 'Toch tonen' kiest.
+  // Somtoday zet de inhoud van een tabblad direct na de <router-outlet> in <sl-cijfers> (naast de tabbladen); daar grijpen we in.
+  const VERBORGEN = 'spo-verborgen';
+  const OVERZICHT_TAB = /vakgemiddelden|cijferoverzicht/i;
+  let overzichtMelding = null;
+  let overzichtDoel = null;
+
+  function maakOverzichtMelding() {
+    const el = document.createElement('spo-overzicht-afdekking');
+    window.__SPO.zetHtml(
+      el.attachShadow({ mode: 'open' }),
+      `<style>
+        :host { display: block; margin: 16px 0; }
+        .kaart { box-sizing: border-box; display: flex; flex-wrap: wrap; align-items: center; gap: 14px 20px; padding: 18px 20px; border-radius: 16px; color: #fff;
+          font-family: 'SPO Text', 'Open Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+          background: linear-gradient(110deg, #10163a 0%, #1a2160 52%, #3b1d70 100%); box-shadow: inset 0 0 0 1px rgba(255,255,255,.14); }
+        .tekst { flex: 1 1 260px; min-width: 0; }
+        .kop { font-family: 'SPO Display', 'Open Sans', system-ui, sans-serif; font-size: 17px; font-weight: 650; letter-spacing: -.02em; }
+        p { margin: 6px 0 0; font-size: 13.5px; line-height: 1.45; color: rgba(255,255,255,.75); }
+        .acties { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+        button { font: inherit; cursor: pointer; }
+        button:focus-visible { outline: 2px solid #ffd24a; outline-offset: 2px; }
+        .goud { height: 38px; padding: 0 16px; border: 0; border-radius: 11px; font-size: 13.5px; font-weight: 700; color: #241703;
+          background: linear-gradient(135deg, #fff0b3, #ffd24a 45%, #ff7a3d); }
+        .tekstknop { padding: 4px 2px; border: 0; background: none; color: rgba(255,255,255,.7); font-size: 12.5px; text-decoration: underline; text-underline-offset: 2px; }
+        .tekstknop:hover { color: #fff; }
+      </style>
+      <div class="kaart" role="region" aria-label="Overzicht afgedekt">
+        <div class="tekst"><div class="kop">Open eerst je nieuwe cijfer</div><p class="uitleg"></p></div>
+        <div class="acties"><button type="button" class="goud" data-a="naar">Naar mijn nieuwe cijfers</button><button type="button" class="tekstknop" data-a="toch">Toch tonen</button></div>
+      </div>`,
+    );
+    el.shadowRoot.addEventListener('click', (e) => {
+      const knop = e.target instanceof Element ? e.target.closest('[data-a]') : null;
+      if (!knop) return;
+      if (knop.dataset.a === 'toch') {
+        toonToch = true;
+        bewaakOverzicht();
+      } else {
+        const eerste = document.querySelector('sl-cijfers hmy-switch[role="tab"], sl-cijfers hmy-tab');
+        if (eerste) eerste.click();
+      }
+    });
+    return el;
+  }
+
+  function opruimenOverzicht() {
+    if (overzichtDoel) overzichtDoel.classList.remove(VERBORGEN);
+    overzichtDoel = null;
+    if (overzichtMelding) overzichtMelding.remove();
+    overzichtMelding = null;
+  }
+
+  function bewaakOverzicht() {
+    const aan = geladen && instellingen.afdekking && instellingen.gemiddelden !== false && dicht.length > 0 && !toonToch;
+    let doel = null;
+    if (aan) {
+      const cijfers = document.querySelector('sl-cijfers');
+      if (cijfers) {
+        const geselecteerd = Array.from(cijfers.querySelectorAll('hmy-switch[aria-selected="true"], hmy-tab[aria-selected="true"]'));
+        const opOverzicht = geselecteerd.some((t) => OVERZICHT_TAB.test(t.getAttribute('label') || t.getAttribute('data-gtm') || t.textContent || ''));
+        const outlet = cijfers.querySelector('router-outlet'); // de eerste: die van dit scherm (eventuele geneste komen daarna)
+        let volgend = outlet ? outlet.nextElementSibling : null;
+        if (volgend && volgend === overzichtMelding) volgend = volgend.nextElementSibling;
+        if (opOverzicht && volgend) doel = volgend;
+      }
+    }
+    if (!doel) {
+      if (overzichtDoel || overzichtMelding) opruimenOverzicht();
+      return;
+    }
+    if (overzichtDoel !== doel) {
+      opruimenOverzicht();
+      overzichtDoel = doel;
+      doel.classList.add(VERBORGEN);
+    }
+    if (!overzichtMelding || overzichtMelding.parentNode !== doel.parentNode) {
+      if (overzichtMelding) overzichtMelding.remove();
+      overzichtMelding = maakOverzichtMelding();
+      doel.parentNode.insertBefore(overzichtMelding, doel);
+    }
+    laadFonts();
+    const n = dicht.length;
+    const vakken = Array.from(new Set(dicht.map((x) => x.vak))).slice(0, 3).join(', ');
+    overzichtMelding.shadowRoot.querySelector('.uitleg').textContent =
+      `Dit overzicht zou je nieuwe cijfer al verklappen. Je hebt nog ${n === 1 ? '1 cijfer dat' : n + ' cijfers die'} je niet hebt geopend (${vakken}). Open eerst je pakket; daarna staat alles weer open.`;
   }
 
   function open(rij, { direct }) {
@@ -413,6 +555,8 @@
       kaartRand: instellingen.kaartRand,
       stil: !instellingen.geluid,
       opening: openingVoor(rij),
+      zeldzaam: zeldzaamVoor(rij),
+      seizoen: seizoenKeuze(),
       direct,
       opOnthuld() {
         if (gemarkeerd) return;
@@ -425,7 +569,7 @@
         try {
           chrome.storage.local.get(SLEUTEL_GALERIJ).then((r) => {
             const lijst = Array.isArray(r[SLEUTEL_GALERIJ]) ? r[SLEUTEL_GALERIJ].filter((x) => x && x.id !== rij.sig) : [];
-            lijst.unshift({ id: rij.sig, ts: Date.now(), vak: String(k.vak).slice(0, 60), cijfer: k.cijfer, onderwerp: String(k.onderwerp).slice(0, 120), weging: k.weging, opening: k.opening, tier: k.tier, kaart: k.kaart });
+            lijst.unshift({ id: rij.sig, ts: Date.now(), vak: String(k.vak).slice(0, 60), cijfer: k.cijfer, onderwerp: String(k.onderwerp).slice(0, 120), weging: k.weging, opening: k.opening, tier: k.tier, zeldzaam: !!k.zeldzaam, kaart: k.kaart });
             chrome.storage.local.set({ [SLEUTEL_GALERIJ]: lijst.slice(0, 150) });
           });
         } catch (e) {
@@ -435,7 +579,10 @@
       opGesloten() {
         bezig = false;
         const st = staat.get(rij.host);
-        if (st) st.willekeur = null; // de volgende keer weer een nieuwe verrassing
+        if (st) {
+          st.willekeur = null; // de volgende keer weer een nieuwe verrassing
+          st.zeldzaam = null;
+        }
         scan();
       },
     };
@@ -475,7 +622,7 @@
       const rij = rijen.find((r) => r.host === host);
       // dezelfde gegevens als bij open(): zo herkent de animatie dat de afbeeldingen al klaarstaan
       if (typeof window.__somPackWarm === 'function') {
-        window.__somPackWarm(rij && { vak: rij.d.vak, cijfer: rij.d.cijfer, onderwerp: rij.d.onderwerp || 'Nieuw cijfer', weging: rij.d.weging, snel: !!instellingen.snel, laag: !!instellingen.laag, persoon: leesNaam(), kaartThema: instellingen.kaartThema, kaartRand: instellingen.kaartRand, opening: openingVoor(rij) });
+        window.__somPackWarm(rij && { vak: rij.d.vak, cijfer: rij.d.cijfer, onderwerp: rij.d.onderwerp || 'Nieuw cijfer', weging: rij.d.weging, snel: !!instellingen.snel, laag: !!instellingen.laag, persoon: leesNaam(), kaartThema: instellingen.kaartThema, kaartRand: instellingen.kaartRand, opening: openingVoor(rij), zeldzaam: zeldzaamVoor(rij), seizoen: seizoenKeuze() });
       }
     } catch (x) {
       /* opwarmen is een extraatje */
@@ -524,6 +671,12 @@
           case 'alles-geopend':
             for (const { sig, lijst } of groepen) geopend[sig] = Math.max(geopend[sig] || 0, lijst.length);
             bewaar();
+            dicht = [];
+            try {
+              chrome.storage.local.set({ [SLEUTEL_DICHT]: dicht });
+            } catch (e) {
+              /* geen opslag */
+            }
             scan();
             antwoord(status());
             break;

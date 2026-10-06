@@ -20,7 +20,7 @@
 
   function schoon(a) {
     return (Array.isArray(a) ? a : []).filter((e) => e && typeof e.id === 'string' && typeof e.kaart === 'string' && Number.isFinite(e.cijfer))
-      .map((e) => Object.assign({}, e, { tier: Math.max(0, Math.min(4, e.tier | 0)) }));
+      .map((e) => Object.assign({}, e, { tier: Math.max(0, Math.min(4, e.tier | 0)), zeldzaam: e.zeldzaam === true }));
   }
 
   // Tweestaps knop: eerste klik vraagt om bevestiging, tweede voert uit.
@@ -108,7 +108,7 @@
       const li = document.createElement('li');
       const b = document.createElement('button');
       b.type = 'button'; b.className = 'item'; b.dataset.i = i;
-      b.setAttribute('aria-label', `${e.vak}, ${fmt(e.cijfer)}, ${NIVEAUS[e.tier]}, ${datum(e.ts)}`);
+      b.setAttribute('aria-label', `${e.vak}, ${fmt(e.cijfer)}, ${NIVEAUS[e.tier]}${e.zeldzaam ? ', zeldzaam' : ''}, ${datum(e.ts)}`);
       b.style.setProperty('--gl', GLOED[e.tier]);
       const vak = document.createElement('span'); vak.className = 'kaartvak';
       const k = document.createElement('span'); k.className = 'kaart';
@@ -132,7 +132,7 @@
     const dlg = $('detail');
     dlg.style.setProperty('--gl', GLOED[e.tier]);
     $('d-img').src = e.kaart; $('d-img').alt = `Kaart ${e.vak} ${fmt(e.cijfer)}`;
-    $('d-niveau').textContent = NIVEAUS[e.tier];
+    $('d-niveau').textContent = NIVEAUS[e.tier] + (e.zeldzaam ? ' · Zeldzaam' : '');
     $('d-vak').textContent = e.vak;
     $('d-cijfer').textContent = fmt(e.cijfer);
     $('d-onderwerp').textContent = e.onderwerp || '-';

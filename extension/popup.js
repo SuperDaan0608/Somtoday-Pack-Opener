@@ -11,7 +11,7 @@
   const CIJFERS_URL = 'https://leerling.somtoday.nl/cijfers';
   const SLEUTEL_GEOPEND = 'spo_geopend';
   const SLEUTEL_INSTELLINGEN = 'spo_instellingen';
-  const STANDAARD = { afdekking: true, geluid: true, snel: false, opening: 'pak', galerij: true, laag: false };
+  const STANDAARD = { afdekking: true, geluid: true, snel: false, opening: 'pak', galerij: true, laag: false, zeldzaam: true, seizoen: true, gemiddelden: true };
   const OPENINGEN = ['pak', 'kluis', 'plinko', 'ster', 'raket', 'schiet', 'dans', 'willekeurig'];
 
   // Het formulier onthoudt zijn invoer in localStorage (zelfde sleutels als versie 0.1).
@@ -380,6 +380,11 @@
   });
 
   // ───────────────────────── Handmatig: openen ─────────────────────────
+  $('proef-zeldzaam').checked = opslag.lees('proef-zeldzaam', '0') === '1';
+  $('proef-seizoen').value = ['auto', 'halloween', 'geen'].includes(opslag.lees('proef-seizoen', 'auto')) ? opslag.lees('proef-seizoen', 'auto') : 'auto';
+  $('proef-zeldzaam').addEventListener('change', (e) => opslag.schrijf('proef-zeldzaam', e.target.checked ? '1' : '0'));
+  $('proef-seizoen').addEventListener('change', (e) => opslag.schrijf('proef-seizoen', e.target.value));
+
   $('formulier').addEventListener('submit', async (e) => {
     e.preventDefault();
     fout.textContent = '';
@@ -398,6 +403,9 @@
       laag: !!instellingen.laag,
       stil: !instellingen.geluid,
       opening: instellingen.opening,
+      // bij het handmatig proberen kies je zelf: een zeldzame kaart en een seizoensthema kun je zo altijd uitproberen
+      zeldzaam: $('proef-zeldzaam').checked,
+      seizoen: $('proef-seizoen').value,
     };
 
     const lijst = leesGeschiedenis();

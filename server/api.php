@@ -89,7 +89,9 @@ function verwijderGebruiker(PDO $db, string $id): void {
   q($db, 'DELETE FROM users WHERE id = ?', [$id]);
 }
 if (random_int(1, 100) === 1) {
-  q($db, 'DELETE FROM ratelimit WHERE venster < ?', [intdiv($nu, 60) - 120]);
+  // Minuut-vensters (nu rond 29 miljoen) en uur-vensters (rond 490 duizend) staan in dezelfde tabel; elk krijgt zijn eigen drempel.
+  q($db, 'DELETE FROM ratelimit WHERE venster >= 10000000 AND venster < ?', [intdiv($nu, 60) - 120]);
+  q($db, 'DELETE FROM ratelimit WHERE venster < 10000000 AND venster < ?', [intdiv($nu, 3600) - 3]);
   $oud = q($db, 'SELECT id FROM users WHERE last_seen < ?', [$nu - 365 * 86400])->fetchAll(PDO::FETCH_COLUMN);
   foreach ($oud as $o) verwijderGebruiker($db, $o);
 }

@@ -18,13 +18,13 @@
 (function () {
   'use strict';
   const SPO = (window.__SPO = window.__SPO || {});
-  const { klem, esc, OPENINGEN } = SPO;
+  const { klem, esc } = SPO;
 
   const HOST_ID = '__somPackHost';
   let warmStaat = null; // een alvast klaargezette motor (zie warm)
   let artCache = null; // { sleutel, belofte }: de afbeeldingen van het cijfer waar je het laatst boven hing
 
-  const sleutelVan = (d) => [d.vak, d.cijferTekst, d.onder, d.weging, d.snel ? 1 : 0, d.opening, d.persoon, d.T.pal.join(), d.rand].join('|');
+  const sleutelVan = (d) => [d.vak, d.cijferTekst, d.onder, d.weging, d.snel ? 1 : 0, d.opening, d.persoon, d.T.pal.join(), d.rand, d.zeldzaam ? 'z' : '', d.seizoen || ''].join('|');
   const pauzeRustig = () => new Promise((r) => (window.requestIdleCallback ? requestIdleCallback(() => r(), { timeout: 150 }) : setTimeout(r, 12)));
   const pauzeSnel = () => new Promise((r) => setTimeout(r, 0));
 
@@ -69,7 +69,7 @@
       try {
         const dd = SPO.maakData(data);
         mod = dd.opening !== 'pak' ? SPO.openingen[dd.opening] : null;
-        SPO.audio.voorlaad(dd.opening);
+        SPO.audio.voorlaad(dd.opening, dd.seizoen);
         const sleutel = sleutelVan(dd);
         if (!artCache || artCache.sleutel !== sleutel) {
           const belofte = SPO.art.laadLettertypes().then(() => SPO.art.maakAllesAsync(dd, pauzeRustig));
@@ -144,7 +144,7 @@
     };
 
     // ───── geluid: de AudioContext moet tijdens de klik worden gemaakt ─────
-    const audio = SPO.audio.maak({ tier: d.tier, stil, opening: d.opening });
+    const audio = SPO.audio.maak({ tier: d.tier, stil, opening: d.opening, seizoen: d.seizoen });
     const geluidKlaar = audio.laad();
 
     // ───── overlay (shadow DOM) ─────
@@ -211,7 +211,7 @@
     host.style.cssText = 'all:initial;position:fixed;inset:0;z-index:2147483647;';
     const root = host.attachShadow({ mode: 'open' });
     SPO.zetHtml(root, `<style>${CSS}</style>
-      <div class="wrap" role="dialog" aria-modal="true" aria-label="${esc(OPENINGEN[d.opening].aria)}: ${esc(d.vak)}">
+      <div class="wrap" role="dialog" aria-modal="true" aria-label="${esc(SPO.openingTekst(d).aria)}: ${esc(d.vak)}">
         <div class="canvasplek"></div>
         <div class="reserve"></div>
         <div class="top">
@@ -225,9 +225,9 @@
           <div class="melding">
             <div class="m-kop"><span class="m-app">${LOGO}Somtoday Pack Opener</span><span>nu</span></div>
             <div class="m-titel">Nieuw cijfer!</div>
-            <div class="m-tekst">Er staat een nieuw cijfer klaar voor <b>${esc(d.vak)}</b>. <span class="m-vraag">${esc(OPENINGEN[d.opening].tekst)}</span></div>
+            <div class="m-tekst">Er staat een nieuw cijfer klaar voor <b>${esc(d.vak)}</b>. <span class="m-vraag">${esc(SPO.openingTekst(d).tekst)}</span></div>
             <div class="m-sub"><span class="chip">${esc(d.onder)}</span><span class="chip">Weging ${d.weging}×</span></div>
-            <button class="knop goud m-knop" data-a="start">${svg('pakket')}<span class="m-knoptekst">${esc(OPENINGEN[d.opening].knop)}</span></button>
+            <button class="knop goud m-knop" data-a="start">${svg('pakket')}<span class="m-knoptekst">${esc(SPO.openingTekst(d).knop)}</span></button>
             <div class="m-hint">of druk op spatie</div>
           </div>
         </div>
@@ -628,7 +628,7 @@
         try {
           if (gesloten) return;
           const kaart = SPO.art.maakMiniatuur(d, lagen);
-          roep('opKaartKlaar', { vak: d.vak, cijfer: d.g, onderwerp: d.onder, weging: d.weging, opening: d.opening, tier: d.tier, kaart });
+          roep('opKaartKlaar', { vak: d.vak, cijfer: d.g, onderwerp: d.onder, weging: d.weging, opening: d.opening, tier: d.tier, zeldzaam: d.zeldzaam, kaart });
         } catch (e) {
           /* de galerij is een extraatje */
         }
@@ -694,12 +694,13 @@
           // Deze opening werkt niet op deze videokaart: dan maar het pakje.
           if (debug) console.error('[pakket] opening ' + opMod.naam + ' mislukt, terug naar het pakje: ' + motor.fouten.join(' | '));
           d.opening = 'pak';
+          d.seizoen = SPO.seizoenNu(dRuw.seizoen);
           art = await SPO.art.maakAllesAsync(d, pauzeSnel);
           lagen = art.lagen;
           const kt = root.querySelector('.m-knoptekst');
           const vr = root.querySelector('.m-vraag');
-          if (kt) kt.textContent = OPENINGEN.pak.knop;
-          if (vr) vr.textContent = OPENINGEN.pak.tekst;
+          if (kt) kt.textContent = SPO.openingTekst(d).knop;
+          if (vr) vr.textContent = SPO.openingTekst(d).tekst;
         }
         if (gesloten) return;
         await volgendBeeld();
@@ -768,9 +769,9 @@
     })();
   }
 
-  function voorlaad(opening) {
+  function voorlaad(opening, seizoen) {
     SPO.art.laadLettertypes();
-    SPO.audio.voorlaad(opening);
+    SPO.audio.voorlaad(opening, opening === 'pak' ? SPO.seizoenNu(seizoen) : null);
   }
 
   window.__somPackRun = run;

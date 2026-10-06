@@ -35,6 +35,10 @@ section{padding:72px 0 8px}
 .mozaiek figure:nth-child(4),.mozaiek figure:nth-child(5),.mozaiek figure:nth-child(6){grid-column:span 2}
 .mozaiek figure:nth-child(7){grid-column:span 6;aspect-ratio:21/7}
 .mozaiek img{width:100%;height:100%!important;object-fit:cover}
+.paar{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.paar figure{margin:0;position:relative;overflow:hidden;border-radius:8px;border:1px solid var(--lijn);background:#000;aspect-ratio:16/9}
+.paar img{width:100%;height:100%!important;object-fit:cover}
+.paar figcaption{position:absolute;left:0;right:0;bottom:0;margin:0;padding:26px 12px 10px;font:800 italic 24px/1 var(--kop);text-transform:uppercase;color:#fff;background:linear-gradient(transparent,rgba(0,0,0,.78))}
 .mozaiek figcaption{position:absolute;left:0;right:0;bottom:0;margin:0;padding:26px 12px 10px;font:800 italic 24px/1 var(--kop);text-transform:uppercase;color:#fff;background:linear-gradient(transparent,rgba(0,0,0,.78))}
 .niveaus{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
 .niveaus figure{margin:0}
@@ -64,6 +68,7 @@ footer p{margin:6px 0}
 .tekst p,.tekst li{color:var(--zacht)}
 @media (max-width:760px){
  .mozaiek{grid-template-columns:1fr 1fr}
+ .paar{grid-template-columns:1fr}
  .mozaiek figure:nth-child(n){grid-column:span 1;grid-row:auto;aspect-ratio:16/9}
  .mozaiek figure:nth-child(1),.mozaiek figure:nth-child(7){grid-column:span 2}
  .niveaus{grid-template-columns:repeat(3,1fr)}

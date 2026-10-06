@@ -83,6 +83,33 @@
     schiet: { naam: 'Schietkraam', knop: 'Beginnen met schieten', tekst: 'Schiet de andere cijfers weg: welk cijfer blijft over?', aria: 'Schietkraam' },
   };
   const OPENING_LIJST = Object.keys(OPENINGEN);
+
+  // Seizoensthema's: een tijdje per jaar krijgt het pakje een ander uiterlijk en andere geluiden (alleen de opening 'pak').
+  // van en tot zijn [maand, dag], allebei inclusief. Staat de begindatum later in het jaar dan de einddatum (kerst), dan loopt het thema over de jaarwisseling.
+  const SEIZOENEN = {
+    halloween: {
+      naam: 'Halloween',
+      van: [10, 1],
+      tot: [11, 2],
+      knop: 'Spookpakje openen',
+      tekst: 'Een spookpakje. Trick or treat: wat zit erin?',
+      aria: 'Spookpakje openen',
+    },
+  };
+  // keuze: 'auto' (volgens de datum), 'geen' (uit) of de naam van een thema (om het te proberen). nu: een Date, voor de tests.
+  const seizoenNu = (keuze, nu) => {
+    if (keuze === 'geen') return null;
+    if (SEIZOENEN[keuze]) return keuze;
+    const n = nu || new Date();
+    const dag = (n.getMonth() + 1) * 100 + n.getDate();
+    for (const naam of Object.keys(SEIZOENEN)) {
+      const s = SEIZOENEN[naam];
+      const a = s.van[0] * 100 + s.van[1];
+      const b = s.tot[0] * 100 + s.tot[1];
+      if (a <= b ? dag >= a && dag <= b : dag >= a || dag <= b) return naam;
+    }
+    return null;
+  };
   // Bij 'willekeurig' kiezen we er één. Dat gebeurt één keer per cijfer (content.js), zodat het opwarmen en het openen hetzelfde kiezen.
   // Een opening telt alleen mee als haar module ook echt geladen is (motor/openingen/<naam>.js).
   const kiesOpening = (v) => {
@@ -118,6 +145,10 @@
   SPO.OPENINGEN = OPENINGEN;
   SPO.OPENING_LIJST = OPENING_LIJST;
   SPO.kiesOpening = kiesOpening;
+  SPO.SEIZOENEN = SEIZOENEN;
+  SPO.seizoenNu = seizoenNu;
+  // De teksten van de opening, met het seizoensthema erbij als dat meedoet.
+  SPO.openingTekst = (d) => (d.seizoen && SEIZOENEN[d.seizoen] ? SEIZOENEN[d.seizoen] : OPENINGEN[d.opening]);
 
   SPO.maakData = function (d) {
     const n = parseFloat(String(d.cijfer).replace(',', '.'));
@@ -138,13 +169,19 @@
     let seed = 0;
     for (const ch of vak) seed += ch.charCodeAt(0);
     const fmt = (v) => v.toFixed(1).replace('.', ',');
+    const opening = kiesOpening(d.opening);
+    const zeldzaam = d.zeldzaam === true || d.zeldzaam === 'true' || d.zeldzaam === 1;
     return {
       g,
       I,
       tier,
       T,
       walkout: g >= 7,
-      opening: kiesOpening(d.opening),
+      opening,
+      // het seizoensthema geldt alleen voor het pakje; de andere openingen houden hun eigen uiterlijk
+      seizoen: opening === 'pak' ? seizoenNu(d.seizoen) : null,
+      // een zeldzame kaart: een extra spectaculaire onthulling, los van je cijfer (content.js dobbelt er één op de tien)
+      zeldzaam,
       vak,
       onder: tekst(d.onderwerp, 'Toets', 80),
       weging: klem(Math.round(+d.weging) || 1, 1, 10),
