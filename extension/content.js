@@ -675,7 +675,7 @@
 
   const KNOP_HTML = `
     <style>
-      :host { position: fixed; right: 18px; bottom: 18px; z-index: 2147483000; display: block; }
+      :host { position: fixed; right: 18px; bottom: 18px; z-index: 2147483647; display: block; }
       :host([hidden]) { display: none !important; }
       * { box-sizing: border-box; }
       .knop {
@@ -780,13 +780,18 @@
   // ── Het paneel ──
   const PANEEL_HTML = `
     <style>
-      :host { position: fixed; inset: 0; z-index: 2147483001; display: block; }
+      :host { position: fixed; inset: 0; z-index: 2147483647; display: block; }
       * { box-sizing: border-box; }
+      /* Een echt modaal venster (<dialog>): het staat in de 'top layer', dus boven alles op de pagina, welke z-index die ook heeft,
+         en de rest van de pagina is zolang het open is niet te bedienen. */
       .laag {
-        position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px;
+        position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; padding: 24px; border: 0; overflow: hidden;
+        align-items: center; justify-content: center; color: inherit;
         background: rgba(4, 5, 12, 0.74); -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px);
         animation: laag-in 0.18s ease-out;
       }
+      .laag[open] { display: flex; }
+      .laag::backdrop { background: transparent; }
       .dialoog {
         position: relative; width: min(1180px, 100%); height: min(90vh, 920px); overflow: hidden; border-radius: 22px; background: #080a14;
         box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14), 0 40px 100px -20px rgba(0, 0, 0, 0.85);
@@ -814,8 +819,8 @@
       @keyframes dialoog-in { from { opacity: 0; transform: translateY(10px) scale(0.985); } }
       @media (prefers-reduced-motion: reduce) { .laag, .dialoog { animation: none; } }
     </style>
-    <div class="laag">
-      <div class="dialoog" role="dialog" aria-modal="true" aria-label="Pack Opener">
+    <dialog class="laag" aria-label="Pack Opener">
+      <div class="dialoog">
         <div class="val" tabindex="0" data-val="voor"></div>
         <iframe title="Pack Opener" allow="clipboard-write"></iframe>
         <div class="val" tabindex="0" data-val="na"></div>
@@ -825,7 +830,7 @@
           <div class="acties"><button type="button" class="goud" data-a="tabblad">Openen in een nieuw tabblad</button><button type="button" data-a="sluit">Sluiten</button></div>
         </div>
       </div>
-    </div>`;
+    </dialog>`;
 
   let paneel = null; // { host, iframe, tab, klaar, timer, vorigFocus, oudeOverflow }
 
@@ -887,8 +892,17 @@
         sluitPaneel(true);
       }
     });
+    wortel.querySelector('.laag').addEventListener('cancel', (e) => {
+      e.preventDefault();
+      sluitPaneel(true);
+    });
     iframe.addEventListener('load', () => iframe.focus({ preventScroll: true }));
     document.documentElement.appendChild(host);
+    try {
+      wortel.querySelector('.laag').showModal();
+    } catch (e) {
+      wortel.querySelector('.laag').setAttribute('open', ''); // zonder modaal venster werkt het ook, alleen niet altijd boven alles
+    }
     iframe.src = chrome.runtime.getURL('hub.html');
     paneel.timer = setTimeout(valTerug, HUB_WACHT_MS);
     werkKnopBij(); // verbergt de knop zolang het paneel open is

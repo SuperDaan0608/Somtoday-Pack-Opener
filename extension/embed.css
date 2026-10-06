@@ -9,3 +9,4 @@ html.embed .onder { margin-top: 0; }
 html.embed .kop { margin-bottom: 18px; }
 html.embed body > * { margin-left: 0; margin-right: 0; }
 @media (max-width: 560px) { html.embed body { padding: 16px 14px 32px; } }
+html.embed .leeg { margin-left: auto; margin-right: auto; }
