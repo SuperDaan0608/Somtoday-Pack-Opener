@@ -52,6 +52,9 @@ subwoofer hoort).
 | `schiet-scherf` | A colorful glass tile shattering into pieces with a bright crunchy crash, cartoon arcade game sound | 0,9 s | Schietkraam: de tegel spat uiteen |
 | `schiet-spin` | Revolver cylinder spinning and clicking into place, quick ratchet click, toy-like | 0,6 s | Schietkraam: de trommel draait |
 | `schiet-laatste` | Short triumphant arcade sting, bright rising chime with a sparkling whoosh, last survivor wins | 1,3 s | Schietkraam: de laatste overlevende wint |
+| `dans-beat` | Upbeat funky disco dance groove at exactly 120 BPM, punchy kick on every beat, offbeat hi-hats, slap bass and a bright synth stab, instrumental, no vocals, steady and loopable | 12 s | Dansje: de beat onder de dans (120 BPM, kick op 0,5 s, 1,0 s, ...) |
+| `dans-scratch` | DJ vinyl record scratch, a quick comedic wicka-wicka then a sudden stop | 0,4 s | Dansje: de plaat schrapt vlak voor de dab |
+| `dans-dab` | Short triumphant dance-floor sting: a big drum hit with a crowd cheering 'whoo' and a bright synth chord, party celebration | 1,4 s | Dansje: de dab |
 
 Het volume van elk geluid in de animatie staat in `NIVEAU` bovenaan `extension/motor/audio.js`
 (in dB ten opzichte van de opname).
@@ -89,6 +92,10 @@ Vier extra geluiden (`schiet-knal`, `schiet-scherf`, `schiet-spin`, `schiet-laat
 dezelfde ElevenLabs-flow. Het script knipt alleen het stukje dat telt: de knal is 0,5 s (de opname heeft na 0,56 s nog
 een zwakke tweede plof die eraf is), de scherf 0,9 s, de trommel begint na 0,055 s (stilte ervoor) en de laatste stinger
 is 1,3 s.
+
+## Dansje
+
+Drie geluiden (`dans-beat`, `dans-scratch`, `dans-dab`) in dezelfde ElevenLabs-flow. De beat staat op 120 BPM (gemeten: een kick om de 0,5 s) en krijgt alleen een korte in- en uitfade. De scratch is 0,42 s (het wicka-wicka duurt 0,35 s, daarna is het stil) en de dab 1,4 s (na 1,26 s is het stil).
 
 ## Een geluid vervangen
 

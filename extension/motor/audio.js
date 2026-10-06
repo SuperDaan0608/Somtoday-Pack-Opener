@@ -37,7 +37,7 @@
     'plinko-tok': -13, 'plinko-vak': -5, 'plinko-bel': -2,
     'ster-vlucht': -5, 'ster-inslag': -1, 'ster-nacht': -12,
     'raket-piep': -12, 'raket-start': -2, 'raket-motor': -6, 'raket-trap': -5, 'raket-knal': -1,
-    'dans-beat': -8, 'dans-scratch': -6, 'dans-dab': -4,
+    'dans-beat': -8, 'dans-scratch': -5, 'dans-dab': -4,
     'schiet-knal': -6, 'schiet-scherf': -8, 'schiet-spin': -9, 'schiet-laatste': -5,
   });
 
