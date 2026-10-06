@@ -84,7 +84,7 @@ form .knop { justify-self: start; }
 .selectie input { width: 18px; height: 18px; accent-color: #ffd24a; flex: none; }
 .selectie .s-cj { font-weight: 700; min-width: 34px; }
 .selectie .s-vak { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.v-cijfers { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin: 0 0 12px; padding: 0; list-style: none; }
+.v-cijfers { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; margin: 0 0 12px; padding: 0; list-style: none; }
 .cijferkaart { --gl: var(--t0); border: 1px solid var(--gl); border-radius: 12px; padding: 10px 12px; background: linear-gradient(160deg, color-mix(in srgb, var(--gl) 22%, transparent), rgba(255,255,255,.02)); }
 .cijferkaart .cj { font: 800 26px/1 var(--display); color: var(--gl); }
 .cijferkaart .vk { display: block; font-weight: 600; margin-top: 6px; overflow-wrap: anywhere; }
@@ -109,3 +109,60 @@ form .knop { justify-self: start; }
 .geverifieerd { margin: 0 !important; color: #6bff9e !important; font-weight: 600; }
 .bevestig { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; color: var(--tekst-2); }
 .bevestig input { width: 18px; height: 18px; accent-color: #ffd24a; flex: none; margin-top: 1px; }
+
+/* reageren op kaarten van vrienden */
+.v-sub { margin: 14px 0 8px; font-size: 14px; }
+.reageer { display: grid; grid-template-columns: repeat(6, minmax(0, 44px)); gap: 4px; margin-top: 10px; }
+.reageer button { height: 40px; padding: 0; border: 1px solid var(--lijn-2); border-radius: 10px; background: rgba(255,255,255,.04); font-size: 18px; line-height: 1; cursor: pointer; }
+.reageer button:hover { border-color: rgba(255,255,255,.4); }
+.reageer button[aria-pressed="true"] { border-color: #ffd24a; background: rgba(255,210,74,.22); box-shadow: inset 0 0 0 1px #ffd24a; }
+
+/* rondes van vrienden: een gok invullen of de uitslag zien */
+.gok-lijst, .dichtlijst, .rondes, .reactielijst { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 10px; }
+.gok, .dicht-item, .ronde, .rkaart { border: 1px solid var(--lijn); border-radius: 12px; padding: 12px; background: rgba(255,255,255,.02); }
+.gok-form { gap: 10px; }
+.paneel .gok-vraag { margin: 0; color: var(--tekst); overflow-wrap: anywhere; }
+.paneel .gok-uitslag { margin: 8px 0 0; color: var(--tekst); font-weight: 600; }
+.paneel .gok-dichtst { margin: 4px 0 0; }
+.paneel .gok-status { margin: 0; min-height: 0; font-size: 13px; }
+.paneel .gok-status:empty { display: none; }
+.paneel .fout-tekst { color: #ff9a9a; }
+input[aria-invalid="true"] { border-color: #ff5b5b; }
+.gok-form .veld input { max-width: 140px; }
+
+/* mijn eigen rondes ('Voorspel mijn cijfer') */
+.di-kop { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
+.di-tekst { display: grid; min-width: 0; flex: 1 1 180px; }
+.di-vak { font-weight: 600; overflow-wrap: anywhere; }
+.di-on { font-size: 12px; color: var(--tekst-3); overflow-wrap: anywhere; }
+.raadform { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--lijn); gap: 8px; }
+.raadform fieldset { border: 0; margin: 0; padding: 0; min-width: 0; display: grid; gap: 2px; }
+.raadform legend { padding: 0; margin-bottom: 6px; font-weight: 600; }
+.keuze { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 8px; cursor: pointer; overflow-wrap: anywhere; }
+.keuze:hover { background: rgba(255,255,255,.05); }
+.keuze input { width: 18px; height: 18px; accent-color: #ffd24a; flex: none; }
+.acties { display: flex; gap: 8px; flex-wrap: wrap; }
+.r-kop { margin: 0 0 6px; font-size: 15px; overflow-wrap: anywhere; }
+.r-kop:focus { outline: none; }
+.r-kop:focus-visible { outline: 2px solid #ffd24a; outline-offset: 2px; }
+.paneel .r-status { margin: 0 0 8px; }
+.gokken { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 4px; }
+.gokken li { display: flex; flex-wrap: wrap; gap: 0 10px; }
+.g-naam { font-weight: 600; overflow-wrap: anywhere; }
+.g-gok { color: var(--tekst); }
+.g-extra { color: var(--tekst-3); }
+.paneel .r-dichtst { color: var(--tekst); font-weight: 600; }
+
+/* reacties van vrienden op mijn kaarten */
+.rkaart { border-color: var(--gl, var(--t0)); display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 14px; align-items: center; }
+.rkaart .cj { font: 800 22px/1 var(--display); color: var(--gl, var(--t0)); }
+.rkaart .vk { display: block; font-weight: 600; overflow-wrap: anywhere; }
+.rkaart .on { display: block; font-size: 12px; color: var(--tekst-3); overflow-wrap: anywhere; }
+.r-lijst { grid-column: 1 / -1; list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.reactie { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--lijn-2); border-radius: 99px; padding: 3px 10px; background: rgba(255,255,255,.04); }
+.reactie .r-emoji { font-size: 16px; line-height: 1; }
+
+@media (max-width: 480px) {
+  .di-kop .knop, .ronde .acties .knop, .raadform .acties .knop { width: auto; flex: 1 1 auto; }
+  .gok-form .veld input { max-width: none; }
+}

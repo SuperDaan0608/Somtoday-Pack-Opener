@@ -9,7 +9,7 @@ globalThis.localStorage = { getItem: (k) => (mem.has(k) ? mem.get(k) : null), se
 const L = require('../../extension/vriendenlib.js');
 
 const MAP = path.resolve(__dirname, '..');
-const TMP = '/tmp/claude-0/-home-user/fa7dcd47-c58c-5823-9bf8-08f642143e43/scratchpad/vrienden';
+const TMP = process.env.SPO_TMP || '/tmp/vrienden-scratch';
 fs.mkdirSync(TMP, { recursive: true });
 let ok = 0, mis = 0;
 function controle(naam, waar, extra) { if (waar) ok++; else { mis++; console.log('MIS:', naam, extra === undefined ? '' : extra); } }

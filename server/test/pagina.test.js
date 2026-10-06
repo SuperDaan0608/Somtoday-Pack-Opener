@@ -6,7 +6,7 @@ const path = require('node:path');
 const { chromium } = require('playwright');
 
 const MAP = path.resolve(__dirname, '..');
-const TMP = '/tmp/claude-0/-home-user/fa7dcd47-c58c-5823-9bf8-08f642143e43/scratchpad/vrienden';
+const TMP = process.env.SPO_TMP || '/tmp/vrienden-scratch';
 fs.mkdirSync(TMP, { recursive: true });
 const DB = path.join(TMP, 'pagina.sqlite');
 const PAGINA = 'http://localhost:8123/vrienden.html?server=' + encodeURIComponent('http://localhost:8150/api.php');

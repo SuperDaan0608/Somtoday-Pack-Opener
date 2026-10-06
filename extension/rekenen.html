@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cijfercalculator</title>
+  <link rel="stylesheet" href="rekenen.css" />
+</head>
+<body>
+  <a class="skip" href="#u-kop">Naar de uitkomst</a>
+  <header class="kop">
+    <h1>Cijfercalculator</h1>
+    <p class="onder">Wat moet je halen voor het gemiddelde dat je wilt? Vul in waar je nu staat en kijk wat de volgende toets moet worden.</p>
+  </header>
+
+  <main class="rekenen">
+    <div class="kolom">
+      <section class="paneel" aria-labelledby="k-start">
+        <h2 id="k-start">1. Waar sta je nu?</h2>
+
+        <fieldset class="keuze">
+          <legend>Hoe wil je beginnen?</legend>
+          <div class="keuzes">
+            <label class="optie"><input type="radio" name="modus" id="m-galerij" value="galerij" /><span>Uit mijn galerij</span></label>
+            <label class="optie"><input type="radio" name="modus" id="m-zelf" value="zelf" checked /><span>Zelf invullen</span></label>
+          </div>
+        </fieldset>
+
+        <div id="deel-galerij" hidden>
+          <div id="g-leeg" class="leeg" hidden>
+            <p>Je galerij is nog leeg. Open eerst een cijfer op Somtoday, of vul je gemiddelde zelf in.</p>
+            <button type="button" class="knop" id="g-naar-zelf">Zelf invullen</button>
+          </div>
+          <div id="g-keuze">
+            <div class="veld">
+              <label for="g-vak">Vak</label>
+              <select id="g-vak"><option value="">Kies een vak</option></select>
+            </div>
+            <div id="g-info" hidden>
+              <p class="basis" id="g-basis"></p>
+              <p class="hint">Cijfers die je niet in de extensie hebt geopend, zitten hier niet in. Dan klopt dit niet helemaal. Je kunt de twee getallen hieronder aanpassen, of kiezen voor Zelf invullen.</p>
+              <div class="velden">
+                <div class="veld">
+                  <label for="g-som">Cijfers maal weging, opgeteld</label>
+                  <input type="text" id="g-som" inputmode="decimal" autocomplete="off" spellcheck="false" aria-describedby="g-som-hint" />
+                  <small class="hint" id="g-som-hint">Elk cijfer maal zijn weging, bij elkaar opgeteld.</small>
+                </div>
+                <div class="veld">
+                  <label for="g-weging">Wegingen, opgeteld</label>
+                  <input type="text" id="g-weging" inputmode="decimal" autocomplete="off" spellcheck="false" aria-describedby="g-weging-hint" />
+                  <small class="hint" id="g-weging-hint">Alle wegingen bij elkaar opgeteld.</small>
+                </div>
+              </div>
+              <p class="afgeleid" id="g-gem" hidden></p>
+              <button type="button" class="knop klein" id="g-herstel" hidden>Voorstel herstellen</button>
+              <details class="cijfers">
+                <summary>Welke cijfers zijn dit?</summary>
+                <ul id="g-lijst"></ul>
+              </details>
+            </div>
+          </div>
+        </div>
+
+        <div id="deel-zelf">
+          <div class="velden onder-elkaar">
+            <div class="veld">
+              <label for="z-gem">Je huidige gemiddelde</label>
+              <input type="text" id="z-gem" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="bijvoorbeeld 6,8" aria-describedby="z-gem-hint" />
+              <small class="hint" id="z-gem-hint">Een getal van 1,0 tot en met 10,0. Komma of punt mag allebei.</small>
+            </div>
+            <div class="veld">
+              <label for="z-weging">Totale weging van je cijfers tot nu toe</label>
+              <input type="text" id="z-weging" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="bijvoorbeeld 12" aria-describedby="z-weging-hint" />
+              <small class="hint" id="z-weging-hint">Tel de wegingen van je cijfers bij elkaar op.</small>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="paneel" aria-labelledby="k-doel">
+        <h2 id="k-doel">2. Wat wil je halen?</h2>
+
+        <div class="veld">
+          <label for="d-gew">Gewenst gemiddelde</label>
+          <input type="text" id="d-gew" inputmode="decimal" autocomplete="off" spellcheck="false" aria-describedby="d-gew-hint" />
+          <small class="hint" id="d-gew-hint">Een getal van 1,0 tot en met 10,0.</small>
+        </div>
+        <div class="chips" id="snel" role="group" aria-label="Snel kiezen"></div>
+
+        <div class="velden">
+          <div class="veld">
+            <label for="d-tw">Weging van de volgende toets</label>
+            <input type="text" id="d-tw" inputmode="numeric" autocomplete="off" spellcheck="false" aria-describedby="d-tw-hint" />
+            <small class="hint" id="d-tw-hint">Een heel getal van 1 tot en met 10.</small>
+          </div>
+          <div class="veld">
+            <label for="d-n">Aantal toetsen die nog komen</label>
+            <select id="d-n" aria-describedby="d-n-hint">
+              <option value="1">1 toets</option>
+              <option value="2">2 toetsen</option>
+              <option value="3">3 toetsen</option>
+              <option value="4">4 toetsen</option>
+              <option value="5">5 toetsen</option>
+            </select>
+            <small class="hint" id="d-n-hint">Ze hebben allemaal dezelfde weging.</small>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="kolom">
+      <section class="paneel uitkomst s-melding" id="u-paneel" aria-labelledby="u-kop">
+        <h2 id="u-kop">Wat je moet halen</h2>
+        <div id="uitkomst" role="status" aria-live="polite" aria-atomic="true"></div>
+      </section>
+
+      <section class="paneel" aria-labelledby="w-kop">
+        <h2 id="w-kop">Wat als ik een cijfer haal?</h2>
+        <div class="veld">
+          <label for="w-cijfer">Een mogelijk cijfer</label>
+          <input type="text" id="w-cijfer" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="bijvoorbeeld 6,5" aria-describedby="w-cijfer-hint" />
+          <small class="hint" id="w-cijfer-hint">Het telt mee met de weging van hierboven.</small>
+        </div>
+        <div id="wat-als" class="watals" role="status" aria-live="polite" aria-atomic="true"></div>
+      </section>
+
+      <section class="paneel" aria-labelledby="t-kop">
+        <h2 id="t-kop">Dit heb je nodig</h2>
+        <p class="hint" id="t-leeg" hidden>Vul eerst hierboven in waar je nu staat en wat de volgende toets weegt.</p>
+        <table id="t-tabel" hidden>
+          <caption>Welk cijfer je nodig hebt voor de toets die je hierboven hebt ingesteld</caption>
+          <thead>
+            <tr><th scope="col">Gewenst gemiddelde</th><th scope="col">Je moet halen</th><th scope="col">Of het kan</th></tr>
+          </thead>
+          <tbody id="t-body"></tbody>
+        </table>
+        <p class="hint" id="t-max" hidden></p>
+      </section>
+    </div>
+  </main>
+
+  <footer class="voet">
+    <p><strong>Zo rekent dit:</strong> je gemiddelde is alle cijfers maal hun weging, opgeteld, gedeeld door alle wegingen, opgeteld. Het cijfer dat je nodig hebt is naar boven afgerond op &eacute;&eacute;n decimaal, zodat je het gewenste gemiddelde zeker haalt. Vul je een gemiddelde in dat al is afgerond, dan kan de uitkomst een klein beetje afwijken. Je school kan ook een eigen regel voor afronden hebben.</p>
+    <p>Alles wordt in je browser uitgerekend. Er wordt niets verstuurd of opgeslagen.</p>
+  </footer>
+
+  <script src="rekenen.js"></script>
+</body>
+</html>

@@ -25,6 +25,7 @@
         <li>Wie met wie bevriend is (aan de hand van die willekeurige id's) en <strong>wanneer je online bent</strong>.</li>
       </ul>
       <p>Namen van vrienden bestaan alleen bij jou: je geeft zelf een bijnaam. Cijfers van vrienden staan nooit op jouw schijf, die worden alleen getoond zolang deze pagina openstaat.</p>
+      <p>Vrienden kunnen met een emoji reageren op kaarten die je met ze deelt. Je kunt ze ook laten raden welk cijfer je gehaald hebt, voordat je het opent: ze zien dan het vak en het onderwerp, niet het cijfer. Het cijfer gaat pas naar de vrienden die je zelf koos als jij op ‘Toon uitslag aan vrienden’ drukt.</p>
       <p>Pas als je op de knop drukt, wordt de server benaderd en wordt er een account met sleutel gemaakt. Je kunt alles later wissen.</p>
       <details class="geavanceerd">
         <summary>Geavanceerd</summary>
@@ -36,7 +37,7 @@
     <div id="app" hidden>
       <div class="balk-boven">
         <button type="button" class="knop" id="sync">Synchroniseren</button>
-        <span class="status" id="sync-status">Nog niet gesynchroniseerd.</span>
+        <span class="status" id="sync-status" aria-live="polite">Nog niet gesynchroniseerd.</span>
       </div>
 
       <section class="paneel" aria-labelledby="c-titel">
@@ -60,6 +61,24 @@
       <section class="paneel" id="verzoeken-sectie" aria-labelledby="v-titel" hidden>
         <h2 id="v-titel">Verzoeken</h2>
         <ul class="kaartlijst" id="verzoeken"></ul>
+      </section>
+
+      <section class="paneel" id="raden-sectie" aria-labelledby="r-titel" hidden>
+        <h2 id="r-titel">Voorspel mijn cijfer</h2>
+        <p class="uitleg">Laat vrienden raden welk cijfer je gehaald hebt, voordat je het opent. De vrienden die je kiest zien het <strong>vak</strong>, het <strong>onderwerp</strong> en de weging van dat cijfer, maar <strong>niet het cijfer zelf</strong>. Het cijfer verlaat dit apparaat pas als jij zelf op ‘Toon uitslag aan vrienden’ drukt, en dan alleen naar de vrienden die je voor die ronde koos. De server ziet ook dan alleen onleesbare data.</p>
+        <h3 id="d-kop">Nog dicht</h3>
+        <p class="geen" id="geen-dicht">Er zijn nu geen ongeopende cijfers bekend. Ze verschijnen hier zodra de extensie ze op Somtoday ziet.</p>
+        <ul class="dichtlijst" id="dicht" aria-labelledby="d-kop"></ul>
+        <h3 id="ro-kop" tabindex="-1">Jouw rondes</h3>
+        <p class="geen" id="geen-rondes">Je hebt nog geen rondes. Kies hierboven een cijfer om vrienden te laten raden.</p>
+        <ul class="rondes" id="rondes" aria-labelledby="ro-kop"></ul>
+      </section>
+
+      <section class="paneel" id="reacties-sectie" aria-labelledby="re-titel" hidden>
+        <h2 id="re-titel">Reacties op jouw kaarten</h2>
+        <p class="uitleg">Vrienden kunnen met één emoji reageren op de kaarten die je met ze deelt. Je ziet hier alleen reacties van vrienden aan wie je die kaart nu deelt.</p>
+        <p class="geen" id="geen-reacties">Nog geen reacties.</p>
+        <ul class="reactielijst" id="reacties"></ul>
       </section>
 
       <section class="paneel" aria-labelledby="w-titel">
