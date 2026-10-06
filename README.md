@@ -33,7 +33,7 @@ en je eigen kaart voor dat vak.
 
 ## Installeren
 
-1. Download `somtoday-pack-opener-v0.5-beta.zip` bij de [releases](../../releases) (of uit de map
+1. Download `somtoday-pack-opener-v1.0.zip` bij de [releases](../../releases) (of uit de map
    [`downloads`](downloads)) en pak hem uit.
 2. Ga in Chrome (of Edge, Brave, Opera) naar `chrome://extensions`.
 3. Zet rechtsboven **Ontwikkelaarsmodus** aan.
@@ -103,8 +103,8 @@ bouwscript werkt.
 ### Een release maken
 
 ```sh
-./scripts/package.sh v0.5-beta      # maakt dist/somtoday-pack-opener-v0.5-beta.zip
-git tag v0.5-beta && git push origin v0.5-beta
+./scripts/package.sh v1.0      # maakt dist/somtoday-pack-opener-v1.0.zip
+git tag v1.0 && git push origin v1.0
 ```
 
 Bij een nieuwe tag die met `v` begint, bouwt GitHub Actions de zip en zet hij een release online.

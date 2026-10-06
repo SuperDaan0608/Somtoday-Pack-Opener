@@ -1,5 +1,17 @@
 # Wijzigingen
 
+## v1.0
+
+De eerste officiële versie. Alles uit de bèta's, afgerond:
+
+- **Zeven manieren om je cijfer te openen:** Pakje, Kluis kraken, Plinko, Wensster, Raket, Schietkraam en Dansje, plus "Verras me". Kies in de popup.
+- **Galerij** met al je geopende kaarten, alleen lokaal in je browser.
+- **Afdekken** van nieuwe cijfers in "Laatste cijfers" op Somtoday, met onthouden wat je al hebt geopend.
+- **Geen haperingen:** de animatie draait op de videokaart, wordt vooraf klaargezet en schakelt vanzelf een stapje lager als je computer moeite heeft. Werkt een opening niet op jouw videokaart, dan valt hij terug op het pakje.
+- 41 geluiden, waaronder alle nieuwe opnames voor de openingen.
+
+Fanproject, niet verbonden aan Somtoday of Topicus.
+
 ## v0.5-beta
 
 - **Galerij:** een pagina met al je geopende kaarten (popup → Mijn galerij). Met aantal kaarten, gemiddelde, beste kaart, een balk per niveau, filters en sorteren, en een detailweergave met downloaden en verwijderen. Je vak, cijfer en kaartplaatje blijven alleen in je eigen browser; zet "Galerij bijhouden" in de popup uit om het niet te bewaren.
