@@ -826,7 +826,7 @@
         <div class="val" tabindex="0" data-val="na"></div>
         <div class="mislukt" role="alert" hidden>
           <h2>Het paneel kon niet worden geladen</h2>
-          <p>Somtoday laat het hier niet toe. Je kunt de Pack Opener wel in een eigen tabblad openen.</p>
+          <p>Het paneel kon niet in de pagina worden getoond. Je kunt de Pack Opener wel in een eigen tabblad openen.</p>
           <div class="acties"><button type="button" class="goud" data-a="tabblad">Openen in een nieuw tabblad</button><button type="button" data-a="sluit">Sluiten</button></div>
         </div>
       </div>
@@ -881,6 +881,7 @@
       const val = e.target instanceof Element ? e.target.getAttribute('data-val') : null;
       if (!val) return;
       iframe.focus();
+      if (!paneel || !paneel.klaar) return; // showModal() zet de focus eerst op het eerste focusbare element: dat is deze val
       naarHub({ type: 'focus', waar: val === 'na' ? 'begin' : 'einde' });
     });
     wortel.addEventListener('click', (e) => {
@@ -903,6 +904,7 @@
     } catch (e) {
       wortel.querySelector('.laag').setAttribute('open', ''); // zonder modaal venster werkt het ook, alleen niet altijd boven alles
     }
+    iframe.focus({ preventScroll: true });
     iframe.src = chrome.runtime.getURL('hub.html');
     paneel.timer = setTimeout(valTerug, HUB_WACHT_MS);
     werkKnopBij(); // verbergt de knop zolang het paneel open is

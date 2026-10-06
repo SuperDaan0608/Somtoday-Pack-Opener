@@ -425,7 +425,6 @@
     // naar: undefined (klik/spatie/wachttijd), true (stap klaar, klok loopt door), een tijd (klok springt daarheen) of 'over'.
     // Bij een opening met invoer slaat undefined/'over' ook alle volgende pauzes over (dan loopt het vanzelf).
     function hervat(naar) {
-      if (debug) console.log("HERVAT", String(naar), wachtOpKlik, performance.now() - pauzeSinds, scene.tl.pauzeAuto, new Error().stack.split("\n").slice(2,4).join("|"));
       if (!wachtOpKlik || !scene) return;
       const pzl = scene.tl.pauzes;
       const pz = pzl[pauzeIdx];
@@ -643,7 +642,7 @@
       if (soort === 'down') {
         if (!io || !io.aanwijzer || e.target !== canvas || aanwijzerId !== -1) return;
         aanwijzerId = e.pointerId;
-        negeerKlikTot = Infinity;
+        negeerKlikTot = nuMs() + 60000; // tot de up/cancel
         try {
           canvas.setPointerCapture(e.pointerId);
         } catch (x) {

@@ -205,15 +205,21 @@ void main(){
           float dA = af - (1.5707963 - uHint.x);
           dA -= TAU * floor(dA / TAU + .5);
           float dl = abs(dA) * rd;
-          float lijn = smoothstep(.0038, .0009, dl) * smoothstep(.148, .160, rd);
-          float halo = exp(-dl * dl / .00011) * smoothstep(.115, .17, rd) * .4;
-          emis += vec3(.55, .85, 1.) * (lijn * 2.4 + halo) * uHint.y * (.8 + .2 * sin(uHint.z * 6.));
+          float lijn = smoothstep(.0075, .0025, dl) * smoothstep(.125, .150, rd);
+          float halo = exp(-dl * dl / .0004) * smoothstep(.10, .17, rd) * .8;
+          emis += vec3(.08, .62, 1.) * (lijn * 7. + halo * 1.6) * uHint.y * (.8 + .2 * sin(uHint.z * 6.));
         }
       } else {
         // gekartelde rand
         float k = sin(af * 72.) * (1. - blur);
         nt = bol(rdir * ((rd - .2035) / .0115) * .6 + vec2(-rdir.y, rdir.x) * k * .45);
         alb = vec3(.55, .57, .6) * (.8 + .2 * (k * .5 + .5)); glans = 80.; ks = 1.2; kenv = .8; aniso = 0.;
+        if (uHint.y > .001) {
+          float dA = af - (1.5707963 - uHint.x);
+          dA -= TAU * floor(dA / TAU + .5);
+          float dl = abs(dA) * rd;
+          emis += vec3(.15, .7, 1.) * exp(-dl * dl / .00015) * uHint.y * 5. * (.8 + .2 * sin(uHint.z * 6.));
+        }
       }
     } else {
       // vaste ring met het merkteken bovenaan
@@ -221,12 +227,12 @@ void main(){
       alb = vec3(.5, .52, .55); glans = 110.; ks = 1.3; kenv = .9; aniso = 0.;
       float tri = step(.218, qd.y) * step(abs(qd.x), (qd.y - .218) * .7) * step(qd.y, .247);
       alb = mix(alb, vec3(.95, .95, .92), tri);
-      emis += vec3(.25, .26, .28) * tri * uSpot;
+      emis += vec3(.25, .26, .28) * tri * uSpot + vec3(.1, .55, .9) * tri * max(uHint.y, uOk) * 3.;
       // hint: een lichtboogje loopt in de draairichting rond de ring; bij succes licht de ring even groen op
       float ringM = smoothstep(.2175, .224, rd) * smoothstep(.2475, .24, rd);
       if (max(uHint.y, uWH) > .001 && abs(uHint.w) > .5) {
         float ph = atan(qd.y, qd.x + 1e-6) - uHint.w * uHint.z * 1.7;
-        emis += vec3(.45, .75, 1.) * pow(.5 + .5 * cos(ph * 3.), 5.) * .95 * max(uHint.y, uWH) * ringM;
+        emis += vec3(.45, .75, 1.) * pow(.5 + .5 * cos(ph * 3.), 4.) * 3. * max(uHint.y, uWH) * ringM;
       }
       emis += vec3(.25, 1., .4) * uOk * ringM * 1.5;
     }
@@ -238,9 +244,9 @@ void main(){
     float rrW = length(qw);
     if (mw < .5 && max(uHint.y, uWH) > .001 && abs(uHint.w) > .5) {
       float ph = angW - uHint.w * uHint.z * 1.7;
-      emis += vec3(.45, .75, 1.) * pow(.5 + .5 * cos(ph * 3.), 5.) * .8 * max(uHint.y, uWH);
+      emis += vec3(.45, .75, 1.) * pow(.5 + .5 * cos(ph * 3.), 6.) * 1.3 * max(uHint.y, uWH);
     }
-    if (mw < .5 && rrW < .33) emis += vec3(.25, 1., .4) * uOk * 1.2;
+    if (mw < .5 && rrW < .33) emis += vec3(.25, 1., .4) * uOk * .6;
     if (uWH > .001) {
       // hint voor het handwiel: een glinstering loopt met de klok mee over de spaken en de kogels
       float ch = pow(.5 + .5 * cos((angW + uHint.z * 2.4) * 3.), 3.);

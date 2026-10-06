@@ -59,6 +59,25 @@ beeld blijft dus `teken(t_pauze)`; laat er gerust iets bewegen met `uTime`-achti
 Alles blijft een pure functie van `t` (de pauzes zitten in de klok, niet in jouw beeld). Een klik tijdens de animatie tussen twee pauzes roept `sprong(t)` aan: geef
 dan de volgende pauzetijd terug (of `null` als je dat niet wilt). Geen pauzes in de snelle modus (`d.snel`): die speelt vanzelf.
 
+#### Invoer tijdens een pauze (`invoer`, Kluis kraken)
+Wil je dat de gebruiker tijdens een pauze écht iets doet (draaien, slepen) in plaats van alleen te klikken, geef dan het object dat `maak` teruggeeft
+een eigen `invoer`. Alle drie de methoden zijn optioneel; `main.js` roept ze alleen aan **tijdens een pauze** (dus niet bij `seek`, niet in de snelle modus):
+- `invoer.aanwijzer(soort, x, y, e)`: `soort` is `'down'`, `'move'`, `'up'` of `'cancel'` (pointer events: muis, aanraking en pen; er wordt maar één
+  wijzer tegelijk doorgegeven, `down` krijgt pointer capture). `x`, `y` zijn genormeerd over het canvas (0…1, y naar beneden); `e` is het
+  originele event (`pointerId`, `pointerType`). Het canvas heeft `touch-action: none`. De klik die een sleepbeweging afsluit telt **niet** als 'klik om verder'
+  en klikken tijdens een pauze doen bij zo'n opening niets (de opening beslist zelf, bv. dubbeltikken).
+- `invoer.toets(key, e)`: toetsen tijdens de pauze (de opening gebruikt de pijltjes); geef `true` als je hem hebt gebruikt. Spatie en Enter blijven
+  'overslaan' en worden niet doorgegeven.
+- `invoer.klaar()`: wordt **elk beeld** tijdens de pauze na `teken` aangeroepen (hier hoort ook het geluid van een gelukte stap, nooit in `teken`).
+
+Elke methode beëindigt de pauze door iets waars terug te geven: `true` (de klok loopt door vanaf de pauzetijd), een **getal** (de klok springt naar dat tijdstip,
+dat moet groter zijn dan de pauzetijd; `c.at`-gebeurtenissen daartussen worden dan overgeslagen en horen dus bij de eigen invoerstand) of `'over'` (ook alle
+volgende pauzes vervallen). Spatie, Enter, de wachttijd (`pauzeAuto`, die elke doorgegeven invoer opnieuw laat beginnen) of een klik zonder invoer-opening
+doen `hervat()` zonder argument: bij een opening met `invoer` betekent dat dat **alle** volgende pauzes ook vervallen en de animatie vanzelf doorloopt.
+De opening ziet dat aan de klok (`t > pauzetijd`) en neemt zonder sprong de automatische variant over. De opening mag de tekst onderin tijdens de pauze
+aanpassen door `c.tl.klikHint` te veranderen (alleen bij een echte wijziging, de tekst vervaagt telkens opnieuw).
+Regels: `teken(t)` blijft een pure functie van `t` plus de invoerstand; `inv.afspelen === false` (seek) betekent altijd de automatische variant.
+
 ### `art(d, h)`
 Maakt extra canvassen (labels, cijfers, kleine sprites, ruis). Teken met `h.art.nieuw(breedte, hoogte)` (geeft een canvas; kleine
 afmetingen aanhouden: ≤ 2048) en de lettertypes `h.art.F_SPORT` (Barlow Condensed, 600/800/900, ook italic), `h.art.F_DISPLAY`
