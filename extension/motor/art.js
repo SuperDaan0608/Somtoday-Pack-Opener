@@ -1399,22 +1399,29 @@
     c.textAlign = 'center';
     c.textBaseline = 'alphabetic';
     const T = data.T;
-    const txt = T.label.toUpperCase();
+    const txt = data.zeldzaam ? 'ZELDZAAM!' : T.label.toUpperCase();
     const fs = pasFont(c, txt, 'italic 900', F_SPORT, 215, 90, 1380);
     c.font = `italic 900 ${fs}px ${F_SPORT}`;
     c.lineJoin = 'round';
     c.lineWidth = 14;
     c.strokeStyle = 'rgba(0,0,0,.5)';
     c.strokeText(txt, 750, 12 + fs * 0.86);
-    const g = c.createLinearGradient(0, 12, 0, 12 + fs);
-    g.addColorStop(0, '#ffffff');
-    g.addColorStop(0.55, rgba(T.kleur, 1));
-    g.addColorStop(1, rgba(T.kleur2, 1));
+    let g;
+    if (data.zeldzaam) {
+      // een zeldzame kaart heeft een regenboogtitel, en je cijfer-niveau staat eronder
+      g = c.createLinearGradient(150, 0, 1350, 0);
+      ['#ff6b6b', '#ffd24a', '#6bff9e', '#38e1ff', '#b07bff', '#ff5fd2'].forEach((k, i, l) => g.addColorStop(i / (l.length - 1), k));
+    } else {
+      g = c.createLinearGradient(0, 12, 0, 12 + fs);
+      g.addColorStop(0, '#ffffff');
+      g.addColorStop(0.55, rgba(T.kleur, 1));
+      g.addColorStop(1, rgba(T.kleur2, 1));
+    }
     c.fillStyle = g;
     c.fillText(txt, 750, 12 + fs * 0.86);
     c.font = `800 60px ${F_SPORT}`;
     spatie(c, 8);
-    const regel = data.zeldzaam ? `ZELDZAAM  ·  ${T.naam.toUpperCase()}` : `${T.naam.toUpperCase()}  ·  ${T.sub.toUpperCase()}`;
+    const regel = data.zeldzaam ? `${T.label.toUpperCase()}  ·  ${T.naam.toUpperCase()}` : `${T.naam.toUpperCase()}  ·  ${T.sub.toUpperCase()}`;
     c.lineWidth = 9;
     c.strokeStyle = 'rgba(0,0,0,.55)';
     c.strokeText(regel, 750 + 4, 342);

@@ -31,7 +31,7 @@ en je eigen kaart voor dat vak.
 - **Delen en je naam:** een plaatje van je kaart om te delen (met je naam, als Somtoday die laat zien; de naam wordt nergens opgeslagen).
 - **Vakkaarten** in de galerij en **Kaart ontwerpen** (kleurthema's en randen).
 - **Vrienden (opt-in):** kies per vriend wat hij of zij van je cijfers ziet. Alles wordt op je eigen computer versleuteld. De server staat in [`server/`](server).
-- **Zeldzame kaarten:** één op de tien kaarten is zeldzaam: een regenboogrand, een label, extra licht, vuurwerk en een fanfare, ook bij een
+- **Zeldzame kaarten:** één op de tien kaarten is zeldzaam: een regenboogrand en regenboogtitel, regenboogstralen, veel vuurwerk en confetti en een fanfare, ook bij een
   laag cijfer. Uit te zetten in de popup; bij *Handmatig proberen* kun je er zelf een uitproberen.
 - **Seizoensthema's:** rond Halloween (1 oktober t/m 2 november) krijgt het pakje een spookachtig uiterlijk met vleermuizen, een pompoen en eigen geluiden.
   Uit te zetten in de popup.
