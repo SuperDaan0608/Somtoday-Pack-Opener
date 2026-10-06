@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kaart ontwerpen</title>
+  <link rel="stylesheet" href="kaart.css" />
+</head>
+<body>
+  <header class="kop">
+    <h1>Kaart ontwerpen</h1>
+    <p class="onder">Kies hoe je kaart eruitziet. Het voorbeeld is de echte kaart.</p>
+  </header>
+
+  <main class="ontwerp">
+    <section class="voorbeeld" aria-label="Voorbeeld">
+      <div class="plaat"><img id="voor" alt="Voorbeeld van je kaart" width="360" height="540" /></div>
+      <div class="chips" id="niveaus" role="group" aria-label="Bekijk als niveau"></div>
+    </section>
+
+    <section class="opties">
+      <fieldset>
+        <legend>Kleuren</legend>
+        <p class="uitleg">De kleur van de show (licht, vuurwerk) blijft bij je cijfer. Dit verandert alleen de kaart zelf.</p>
+        <div class="zwatches" id="themas" role="radiogroup" aria-label="Kleurthema"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Rand</legend>
+        <div class="keuzes" id="randen" role="radiogroup" aria-label="Randstijl"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Je naam op de kaart</legend>
+        <p class="uitleg">Als Somtoday je naam laat zien, zet de extensie hem klein onderaan je kaart en op het plaatje dat je deelt. De naam wordt <b>nergens opgeslagen</b>: niet in de galerij en niet in je instellingen. Het voorbeeld hierboven laat een verzonnen naam zien.</p>
+      </fieldset>
+
+      <div class="acties">
+        <button type="button" class="knop" id="herstel">Standaard herstellen</button>
+        <span class="melding" id="melding" role="status" aria-live="polite"></span>
+      </div>
+    </section>
+  </main>
+
+  <script src="motor/data.js"></script>
+  <script src="motor/art.js"></script>
+  <script src="kaart.js"></script>
+</body>
+</html>

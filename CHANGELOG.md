@@ -1,5 +1,13 @@
 # Wijzigingen
 
+## v1.1.0
+
+- **Delen:** een knop *Delen* op het eindscherm maakt een plaatje van je kaart (met je naam, als Somtoday die laat zien) en opent op een telefoon het deelmenu.
+- **Je naam op de kaart:** de naam wordt van de Somtoday-pagina gelezen en alleen op de kaart en het deelplaatje gezet. Hij wordt nergens opgeslagen, ook niet in de galerij.
+- **Vakkaarten** in de galerij: één kaart per vak op basis van je gewogen gemiddelde, met een melding als hij een niveau omhoog gaat.
+- **Kaart ontwerpen:** negen kleurthema's en vier randen, met een voorbeeld van je echte kaart.
+- **Vrienden (opt-in):** voeg vrienden toe met een vriendcode en kies per vriend wat ze van je cijfers zien. Alles wordt op je eigen computer versleuteld; de server ziet alleen onleesbare data. De functie doet niets tot je haar zelf aanzet.
+
 ## v1.0.1
 
 - **Lage grafische kwaliteit:** nieuwe schakelaar in de popup. De animatie start meteen in de zuinigste stand (kleiner beeld, minder deeltjes en effecten), handig op een trage computer of laptop zonder aparte videokaart.

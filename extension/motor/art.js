@@ -818,6 +818,57 @@
     spatie(f, 0);
     f.globalAlpha = 1;
 
+    // eigen rand (instelling)
+    if (data.rand !== 'standaard') {
+      const kl = data.T.kleur;
+      if (data.rand === 'dubbel') {
+        kaartPad(f, 6);
+        f.globalAlpha = 0.75;
+        f.lineWidth = 2;
+        f.stroke();
+        f.restore();
+        kaartPad(f, 11);
+        f.globalAlpha = 0.45;
+        f.lineWidth = 0.9;
+        f.stroke();
+        f.restore();
+      } else if (data.rand === 'neon') {
+        kaartPad(f, 7);
+        f.strokeStyle = rgba(kl, 0.95);
+        f.shadowColor = rgba(kl, 1);
+        f.shadowBlur = 9 * S;
+        f.lineWidth = 2.4;
+        f.stroke();
+        f.restore();
+        f.shadowBlur = 0;
+      } else {
+        kaartPad(f, 5);
+        f.globalAlpha = 0.6;
+        f.lineWidth = 1;
+        f.stroke();
+        f.restore();
+      }
+      f.globalAlpha = 1;
+      f.strokeStyle = tk;
+    }
+
+    // De naam van de leerling staat op een eigen laag: de galerij gebruikt alleen de laag zonder naam.
+    let fgNaam = null;
+    if (data.persoon) {
+      fgNaam = nieuw(CW * S, CH * S);
+      const n = fgNaam.getContext('2d');
+      n.drawImage(fg, 0, 0);
+      n.scale(S, S);
+      n.fillStyle = tk;
+      n.textAlign = 'center';
+      n.textBaseline = 'alphabetic';
+      n.font = `800 13px ${F_SPORT}`;
+      spatie(n, 2.2);
+      n.globalAlpha = 0.92;
+      n.fillText(pas(n, data.persoon.toUpperCase(), CW - 60), 150, 403);
+      spatie(n, 0);
+    }
+
     yield;
     // ───── achterkant ─────
     const BS = 2.133;
@@ -901,6 +952,7 @@
       bg,
       mid,
       fg,
+      fgNaam,
       masker: mk,
       achter: ach,
       cijfer,
@@ -1217,10 +1269,66 @@
     c.drawImage(lagen.bg, 0, 0, CW * sch, CH * sch);
     c.shadowBlur = 0;
     c.drawImage(lagen.mid, 0, 0, CW * sch, CH * sch);
-    c.drawImage(lagen.fg, 0, 0, CW * sch, CH * sch);
+    c.drawImage(lagen.fgNaam || lagen.fg, 0, 0, CW * sch, CH * sch);
     const [x0, y0, x1, y1] = CIJFER_RECT;
     c.drawImage(lagen.cijfer, x0 * sch, y0 * sch, (x1 - x0) * sch, (y1 - y0) * sch);
     c.restore();
+    return cv;
+  }
+
+  // Een plaatje om te delen (Snapchat, Instagram, ...): de kaart groot op een donkere achtergrond, met de naam erop.
+  function maakDeelplaat(data, lagen) {
+    const W = 1080;
+    const H = 1350;
+    const sch = 2.12;
+    const cv = nieuw(W, H);
+    const c = cv.getContext('2d');
+    c.fillStyle = '#05060c';
+    c.fillRect(0, 0, W, H);
+    const gl = c.createRadialGradient(W / 2, H * 0.5, 0, W / 2, H * 0.5, H * 0.62);
+    gl.addColorStop(0, rgba(data.T.kleur2, 0.6));
+    gl.addColorStop(0.45, rgba(data.T.kleur2, 0.16));
+    gl.addColorStop(1, 'rgba(5,6,12,0)');
+    c.fillStyle = gl;
+    c.fillRect(0, 0, W, H);
+    c.save();
+    c.translate(W / 2, H * 0.5);
+    for (let i = 0; i < 18; i++) {
+      c.rotate(Math.PI / 9);
+      const st = c.createLinearGradient(0, 0, 0, -H);
+      st.addColorStop(0, rgba(data.T.kleur, 0.2));
+      st.addColorStop(1, rgba(data.T.kleur, 0));
+      c.fillStyle = st;
+      c.beginPath();
+      c.moveTo(-9, 0);
+      c.lineTo(9, 0);
+      c.lineTo(0, -H);
+      c.fill();
+    }
+    c.restore();
+    c.save();
+    c.translate((W - CW * sch) / 2, 150);
+    c.shadowColor = rgba(data.T.kleur, 0.9);
+    c.shadowBlur = 70;
+    c.drawImage(lagen.bg, 0, 0, CW * sch, CH * sch);
+    c.shadowBlur = 0;
+    c.drawImage(lagen.mid, 0, 0, CW * sch, CH * sch);
+    c.drawImage(lagen.fgNaam || lagen.fg, 0, 0, CW * sch, CH * sch);
+    const [x0, y0, x1, y1] = CIJFER_RECT;
+    c.drawImage(lagen.cijfer, x0 * sch, y0 * sch, (x1 - x0) * sch, (y1 - y0) * sch);
+    c.restore();
+    c.textAlign = 'center';
+    c.fillStyle = '#fff';
+    c.globalAlpha = 0.75;
+    c.font = `700 26px ${F_SPORT}`;
+    spatie(c, 6);
+    c.fillText('SOMTODAY PACK OPENER', W / 2, 92);
+    c.globalAlpha = 0.9;
+    c.font = `800 38px ${F_SPORT}`;
+    spatie(c, 3);
+    c.fillText('SOMEREVEAL.NL', W / 2, H - 70);
+    spatie(c, 0);
+    c.globalAlpha = 1;
     return cv;
   }
 
@@ -1291,6 +1399,6 @@
   SPO.art = {
     maakAllesAsync,
     CW, CH, PW, PH, SCHEUR, CIJFER_RECT, F_SPORT, F_DISPLAY, F_TEKST,
-    laadLettertypes, maakKaartLagen, maakMiniatuur, maakPak, maakVliegTekst, maakPlaat, maakTitel, maakAfbeelding, icoonVoorVak, icoon, nieuw,
+    laadLettertypes, maakKaartLagen, maakMiniatuur, maakPak, maakVliegTekst, maakPlaat, maakTitel, maakAfbeelding, maakDeelplaat, icoonVoorVak, icoon, nieuw,
   };
 })();

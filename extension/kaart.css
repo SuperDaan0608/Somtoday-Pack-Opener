@@ -1,0 +1,31 @@
+@font-face { font-family: 'SPO Display'; src: url('fonts/unbounded.woff2') format('woff2'); font-weight: 200 900; }
+@font-face { font-family: 'SPO Text'; src: url('fonts/inter.woff2') format('woff2'); font-weight: 100 900; }
+:root { color-scheme: dark; --bg: #080a14; --paneel: rgba(255,255,255,.045); --lijn: rgba(255,255,255,.1); --lijn-2: rgba(255,255,255,.2); --tekst: #eef1f8; --tekst-2: #a5aec4; --tekst-3: #6b7490; --goud: linear-gradient(135deg,#fff0b3 0%,#ffd24a 40%,#ff7a3d 100%); --display: 'SPO Display', system-ui, sans-serif; }
+* { box-sizing: border-box; }
+html { background: var(--bg); }
+body { margin: 0; min-height: 100vh; padding: 28px 16px 56px; font: 14px/1.5 'SPO Text', system-ui, -apple-system, 'Segoe UI', sans-serif; color: var(--tekst); background: radial-gradient(90% 40% at 50% -8%, rgba(255,204,51,.14), transparent 70%), var(--bg); -webkit-font-smoothing: antialiased; }
+body > * { max-width: 1040px; margin-left: auto; margin-right: auto; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid #ffd24a; outline-offset: 2px; }
+h1 { font: 800 clamp(26px,5vw,38px)/1 var(--display); margin: 0; letter-spacing: -.02em; background: var(--goud); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.onder { margin: 8px 0 24px; color: var(--tekst-3); }
+.ontwerp { display: grid; grid-template-columns: minmax(280px, 400px) 1fr; gap: 32px; align-items: start; }
+.plaat { border-radius: 18px; background: radial-gradient(70% 60% at 50% 40%, rgba(255,255,255,.07), rgba(255,255,255,.02)); border: 1px solid var(--lijn); padding: 14px; }
+.plaat img { display: block; width: 100%; height: auto; border-radius: 10px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.chips button, .keuzes button { border: 1px solid var(--lijn); background: var(--paneel); border-radius: 999px; padding: 7px 14px; cursor: pointer; }
+.chips button[aria-pressed="true"], .keuzes button[aria-checked="true"] { border-color: #ffd24a; background: rgba(255,210,74,.14); }
+fieldset { border: 1px solid var(--lijn); border-radius: 16px; padding: 14px 18px 18px; margin: 0 0 16px; background: var(--paneel); }
+legend { padding: 0 8px; font: 700 13px var(--display); letter-spacing: .02em; }
+.uitleg { margin: 0 0 12px; color: var(--tekst-2); max-width: 520px; }
+.zwatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; }
+.zwatch { border: 2px solid transparent; border-radius: 14px; padding: 0; background: none; cursor: pointer; text-align: left; }
+.zwatch .kleur { display: block; height: 54px; border-radius: 11px; border: 1px solid var(--lijn-2); }
+.zwatch .naam { display: block; font-size: 12px; margin: 6px 4px 4px; color: var(--tekst-2); }
+.zwatch[aria-checked="true"] { border-color: #ffd24a; }
+.keuzes { display: flex; flex-wrap: wrap; gap: 8px; }
+.acties { display: flex; align-items: center; gap: 14px; }
+.knop { border: 1px solid var(--lijn-2); background: var(--paneel); border-radius: 12px; padding: 9px 16px; cursor: pointer; }
+.melding { color: var(--tekst-3); font-size: 13px; }
+@media (max-width: 760px) { .ontwerp { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
