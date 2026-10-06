@@ -24,7 +24,7 @@
   let warmStaat = null; // een alvast klaargezette motor (zie warm)
   let artCache = null; // { sleutel, belofte }: de afbeeldingen van het cijfer waar je het laatst boven hing
 
-  const sleutelVan = (d) => [d.vak, d.cijferTekst, d.onder, d.weging, d.snel ? 1 : 0, d.opening].join('|');
+  const sleutelVan = (d) => [d.vak, d.cijferTekst, d.onder, d.weging, d.snel ? 1 : 0, d.opening, d.persoon, d.T.pal.join(), d.rand].join('|');
   const pauzeRustig = () => new Promise((r) => (window.requestIdleCallback ? requestIdleCallback(() => r(), { timeout: 150 }) : setTimeout(r, 12)));
   const pauzeSnel = () => new Promise((r) => setTimeout(r, 0));
 
@@ -235,6 +235,7 @@
         <div class="acties">
           <button class="knop" data-a="opnieuw">${svg('opnieuw')}<span>Opnieuw</span></button>
           <button class="knop" data-a="opslaan">${svg('opslaan')}<span>Opslaan als afbeelding</span></button>
+          <button class="knop" data-a="deel">${svg('opslaan')}<span>Delen</span></button>
           <button class="knop goud" data-a="sluit"><span>Sluiten</span></button>
         </div>
       </div>`);
@@ -482,6 +483,34 @@
       audio.knop();
     }
 
+    // Delen: een plaatje met je kaart en je naam. Op telefoons opent dit het deelmenu, anders wordt het gedownload.
+    function deel() {
+      if (!lagen) return;
+      const off = SPO.art.maakDeelplaat(d, lagen);
+      const naam = `cijfer-${d.vak.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${d.cijferTekst.replace(',', '-')}.png`;
+      off.toBlob(async (blob) => {
+        if (!blob) return;
+        try {
+          const bestand = new File([blob], naam, { type: 'image/png' });
+          if (navigator.canShare && navigator.canShare({ files: [bestand] })) {
+            await navigator.share({ files: [bestand], title: 'Mijn cijfer', text: 'Mijn cijfer, geopend met Pack Opener (somereveal.nl)' });
+            return;
+          }
+        } catch (e) {
+          if (e && e.name === 'AbortError') return; // je sloot het deelmenu zelf
+        }
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = naam;
+        root.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+      }, 'image/png');
+      audio.knop();
+    }
+
     function sluit() {
       if (gesloten) return;
       gesloten = true;
@@ -563,6 +592,7 @@
         else if (a === 'start') begin();
         else if (a === 'opnieuw') opnieuw();
         else if (a === 'opslaan') opslaan();
+        else if (a === 'deel') deel();
         else if (a === 'geluid') {
           stil = !stil;
           audio.start();

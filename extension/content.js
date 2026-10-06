@@ -19,7 +19,7 @@
 
   const SLEUTEL_GEOPEND = 'spo_geopend';
   const SLEUTEL_INSTELLINGEN = 'spo_instellingen';
-  const STANDAARD = { afdekking: true, geluid: true, snel: false, opening: 'pak', galerij: true, laag: false };
+  const STANDAARD = { afdekking: true, geluid: true, snel: false, opening: 'pak', galerij: true, laag: false, kaartThema: 'auto', kaartRand: 'standaard' };
   const SLEUTEL_GALERIJ = 'spo_galerij';
   const OPENINGEN = ['pak', 'kluis', 'plinko', 'ster', 'raket', 'schiet', 'dans'];
 
@@ -344,6 +344,41 @@
   // ───────────────────────── Welke opening? ─────────────────────────
   // Bij "Verras me" kiezen we er één per cijfer, en houden die vast tot je het cijfer opent: dan kiezen het opwarmen
   // (zodra je met de muis boven het cijfer hangt) en het echte openen dezelfde opening.
+  // De naam van de leerling, alleen voor de kaart en het deelplaatje. Hij wordt elke keer opnieuw van de pagina gelezen
+  // en nergens opgeslagen: niet in de instellingen, niet in de galerij en niet in een variabele die blijft hangen.
+  const NIET_EEN_NAAM = /^(somtoday|cijfers?|agenda|huiswerk|berichten|vandaag|home|uitloggen|inloggen|instellingen|profiel|account|menu|nieuw|laatste|rooster|afwezigheid|studiewijzer|portfolio|vakken|resultaten|overzicht|help|zoeken)$/i;
+  const NAAMPATROON = /^\p{Lu}[\p{L}'’.-]*(\s+(?:(?:van|de|der|den|ter|ten|te|het|op|in)\s+)*\p{Lu}[\p{L}'’.-]*){1,3}$/u;
+  function leesNaam() {
+    try {
+      const goed = (t) => {
+        t = String(t || '').replace(/\s+/g, ' ').trim();
+        if (t.length < 4 || t.length > 40) return '';
+        if (t.split(' ').some((w) => NIET_EEN_NAAM.test(w))) return '';
+        return NAAMPATROON.test(t) ? t : '';
+      };
+      // 1. een label zoals "Account van Jan de Vries" of "Ingelogd als ..."
+      for (const el of document.querySelectorAll('[aria-label],[title]')) {
+        const l = (el.getAttribute('aria-label') || el.getAttribute('title') || '').trim();
+        const m = l.match(/^(?:account|profiel|gebruiker|ingelogd als|menu)\s*(?:van|:)?\s+(.+)$/i);
+        if (m && goed(m[1])) return goed(m[1]);
+      }
+      // 2. korte tekst in de kop van de pagina die op een naam lijkt
+      const koppen = document.querySelectorAll('header, nav, [role="banner"], [class*="header"], [class*="toolbar"], [class*="menu"], [class*="profiel"], [class*="account"], [class*="gebruiker"]');
+      for (const k of koppen) {
+        const r = k.getBoundingClientRect();
+        if (r.top > 160 || r.height > 220) continue;
+        for (const el of k.querySelectorAll('span, a, button, div, p')) {
+          if (el.children.length > 1) continue;
+          const n = goed(el.textContent);
+          if (n) return n;
+        }
+      }
+    } catch (e) {
+      /* geen naam is ook goed */
+    }
+    return '';
+  }
+
   function openingVoor(rij) {
     const keuze = instellingen.opening;
     if (OPENINGEN.includes(keuze)) return keuze;
@@ -373,6 +408,9 @@
       weging: d.weging,
       snel: !!instellingen.snel,
       laag: !!instellingen.laag,
+      persoon: leesNaam(),
+      kaartThema: instellingen.kaartThema,
+      kaartRand: instellingen.kaartRand,
       stil: !instellingen.geluid,
       opening: openingVoor(rij),
       direct,
@@ -437,7 +475,7 @@
       const rij = rijen.find((r) => r.host === host);
       // dezelfde gegevens als bij open(): zo herkent de animatie dat de afbeeldingen al klaarstaan
       if (typeof window.__somPackWarm === 'function') {
-        window.__somPackWarm(rij && { vak: rij.d.vak, cijfer: rij.d.cijfer, onderwerp: rij.d.onderwerp || 'Nieuw cijfer', weging: rij.d.weging, snel: !!instellingen.snel, opening: openingVoor(rij) });
+        window.__somPackWarm(rij && { vak: rij.d.vak, cijfer: rij.d.cijfer, onderwerp: rij.d.onderwerp || 'Nieuw cijfer', weging: rij.d.weging, snel: !!instellingen.snel, laag: !!instellingen.laag, persoon: leesNaam(), kaartThema: instellingen.kaartThema, kaartRand: instellingen.kaartRand, opening: openingVoor(rij) });
       }
     } catch (x) {
       /* opwarmen is een extraatje */

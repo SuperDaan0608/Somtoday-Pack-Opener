@@ -107,7 +107,7 @@
     const tex = {
       bg: motor.tekstuur(art.lagen.bg),
       mid: motor.tekstuur(art.lagen.mid),
-      fg: motor.tekstuur(art.lagen.fg),
+      fg: motor.tekstuur(art.lagen.fgNaam || art.lagen.fg),
       masker: motor.tekstuur(art.lagen.masker, { mip: false }),
       achter: motor.tekstuur(art.lagen.achter),
       cijfer: motor.tekstuur(art.lagen.cijfer, { mip: false }),

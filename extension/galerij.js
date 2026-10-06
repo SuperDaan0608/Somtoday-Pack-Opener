@@ -156,7 +156,51 @@
     render();
   }
 
+  // Een kaart per vak: het gewogen gemiddelde van de geopende cijfers van dat vak bepaalt het niveau.
+  const nivVan = (g) => (g >= 9.95 ? 4 : g >= 9 ? 3 : g >= 7 ? 2 : g >= 5.5 ? 1 : 0);
+  const gewogen = (l) => {
+    let s = 0, w = 0;
+    for (const e of l) { const k = Math.max(1, Number(e.weging) || 1); s += e.cijfer * k; w += k; }
+    return w ? s / w : 0;
+  };
+  function vakkaarten() {
+    const per = new Map();
+    for (const e of alle) {
+      const k = String(e.vak || '');
+      if (!per.has(k)) per.set(k, []);
+      per.get(k).push(e);
+    }
+    const lijst = $('vk-lijst');
+    lijst.replaceChildren();
+    const rijen = [...per.entries()].map(([vak, l]) => {
+      l.sort((a, b) => a.ts - b.ts);
+      const gem = gewogen(l);
+      const voor = l.length > 1 ? gewogen(l.slice(0, -1)) : null;
+      const nu = nivVan(gem);
+      const was = voor == null ? null : nivVan(voor);
+      return { vak, n: l.length, gem, nu, up: was != null && nu > was ? was : null };
+    }).sort((a, b) => b.gem - a.gem);
+    $('vakkaarten').hidden = rijen.length === 0;
+    for (const r of rijen) {
+      const li = document.createElement('li');
+      li.className = 'vk-kaart t' + r.nu;
+      const niv = document.createElement('span'); niv.className = 'vk-niv'; niv.textContent = NIVEAUS[r.nu];
+      const gem = document.createElement('p'); gem.className = 'vk-gem'; gem.textContent = fmt(r.gem);
+      const vak = document.createElement('p'); vak.className = 'vk-vak'; vak.textContent = r.vak;
+      const info = document.createElement('p'); info.className = 'vk-info'; info.textContent = r.n + (r.n === 1 ? ' cijfer' : ' cijfers');
+      li.append(niv, gem, vak, info);
+      if (r.up != null) {
+        const up = document.createElement('span');
+        up.className = 'vk-up';
+        up.textContent = '▲ ' + NIVEAUS[r.up] + ' → ' + NIVEAUS[r.nu];
+        li.appendChild(up);
+      }
+      lijst.appendChild(li);
+    }
+  }
+
   function render() {
+    vakkaarten();
     kop(); raster();
     const dlg = $('detail');
     if (dlg.open) {

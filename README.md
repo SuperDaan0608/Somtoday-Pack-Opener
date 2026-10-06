@@ -28,6 +28,9 @@ en je eigen kaart voor dat vak.
 - **Galerij** met al je geopende kaarten (popup → Mijn galerij).
 - **Opslaan als afbeelding**, zodat je de kaart kunt delen.
 - **Popup** met je aantal ongeopende cijfers, instellingen en een handmatige modus om een eigen cijfer te proberen.
+- **Delen en je naam:** een plaatje van je kaart om te delen (met je naam, als Somtoday die laat zien; de naam wordt nergens opgeslagen).
+- **Vakkaarten** in de galerij en **Kaart ontwerpen** (kleurthema's en randen).
+- **Vrienden (opt-in):** kies per vriend wat hij of zij van je cijfers ziet. Alles wordt op je eigen computer versleuteld. De server staat in [`server/`](server).
 - **Lage grafische kwaliteit** (popup): zuiniger beeld voor een trage computer.
 - **Snelle modus** voor als je niet op de tunnel wilt wachten. Klikken of spatie slaat ook over (eerst naar het
   scheuren, dan naar de kaart).

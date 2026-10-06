@@ -55,6 +55,20 @@
     t.kleur2 = hex3(t.gloed2);
   });
 
+  // Eigen kaartontwerp (instellingen): alleen de kleuren van de kaart zelf. De kleur van de show blijft bij je cijfer.
+  const KAART_THEMAS = {
+    auto: { naam: 'Bij je cijfer', pal: null },
+    nacht: { naam: 'Nacht', pal: ['#03030a', '#15153d', '#3f3f9a'], tekst: '#e8ecff' },
+    roze: { naam: 'Roze', pal: ['#4a0a2e', '#d63a8a', '#ffc2e0'], tekst: '#2a0517' },
+    mint: { naam: 'Mint', pal: ['#06382c', '#1fb88a', '#bff5e2'], tekst: '#04251c' },
+    rood: { naam: 'Rood', pal: ['#3d0606', '#c71f1f', '#ffb3a6'], tekst: '#2a0505' },
+    oceaan: { naam: 'Oceaan', pal: ['#031b3a', '#0a74c9', '#9ad8ff'], tekst: '#021326' },
+    paars: { naam: 'Paars', pal: ['#1f0a3d', '#7a3bd8', '#d9c2ff'], tekst: '#150726' },
+    zonsondergang: { naam: 'Zonsondergang', pal: ['#3d0a2a', '#ff6a3d', '#ffd98a'], tekst: '#2a0d05' },
+    zwartgoud: { naam: 'Zwart en goud', pal: ['#050505', '#2c2410', '#9a7a22'], tekst: '#ffe9a6' },
+  };
+  const KAART_RANDEN = { standaard: 'Standaard', dubbel: 'Dubbele lijn', neon: 'Neon', dun: 'Dun' };
+
   const STATS = ['INZ', 'FOC', 'KEN', 'TMP', 'TEC', 'MOT'];
 
   // De manieren waarop je een cijfer kunt openen. De animatie zelf staat per opening in motor/openingen/;
@@ -87,6 +101,8 @@
     el.replaceChildren(...Array.from(doc.body.childNodes, (n) => document.importNode(n, true)));
   };
 
+  SPO.KAART_THEMAS = KAART_THEMAS;
+  SPO.KAART_RANDEN = KAART_RANDEN;
   SPO.klem = klem;
   SPO.mix = mix;
   SPO.glad = glad;
@@ -113,6 +129,11 @@
       T.label = 'Topper!';
       T.sub = 'Dit is een topcijfer.';
     }
+    const thema = KAART_THEMAS[d.kaartThema];
+    if (thema && thema.pal) {
+      T.pal = thema.pal;
+      T.tekst = thema.tekst;
+    }
     const vak = tekst(d.vak, 'Vak', 40);
     let seed = 0;
     for (const ch of vak) seed += ch.charCodeAt(0);
@@ -129,6 +150,9 @@
       weging: klem(Math.round(+d.weging) || 1, 1, 10),
       snel: !!d.snel,
       laag: !!d.laag,
+      // de naam komt live van de Somtoday-pagina en wordt nergens opgeslagen (ook niet in de galerij)
+      persoon: tekst(d.persoon, '', 40),
+      rand: KAART_RANDEN[d.kaartRand] ? d.kaartRand : 'standaard',
       direct: !!d.direct,
       fmt,
       cijferTekst: fmt(g),
