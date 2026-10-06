@@ -48,5 +48,6 @@ mkdir -p "$UIT"
 rm -f "$ZIP"
 (cd "$WERK" && zip -rqX "$ZIP" .)
 # Controle: manifest.json moet bovenaan staan.
-unzip -Z1 "$ZIP" | grep -qx 'manifest.json' || { echo "manifest.json staat niet bovenaan in de zip" >&2; exit 1; }
+INHOUD="$(unzip -Z1 "$ZIP")"
+grep -qx 'manifest.json' <<<"$INHOUD" || { echo "manifest.json staat niet bovenaan in de zip" >&2; exit 1; }
 echo "$ZIP"
