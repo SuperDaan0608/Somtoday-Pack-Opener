@@ -14,7 +14,7 @@
           <strong>Pack Opener</strong>
         </div>
       </div>
-      <span class="versie">1.1.0</span>
+      <span class="versie">1.2.0</span>
     </header>
 
     <!-- Je echte cijfers op Somtoday. De inhoud wordt door popup.js gevuld. -->
@@ -84,6 +84,18 @@
           </div>
         </div>
 
+        <div class="veld proef">
+          <span>Proberen</span>
+          <label class="vink"><input type="checkbox" id="proef-zeldzaam" /> Als zeldzame kaart</label>
+          <label class="vink">Thema
+            <select id="proef-seizoen">
+              <option value="auto">Automatisch (volgens de datum)</option>
+              <option value="halloween">Halloween</option>
+              <option value="geen">Geen thema</option>
+            </select>
+          </label>
+        </div>
+
         <button type="submit" class="open" id="open">
           <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7.5 4.27 9 5.15M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/></svg>
           Pakket openen
@@ -119,8 +131,11 @@
       <label class="schakel"><input type="checkbox" id="geluid" /><span class="knopje"></span><span class="schakel-tekst">Geluid</span></label>
       <label class="schakel"><input type="checkbox" id="snel" /><span class="knopje"></span><span class="schakel-tekst">Snelle modus<small>Kortere animatie.</small></span></label>
       <label class="schakel"><input type="checkbox" id="laag" /><span class="knopje"></span><span class="schakel-tekst">Lage grafische kwaliteit<small>Soepeler op een trage computer.</small></span></label>
+      <label class="schakel"><input type="checkbox" id="zeldzaam" /><span class="knopje"></span><span class="schakel-tekst">Zeldzame kaarten<small>Eén op de tien kaarten is zeldzaam: een extra spectaculaire onthulling, ook bij een lager cijfer.</small></span></label>
+      <label class="schakel"><input type="checkbox" id="seizoen" /><span class="knopje"></span><span class="schakel-tekst">Seizoensthema's<small>Rond Halloween krijgt het pakje een spookachtig uiterlijk.</small></span></label>
+      <label class="schakel"><input type="checkbox" id="gemiddelden" /><span class="knopje"></span><span class="schakel-tekst">Gemiddelden ook afdekken<small>Vakgemiddelden en Cijferoverzicht blijven verborgen zolang je een nieuw cijfer nog niet hebt geopend.</small></span></label>
       <label class="schakel"><input type="checkbox" id="galerij" /><span class="knopje"></span><span class="schakel-tekst">Galerij bijhouden<small>Bewaart je geopende kaarten, alleen in deze browser.</small></span></label>
-      <div class="links"><a class="link" href="galerij.html" target="_blank" rel="noopener">Mijn galerij</a><a class="link" href="kaart.html" target="_blank" rel="noopener">Kaart ontwerpen</a><a class="link" href="vrienden.html" target="_blank" rel="noopener">Vrienden</a><a class="link" href="geluiden.html" target="_blank" rel="noopener">Geluiden beluisteren</a></div>
+      <div class="links"><a class="link" href="galerij.html" target="_blank" rel="noopener">Mijn galerij</a><a class="link" href="kaart.html" target="_blank" rel="noopener">Kaart ontwerpen</a><a class="link" href="vrienden.html" target="_blank" rel="noopener">Vrienden</a><a class="link" href="rekenen.html" target="_blank" rel="noopener">Cijfercalculator</a><a class="link" href="geluiden.html" target="_blank" rel="noopener">Geluiden beluisteren</a></div>
     </section>
 
     <footer class="voet">Fanproject · niet verbonden aan Somtoday of Topicus</footer>

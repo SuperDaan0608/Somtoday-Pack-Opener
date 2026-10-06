@@ -105,3 +105,10 @@ Drie geluiden (`dans-beat`, `dans-scratch`, `dans-dab`) in dezelfde ElevenLabs-f
    allemaal naast elkaar horen.
 
 Gebruik van de opnames valt onder de voorwaarden van jouw ElevenLabs-abonnement.
+
+## Halloween-pakje
+
+`halloween-kraak`, `halloween-donder`, `halloween-huil` en `halloween-klok` zijn **niet** met ElevenLabs gemaakt maar procedureel gesynthetiseerd
+(Python + numpy, geen netwerk): `python3 scripts/bouw-halloween.py` bouwt ze opnieuw (vaste random seed, dus elke run geeft dezelfde bestanden).
+Het volume (`NIVEAU` in `extension/motor/audio.js`) is afgestemd op de RMS boven 200 Hz van de andere geluiden. Ze zijn gecontroleerd op spectrum en
+vorm, maar niet beluisterd; klinkt er een niet goed, pas dan het script aan of vervang het bestand door een opname.

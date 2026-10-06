@@ -15,6 +15,8 @@
     stil: q.get('stil') === 'true',
     direct: q.get('direct') === 'true',
     opening: q.get('opening') || 'pak',
+    zeldzaam: q.get('zeldzaam') === 'true',
+    seizoen: q.get('seizoen') || 'auto',
     debug: q.get('debug') === '1',
     geenGL: q.get('geengl') === '1',
   };

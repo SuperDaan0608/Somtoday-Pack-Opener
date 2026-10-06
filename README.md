@@ -31,6 +31,11 @@ en je eigen kaart voor dat vak.
 - **Delen en je naam:** een plaatje van je kaart om te delen (met je naam, als Somtoday die laat zien; de naam wordt nergens opgeslagen).
 - **Vakkaarten** in de galerij en **Kaart ontwerpen** (kleurthema's en randen).
 - **Vrienden (opt-in):** kies per vriend wat hij of zij van je cijfers ziet. Alles wordt op je eigen computer versleuteld. De server staat in [`server/`](server).
+- **Zeldzame kaarten:** één op de tien kaarten is zeldzaam: een regenboogrand, een label, extra licht, vuurwerk en een fanfare, ook bij een
+  laag cijfer. Uit te zetten in de popup; bij *Handmatig proberen* kun je er zelf een uitproberen.
+- **Seizoensthema's:** rond Halloween (1 oktober t/m 2 november) krijgt het pakje een spookachtig uiterlijk met vleermuizen, een pompoen en eigen geluiden.
+  Uit te zetten in de popup.
+- **Cijfercalculator** (popup → Cijfercalculator): wat moet je halen voor een bepaald gemiddelde, met de weging van de toets.
 - **Lage grafische kwaliteit** (popup): zuiniger beeld voor een trage computer.
 - **Snelle modus** voor als je niet op de tunnel wilt wachten. Klikken of spatie slaat ook over (eerst naar het
   scheuren, dan naar de kaart).
@@ -65,8 +70,11 @@ kies `manifest.json`. Blijvend installeren kan alleen met een door Mozilla onder
   (bijvoorbeeld voor oude cijfers) of **Alles weer afdekken**.
 - Een cijfer als `V` of `G` laat de extensie met rust.
 
-**Let op:** alleen de lijst *Laatste cijfers* wordt afgedekt. In *Vakgemiddelden* en *Cijferoverzicht* blijven
-cijfers gewoon zichtbaar.
+- **Gemiddelden ook afdekken:** zolang je een nieuw cijfer nog niet hebt geopend, vervangt de extensie *Vakgemiddelden* en
+  *Cijferoverzicht* door een melding, want daar zou je cijfer of gemiddelde al te zien zijn. Met **Naar mijn nieuwe cijfers** ga je terug naar de
+  lijst, met **Toch tonen** zie je het overzicht alsnog (tot je de pagina herlaadt). In de popup kun je dit uitzetten (*Gemiddelden ook afdekken*).
+  De extensie weet dat er een nieuw cijfer is zodra ze het één keer op *Laatste cijfers* heeft gezien (vak, onderwerp en weging worden daarvoor lokaal
+  onthouden, nooit het cijfer zelf).
 
 ### Privacy
 
@@ -100,6 +108,9 @@ herlaad-icoon bij de extensie in `chrome://extensions`.
 | `popup.html` / `popup.css` / `popup.js` | De popup |
 | `stage.html` / `stage.js` | Reservepagina voor tabbladen waar injecteren niet mag |
 | `geluiden.html` | Alle geluiden naast elkaar beluisteren |
+| `rekenen.html` / `rekenen.js` | De cijfercalculator |
+| `vrienden.html` / `vriendenlib.js` | De vriendenfunctie (versleuteld); de server staat in [`server/`](server) |
+| `galerij.html`, `kaart.html` | De galerij en het ontwerpen van je kaart |
 | `sounds/` | De bewerkte geluiden (zie [`geluiden/`](geluiden)) |
 
 Je kunt de animatie ook zonder Somtoday testen door `extension/stage.html` te openen met parameters,
@@ -109,6 +120,7 @@ bijvoorbeeld `stage.html?vak=Wiskunde&cijfer=8.3&onderwerp=H4&weging=2`.
 
 Zie [`geluiden/README.md`](geluiden/README.md) voor de prompts, het vervangen van een geluid en hoe het
 bouwscript werkt.
+De vier Halloween-geluiden zijn niet met ElevenLabs gemaakt maar gesynthetiseerd: `python3 scripts/bouw-halloween.py`.
 
 ### Een release maken
 

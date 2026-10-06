@@ -93,7 +93,18 @@
     const T = d.T;
     const tier = d.tier;
     const I = d.I;
-    const L = LOOK[tier];
+    const zeldzaam = !!d.zeldzaam;
+    // Een zeldzame kaart is overal een stuk heftiger, ook bij een brons cijfer: meer licht, meer glans, meer glitter.
+    const L = zeldzaam
+      ? Object.assign({}, LOOK[tier], {
+          stralen: LOOK[tier].stralen + 6,
+          flits: Math.max(LOOK[tier].flits, 1.1),
+          bloom: Math.max(LOOK[tier].bloom, 0.8),
+          sat: Math.max(LOOK[tier].sat, 1.08),
+          holo: Math.max(LOOK[tier].holo, 1.25),
+          glit: Math.max(LOOK[tier].glit, 1.7),
+        })
+      : LOOK[tier];
     const op = d.opening !== 'pak' && SPO.openingen ? SPO.openingen[d.opening] : null;
     const tl = maakTijdlijn(d);
     const regenboog = tier === 4;
@@ -163,6 +174,12 @@
         audio.boem(0.6 + 0.4 * I);
         trillen([30, 20, 60]);
       });
+      if (d.seizoen === 'halloween') {
+        // het spookpakje: het kraakt tijdens het opladen, de scheur klinkt als een donderslag en ergens in de verte huilt iets
+        at(c1 + 0.3, () => audio.speel('halloween-kraak', { gain: 0.6, duur: Math.max(0.8, E - c1 - 0.5), fadeOut: 0.4, galmen: 0.2 }));
+        at(E - 0.1, () => audio.speel('halloween-donder', { gain: 0.9, galmen: 0.25 }));
+        at(E + 0.6, () => audio.speel('halloween-huil', { gain: 0.45, galmen: 0.35, pan: Math.random() < 0.5 ? -0.5 : 0.5 }));
+      }
       if (tl.wo) {
         const [w0, w1] = tl.wo;
         const WO = w1 - w0;
@@ -191,19 +208,23 @@
       }
     }
     at(K0 - 0.05, () => audio.zwiep(0.7, 0.8));
+    if (zeldzaam) at(K0 + 0.2, () => audio.glinster(0.9)); // de kaart komt glinsterend uit het licht
     at(K0 + tl.spin * 0.78, () => audio.boem(0.18 + 0.12 * I, 1.5)); // de kaart landt
     at(RV, () => {
       audio.boem(tier === 0 ? 0.35 : 0.7 + 0.3 * I);
       audio.onthulling(0.8 + 0.2 * I);
       if (d.g >= 6) audio.gejuich(2.5 + 1.5 * I, 0.5 + 0.5 * I);
+      else if (zeldzaam) audio.gejuich(3.2, 0.7);
+      if (zeldzaam) audio.fanfare(1);
+      if (d.seizoen === 'halloween') audio.speel('halloween-klok', { gain: 0.6, galmen: 0.3, delay: 0.15 });
       onthul();
       trillen(tier >= 3 ? [60, 40, 60, 40, 200] : tier >= 2 ? [40, 30, 80] : 30);
     });
 
-    // vuurwerk vanaf een 9
+    // vuurwerk vanaf een 9 (bij een zeldzame kaart altijd)
     const vuurwerk = [];
-    if (d.g >= 9) {
-      const aantal = tier === 4 ? 14 : 5;
+    if (d.g >= 9 || zeldzaam) {
+      const aantal = tier === 4 ? 14 : zeldzaam ? 9 : 5;
       for (let i = 0; i < aantal; i++) {
         const tt = RV + 0.5 + i * (tier === 4 ? 0.34 : 0.45);
         vuurwerk.push({ t: tt, x: (Math.random() - 0.5) * 0.9, y: 0.0 + Math.random() * 0.34, h: Math.random() });
@@ -259,8 +280,9 @@
     flits(RV, 0.12 + 0.18 * I, 0.1 + 0.25 * I);
     golf(RV, 1.2, 0.8, 0.03);
     golf(RV + 0.1, 1.6, 0.6, 0.03);
-    if (tier >= 2) golf(RV + 0.22, 2.0, 0.5, 0.03);
-    if (tier === 4) {
+    if (tier >= 2 || zeldzaam) golf(RV + 0.22, 2.0, 0.5, 0.03);
+    if (zeldzaam) flits(K0 + 0.2, 0.3, 0.12);
+    if (tier === 4 || zeldzaam) {
       flits(RV + 0.35, 0.35, 0.3);
       golf(RV + 0.35, 1.6, 0.8, 0.03);
     }
@@ -291,12 +313,16 @@
       e({ mode: 5, t0: E, life: 1.8, n: Math.round(70 + 190 * I), org: [0, lekY], angle: Math.PI / 2, spread: TWEE_PI, spd: [0.25, 1.1], grav: [0, -0.8], drag: 0.6, size: [0.012, 0.03], col1: [0.25, 0.3, 0.85], col2: [1, 0.8, 0.3], alpha: 1, blend: 'alpha', seed: 6 });
     }
     // de onthulling
-    const rvVonken = e({ mode: 0, t0: RV, delay: 0.14, life: 2.2, n: Math.round(300 + 1500 * I), org: [0, 0.02], angle: 0, spread: TWEE_PI, spd: [0.3, 2.3], grav: [0, -0.35], drag: 1.1, size: [0.002, 0.007], col1: kl, col2: kl2, alpha: 0.75, regen: regenboog ? 1 : 0, seed: 8 });
-    if (tier === 0) {
+    const rvVonken = e({ mode: 0, t0: RV, delay: 0.14, life: 2.2, n: Math.round(300 + 1500 * I), org: [0, 0.02], angle: 0, spread: TWEE_PI, spd: [0.3, 2.3], grav: [0, -0.35], drag: 1.1, size: [0.002, 0.007], col1: kl, col2: kl2, alpha: 0.75, regen: regenboog || zeldzaam ? 1 : 0, seed: 8 });
+    if (zeldzaam) {
+      // een gouden regen van vonken van boven, bovenop de gewone onthulling
+      e({ mode: 0, t0: RV, delay: 0.5, life: 3.2, n: 700, org: [0, 0.62], angle: -Math.PI / 2, spread: 1.4, spd: [0.15, 0.7], grav: [0, -0.28], drag: 0.7, size: [0.002, 0.006], col1: [1, 0.82, 0.3], col2: [1, 0.97, 0.8], alpha: 0.9, seed: 17 });
+    }
+    if (tier === 0 && !zeldzaam) {
       e({ mode: 3, t0: RV, life: 5, delay: 0.2, n: 160, alpha: 0.8, seed: 9, blend: 'alpha' });
       e({ mode: 6, t0: RV, life: 3.2, delay: 0.5, n: 14, org: [0, -0.2], size: [0.18, 0.4], col1: [0.16, 0.12, 0.1], col2: [0.3, 0.22, 0.16], blend: 'alpha', seed: 10, lod: false });
-    } else if (d.g >= 6) {
-      e({ mode: 2, t0: RV + 0.1, life: 4.6, delay: 1.1, n: Math.round(50 + 330 * Math.max(0, I - 0.5) * 2 * (d.g >= 9 ? 1.4 : 1)), org: [0, 0.62], angle: -Math.PI / 2, spread: 0.7, spd: [0.1, 0.45], grav: [0, -0.09], drag: 0.45, size: [0.008, 0.017], alpha: 1, blend: 'alpha', seed: 12 });
+    } else if (d.g >= 6 || zeldzaam) {
+      e({ mode: 2, t0: RV + 0.1, life: 4.6, delay: 1.1, n: Math.max(zeldzaam ? 260 : 0, Math.round(50 + 330 * Math.max(0, I - 0.5) * 2 * (d.g >= 9 ? 1.4 : 1))), org: [0, 0.62], angle: -Math.PI / 2, spread: 0.7, spd: [0.1, 0.45], grav: [0, -0.09], drag: 0.45, size: [0.008, 0.017], alpha: 1, blend: 'alpha', seed: 12 });
     }
     // een staart van vonken terwijl de kaart de lucht in draait
     e({ mode: 0, t0: K0, delay: tl.spin * 0.9, life: 0.9, n: Math.round(80 + 260 * I), org: [0, 0.01], angle: 0, spread: TWEE_PI, spd: [0.12, 0.7], grav: [0, 0], drag: 2.2, size: [0.0014, 0.0038], col1: kl, col2: wit, alpha: 0.7, seed: 15 });

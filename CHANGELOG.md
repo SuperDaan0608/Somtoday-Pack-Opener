@@ -1,5 +1,14 @@
 # Wijzigingen
 
+## v1.2.0
+
+- **Zeldzame kaarten:** één op de tien kaarten is zeldzaam, bij elke opening en bij elk cijfer: een regenboogrand en een label op de kaart, extra licht en glans, vuurwerk en confetti (ook bij een onvoldoende), een glinstering als de kaart verschijnt en een fanfare bij de onthulling. In de galerij herken je ze aan hetzelfde label. Uit te zetten in de popup (*Zeldzame kaarten*); bij *Handmatig proberen* kun je er zelf een uitproberen.
+- **Halloween-pakje:** van 1 oktober tot en met 2 november krijgt het pakje een spookachtig uiterlijk (paarse folie, vleermuizen, spinnenweb en een gloeiende pompoen) en eigen geluiden: kraken tijdens het opladen, een donderslag bij het scheuren, een huilend geluid in de verte en een kerkklok bij de onthulling. Uit te zetten in de popup (*Seizoensthema's*). De vier nieuwe geluiden zijn gesynthetiseerd, geen opnames.
+- **Gemiddelden ook afdekken:** zolang je een nieuw cijfer nog niet hebt geopend, worden *Vakgemiddelden* en *Cijferoverzicht* vervangen door een melding, want daar zie je je cijfer of gemiddelde al. *Naar mijn nieuwe cijfers* brengt je terug naar de lijst, *Toch tonen* laat het overzicht alsnog zien. Uit te zetten in de popup.
+- **Cijfercalculator:** wat moet je halen voor een bepaald gemiddelde, met de weging van de volgende toets. Je kunt uitgaan van je galerij of zelf je gemiddelde en weging invullen.
+- **Vrienden: reacties.** Reageer met een emoji op kaarten die een vriend met je deelt; je vriend ziet wie wat zei.
+- **Vrienden: Voorspel mijn cijfer.** Laat vrienden je cijfer raden voordat je het opent. Zij zien alleen vak en onderwerp. Het cijfer verlaat je computer pas als je zelf *Toon uitslag aan vrienden* kiest.
+
 ## v1.1.0
 
 - **Delen:** een knop *Delen* op het eindscherm maakt een plaatje van je kaart (met je naam, als Somtoday die laat zien) en opent op een telefoon het deelmenu.
