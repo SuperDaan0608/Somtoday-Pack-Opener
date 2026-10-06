@@ -39,16 +39,17 @@ void main(){
 out vec4 o;
 uniform vec2 uRes, uShake;
 uniform float uZoom, uTime, uQ, uSter, uVig;
-uniform sampler2D uRuis;
+uniform sampler2D uRuis, uSter2;
 uniform vec3 uZenit, uHorK, uGloedK, uVlamK;
 uniform vec4 uHor, uZon, uMaan, uAarde, uDek0, uDek1, uPad, uLamp0, uLamp1, uVlam;
 uniform vec2 uPadM, uDrift, uLampL;
+uniform vec4 uLampD;
+uniform vec2 uDekK;
 ${GEMEEN}
 float wolk(vec2 q){
   return texture(uRuis, q * .125).r;
 }
-float bundel(vec2 p, vec2 o0, float ang, float w){
-  vec2 dir = vec2(cos(ang), sin(ang));
+float bundel(vec2 p, vec2 o0, vec2 dir, float w){
   vec2 v = p - o0;
   float al = dot(v, dir);
   float dl = abs(dot(v, vec2(-dir.y, dir.x)));
@@ -57,7 +58,8 @@ float bundel(vec2 p, vec2 o0, float ang, float w){
 }
 // Een wolkendek als vlak: x = afstand tot de onderkant (>0: dek boven ons), y = afstand tot de bovenkant
 // (>0: dek onder ons), z = bedekking, w = daglicht.
-vec3 dek(vec3 col, vec2 p, float a, vec4 D, float idx){
+vec3 dek(vec3 col, vec2 p, float a, vec4 D, float idx, float kk){
+  if (kk < .003 || (D.x <= 0. && D.y <= 0. && D.z < .002)) return col;
   vec3 mistK = mix(vec3(.05, .056, .072), vec3(.62, .64, .7), D.w);
   if (D.x > 0.) {
     if (a <= 0.) return col;
@@ -72,7 +74,7 @@ vec3 dek(vec3 col, vec2 p, float a, vec4 D, float idx){
     cc += uVlamK * vl * (.12 + .5 * n) * .9;
     float mist = exp(-D.x * 16.);
     cc = mix(cc, mistK, mist);
-    return mix(col, cc, max(cov, mist));
+    return mix(col, cc, max(cov, mist) * kk);
   }
   if (D.y > 0.) {
     if (a >= 0.) return col;
@@ -92,10 +94,10 @@ vec3 dek(vec3 col, vec2 p, float a, vec4 D, float idx){
     cc = mix(cc, uHorK * 1.1 + uGloedK * uHor.w * kant * .5, (1. - far) * D.w * .85);
     float mist = exp(-D.y * 16.);
     cc = mix(cc, mistK, mist);
-    return mix(col, cc, max(cov, mist));
+    return mix(col, cc, max(cov, mist) * kk);
   }
   float gl = uVlam.z * exp(-length((p - uVlam.xy) * vec2(.9, .7)) * 2.6);
-  return mix(col, mistK + uVlamK * gl * .55, D.z);
+  return mix(col, mistK + uVlamK * gl * .55, D.z * kk);
 }
 void main(){
   vec2 p = (gl_FragCoord.xy - .5 * uRes) / uRes.y;
@@ -106,29 +108,18 @@ void main(){
   float a = length(p - ec) - R;
   float hh = max(a, 0.);
   // lucht
-  vec3 col = mix(uHorK, uZenit, pow(smoothstep(0., .95, hh), .55));
+  vec3 col = mix(uHorK, uZenit, sqrt(smoothstep(0., .95, hh)));
   vec2 dz = p - uZon.xy;
-  col += uGloedK * uHor.w * exp(-length(dz * vec2(.5, 1.7)) * 2.) * exp(-hh * 2.2);
-  // sterren
+  if (uHor.w > .002) col += uGloedK * uHor.w * exp(-length(dz * vec2(.5, 1.7)) * 2.) * exp(-hh * 2.2);
+  // sterren: uit een vooraf getekende textuur (R: grote sterren, G: kleine)
   if (uSter > .01 && a > 0.) {
-    float px = 64. / uRes.y;
-    vec2 sc = p * 64.;
-    vec2 ci = floor(sc);
-    float hs = h21(ci);
-    float ds = length(fract(sc) - (h22(ci + 5.1) * .7 + .15));
-    float br = step(.86, hs) * (.3 + 2.2 * pow(h11(hs * 91.7), 7.));
-    float tw = .7 + .3 * sin(uTime * (1.3 + 3. * hs) + hs * 40.);
-    col += vec3(.82, .88, 1.) * br * tw * smoothstep(1.7 * px, .25 * px, ds) * uSter;
-    if (uQ < 1.5) {
-      float px2 = 150. / uRes.y;
-      vec2 s2 = p * 150. + 31.7;
-      vec2 c2 = floor(s2);
-      float d2 = length(fract(s2) - (h22(c2) * .6 + .2));
-      col += vec3(.7, .8, 1.) * step(.9, h21(c2 + 17.)) * smoothstep(1.4 * px2, .2 * px2, d2) * uSter * .45;
-    }
+    vec2 st = texture(uSter2, p * .5).rg;
+    float tw = .75 + .25 * sin(uTime * 2.2 + dot(floor(p * 30.), vec2(12.9898, 78.233)));
+    col += vec3(.82, .88, 1.) * (st.r * 2.5 * tw * uSter);
+    if (uQ < 1.5) col += vec3(.7, .8, 1.) * (st.g * .6 * uSter);
   }
   // de zon (vlak bij de rand van de aarde)
-  if (uZon.z > .001) {
+  if (uZon.z > .001 && dz.x * dz.x * .2 + dz.y * dz.y < .5) {
     float dsun = length(dz);
     float boven = smoothstep(-.01, .02, length(uZon.xy - ec) - R);
     float zicht = step(-.002, a) * mix(.25, 1., boven);
@@ -144,7 +135,7 @@ void main(){
       float nz = sqrt(max(1. - md * md, 0.));
       vec3 N = vec3(mq, nz);
       float lam = max(dot(N, normalize(vec3(.85, .28, .42))), 0.);
-      float mar = texture(uRuis, mq * .33 + .25).g;
+      float mar = textureLod(uRuis, mq * .33 + .25, 1.).g;
       float alb = .66 - .3 * smoothstep(.48, .68, mar);
       vec2 kc = mq * 6.;
       vec2 ki = floor(kc);
@@ -174,18 +165,21 @@ void main(){
       vec3 dagK = mix(sur * 4. + vec3(.03, .07, .16), vec3(.8, .84, .92), cl);
       vec3 nachtK = sur + vec3(.012, .016, .03) * cl;
       vec3 e = mix(nachtK, dagK, dag);
-      float stad = pow(texture(uRuis, q * .29 + .6).b, 5.) * 3. * smoothstep(.52, .62, land) * (1. - dag) * (1. - cl * .85);
-      e += vec3(1., .82, .55) * stad * uAarde.y * exp(-z * .05);
+      if (uAarde.y > .01 && dag < .98 && land > .5) {
+        float sb = textureLod(uRuis, q * .29 + .6, 2.).b;
+        float stad = sb * sb * sb * sb * sb * 3. * smoothstep(.52, .62, land) * (1. - dag) * (1. - cl * .85);
+        e += vec3(1., .82, .55) * stad * uAarde.y * exp(-z * .05);
+      }
       e = mix(e, uHorK * .75, exp(-dd * 16.) * .9);
       g = mix(g, e, uAarde.x);
     }
     col = g;
   }
   // wolkendekken
-  col = dek(col, p, a, uDek0, 0.);
-  col = dek(col, p, a, uDek1, 1.);
+  col = dek(col, p, a, uDek0, 0., uDekK.x);
+  col = dek(col, p, a, uDek1, 1., uDekK.y);
   // de dunne gloeiende rand van de dampkring
-  if (uHor.z > .001) {
+  if (uHor.z > .001 && abs(a) < .3) {
     float rim = exp(-a * a * 9000.) + .45 * exp(-max(a, 0.) * 22.) * step(0., a) + .25 * exp(-max(-a, 0.) * 60.) * step(a, 0.);
     float kant = .55 + .6 * exp(-abs(p.x - uZon.x) * 1.6);
     col += uHorK * rim * uHor.z * kant;
@@ -220,14 +214,19 @@ void main(){
     for (int i = 0; i < 2; i++) {
       vec4 L = i == 0 ? uLamp0 : uLamp1;
       float lenB = i == 0 ? uLampL.x : uLampL.y;
-      vec2 dir = vec2(cos(L.z), sin(L.z));
-      float al = dot(p - L.xy, dir);
+      vec2 dir = i == 0 ? uLampD.xy : uLampD.zw;
+      vec2 lv = p - L.xy;
+      float al = dot(lv, dir);
+      if (abs(dot(lv, vec2(-dir.y, dir.x))) < .22 && al > -.04) {
       float stop = smoothstep(lenB + .03 * zm, lenB - .05 * zm, al);
-      float b = (bundel(p, L.xy, L.z, .02 * zm) + .5 * bundel(p, L.xy, L.z + (i == 0 ? .07 : -.07), .014 * zm)) * stop;
-      if (b > .004) col += vec3(.55, .66, .9) * b * L.w * .5 * (.55 + .7 * texture(uRuis, vec2(p.x * 9. - uTime * .2, p.y * 6. + uTime * .09) * .125).b) * vis;
+      float sg = i == 0 ? .0699 : -.0699;
+      vec2 dir2 = vec2(dir.x * .99756 - dir.y * sg, dir.y * .99756 + dir.x * sg);
+      float b = (bundel(p, L.xy, dir, .02 * zm) + .5 * bundel(p, L.xy, dir2, .014 * zm)) * stop;
+      if (b > .004) col += vec3(.55, .66, .9) * b * L.w * .5 * (.55 + .7 * textureLod(uRuis, vec2(p.x * 9. - uTime * .2, p.y * 6. + uTime * .09) * .125, 1.5).b) * vis;
+      }
       float dl = length((p - L.xy) * vec2(1., 1.25));
       col += vec3(.8, .88, 1.) * L.w * (.0011 / (dl * dl + .00025)) * vis;
-      col += vec3(.6, .75, 1.) * L.w * exp(-abs(p.y - L.y) * 420.) * exp(-abs(p.x - L.x) * 9.) * .5 * vis;
+      if (abs(lv.y) < .03) col += vec3(.6, .75, 1.) * L.w * exp(-abs(lv.y) * 420.) * exp(-abs(lv.x) * 9.) * .5 * vis;
     }
   }
   col *= 1. - uVig * smoothstep(.28, .98, length((gl_FragCoord.xy / uRes - .5) * vec2(.65 * asp, 1.)));
@@ -1192,6 +1191,43 @@ void main(){
     return cv;
   }
 
+  // De sterrenhemel, één keer getekend: 1408² (2 schermhoogtes breed). R: grote sterren (64 vakjes per hoogte), G: kleine (150).
+  function* maakSterren(A) {
+    const N = 1408;
+    const cv = A.nieuw(N, N);
+    const g = cv.getContext('2d');
+    g.fillStyle = '#000';
+    g.fillRect(0, 0, N, N);
+    g.globalCompositeOperation = 'lighter';
+    let z = 12345;
+    const rnd = () => (z = (z * 16807) % 2147483647) / 2147483647;
+    const ster = (cx, cy, rad, kleur) => {
+      const gr = g.createRadialGradient(cx, cy, 0, cx, cy, rad);
+      gr.addColorStop(0, kleur);
+      gr.addColorStop(0.35, kleur.replace(/,1\)$/, ',0.55)'));
+      gr.addColorStop(1, kleur.replace(/,1\)$/, ',0)'));
+      g.fillStyle = gr;
+      g.fillRect(cx - rad, cy - rad, rad * 2, rad * 2);
+    };
+    const per = [[128, 11, 2.3, 0.14], [300, 4.693, 1.7, 0.1]];
+    for (let l = 0; l < 2; l++) {
+      const [n, cel, rad, kans] = per[l];
+      for (let y = 0; y < n; y++) {
+        for (let x = 0; x < n; x++) {
+          if (rnd() > kans) continue;
+          const px = (x + 0.15 + rnd() * 0.7) * cel;
+          const py = (y + 0.15 + rnd() * 0.7) * cel;
+          if (l === 0) {
+            const br = Math.min(1, (0.3 + 2.2 * Math.pow(rnd(), 7)) / 2.5);
+            ster(px, py, rad, `rgba(${Math.round(255 * br)},0,0,1)`);
+          } else ster(px, py, rad, 'rgba(0,255,0,1)');
+        }
+        if (y % 40 === 39) yield;
+      }
+    }
+    return cv;
+  }
+
   // Het live cijfer: een atlas met de tekens 0…9 en de komma (cellen van 170×256) en daaronder het woordje CIJFER.
   const TEL_CW = 170;
   const TEL_CH = 256;
@@ -1429,7 +1465,8 @@ void main(){
       const fotos = [0.7, P.tellen[P.tellen.length - 1] + 0.12, P.TI + 0.22, P.TL + 0.85 * P.k];
       if (P.tDekB !== null) fotos.push(P.tDekB + 0.05 * P.k);
       if (P.sep !== null) fotos.push(P.sep + 0.3 * P.k);
-      fotos.push(P.tc - 0.12, P.tA + 0.25, P.E + 0.1, P.E + 0.5);
+      if (P.uc > U_MAXQ + 0.2) fotos.push(P.TL + U_MAXQ * P.k);
+      fotos.push(P.tc - 0.12, P.tA + 0.25, P.E - 0.2, P.E + 0.1, P.E + 0.5);
       fotos.sort((a, b) => a - b);
       return { E: P.E, K0: P.K0, fotos, staart: 0.5, raket: P };
     },
@@ -1450,8 +1487,10 @@ void main(){
       const meld = maakMeldingen(A);
       yield;
       const ruis = yield* maakRuis(A);
+      yield;
+      const ster = yield* maakSterren(A);
       const puf = maakPuf(A);
-      return { raket: K, norm: N, pad, tel, hud, label, puf, teller, meld, ruis };
+      return { raket: K, norm: N, pad, tel, hud, label, puf, teller, meld, ruis, ster };
     },
 
     maak(c) {
@@ -1473,6 +1512,7 @@ void main(){
         hud: c.tekstuur(art.hud),
         label: c.tekstuur(art.label),
         teller: c.tekstuur(art.teller),
+        ster: c.tekstuur(art.ster, { mip: true, herhaal: true }),
         ruis: c.tekstuur(art.ruis, { mip: true, herhaal: true }),
         meld: c.tekstuur(art.meld),
         puf: c.tekstuur(art.puf, { mip: false }),
@@ -1738,7 +1778,7 @@ void main(){
       // ───── rook (eigen deeltjes) ─────
       const rook = [
         // grote wolken over de grond bij de start
-        { soort: 0, t0: P.TI + 0.04, duur: 2.2, life: 3.8, n: 64, org: [0, YM], spd: [0.25, 1.6], size: [0.12, 0.24], wereld: 1, seed: 3, alpha: 1, kl: [0.86, 0.87, 0.9] },
+        { soort: 0, t0: P.TI + 0.04, duur: 2.2, life: 3.8, n: 48, org: [0, YM], spd: [0.25, 1.6], size: [0.14, 0.28], wereld: 1, seed: 3, alpha: 1, kl: [0.86, 0.87, 0.9] },
         // stoom uit de raket (loopt door)
         { soort: 1, t0: 0, duur: 0, life: 2.8, n: 24, org: [0, YM + 0.22], spd: [0, 0.2], size: [0.024, 0.03], wereld: 1, seed: 5, alpha: 0.42, kl: [0.85, 0.88, 0.95] },
       ];
@@ -1855,6 +1895,7 @@ void main(){
         p.f1('uTime', anim);
         p.f1('uQ', kw());
         p.tex('uRuis', 0, tex.ruis);
+        p.tex('uSter2', 1, tex.ster);
         p.f1('uVig', 0.55 * (1 - sm(t, E - 0.05, E + 0.25)));
         kfKleur(ZENIT, f, kZen);
         kfKleur(HORK, f, kHor);
@@ -1893,6 +1934,7 @@ void main(){
         if (f > DEK_A[1] + 0.02) deck0[2] *= 0;
         p.f4('uDek0', deck0[0], deck0[1], deck0[2], deck0[3]);
         p.f4('uDek1', deck1[0], deck1[1], deck1[2], deck1[3]);
+        p.f2('uDekK', 1 - sm(f, 0.24, 0.38), 1 - sm(f, 0.42, 0.56));
         p.f2('uDrift', 0.4 + f * 3, f * 2);
         // het platform
         const pz = S.padZicht;
@@ -1910,6 +1952,7 @@ void main(){
         p.f4('uLamp0', l0x, l0y, Math.atan2(d0y, d0x), lampI);
         p.f4('uLamp1', l1x, l1y, Math.atan2(d1y, d1x), lampI * 0.9);
         p.f2('uLampL', Math.hypot(d0x, d0y), Math.hypot(d1x, d1y));
+        p.f4('uLampD', Math.cos(Math.atan2(d0y, d0x)), Math.sin(Math.atan2(d0y, d0x)), Math.cos(Math.atan2(d1y, d1x)), Math.sin(Math.atan2(d1y, d1x)));
         p.f4('uVlam', S.vlamX, S.vlamY, 1.6 * S.kr, 0.2);
         c.motor.mengen('optel');
         c.motor.volledig();
@@ -2204,7 +2247,7 @@ void main(){
         p.f1('uGloed', 1);
         p.f1('uAlpha', zicht * flik * 0.95);
         c.motor.mengen('alpha');
-        kwad(p, 0, 0.5 - (asp < 1 ? 0.03 : 0.065) - lh / 2, lw / 2, lh / 2, 0, 0, 0, 1, 1);
+        kwad(p, 0, 0.5 - 0.065 - lh / 2, lw / 2, lh / 2, 0, 0, 0, 1, 1);
       }
 
       function klapper(t) {
@@ -2242,7 +2285,7 @@ void main(){
         const hgt = breed ? 0.2 : asp < 1 ? 0.085 : 0.12;
         const lwv = Math.min(asp * 0.86, 0.95);
         const lhv = lwv * (200 / 1600);
-        const topm = asp < 1 ? 0.03 : 0.065;
+        const topm = 0.065;
         const cyL = breed ? 0.07 + hgt * 0.5 : 0.5 - topm - lhv - 0.012;
         const cy = breed ? 0.07 : cyL - 0.012 - hgt * 0.5;
         const cwv = (hgt * TEL_CW) / TEL_CH;
@@ -2269,7 +2312,7 @@ void main(){
         p.v3('uTint', tint);
         c.motor.mengen('optel');
         p.f1('uAlpha', zicht * (0.85 + 0.15 * hold));
-        p.f1('uGloed + 0.8 * Math.exp(-Math.max(q, 0) / 0.2) + hold * (0.5 + 0.35 * Math.sin((t - P.tA) * 7)) + 2 * na * Math.exp(-(t - E) / 0.4));
+        p.f1('uGloed', 1.25 + 2.5 * fl + 0.8 * Math.exp(-Math.max(q, 0) / 0.2) + hold * (0.5 + 0.35 * Math.sin((t - P.tA) * 7)) + 0.8 * na * Math.exp(-(t - E) / 0.4));
         // het woordje CIJFER
         const lsc = (hgt * 0.26) / 100;
         kwad(p, cx, cyL, 330 * lsc * pop, 50 * lsc * pop, 0, 0, 330 / 512, 660 / 2048, 430 / 512);

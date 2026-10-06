@@ -1,5 +1,10 @@
 # Wijzigingen
 
+## v0.4.1-beta
+
+- **Raket:** lichter (minder zware effecten, gebakken wolken en sterren), een veel langere aftelling en vlucht met meldingen langs de weg, en een grote **live cijferteller** die met de hoogte meestijgt tot je echte cijfer (rood onder de 5,5, groen erboven).
+- **Plinko:** een hele arcadekast met knipperende lampjes, lichtstrips, bumperringen, een invoer met tandwielen, een nieuwe camera en een **live scoreteller**.
+
 ## v0.4-beta
 
 Meer manieren om je cijfer te openen. Naast het pakje zijn er vier nieuwe openingen. Kies er één in de popup, of kies **Verras me**:
