@@ -59,7 +59,8 @@ in vec2 vQ; in vec3 vWp; in vec3 vN; in vec3 vT; in vec3 vB; in float vZ;
 out vec4 o;
 uniform sampler2D uWijzer, uPlaat;
 uniform vec3 uCamPos, uLpos, uLdir, uInPos, uKl, uLamp;
-uniform float uDeel, uKant, uT, uDial, uDialW, uWiel, uLek, uBinnen, uFade, uSpot, uKwal, uB0, uBdt, uBdur;
+uniform float uDeel, uKant, uT, uDial, uDialW, uWiel, uLek, uBinnen, uFade, uSpot, uKwal, uB0, uBdt, uBdur, uOk, uWH;
+uniform vec4 uHint;
 ${GEMEEN}
 ${KG}
 vec3 spot(vec3 P, out vec3 L){
@@ -199,6 +200,15 @@ void main(){
         glans = 40.; ks = 1. - .8 * ink; kenv = .6 * (1. - ink); aniso = 1.;
         tang = vec2(-rdir.y, rdir.x);
         ao = .8 + .2 * smoothstep(.078, .095, rd);
+        // hint: het doelgetal glinstert (koel wit), sterker naarmate je dichterbij komt
+        if (uHint.y > .001) {
+          float dA = af - (1.5707963 - uHint.x);
+          dA -= TAU * floor(dA / TAU + .5);
+          float dl = abs(dA) * rd;
+          float lijn = smoothstep(.0038, .0009, dl) * smoothstep(.148, .160, rd);
+          float halo = exp(-dl * dl / .00011) * smoothstep(.115, .17, rd) * .4;
+          emis += vec3(.55, .85, 1.) * (lijn * 2.4 + halo) * uHint.y * (.8 + .2 * sin(uHint.z * 6.));
+        }
       } else {
         // gekartelde rand
         float k = sin(af * 72.) * (1. - blur);
@@ -212,11 +222,30 @@ void main(){
       float tri = step(.218, qd.y) * step(abs(qd.x), (qd.y - .218) * .7) * step(qd.y, .247);
       alb = mix(alb, vec3(.95, .95, .92), tri);
       emis += vec3(.25, .26, .28) * tri * uSpot;
+      // hint: een lichtboogje loopt in de draairichting rond de ring; bij succes licht de ring even groen op
+      float ringM = smoothstep(.2175, .224, rd) * smoothstep(.2475, .24, rd);
+      if (max(uHint.y, uWH) > .001 && abs(uHint.w) > .5) {
+        float ph = atan(qd.y, qd.x + 1e-6) - uHint.w * uHint.z * 1.7;
+        emis += vec3(.45, .75, 1.) * pow(.5 + .5 * cos(ph * 3.), 5.) * .95 * max(uHint.y, uWH) * ringM;
+      }
+      emis += vec3(.25, 1., .4) * uOk * ringM * 1.5;
     }
   } else if (dw < 0.) {
     nt = nw;
     if (mw > .5) { alb = vec3(.58, .6, .64); glans = 140.; ks = 1.6; kenv = 1.; aniso = 0.; }
     else { alb = vec3(.36, .38, .42); glans = 80.; ks = .9; kenv = .5; aniso = 1.; }
+    float angW = atan(qw.y, qw.x + 1e-6);
+    float rrW = length(qw);
+    if (mw < .5 && max(uHint.y, uWH) > .001 && abs(uHint.w) > .5) {
+      float ph = angW - uHint.w * uHint.z * 1.7;
+      emis += vec3(.45, .75, 1.) * pow(.5 + .5 * cos(ph * 3.), 5.) * .8 * max(uHint.y, uWH);
+    }
+    if (mw < .5 && rrW < .33) emis += vec3(.25, 1., .4) * uOk * 1.2;
+    if (uWH > .001) {
+      // hint voor het handwiel: een glinstering loopt met de klok mee over de spaken en de kogels
+      float ch = pow(.5 + .5 * cos((angW + uHint.z * 2.4) * 3.), 3.);
+      emis += vec3(.5, .8, 1.) * uWH * (ch * (.15 + 1.5 * smoothstep(.45, .55, rrW)) + .06);
+    }
   } else {
     // ── de voorplaat: ringen ──
     vec2 h = vec2(0.);
@@ -526,7 +555,7 @@ void main(){
 out vec4 o;
 uniform vec2 uRes, uShake; uniform float uZoom;
 uniform vec3 uCam, uLpos, uLdir, uKl, uGat;
-uniform float uF, uR, uT, uSpot, uStoom, uLek, uBinnen, uOpen, uFlood, uFade, uKwal, uTier, uFlik, uB0, uBdt, uBoog;
+uniform float uF, uR, uT, uTs, uSpot, uStoom, uLek, uBinnen, uOpen, uFlood, uFade, uKwal, uTier, uFlik, uB0, uBdt, uBoog;
 ${GEMEEN}
 ${KG}
 void main(){
@@ -574,7 +603,7 @@ void main(){
     float damp = exp(-pow((rr - 1.04) / .07, 2.)) * .35;
     for (int k = 0; k < 12; k++) {
       float fk = float(k);
-      float age = uT - (uB0 + mod(fk, 6.) * uBdt) - .05;
+      float age = uTs - (uB0 + mod(fk, 6.) * uBdt) - .05;
       if (age > 0. && age < 2.5) {
         float ak = .2618 + fk * .5236;
         vec2 c2 = vec2(cos(ak), sin(ak)) * (1.04 + .35 * pow(age, .6)) + vec2(0., .1 * age * age);
@@ -633,7 +662,25 @@ void main(){
       const fotos = d.snel
         ? [0.35, 0.8, 1.32, 2.4, 2.9, 3.6, 4.4, E + 0.06, E + 0.35, E + 0.7, E + 1.0]
         : [0.6, 1.55, 2.3, 4.3, 5.1, 6.0, 7.1, 8.2, E + 0.06, E + 0.45, E + 0.95, E + 1.45];
-      return { E, K0, fotos, staart: 0.5, kluis: k };
+      const r = { E, K0, fotos, staart: 0.5, kluis: k };
+      if (!d.snel) {
+        // Zelf kraken: de klok staat stil bij elke stap van de combinatie (drie getallen) en bij het handwiel.
+        // De pauzes liggen op het begin van elke stap in de tijdgestuurde variant; de gebruiker springt na zijn
+        // succes naar k.J (kort na het moment waarop het slot er vanzelf was).
+        const n = k.nums;
+        k.P = n.map((x) => x[0]).concat([k.W0 - 0.1]);
+        k.J = n.map((x) => x[0] + x[1] + x[2] + 0.12).concat([k.B0 - 0.12]);
+        r.pauzes = k.P.slice();
+        r.klikHint = 'Draai het wiel rondjes om het slot te kraken';
+        r.pauzeAuto = 14; // niets doen? na 14 s kraakt de kluis zichzelf
+        const dr = window.__somPack;
+        if (dr && dr.debug) {
+          // alleen om te testen: ?pa=2 verkort de wachttijd
+          const pa = +new URLSearchParams(location.search).get('pa');
+          if (pa > 0) r.pauzeAuto = pa;
+        }
+      }
+      return r;
     },
 
     *art(d, h) {
@@ -756,7 +803,7 @@ void main(){
         if (delta < 35) delta += 100;
         const total = delta + (i === 0 || (i === 1 && !snel) ? 100 : 0);
         const nTail = snel ? 5 : 7;
-        segs.push({ s, DA, DB, N0: Ncur, dir, total, nTail, vJ: (2 * nTail) / DB, klaar: s + DA + DB });
+        segs.push({ s, DA, DB, N0: Ncur, dir, total, nTail, vJ: (2 * nTail) / DB, klaar: s + DA + DB, tn: Ncur + dir * total });
         Ncur += dir * total;
       });
       const dial = { N: nStart, v: 0 };
@@ -869,6 +916,277 @@ void main(){
         ex({ mode: 1, t0: E, life: 3, n: 90, size: [0.004, 0.022], col1: c.kl, col2: c.kl2, regen: 1, alpha: 0.7, seed: 70 });
       }
 
+      // ── zelf kraken ──
+      // Zie LEESMIJ.md ('invoer'): main.js geeft tijdens een pauze de aanwijzer en de pijltjestoetsen door en vraagt
+      // elk beeld of de pauze voorbij is. Het beeld blijft teken(t) plus deze invoerstand; zonder invoer (seek, Spatie,
+      // de snelle modus, niets doen) loopt alles op de tijdlijn en is het de automatische variant.
+      const NS = K.P ? K.nums.length : 0; // getallen die je zelf draait; daarna volgt het handwiel
+      const WMAX = 2.36; // zo ver draait het handwiel (rad), net als de automatische variant
+      const WIN = 1.8; // het slot pakt binnen zoveel streepjes van het doelgetal
+      const TEKST = [];
+      segs.forEach((g, i) => TEKST.push(`${['Draai het wiel naar rechts, tot ', 'Nu naar links, tot ', 'Weer naar rechts, tot '][i % 3]}${combi[i]}`));
+      TEKST[NS] = 'Draai het grote handwiel met de klok mee';
+      const TEKST0 = 'Draai het wiel rondjes om het slot te kraken';
+      const TEKST_IDLE = 'Sleep rondjes om het wiel · dubbeltik of Spatie slaat over';
+      const ui = {
+        aan: false, // dit beeld speelt echt (geen seek): alleen dan telt de invoer
+        bezig: false, // de klok staat stil en wacht op jou
+        stap: 0, // 0…NS−1 = een getal, NS = het handwiel, daarna klaar of automatisch
+        auto: false,
+        klaar: [false, false, false, false],
+        tKlaar: [-9, -9, -9, -9],
+        tn: 0, // eigen klok (loopt ook tijdens een pauze)
+        verloren: 0, // totale pauzetijd: ambient beweging (stof, ademhaling) loopt dan gewoon door
+        idle: 0,
+        idleTekst: false,
+        vis: 0, vv: 0, doelN: 0, // het getallenwiel: getekende stand (met vering) en de stand van je vinger
+        inWin: false, dw: 0, need: 0.4, lastDir: 0,
+        wvis: 0, wv: 0, wdoel: 0, wEind: false, // het handwiel
+        pid: -1, thV: NaN, tBew: 0, tTap: -9, tDown: 0, x0: 0, y0: 0, tikWiel: 0, lastKlik: 0,
+        cx: 0, cy: 0, rad: 0.3, // de deur in p-ruimte (voor het raken)
+        imp: 0, ok: 0, hintI: 0, wtrill: 0,
+        off: 0, offT: -9, woff: 0, woffT: -9,
+      };
+      const wrap100 = (x) => x - 100 * Math.round(x / 100);
+      const rnd2 = Math.random;
+
+      function begin(st) {
+        ui.bezig = true;
+        ui.idle = 0;
+        ui.idleTekst = false;
+        ui.hintI = 0;
+        ui.pid = -1;
+        ui.thV = NaN;
+        ui.inWin = false;
+        ui.dw = 0;
+        if (st < NS) {
+          ui.vis = ui.doelN = segs[st].N0;
+          ui.vv = 0;
+          ui.lastDir = 0;
+        } else {
+          ui.wvis = ui.wdoel = 0;
+          ui.wv = 0;
+          ui.wEind = false;
+          ui.tikWiel = 0;
+        }
+        tl.klikHint = TEKST[st];
+      }
+      function overgeven(t) {
+        // de klok loopt weer zonder dat jij klaar bent (Spatie, wachttijd, een klik): neem de automatische variant over
+        if (ui.bezig) {
+          if (ui.stap < NS) {
+            draaiDial(t);
+            ui.off = wrap100(ui.vis - dial.N);
+            ui.offT = t;
+          } else {
+            ui.woff = ui.wvis - wielAuto(t);
+            ui.woffT = t;
+          }
+        }
+        ui.bezig = false;
+        ui.auto = true;
+        ui.stap = NS + 5;
+        ui.pid = -1;
+      }
+      // elk beeld, vóór het tekenen
+      function opdracht(t, dt) {
+        ui.tn += dt;
+        const st = ui.stap;
+        if (!ui.auto && st <= NS) {
+          const P = K.P[st];
+          if (t >= P - 1e-6 && t <= P + 0.002) {
+            if (!ui.bezig) begin(st);
+          } else if (t > P + 0.002) overgeven(t);
+        }
+        const ex = Math.exp(-dt / 0.07);
+        ui.imp *= ex;
+        ui.ok *= Math.exp(-dt / 0.28);
+        if (ui.klaar[NS]) {
+          const du = ui.tn - ui.tKlaar[NS];
+          ui.wtrill = 0.03 * Math.sin(du * 30) * Math.exp(-du / 0.1);
+        }
+        if (!ui.bezig) {
+          ui.hintI *= Math.exp(-dt * 8);
+          return;
+        }
+        ui.verloren += dt;
+        ui.idle += dt;
+        ui.hintI += (1 - ui.hintI) * (1 - Math.exp(-dt * 2.5));
+        if (ui.idle > 5 && !ui.idleTekst) {
+          ui.idleTekst = true;
+          tl.klikHint = TEKST_IDLE;
+        }
+        let rest = dt;
+        if (st < NS) {
+          const T = combi[st];
+          const eff = ui.inWin ? ui.doelN - wrap100(ui.doelN - T) : ui.doelN;
+          while (rest > 0) {
+            const h = Math.min(rest, 0.008);
+            ui.vv += ((eff - ui.vis) * 900 - ui.vv * 42) * h;
+            ui.vis += ui.vv * h;
+            rest -= h;
+          }
+          if (ui.inWin) ui.dw += dt;
+        } else {
+          while (rest > 0) {
+            const h = Math.min(rest, 0.008);
+            ui.wv += ((ui.wdoel - ui.wvis) * 260 - ui.wv * 24) * h;
+            ui.wvis += ui.wv * h;
+            rest -= h;
+          }
+        }
+      }
+
+      // geluid en schok bij een tik van het wiel (vanuit de invoer, nooit in teken)
+      function klik(v) {
+        const nu = performance.now();
+        if (nu - ui.lastKlik < 38) return;
+        ui.lastKlik = nu;
+        const zacht = Math.min(1, v / 300);
+        au.speel('kluis-klik', { gain: 0.85 - 0.55 * zacht, rate: (0.9 + 0.18 * zacht) * (0.97 + 0.06 * rnd2()) });
+        ui.imp = Math.min(1.2, ui.imp + 0.3);
+      }
+      function mis() {
+        au.speel('kluis-klik', { gain: 0.32, rate: 0.62 + 0.06 * rnd2() });
+        ui.imp = Math.min(1.4, ui.imp + 0.55);
+        c.trillen(7);
+      }
+      // je vinger draait het getallenwiel met dn streepjes
+      function draaiGetal(dn, v) {
+        const oud = ui.doelN;
+        ui.doelN += dn;
+        if (Math.abs(dn) > 0.04) ui.lastDir = dn > 0 ? 1 : -1;
+        if (Math.floor(ui.doelN) !== Math.floor(oud)) klik(v);
+        const st = ui.stap;
+        const bin = Math.abs(wrap100(ui.doelN - combi[st])) <= WIN;
+        if (bin && !ui.inWin) {
+          ui.inWin = true;
+          ui.dw = 0;
+          ui.need = ui.lastDir === segs[st].dir || ui.lastDir === 0 ? 0.4 : 0.85;
+          au.speel('kluis-klik', { gain: 0.9, rate: 1.35 });
+          ui.imp = Math.min(1.2, ui.imp + 0.5);
+        } else if (!bin && ui.inWin) {
+          ui.inWin = false;
+          if (ui.dw < ui.need) mis();
+          ui.dw = 0;
+        }
+      }
+      function draaiHandwiel(da, v) {
+        const oud = ui.wdoel;
+        ui.wdoel = Math.max(-WMAX, Math.min(0, ui.wdoel + da));
+        const k = Math.floor(-ui.wdoel / 0.3);
+        if (k !== Math.floor(-oud / 0.3)) {
+          au.speel('kluis-wiel', { gain: 0.55, rate: 0.92 + 0.12 * rnd2(), offset: 0.1 + 1.6 * (-ui.wdoel / WMAX), duur: 0.3, fadeIn: 0.03, fadeOut: 0.12 });
+          ui.imp = Math.min(1.2, ui.imp + 0.4);
+        }
+        if (ui.wdoel <= -WMAX + 0.03) ui.wEind = true;
+      }
+      function succes(st) {
+        ui.klaar[st] = true;
+        ui.tKlaar[st] = ui.tn;
+        ui.ok = 1;
+        ui.bezig = false;
+        ui.pid = -1;
+        ui.inWin = false;
+        if (st < NS) {
+          ui.vis = ui.doelN = segs[st].tn;
+          ui.vv = 0;
+          ui.imp = 1.6;
+          au.speel('kluis-slot', { gain: 0.5 + 0.1 * st, rate: 1.12 - 0.07 * st, galmen: 0.15 });
+          c.trillen(12);
+        } else {
+          ui.wvis = -WMAX;
+          ui.wv = 0;
+          ui.imp = 2.4;
+          au.speel('kluis-slot', { gain: 1.05, rate: 0.82, galmen: 0.3 });
+          c.trillen([20, 30, 40]);
+        }
+        ui.stap = st + 1;
+        return K.J[st];
+      }
+      // hoek van de aanwijzer (genormeerd scherm 0…1) rond het midden van de deur; NaN als hij te dicht bij het midden zit
+      function hoek(x, y) {
+        const dx = (x - 0.5) * c.asp - ui.cx;
+        const dy = 0.5 - y - ui.cy;
+        if (dx * dx + dy * dy < ui.rad * ui.rad * 0.015) return NaN;
+        return Math.atan2(dy, dx);
+      }
+      const invoer = {
+        // pointerdown/move/up in genormeerde canvas-coördinaten; geeft true / een tijd / 'over' terug om de pauze te beëindigen
+        aanwijzer(soort, x, y, e) {
+          if (!ui.bezig || ui.auto) return false;
+          const nu = performance.now();
+          if (soort === 'down') {
+            if (ui.pid !== -1) return false;
+            ui.pid = e.pointerId;
+            ui.thV = hoek(x, y);
+            ui.tBew = nu;
+            ui.tDown = nu;
+            ui.x0 = x;
+            ui.y0 = y;
+            ui.idle = 0;
+            if (ui.idleTekst) {
+              ui.idleTekst = false;
+              tl.klikHint = TEKST[ui.stap];
+            }
+            return false;
+          }
+          if (e.pointerId !== ui.pid) return false;
+          if (soort === 'move') {
+            ui.idle = 0;
+            const th = hoek(x, y);
+            if (th !== th) return false;
+            if (ui.thV !== ui.thV) {
+              ui.thV = th;
+              return false;
+            }
+            let dth = th - ui.thV;
+            dth -= 2 * Math.PI * Math.round(dth / (2 * Math.PI));
+            ui.thV = th;
+            const sec = Math.max(0.004, (nu - ui.tBew) / 1000);
+            ui.tBew = nu;
+            if (ui.idleTekst) {
+              ui.idleTekst = false;
+              tl.klikHint = TEKST[ui.stap];
+            }
+            if (ui.stap < NS) draaiGetal((dth * 100) / (2 * Math.PI), Math.abs((dth * 100) / (2 * Math.PI)) / sec);
+            else draaiHandwiel(dth, Math.abs(dth) / sec);
+            return false;
+          }
+          // up of cancel: een korte tik is geen draaibeweging; twee korte tikken slaan de interactie over
+          ui.pid = -1;
+          if (soort === 'up' && nu - ui.tDown < 320 && Math.hypot((x - ui.x0) * c.asp, y - ui.y0) < 0.03) {
+            if (nu - ui.tTap < 380) return 'over';
+            ui.tTap = nu;
+          }
+          return false;
+        },
+        // pijltjes links/rechts draaien het wiel (rechts = rechtsom); Spatie en Enter slaan over (doet main.js)
+        toets(key, e) {
+          if (!ui.bezig || ui.auto) return false;
+          const r = key === 'ArrowRight' ? -1 : key === 'ArrowLeft' ? 1 : 0;
+          if (!r) return false;
+          ui.idle = 0;
+          if (ui.idleTekst) {
+            ui.idleTekst = false;
+            tl.klikHint = TEKST[ui.stap];
+          }
+          if (ui.stap < NS) draaiGetal(r * (e && e.shiftKey ? 4 : 1), 60);
+          else draaiHandwiel(r * 0.1, 3);
+          return true;
+        },
+        // elk beeld tijdens een pauze: is jouw stap gelukt?
+        klaar() {
+          if (!ui.bezig || ui.auto) return false;
+          const st = ui.stap;
+          if (st < NS) {
+            if (ui.inWin && ui.dw >= ui.need) return succes(st);
+          } else if (st === NS && ui.wEind) return succes(st);
+          return false;
+        },
+      };
+      if (window.__somPack && window.__somPack.debug) window.__kluisDebug = { ui, segs, combi, K, NS };
+
       // ── toestand per beeld (alles een functie van t) ──
       const S = { dist: 3, bx: 0, by: 0 };
       const KL = [0, 0, 0];
@@ -884,14 +1202,25 @@ void main(){
           lampGroen[i] = K.los;
         }
       }
-      const lamp = (i, t) => {
+      const lamp = (i, t, ta) => {
         if (t < lampAan[i]) return 0;
-        if (t < lampGroen[i]) return red ? 0.9 : 0.62 + 0.38 * (0.5 + 0.5 * Math.cos((t - lampAan[i]) * 19));
+        if (t < lampGroen[i]) return red ? 0.9 : 0.62 + 0.38 * (0.5 + 0.5 * Math.cos((ta - lampAan[i]) * 19));
         let s = 2 + 1.3 * Math.exp(-(t - lampGroen[i]) / 0.09);
         if (t >= K.los) s += 1.0 * Math.exp(-(t - K.los) / 0.16);
+        if (ui.aan && ui.klaar[i]) s += 1.3 * Math.exp(-(ui.tn - ui.tKlaar[i]) / 0.09);
         return s;
       };
+      // de hoek van het handwiel: de automatische variant, of jouw draaiing
       function wielHoek(t) {
+        if (ui.aan) {
+          if (ui.bezig && ui.stap === NS) return ui.wvis;
+          if (ui.klaar[NS]) return -WMAX - ui.wtrill;
+          const dw = t - ui.woffT;
+          if (dw >= 0 && dw < 1.2) return wielAuto(t) + ui.woff * Math.exp(-dw / 0.15);
+        }
+        return wielAuto(t);
+      }
+      function wielAuto(t) {
         const u = c.ramp(t, K.W0, K.W1);
         let a = -2.36 * u * u * u * (u * (u * 6 - 15) + 10);
         a += 0.05 * Math.sin(Math.PI * c.ramp(t, K.W0 - 0.2, K.W0 + 0.05));
@@ -918,11 +1247,12 @@ void main(){
         }
         return v * (1 - 0.5 * c.sm(t, E, E + 0.6));
       }
-      function camera(t, rust) {
-        S.dist = 3.0 - 0.42 * (rust ? 0 : c.sm(t, 0, E + 0.5));
-        const br = (rust ? 0.6 : 1 - c.sm(t, E + 0.3, K0)) * (red ? 0.35 : 1);
-        S.bx = br * (0.013 * Math.sin(t * 0.61 + 1.1) + 0.006 * Math.sin(t * 1.33 + 0.4));
-        S.by = br * (0.01 * Math.sin(t * 0.79 + 2.3) + 0.005 * Math.sin(t * 1.67 + 0.2));
+      // ts = tijd voor de toestand (dolly), ta = tijd voor de beweging (ademhaling): die loopt door tijdens een pauze
+      function camera(ts, ta, rust) {
+        S.dist = 3.0 - 0.42 * (rust ? 0 : c.sm(ts, 0, E + 0.5));
+        const br = (rust ? 0.6 : 1 - c.sm(ts, E + 0.3, K0)) * (red ? 0.35 : 1);
+        S.bx = br * (0.013 * Math.sin(ta * 0.61 + 1.1) + 0.006 * Math.sin(ta * 1.33 + 0.4));
+        S.by = br * (0.01 * Math.sin(ta * 0.79 + 2.3) + 0.005 * Math.sin(ta * 1.67 + 0.2));
       }
 
       // tekent alles. ts = tijd voor de toestand, ta = tijd voor de beweging (stof); rust = startscherm
@@ -931,7 +1261,7 @@ void main(){
         const H = c.H_ZICHT;
         const asp = c.asp;
         const R = Math.min(0.41 * H, 0.505 * H * asp);
-        camera(ta, rust);
+        camera(ts, ta, rust);
         const cam = c.cam;
         const dist = S.dist;
         const kw = c.motor.kwaliteit;
@@ -988,9 +1318,22 @@ void main(){
           jx = a * Math.sin(ta * 73.1);
           jy = a * Math.sin(ta * 61.7 + 1);
         }
+        if (ui.aan && ui.imp > 0.002) {
+          // elke tik laat de deur even schokken (jouw hand voelt het slot)
+          const ia = ui.imp * (red ? 0.0025 : 0.008) * R;
+          jx += ia * Math.sin(ta * 131);
+          jy += ia * Math.sin(ta * 113 + 1);
+        }
         const zpop = rust ? 0 : 0.04 * R * c.sm(t, E - 0.03, E + 0.08);
         const Sx = -1.13 * R;
         const Sz = 0.05 * R;
+        {
+          // waar staat het midden van de deur op het scherm? (voor het raken van de invoer)
+          const kk = F / (2 * (dist - Sz));
+          ui.cx = -S.bx * kk + (cam.x * dist) / (dist - Sz);
+          ui.cy = -S.by * kk + (cam.y * dist) / (dist - Sz);
+          ui.rad = R * kk;
+        }
         pD.gebruik();
         pD.f3('uPos', jx + Sx, jy, zpop + Sz);
         pD.f3('uRot', 0, th, 0);
@@ -1009,10 +1352,35 @@ void main(){
         pD.f3('uInPos', 0, 0, inZ);
         pD.v3('uKl', KL);
         draaiDial(rust ? 0 : t);
-        pD.f1('uDial', (dial.N * Math.PI * 2) / 100);
-        pD.f1('uDialW', Math.max(-1.2, Math.min(1.2, ((dial.v * Math.PI * 2) / 100) * 0.014)));
+        let dN = dial.N;
+        let dV = dial.v;
+        let hx = 0;
+        let hy = 0;
+        let hw = 0;
+        let wh = 0;
+        if (ui.aan) {
+          if (ui.bezig && ui.stap < NS) {
+            dN = ui.vis;
+            dV = ui.vv;
+            const st = ui.stap;
+            hx = (combi[st] * Math.PI * 2) / 100;
+            hy = ui.hintI * (0.55 + 0.6 * (1 - c.sm(Math.abs(wrap100(ui.vis - combi[st])), 3, 30)));
+            hw = segs[st].dir > 0 ? 1 : -1;
+          } else if (ui.bezig) {
+            wh = ui.hintI;
+            hw = -1;
+          } else {
+            const dd = t - ui.offT;
+            if (dd >= 0 && dd < 1.2) dN += ui.off * Math.exp(-dd / 0.12);
+          }
+        }
+        pD.f1('uDial', (dN * Math.PI * 2) / 100);
+        pD.f1('uDialW', Math.max(-1.2, Math.min(1.2, ((dV * Math.PI * 2) / 100) * 0.014)));
         pD.f1('uWiel', rust ? 0 : wielHoek(t));
-        pD.f3('uLamp', rust ? 0 : lamp(0, t), rust ? 0 : lamp(1, t), rust ? 0 : lamp(2, t));
+        pD.f4('uHint', hx, hy, red ? 0 : ta, hw);
+        pD.f1('uWH', wh);
+        pD.f1('uOk', ui.aan ? ui.ok : 0);
+        pD.f3('uLamp', rust ? 0 : lamp(0, t, ta), rust ? 0 : lamp(1, t, ta), rust ? 0 : lamp(2, t, ta));
         pD.f1('uT', rust ? 0 : t);
         pD.f1('uB0', K.B0);
         pD.f1('uBdt', K.Bdt);
@@ -1048,6 +1416,7 @@ void main(){
         pL.f1('uF', F);
         pL.f1('uR', R);
         pL.f1('uT', ta);
+        pL.f1('uTs', ts);
         pL.f1('uSpot', spotV);
         pL.f1('uStoom', stoom);
         pL.f1('uLek', lk);
@@ -1108,13 +1477,34 @@ void main(){
         P.vig = c.mix(1.15, 0.95, c.sm(t, E, E + 0.6));
         P.bloom = 1 + 0.15 * c.sm(t, E, E + 0.4);
         P.ca = 1 + (dE >= 0 ? 0.8 * Math.exp(-dE / 0.4) : 0);
+        if (ui.aan && ui.ok > 0.01) {
+          P.ca += ui.ok * (red ? 0.3 : 0.9);
+          P.bloom += 0.3 * ui.ok;
+        }
       }
 
       return {
         teken(t, dt, inv) {
-          tekenAlles(t, t, false);
+          ui.aan = NS > 0 && !!(inv && inv.afspelen);
+          if (ui.aan) opdracht(t, Math.min(dt || 0.016, 0.05));
+          tekenAlles(t, ui.aan ? t + ui.verloren : t, false);
+        },
+        invoer: NS > 0 ? invoer : undefined,
+        reset() {
+          ui.stap = 0;
+          ui.auto = false;
+          ui.bezig = false;
+          ui.klaar.fill(false);
+          ui.tKlaar.fill(-9);
+          ui.verloren = 0;
+          ui.offT = ui.woffT = -9;
+          ui.imp = ui.ok = ui.hintI = ui.wtrill = 0;
+          ui.pid = -1;
+          ui.inWin = false;
+          if (NS > 0) tl.klikHint = TEKST0;
         },
         wacht(t) {
+          ui.aan = false;
           tekenAlles(K.fade + 0.1, t, true);
         },
         schud(t) {

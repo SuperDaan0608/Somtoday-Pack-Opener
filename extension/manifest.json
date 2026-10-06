@@ -44,6 +44,10 @@
     {
       "resources": ["fonts/*.woff2", "sounds/*.mp3"],
       "matches": ["<all_urls>"]
+    },
+    {
+      "resources": ["hub.html", "galerij.html", "kaart.html", "vrienden.html", "rekenen.html", "geluiden.html"],
+      "matches": ["https://leerling.somtoday.nl/*"]
     }
   ]
 }

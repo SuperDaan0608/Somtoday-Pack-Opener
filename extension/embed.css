@@ -1,0 +1,11 @@
+/* Voor de pagina's in het Pack Opener-paneel (?embed=1, zie embed.js): geen eigen paginakop, skip-links en marges; het paneel zorgt daarvoor. */
+html.embed,
+html.embed body { background: transparent; }
+html.embed body { min-height: 0; padding: 22px 24px 40px; }
+html.embed .skip { display: none !important; }
+/* De kop blijft voor schermlezers, maar het paneel toont de naam van het tabblad al. */
+html.embed h1 { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+html.embed .onder { margin-top: 0; }
+html.embed .kop { margin-bottom: 18px; }
+html.embed body > * { margin-left: 0; margin-right: 0; }
+@media (max-width: 560px) { html.embed body { padding: 16px 14px 32px; } }
