@@ -51,6 +51,14 @@ programma op een videokaart niet, dan valt de hele opening terug op het pakje: h
 De motor vult zelf aan: `spin` (1,35 s; snel 0,85), `telStart = K0 + 0,85·spin`, `telDuur`, `RV` (onthulling, ± K0 + 3,6 s),
 `EIND` (daarna verschijnen de knoppen). Richtlijn voor de duur: E tussen 6 en 10 s (snel: 3 tot 5 s), K0 = E + 1 tot 2 s.
 
+### Wachten op een klik (`pauzes`)
+Een opening mag de gebruiker laten klikken om verder te gaan (de Schietkraam: één klik = één schot). Geef in `tijdlijn` mee:
+`pauzes: [t0, t1, …]` (stijgende tijden), optioneel `klikHint` (tekst onderin, standaard 'Klik om verder te gaan') en `pauzeAuto` (seconden;
+na zoveel seconden zonder klik gaat de animatie vanzelf door, standaard 12). Zodra de klok een pauzetijd bereikt staat hij stil op die tijd (je
+beeld blijft dus `teken(t_pauze)`; laat er gerust iets bewegen met `uTime`-achtige eigen klokken) tot er geklikt wordt (muis, spatie of Enter); daarna loopt hij door.
+Alles blijft een pure functie van `t` (de pauzes zitten in de klok, niet in jouw beeld). Een klik tijdens de animatie tussen twee pauzes roept `sprong(t)` aan: geef
+dan de volgende pauzetijd terug (of `null` als je dat niet wilt). Geen pauzes in de snelle modus (`d.snel`): die speelt vanzelf.
+
 ### `art(d, h)`
 Maakt extra canvassen (labels, cijfers, kleine sprites, ruis). Teken met `h.art.nieuw(breedte, hoogte)` (geeft een canvas; kleine
 afmetingen aanhouden: ≤ 2048) en de lettertypes `h.art.F_SPORT` (Barlow Condensed, 600/800/900, ook italic), `h.art.F_DISPLAY`

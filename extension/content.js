@@ -18,8 +18,9 @@
 
   const SLEUTEL_GEOPEND = 'spo_geopend';
   const SLEUTEL_INSTELLINGEN = 'spo_instellingen';
-  const STANDAARD = { afdekking: true, geluid: true, snel: false, opening: 'pak' };
-  const OPENINGEN = ['pak', 'kluis', 'plinko', 'ster', 'raket'];
+  const STANDAARD = { afdekking: true, geluid: true, snel: false, opening: 'pak', galerij: true };
+  const SLEUTEL_GALERIJ = 'spo_galerij';
+  const OPENINGEN = ['pak', 'kluis', 'plinko', 'ster', 'raket', 'schiet'];
 
   const RIJ = 'sl-laatste-resultaat-item'; // de klikbare rij in "Laatste cijfers"
   const ITEM = 'sl-resultaat-item'; // daarbinnen: vak, onderwerp, weging en cijfer
@@ -377,6 +378,19 @@
         if (gemarkeerd) return;
         gemarkeerd = true;
         markeer(rij.sig);
+      },
+      // de miniatuur van de kaart, kort na de onthulling: bewaren voor de galerij (alleen in deze browser)
+      opKaartKlaar(k) {
+        if (instellingen.galerij === false || !k || typeof k.kaart !== 'string') return;
+        try {
+          chrome.storage.local.get(SLEUTEL_GALERIJ).then((r) => {
+            const lijst = Array.isArray(r[SLEUTEL_GALERIJ]) ? r[SLEUTEL_GALERIJ].filter((x) => x && x.id !== rij.sig) : [];
+            lijst.unshift({ id: rij.sig, ts: Date.now(), vak: String(k.vak).slice(0, 60), cijfer: k.cijfer, onderwerp: String(k.onderwerp).slice(0, 120), weging: k.weging, opening: k.opening, tier: k.tier, kaart: k.kaart });
+            chrome.storage.local.set({ [SLEUTEL_GALERIJ]: lijst.slice(0, 150) });
+          });
+        } catch (e) {
+          /* opslag niet beschikbaar */
+        }
       },
       opGesloten() {
         bezig = false;

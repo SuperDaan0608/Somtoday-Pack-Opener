@@ -28,6 +28,7 @@
     plinko: ['plinko-tok', 'plinko-vak', 'plinko-bel'],
     ster: ['ster-vlucht', 'ster-inslag', 'ster-nacht'],
     raket: ['raket-piep', 'raket-start', 'raket-motor', 'raket-trap', 'raket-knal'],
+    schiet: ['schiet-knal', 'schiet-scherf', 'schiet-spin', 'schiet-laatste'],
   };
   // Het volume van de nieuwe opnames is afgestemd op de oude (gemeten in het gedeelte boven 200 Hz, dat laptopspeakers wel weergeven).
   Object.assign(NIVEAU, {
@@ -35,6 +36,7 @@
     'plinko-tok': -13, 'plinko-vak': -5, 'plinko-bel': -2,
     'ster-vlucht': -5, 'ster-inslag': -1, 'ster-nacht': -12,
     'raket-piep': -12, 'raket-start': -2, 'raket-motor': -6, 'raket-trap': -5, 'raket-knal': -1,
+    'schiet-knal': -3, 'schiet-scherf': -6, 'schiet-spin': -10, 'schiet-laatste': -5,
   });
 
 
