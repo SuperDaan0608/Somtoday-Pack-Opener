@@ -11,7 +11,7 @@
   const CIJFERS_URL = 'https://leerling.somtoday.nl/cijfers';
   const SLEUTEL_GEOPEND = 'spo_geopend';
   const SLEUTEL_INSTELLINGEN = 'spo_instellingen';
-  const STANDAARD = { afdekking: true, geluid: true, snel: false, opening: 'pak', galerij: true };
+  const STANDAARD = { afdekking: true, geluid: true, snel: false, opening: 'pak', galerij: true, laag: false };
   const OPENINGEN = ['pak', 'kluis', 'plinko', 'ster', 'raket', 'schiet', 'dans', 'willekeurig'];
 
   // Het formulier onthoudt zijn invoer in localStorage (zelfde sleutels als versie 0.1).
@@ -395,6 +395,7 @@
       onderwerp: onderEl.value.trim() || 'Toets',
       weging,
       snel: !!instellingen.snel,
+      laag: !!instellingen.laag,
       stil: !instellingen.geluid,
       opening: instellingen.opening,
     };

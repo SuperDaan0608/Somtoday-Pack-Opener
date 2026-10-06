@@ -28,6 +28,7 @@ en je eigen kaart voor dat vak.
 - **Galerij** met al je geopende kaarten (popup → Mijn galerij).
 - **Opslaan als afbeelding**, zodat je de kaart kunt delen.
 - **Popup** met je aantal ongeopende cijfers, instellingen en een handmatige modus om een eigen cijfer te proberen.
+- **Lage grafische kwaliteit** (popup): zuiniger beeld voor een trage computer.
 - **Snelle modus** voor als je niet op de tunnel wilt wachten. Klikken of spatie slaat ook over (eerst naar het
   scheuren, dan naar de kaart).
 

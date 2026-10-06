@@ -128,6 +128,7 @@
       onder: tekst(d.onderwerp, 'Toets', 80),
       weging: klem(Math.round(+d.weging) || 1, 1, 10),
       snel: !!d.snel,
+      laag: !!d.laag,
       direct: !!d.direct,
       fmt,
       cijferTekst: fmt(g),

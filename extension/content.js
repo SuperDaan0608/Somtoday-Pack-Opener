@@ -19,7 +19,7 @@
 
   const SLEUTEL_GEOPEND = 'spo_geopend';
   const SLEUTEL_INSTELLINGEN = 'spo_instellingen';
-  const STANDAARD = { afdekking: true, geluid: true, snel: false, opening: 'pak', galerij: true };
+  const STANDAARD = { afdekking: true, geluid: true, snel: false, opening: 'pak', galerij: true, laag: false };
   const SLEUTEL_GALERIJ = 'spo_galerij';
   const OPENINGEN = ['pak', 'kluis', 'plinko', 'ster', 'raket', 'schiet', 'dans'];
 
@@ -372,6 +372,7 @@
       onderwerp: d.onderwerp || 'Nieuw cijfer',
       weging: d.weging,
       snel: !!instellingen.snel,
+      laag: !!instellingen.laag,
       stil: !instellingen.geluid,
       opening: openingVoor(rij),
       direct,

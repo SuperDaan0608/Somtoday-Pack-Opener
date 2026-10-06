@@ -645,7 +645,8 @@
         }
         if (!motor) throw new Error('geen webgl');
         motor.debug = debug;
-        motor.kwaliteit = 0;
+        kwaliteit = d.laag ? 3 : 0; // lage grafische kwaliteit: meteen de zuinigste stand
+        motor.kwaliteit = kwaliteit;
         const opMod = d.opening !== 'pak' ? SPO.openingen[d.opening] : null;
         if (opMod) motor.voegToe(opMod);
 
@@ -693,7 +694,7 @@
             bewaarKaart();
           } });
         log('teksturen opgeladen');
-        scene.lod = 1;
+        scene.lod = [1, 0.7, 0.45, 0.25][kwaliteit];
         motor.opwarmen();
         resize();
         log('opgewarmd');

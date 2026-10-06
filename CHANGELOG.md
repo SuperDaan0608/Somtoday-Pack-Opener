@@ -1,5 +1,9 @@
 # Wijzigingen
 
+## v1.0.1
+
+- **Lage grafische kwaliteit:** nieuwe schakelaar in de popup. De animatie start meteen in de zuinigste stand (kleiner beeld, minder deeltjes en effecten), handig op een trage computer of laptop zonder aparte videokaart.
+
 ## v1.0
 
 De eerste officiële versie. Alles uit de bèta's, afgerond:
