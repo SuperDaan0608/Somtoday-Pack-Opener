@@ -12,13 +12,14 @@
  */
 (function () {
   'use strict';
+  const chrome = typeof browser !== 'undefined' && browser.runtime ? browser : globalThis.chrome; // Firefox heeft `browser`, Chrome `chrome`
 
   if (window.__spoContent) return;
   window.__spoContent = true;
 
   const SLEUTEL_GEOPEND = 'spo_geopend';
   const SLEUTEL_INSTELLINGEN = 'spo_instellingen';
-  const STANDAARD = { afdekking: true, geluid: true, snel: false, opening: 'pak', galerij: true };
+  const STANDAARD = { afdekking: true, geluid: true, snel: false, opening: 'pak', galerij: true, laag: false };
   const SLEUTEL_GALERIJ = 'spo_galerij';
   const OPENINGEN = ['pak', 'kluis', 'plinko', 'ster', 'raket', 'schiet', 'dans'];
 
@@ -182,7 +183,7 @@
     laadFonts();
     const el = document.createElement('spo-afdekking');
     el.setAttribute('aria-hidden', 'true');
-    el.attachShadow({ mode: 'open' }).innerHTML = COVER_HTML;
+    window.__SPO.zetHtml(el.attachShadow({ mode: 'open' }), COVER_HTML);
     return el;
   }
 
@@ -371,6 +372,7 @@
       onderwerp: d.onderwerp || 'Nieuw cijfer',
       weging: d.weging,
       snel: !!instellingen.snel,
+      laag: !!instellingen.laag,
       stil: !instellingen.geluid,
       opening: openingVoor(rij),
       direct,

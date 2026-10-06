@@ -28,6 +28,7 @@ en je eigen kaart voor dat vak.
 - **Galerij** met al je geopende kaarten (popup → Mijn galerij).
 - **Opslaan als afbeelding**, zodat je de kaart kunt delen.
 - **Popup** met je aantal ongeopende cijfers, instellingen en een handmatige modus om een eigen cijfer te proberen.
+- **Lage grafische kwaliteit** (popup): zuiniger beeld voor een trage computer.
 - **Snelle modus** voor als je niet op de tunnel wilt wachten. Klikken of spatie slaat ook over (eerst naar het
   scheuren, dan naar de kaart).
 
@@ -44,6 +45,12 @@ Chrome vraagt bij de installatie toestemming om je gegevens op `leerling.somtoda
 wijzigen. Dat is nodig om de cijfers af te dekken.
 
 Heb je Somtoday al open staan tijdens het installeren? Ververs de pagina één keer.
+
+### Firefox
+
+Voor Firefox is er een eigen zip (`somtoday-pack-opener-v1.0-firefox.zip`, te maken met `./scripts/package-firefox.sh v1.0`),
+met de bestanden direct in de zip. Tijdelijk proberen: `about:debugging#/runtime/this-firefox` → **Tijdelijke add-on laden** →
+kies `manifest.json`. Blijvend installeren kan alleen met een door Mozilla ondertekende versie. Vereist Firefox 140 of nieuwer.
 
 ## Zo werkt het op Somtoday
 

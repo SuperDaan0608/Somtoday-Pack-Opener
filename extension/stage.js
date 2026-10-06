@@ -8,6 +8,7 @@
     onderwerp: q.get('onderwerp') || 'Toets',
     weging: q.get('weging') || '1',
     snel: q.get('snel') === 'true',
+    laag: q.get('laag') === 'true',
     stil: q.get('stil') === 'true',
     direct: q.get('direct') === 'true',
     opening: q.get('opening') || 'pak',

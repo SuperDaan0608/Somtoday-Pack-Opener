@@ -1,6 +1,7 @@
 // Popup: je echte cijfers op Somtoday, instellingen, en handmatig een pakket proberen.
 (function () {
   'use strict';
+  const chrome = typeof browser !== 'undefined' && browser.runtime ? browser : globalThis.chrome; // Firefox heeft `browser`, Chrome `chrome`
 
   // De bestanden van de animatie, in de volgorde waarin ze geladen moeten worden (zie manifest.json).
   const PAKKET_BESTANDEN = ['motor/data.js', 'motor/audio.js', 'motor/shaders.js', 'motor/gl.js', 'motor/art.js', 'motor/openingen/kluis.js', 'motor/openingen/plinko.js', 'motor/openingen/ster.js', 'motor/openingen/raket.js', 'motor/openingen/schiet.js', 'motor/openingen/dans.js', 'motor/scene.js', 'motor/main.js'];
@@ -10,7 +11,7 @@
   const CIJFERS_URL = 'https://leerling.somtoday.nl/cijfers';
   const SLEUTEL_GEOPEND = 'spo_geopend';
   const SLEUTEL_INSTELLINGEN = 'spo_instellingen';
-  const STANDAARD = { afdekking: true, geluid: true, snel: false, opening: 'pak', galerij: true };
+  const STANDAARD = { afdekking: true, geluid: true, snel: false, opening: 'pak', galerij: true, laag: false };
   const OPENINGEN = ['pak', 'kluis', 'plinko', 'ster', 'raket', 'schiet', 'dans', 'willekeurig'];
 
   // Het formulier onthoudt zijn invoer in localStorage (zelfde sleutels als versie 0.1).
@@ -394,6 +395,7 @@
       onderwerp: onderEl.value.trim() || 'Toets',
       weging,
       snel: !!instellingen.snel,
+      laag: !!instellingen.laag,
       stil: !instellingen.geluid,
       opening: instellingen.opening,
     };
