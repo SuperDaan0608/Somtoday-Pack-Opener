@@ -38,15 +38,14 @@ void main(){
   const FS_LUCHT = `${KOP}
 out vec4 o;
 uniform vec2 uRes, uShake;
-uniform float uZoom, uTime, uQ, uSter;
+uniform float uZoom, uTime, uQ, uSter, uVig;
+uniform sampler2D uRuis;
 uniform vec3 uZenit, uHorK, uGloedK, uVlamK;
 uniform vec4 uHor, uZon, uMaan, uAarde, uDek0, uDek1, uPad, uLamp0, uLamp1, uVlam;
 uniform vec2 uPadM, uDrift, uLampL;
 ${GEMEEN}
 float wolk(vec2 q){
-  float n = vn(q) * .56 + vn(q * 2.07 + vec2(3.1, 8.7)) * .29;
-  n += uQ < .5 ? vn(q * 4.31 + vec2(11.3, 4.1)) * .15 : .075;
-  return n;
+  return texture(uRuis, q * .125).r;
 }
 float bundel(vec2 p, vec2 o0, float ang, float w){
   vec2 dir = vec2(cos(ang), sin(ang));
@@ -80,7 +79,7 @@ vec3 dek(vec3 col, vec2 p, float a, vec4 D, float idx){
     float z = D.y / (-a + .015);
     vec2 q = vec2(p.x * z * 1.1, z * 1.55) + vec2(idx * 17.3 + uDrift.x, idx * 7.1 - uDrift.y);
     float n = wolk(q * 1.1);
-    float n2 = wolk(q * 1.1 + vec2(.16, .06));
+    float n2 = uQ < 2.5 ? wolk(q * 1.1 + vec2(.16, .06)) : n - .02;
     float far = exp(-z * .07);
     float cov = smoothstep(.3 - .2 * D.z, .5 - .15 * D.z, n);
     cov = mix(D.z * .95, cov, far);
@@ -120,11 +119,13 @@ void main(){
     float br = step(.86, hs) * (.3 + 2.2 * pow(h11(hs * 91.7), 7.));
     float tw = .7 + .3 * sin(uTime * (1.3 + 3. * hs) + hs * 40.);
     col += vec3(.82, .88, 1.) * br * tw * smoothstep(1.7 * px, .25 * px, ds) * uSter;
-    float px2 = 150. / uRes.y;
-    vec2 s2 = p * 150. + 31.7;
-    vec2 c2 = floor(s2);
-    float d2 = length(fract(s2) - (h22(c2) * .6 + .2));
-    col += vec3(.7, .8, 1.) * step(.9, h21(c2 + 17.)) * smoothstep(1.4 * px2, .2 * px2, d2) * uSter * .45;
+    if (uQ < 1.5) {
+      float px2 = 150. / uRes.y;
+      vec2 s2 = p * 150. + 31.7;
+      vec2 c2 = floor(s2);
+      float d2 = length(fract(s2) - (h22(c2) * .6 + .2));
+      col += vec3(.7, .8, 1.) * step(.9, h21(c2 + 17.)) * smoothstep(1.4 * px2, .2 * px2, d2) * uSter * .45;
+    }
   }
   // de zon (vlak bij de rand van de aarde)
   if (uZon.z > .001) {
@@ -143,7 +144,7 @@ void main(){
       float nz = sqrt(max(1. - md * md, 0.));
       vec3 N = vec3(mq, nz);
       float lam = max(dot(N, normalize(vec3(.85, .28, .42))), 0.);
-      float mar = vn(mq * 2.6 + 2.) * .6 + vn(mq * 6.3 + 7.) * .4;
+      float mar = texture(uRuis, mq * .33 + .25).g;
       float alb = .66 - .3 * smoothstep(.48, .68, mar);
       vec2 kc = mq * 6.;
       vec2 ki = floor(kc);
@@ -166,14 +167,14 @@ void main(){
       float z = uAarde.w / (dd + .012);
       vec2 q = vec2(p.x * z * 1.2, z * 1.7) + vec2(3.7, -uDrift.y * .4);
       float n = wolk(q * .5);
-      float land = vn(q * .16 + 9.1);
+      float land = texture(uRuis, q * .02 + .3).b;
       vec3 sur = mix(vec3(.004, .014, .04), vec3(.016, .022, .024), smoothstep(.52, .6, land));
       float cl = smoothstep(.5, .78, n);
       float dag = smoothstep(-.35, .65, p.x / (asp * .5));
       vec3 dagK = mix(sur * 4. + vec3(.03, .07, .16), vec3(.8, .84, .92), cl);
       vec3 nachtK = sur + vec3(.012, .016, .03) * cl;
       vec3 e = mix(nachtK, dagK, dag);
-      float stad = pow(vn(q * 2.3 + 5.), 5.) * 3. * smoothstep(.52, .62, land) * (1. - dag) * (1. - cl * .85);
+      float stad = pow(texture(uRuis, q * .29 + .6).b, 5.) * 3. * smoothstep(.52, .62, land) * (1. - dag) * (1. - cl * .85);
       e += vec3(1., .82, .55) * stad * uAarde.y * exp(-z * .05);
       e = mix(e, uHorK * .75, exp(-dd * 16.) * .9);
       g = mix(g, e, uAarde.x);
@@ -223,12 +224,13 @@ void main(){
       float al = dot(p - L.xy, dir);
       float stop = smoothstep(lenB + .03 * zm, lenB - .05 * zm, al);
       float b = (bundel(p, L.xy, L.z, .02 * zm) + .5 * bundel(p, L.xy, L.z + (i == 0 ? .07 : -.07), .014 * zm)) * stop;
-      if (b > .004) col += vec3(.55, .66, .9) * b * L.w * .5 * (.55 + .7 * vn(vec2(p.x * 9. - uTime * .2, p.y * 6. + uTime * .09))) * vis;
+      if (b > .004) col += vec3(.55, .66, .9) * b * L.w * .5 * (.55 + .7 * texture(uRuis, vec2(p.x * 9. - uTime * .2, p.y * 6. + uTime * .09) * .125).b) * vis;
       float dl = length((p - L.xy) * vec2(1., 1.25));
       col += vec3(.8, .88, 1.) * L.w * (.0011 / (dl * dl + .00025)) * vis;
       col += vec3(.6, .75, 1.) * L.w * exp(-abs(p.y - L.y) * 420.) * exp(-abs(p.x - L.x) * 9.) * .5 * vis;
     }
   }
+  col *= 1. - uVig * smoothstep(.28, .98, length((gl_FragCoord.xy / uRes - .5) * vec2(.65 * asp, 1.)));
   o = vec4(col, 1.);
 }`;
 
@@ -472,7 +474,8 @@ void main(){
   const FS_NEVEL = `${KOP}
 out vec4 o;
 uniform vec2 uRes, uShake;
-uniform float uZoom, uTime, uQ, uMist, uScroll, uSnel, uDag, uVig, uWit;
+uniform float uZoom, uTime, uQ, uMist, uScroll, uSnel, uDag, uWit;
+uniform sampler2D uRuis;
 uniform vec3 uMistK, uVlamK;
 uniform vec4 uVlam, uRing;
 uniform vec2 uRaket;
@@ -484,9 +487,9 @@ void main(){
   float A = 0.;
   if (uMist > .002) {
     vec2 q = vec2(p.x * 1.5, p.y * .8 + uScroll * .5);
-    float n = vn(q * 1.6) * .6 + vn(q * 3.7 + 4.) * .4;
-    float n2 = uQ < 2.5 ? vn(vec2(p.x * 7., p.y * .9 + uScroll * 1.25)) : .5;
-    float n3 = vn(vec2(p.x * 2.2 + 9., p.y * .5 + uScroll * 1.6));
+    float n = texture(uRuis, q * .2).r;
+    float n2 = uQ < 2.5 ? texture(uRuis, vec2(p.x * 7., p.y * .9 + uScroll * 1.25) * .125).g : .5;
+    float n3 = texture(uRuis, vec2(p.x * 2.2 + 9., p.y * .5 + uScroll * 1.6) * .125).b;
     float dens = clamp(uMist * (.5 + 1.1 * (n - .5) + .7 * (n2 - .5) + .5 * (n3 - .5)), 0., 1.);
     dens = dens * dens * (3. - 2. * dens);
     vec3 k = uMistK * (.7 + .6 * n);
@@ -516,38 +519,67 @@ void main(){
     c += vec3(.85, .9, 1.) * exp(-x * x) * uRing.w;
   }
   c += vec3(.92, .95, 1.) * uWit;
-  // eigen vignet (het vignet van de motor heeft de kleur van het niveau)
-  vec2 vc = gl_FragCoord.xy / uRes - .5;
-  float asp = uRes.x / uRes.y;
-  float v = smoothstep(.28, .98, length(vc * vec2(1.05 * asp * .62, 1.))) * uVig;
-  c *= 1. - v;
-  A = 1. - (1. - A) * (1. - v);
   o = vec4(c, A);
 }`;
 
   // ───────────────────────── Vlucht en tijdlijn ─────────────────────────
   // De klim (voor elk cijfer gelijk tot de motor uitvalt): eerst langzaam, dan steeds sneller, daarna gelijkmatig.
+  // De snelheid per seconde (in hoogte-eenheden f): langzaam van de toren, versnellen, een dip bij max-q
+  // (de motor knijpt even), weer versnellen, de tweede trap trekt harder en daarna gelijkmatig. Eén keer in een tabel.
   const UB = 2.6;
   const FB = 0.25;
   const PEXP = 3.25;
   const VCR = (FB * PEXP) / UB;
-  const fVlucht = (u) => (u <= 0 ? 0 : u <= UB ? FB * Math.pow(u / UB, PEXP) : FB + VCR * (u - UB));
-  const vVlucht = (u) => (u <= 0 ? 0 : u <= UB ? (PEXP * FB * Math.pow(u / UB, PEXP - 1)) / UB : VCR);
-  const uVoorF = (f) => (f <= 0 ? 0 : f <= FB ? UB * Math.pow(f / FB, 1 / PEXP) : UB + (f - FB) / VCR);
+  const U_MAXQ = 2.1;
+  const U_TWEE = 3.7;
+  const VT_DU = 0.01;
+  const VT_N = 1801;
+  const vBasis = (u) => (u <= 0 ? 0 : u <= UB ? (PEXP * FB * Math.pow(u / UB, PEXP - 1)) / UB : VCR);
+  const vProfiel = (u) => {
+    const dq = (u - U_MAXQ) / 0.42;
+    const w = Math.min(1, Math.max(0, (u - U_TWEE) / 0.9));
+    return vBasis(u) * (1 - 0.42 * Math.exp(-dq * dq)) * (1 + 0.28 * w * w * (3 - 2 * w));
+  };
+  const VT = new Float32Array(VT_N);
+  const FT = new Float32Array(VT_N);
+  for (let i = 0; i < VT_N; i++) {
+    VT[i] = vProfiel(i * VT_DU);
+    FT[i] = i === 0 ? 0 : FT[i - 1] + ((VT[i - 1] + VT[i]) / 2) * VT_DU;
+  }
+  const tabel = (T, u) => {
+    const x = Math.min(VT_N - 1.001, Math.max(0, u / VT_DU));
+    const i = Math.floor(x);
+    return T[i] + (T[i + 1] - T[i]) * (x - i);
+  };
+  const fVlucht = (u) => (u <= 0 ? 0 : tabel(FT, u));
+  const vVlucht = (u) => (u <= 0 ? 0 : tabel(VT, u));
+  const uVoorF = (f) => {
+    if (f <= 0) return 0;
+    let lo = 0;
+    let hi = (VT_N - 1) * VT_DU;
+    for (let i = 0; i < 40; i++) {
+      const m = (lo + hi) / 2;
+      if (fVlucht(m) < f) lo = m;
+      else hi = m;
+    }
+    return (lo + hi) / 2;
+  };
   const F_KNAL = 0.07; // geluidsbarrière
   const F_TRAP = 0.21; // de eerste trap valt af
   const DEK_A = [0.045, 0.06];
   const DEK_B = [0.1, 0.15];
 
+  const mix2 = (a, b, x) => a + (b - a) * x;
   function plan(d) {
     const snel = !!d.snel;
-    const k = snel ? 0.62 : 1;
     const fA = Math.max(0.04, Math.min(1, (d.g - 1) / 9));
-    const tellen = snel ? [0.66, 1.42] : [1.25, 2.15, 3.05];
-    const TI = snel ? 2.18 : 3.95; // ontsteking (en "LANCERING")
-    const TL = TI + (snel ? 0.26 : 0.42); // de klemmen laten los
-    const Tco = snel ? 0.62 : 1.0; // uitrollen na het uitvallen van de motor
-    const Th = snel ? 0.36 : 0.62; // stil hangen
+    // tempo van de klim: een lage vlucht gaat rustiger, zodat hij ook lang genoeg duurt
+    const k = mix2(2.7, 1.45, fA) * (snel ? 0.6 : 1);
+    const tellen = snel ? [1.7, 2.6] : [3.0, 4.5, 6.0];
+    const TI = snel ? 3.5 : 7.0; // ontsteking (en "LANCERING")
+    const TL = TI + (snel ? 0.3 : 0.55); // de klemmen laten los
+    const Tco = snel ? 0.8 : 1.5; // uitrollen na het uitvallen van de motor
+    const Th = snel ? 0.7 : 1.5; // stil hangen op het hoogste punt
     const coastU = Tco / k;
     let lo = 0;
     let hi = 9;
@@ -560,7 +592,7 @@ void main(){
     const tc = TL + uc * k;
     const tA = tc + Tco;
     const E = tA + Th;
-    const K0 = E + (snel ? 1.0 : 1.5);
+    const K0 = E + (snel ? 1.1 : 1.6);
     const uKnal = uVoorF(F_KNAL);
     const uSep = uVoorF(F_TRAP);
     const tijdVoorF = (f) => (uc > uVoorF(f) ? TL + uVoorF(f) * k : null);
@@ -1112,6 +1144,109 @@ void main(){
     return cv;
   }
 
+  // Een kleine, naadloze ruistextuur (256², drie kanalen): vervangt de ruisberekeningen per pixel in de schermvullende shaders.
+  function* maakRuis(A) {
+    const N = 256;
+    const cv = A.nieuw(N, N);
+    const g = cv.getContext('2d');
+    const img = g.createImageData(N, N);
+    const rooster = (per, seed) => {
+      const r = new Float32Array(per * per);
+      let z = seed * 7919 + 13;
+      for (let i = 0; i < r.length; i++) {
+        z = (z * 16807) % 2147483647;
+        r[i] = z / 2147483647;
+      }
+      return r;
+    };
+    const rooster3 = [[8, 16, 32], [8, 16, 32], [8, 16, 32]].map((l, ch) => l.map((per, i) => rooster(per, ch * 10 + i + 1)));
+    const gew = [0.56, 0.29, 0.15];
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        for (let ch = 0; ch < 3; ch++) {
+          let v = 0;
+          for (let o = 0; o < 3; o++) {
+            const per = 8 << o;
+            const r = rooster3[ch][o];
+            const fx = (x / N) * per;
+            const fy = (y / N) * per;
+            const xi = Math.floor(fx);
+            const yi = Math.floor(fy);
+            let ux = fx - xi;
+            let uy = fy - yi;
+            ux = ux * ux * (3 - 2 * ux);
+            uy = uy * uy * (3 - 2 * uy);
+            const x1 = (xi + 1) % per;
+            const y1 = (yi + 1) % per;
+            const a = r[yi * per + xi] + (r[yi * per + x1] - r[yi * per + xi]) * ux;
+            const b = r[y1 * per + xi] + (r[y1 * per + x1] - r[y1 * per + xi]) * ux;
+            v += (a + (b - a) * uy) * gew[o];
+          }
+          img.data[(y * N + x) * 4 + ch] = Math.max(0, Math.min(255, Math.round(v * 255)));
+        }
+        img.data[(y * N + x) * 4 + 3] = 255;
+      }
+      if (y % 64 === 63) yield;
+    }
+    g.putImageData(img, 0, 0);
+    return cv;
+  }
+
+  // Het live cijfer: een atlas met de tekens 0…9 en de komma (cellen van 170×256) en daaronder het woordje CIJFER.
+  const TEL_CW = 170;
+  const TEL_CH = 256;
+  const CALLS = ['TOREN VRIJ', 'MAX-Q', 'GELUIDSBARRIÈRE', 'TRAPSCHEIDING', 'MOTOR UIT', 'RUIMTE'];
+  function maakTeller(A) {
+    const cv = A.nieuw(2048, 512);
+    const g = cv.getContext('2d');
+    g.textAlign = 'center';
+    g.textBaseline = 'alphabetic';
+    const tekens = '0123456789,';
+    for (let i = 0; i < tekens.length; i++) {
+      g.font = `900 236px ${A.F_SPORT}`;
+      const x = i * TEL_CW + TEL_CW / 2;
+      g.shadowColor = 'rgba(255,255,255,0.9)';
+      g.shadowBlur = 26;
+      g.fillStyle = '#ffffff';
+      g.fillText(tekens[i], x, 206);
+      g.shadowBlur = 0;
+      g.fillText(tekens[i], x, 206);
+    }
+    g.font = `800 64px ${A.F_DISPLAY}`;
+    if ('letterSpacing' in g) g.letterSpacing = '14px';
+    g.shadowColor = 'rgba(255,255,255,0.7)';
+    g.shadowBlur = 12;
+    g.fillText('CIJFER', 330, 400);
+    // de meldingen
+    g.font = `800 58px ${A.F_DISPLAY}`;
+    if ('letterSpacing' in g) g.letterSpacing = '8px';
+    return cv;
+  }
+  function maakMeldingen(A) {
+    const cv = A.nieuw(1536, 128 * CALLS.length);
+    const g = cv.getContext('2d');
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    CALLS.forEach((s, i) => {
+      let fs = 60;
+      g.font = `800 ${fs}px ${A.F_DISPLAY}`;
+      if ('letterSpacing' in g) g.letterSpacing = '8px';
+      while (fs > 28 && g.measureText(s).width > 1380) {
+        fs -= 2;
+        g.font = `800 ${fs}px ${A.F_DISPLAY}`;
+      }
+      g.shadowColor = 'rgba(150,200,255,0.9)';
+      g.shadowBlur = 20;
+      g.fillStyle = '#ffffff';
+      g.fillText(s, 768, i * 128 + 60);
+      g.shadowBlur = 0;
+      g.fillText(s, 768, i * 128 + 60);
+      g.fillStyle = 'rgba(190,225,255,0.8)';
+      g.fillRect(168, i * 128 + 110, 1200, 3);
+    });
+    return cv;
+  }
+
   // De hoogtemeter: een rail met 1…10 en de streep van een voldoende (5,5).
   const HUD_W = 160;
   const HUD_H = 1024;
@@ -1311,8 +1446,12 @@ void main(){
       yield;
       const hud = maakHud(A);
       const label = maakLabel(d, A);
+      const teller = maakTeller(A);
+      const meld = maakMeldingen(A);
+      yield;
+      const ruis = yield* maakRuis(A);
       const puf = maakPuf(A);
-      return { raket: K, norm: N, pad, tel, hud, label, puf };
+      return { raket: K, norm: N, pad, tel, hud, label, puf, teller, meld, ruis };
     },
 
     maak(c) {
@@ -1333,6 +1472,9 @@ void main(){
         tel: c.tekstuur(art.tel),
         hud: c.tekstuur(art.hud),
         label: c.tekstuur(art.label),
+        teller: c.tekstuur(art.teller),
+        ruis: c.tekstuur(art.ruis, { mip: true, herhaal: true }),
+        meld: c.tekstuur(art.meld),
         puf: c.tekstuur(art.puf, { mip: false }),
       };
       const pL = c.prog('lucht');
@@ -1425,10 +1567,10 @@ void main(){
         const fit = klem(asp / 1.25, 0.72, 1);
         S.fit = fit;
         S.hR = KH * f;
-        let z = 1 + 0.03 * sm(t, 0.2, P.TI + 0.3);
+        let z = 1 + 0.07 * sm(t, 0, P.TI + 0.3);
         z *= mix(1, 0.8, sm(S.hR, 0.15, 1.8));
         if (P.sep !== null) z *= 1 + 0.3 * sm(t, P.sep + 0.1, P.sep + 1.8);
-        z *= 1 + 0.18 * sm(t, P.tc - 0.2, P.E + 0.2);
+        z *= 1 + 0.18 * sm(t, P.tc - 0.2, P.E + 0.2) + 0.05 * sm(t, P.tA, P.E);
         z *= fit;
         S.z = z;
         const yAw = YM + S.hR + ANKER;
@@ -1508,6 +1650,55 @@ void main(){
       });
       if (tier === 4) [0.35, 0.7, 1.05].forEach((q) => c.at(E + q, () => A.vuurwerk()));
 
+      // ───── het live cijfer: een zuivere functie van de hoogte ─────
+      const N_EIND = Math.round(parseFloat(String(d.cijferTekst).replace(',', '.')) * 10) || Math.round(d.g * 10);
+      const tienden = (f) => 10 + Math.round((N_EIND - 10) * Math.min(1, f / P.fA));
+      const tw = new Float32Array(12).fill(-1); // eerste moment waarop een heel getal bereikt is
+      let t55 = -1;
+      const tikken = [];
+      {
+        let prev = 10;
+        let laatste = -9;
+        for (let tt = P.TL; tt <= P.tA + 0.01; tt += 0.004) {
+          hoogte(tt);
+          const n = tienden(S.f);
+          if (n > prev) {
+            for (let m = prev + 1; m <= n; m++) {
+              if (m % 10 === 0 && tw[m / 10] < 0) tw[m / 10] = tt;
+              if (m === 55 && t55 < 0) t55 = tt;
+            }
+            if (tt - laatste >= 0.085) {
+              tikken.push(tt, (n - 10) / Math.max(1, N_EIND - 10));
+              laatste = tt;
+            }
+            prev = n;
+          }
+        }
+      }
+      for (let i = 0; i < tikken.length; i += 2) {
+        const pr = tikken[i + 1];
+        c.at(tikken[i], () => A.speel('tik', { gain: 0.55, rate: 0.85 + 0.75 * pr }));
+      }
+      if (t55 >= 0) {
+        c.at(t55, () => A.speel('raket-piep', { gain: 0.6, rate: 1.5, duur: 0.35, fadeOut: 0.2 }));
+        c.flits(t55, 0.1, 0.05);
+      }
+      // meldingen langs de vlucht (rij in het plaatje, tijd)
+      const meldingen = [];
+      {
+        const tF = (f) => (P.uc > uVoorF(f) ? P.TL + uVoorF(f) * P.k : null);
+        const lijst = [[0, tF(0.012)], [1, P.uc > U_MAXQ + 0.1 ? P.TL + U_MAXQ * P.k : null], [2, P.knal], [3, P.sep], [4, P.tc + 0.05], [5, tF(0.5)]];
+        lijst.filter((x) => x[1] !== null).sort((a, b) => a[1] - b[1]).forEach((x) => {
+          const vorig = meldingen.length ? meldingen[meldingen.length - 1] : null;
+          if (!vorig || x[1] - vorig[1] > 1.5) meldingen.push(x);
+        });
+      }
+      // het gerommel vóór de ontsteking
+      [0, 1, 2, 3].forEach((i) => {
+        const ts = P.tellen[0] - 0.4 + i * ((P.TI - P.tellen[0] + 0.4) / 4);
+        if (ts < P.TI - 0.3) c.at(ts, () => A.speel('raket-motor', { gain: 0.1 + 0.07 * i, rate: 0.5 + 0.06 * i, offset: 0.2 + i * 0.4, duur: 2.4, fadeIn: 0.7, fadeOut: 0.8, galmen: 0.2 }));
+      });
+
       // ───── schokken, flitsen, golven ─────
       c.schok(P.TI, 0.03, 0.25);
       c.schok(P.TL, 0.02, 0.3);
@@ -1525,7 +1716,7 @@ void main(){
 
       // ───── deeltjes ─────
       // vonken bij de ontsteking
-      const vonkStart = c.e({ mode: 0, t0: P.TI + 0.05, delay: 0.7, life: 0.9, n: 260, org: [0, 0], angle: Math.PI / 2, spread: 2.6, spd: [0.25, 1.1], grav: [0, -0.9], drag: 1.6, size: [0.0014, 0.0035], col1: [1, 0.75, 0.4], col2: [1, 0.95, 0.85], seed: 21 });
+      const vonkStart = c.e({ mode: 0, t0: P.TI + 0.05, delay: 0.7, life: 0.9, n: 150, org: [0, 0], angle: Math.PI / 2, spread: 2.6, spd: [0.25, 1.1], grav: [0, -0.9], drag: 1.6, size: [0.0014, 0.0035], col1: [1, 0.75, 0.4], col2: [1, 0.95, 0.85], seed: 21 });
       // klapper bij het hoogtepunt (kleur van het niveau)
       const klapVonk = c.e({ mode: 0, t0: E, delay: 0.06, life: 1.5, n: KL.vonk, org: [neusX, neusY], angle: Math.PI / 2, spread: c.TWEE_PI, spd: [0.2, 1.3 + 0.5 * c.I], grav: [0, -0.35], drag: 1.3, size: [0.0018, 0.0055], col1: c.kl, col2: [1, 0.97, 0.9], regen: tier === 4 ? 1 : 0, seed: 22 });
       const extra = [];
@@ -1547,11 +1738,15 @@ void main(){
       // ───── rook (eigen deeltjes) ─────
       const rook = [
         // grote wolken over de grond bij de start
-        { soort: 0, t0: P.TI + 0.04, duur: 2.2, life: 3.8, n: 130, org: [0, YM], spd: [0.25, 1.6], size: [0.1, 0.2], wereld: 1, seed: 3, alpha: 1, kl: [0.86, 0.87, 0.9] },
+        { soort: 0, t0: P.TI + 0.04, duur: 2.2, life: 3.8, n: 64, org: [0, YM], spd: [0.25, 1.6], size: [0.12, 0.24], wereld: 1, seed: 3, alpha: 1, kl: [0.86, 0.87, 0.9] },
         // stoom uit de raket (loopt door)
-        { soort: 1, t0: 0, duur: 0, life: 2.8, n: 44, org: [0, YM + 0.22], spd: [0, 0.2], size: [0.024, 0.03], wereld: 1, seed: 5, alpha: 0.42, kl: [0.85, 0.88, 0.95] },
+        { soort: 1, t0: 0, duur: 0, life: 2.8, n: 24, org: [0, YM + 0.22], spd: [0, 0.2], size: [0.024, 0.03], wereld: 1, seed: 5, alpha: 0.42, kl: [0.85, 0.88, 0.95] },
       ];
 
+      const ventiel = [];
+      P.tellen.forEach((tt, i) => {
+        [-1, 1].forEach((side) => ventiel.push({ soort: 2, t0: tt + 0.2 + (side > 0 ? 0.12 : 0), duur: 0.15, life: 1.6, n: 12, org: [side * 0.05, YM + 0.26 + 0.07 * i], spd: [0.03, 0.1], size: [0.018, 0.036], seed: 40 + i * 2 + (side > 0 ? 1 : 0), alpha: 0.5, kl: [0.88, 0.9, 0.96] }));
+      });
       function zendRook(t, R, camX, camY, camZ, camW, org0, org1) {
         const n = Math.max(1, Math.round(R.n * c.lod * (kw() >= 2 ? 0.6 : 1)));
         pR.f1('uTijd', t);
@@ -1659,6 +1854,8 @@ void main(){
         c.basis(p);
         p.f1('uTime', anim);
         p.f1('uQ', kw());
+        p.tex('uRuis', 0, tex.ruis);
+        p.f1('uVig', 0.55 * (1 - sm(t, E - 0.05, E + 0.25)));
         kfKleur(ZENIT, f, kZen);
         kfKleur(HORK, f, kHor);
         p.v3('uZenit', kZen);
@@ -1875,11 +2072,19 @@ void main(){
         p.f3('uAmb', 0.34, 0.38, 0.48);
         c.motor.mengen('alpha');
         // stoom uit de raket (alleen op het platform)
-        if (t < P.TL + 1.5 && S.padZicht > 0) {
+        if (t < P.TL + 1.5 && S.padZicht > 0 && kw() < 2) {
           const R = rook[1];
           const ox = 0;
           const oy = YM + S.hR + 0.22;
+          R.alpha = 0.42 * (0.35 + 0.65 * sm(t, 0.4, P.tellen[1])) * (1 - sm(t, P.TL, P.TL + 1.5));
           zendRook(anim, R, 0, S.wcY, S.z, 0, ox, oy);
+        }
+        // ventielen: korte stoomstoten tijdens het aftellen
+        if (kw() < 2 && S.padZicht > 0 && t < P.TI + 0.5) {
+          for (let i = 0; i < ventiel.length; i++) {
+            const V = ventiel[i];
+            if (t >= V.t0 && t < V.t0 + V.life + 0.1) zendRook(t, V, 0, S.wcY, S.z, 0, V.org[0], V.org[1]);
+          }
         }
         if (t >= P.TI && S.padZicht > 0) zendRook(t, rook[0], 0, S.wcY, S.z, 0, 0, YM);
       }
@@ -1890,7 +2095,6 @@ void main(){
         const inDek = (r, dichtheid) => sm(f, r[0] - 0.006, r[0] + 0.003) * (1 - sm(f, r[1] - 0.003, r[1] + 0.008)) * dichtheid;
         mist = Math.max(inDek(DEK_A, 0.75), inDek(DEK_B, 0.97));
         const snel = sm(S.v, 0.05, 0.25) * (0.35 + 0.65 * sm(S.lucht, 0.05, 0.5)) * (t < P.tc ? 1 : 1 - sm(t, P.tc, P.tc + 0.5));
-        const vig = 0.55 * (1 - sm(t, E - 0.05, E + 0.25));
         let ring = 0;
         let ringR = 0;
         let wit = 0;
@@ -1901,7 +2105,7 @@ void main(){
           wit = 0.1 * Math.exp(-q / 0.05);
         }
         if (t >= P.TI && t < P.TI + 0.6) wit += 0.18 * Math.exp(-(t - P.TI) / 0.08) * (c.reduceer ? 0.4 : 1);
-        if (mist < 0.002 && snel < 0.002 && vig < 0.002 && ring < 0.002 && wit < 0.002) return;
+        if (mist < 0.002 && snel < 0.002 && ring < 0.002 && wit < 0.002) return;
         const p = pN.gebruik();
         c.basis(p);
         p.f1('uTime', t);
@@ -1918,7 +2122,7 @@ void main(){
         p.v3('uVlamK', VLAMK);
         p.f4('uVlam', S.vlamX, S.vlamY, 1.4 * S.kr, 0);
         p.f2('uRaket', S.ax, S.ay);
-        p.f1('uVig', vig);
+        p.tex('uRuis', 0, tex.ruis);
         p.f1('uWit', wit);
         p.f4('uRing', S.ax, S.ay - 0.2 * S.z, ringR, ring);
         c.motor.mengen('alpha');
@@ -1979,7 +2183,7 @@ void main(){
         c.motor.mengen('alpha');
         kwad(p, cx, cy, hw / 2, hh / 2, 0, 0, 0, 1, 1);
         // de wijzer
-        const g = 1 + 9 * S.f;
+        const g = tienden(S.f) / 10;
         const wy = hudY(Math.min(10, g)) / HUD_H;
         p.i1('uModus', 3);
         const na = t >= E ? sm(t, E, E + 0.1) : 0;
@@ -2000,7 +2204,7 @@ void main(){
         p.f1('uGloed', 1);
         p.f1('uAlpha', zicht * flik * 0.95);
         c.motor.mengen('alpha');
-        kwad(p, 0, 0.5 - 0.065 - lh / 2, lw / 2, lh / 2, 0, 0, 0, 1, 1);
+        kwad(p, 0, 0.5 - (asp < 1 ? 0.03 : 0.065) - lh / 2, lw / 2, lh / 2, 0, 0, 0, 1, 1);
       }
 
       function klapper(t) {
@@ -2014,6 +2218,95 @@ void main(){
         c.licht(t, cx, cy, kern * 0.3, 0.012 + 0.05 * Math.min(q, 0.8), KL.kern * 0.9 * Math.exp(-q / 0.6) * fade, KL.stralen * 0.6 * Math.exp(-q / 0.9) * fade, t * 0.3);
         const op = sm(q, 0, 0.08) * fade;
         c.stralen(t, op * KL.stralen * 0.9, 0.25 + 0.55 * I + 0.25 * sm(t, E + 0.5, K0), 0.1 + 0.4 * KL.kern * Math.exp(-q / 0.5), 0.15, cx, cy, t * (0.2 + 0.3 * I), 0);
+      }
+
+      // ───── het cijfer en de meldingen tekenen ─────
+      const gIdx = [0, 0, 0, 0];
+      const RODE = [1, 0.3, 0.26];
+      const GROEN = [0.35, 1, 0.5];
+      const TEL_ADV = 0.78;
+      function teller(t) {
+        const zicht = sm(t, 0.5, 1.0) * (1 - sm(t, E + 0.55, E + 1.0));
+        if (zicht <= 0.002) return;
+        const n = tienden(S.f);
+        const w = (n / 10) | 0;
+        let k = 0;
+        if (w >= 10) {
+          gIdx[k++] = 1;
+          gIdx[k++] = 0;
+        } else gIdx[k++] = w;
+        gIdx[k++] = 10;
+        gIdx[k++] = n % 10;
+        const asp = c.asp;
+        const breed = asp > 1.6;
+        const hgt = breed ? 0.2 : asp < 1 ? 0.085 : 0.12;
+        const lwv = Math.min(asp * 0.86, 0.95);
+        const lhv = lwv * (200 / 1600);
+        const topm = asp < 1 ? 0.03 : 0.065;
+        const cyL = breed ? 0.07 + hgt * 0.5 : 0.5 - topm - lhv - 0.012;
+        const cy = breed ? 0.07 : cyL - 0.012 - hgt * 0.5;
+        const cwv = (hgt * TEL_CW) / TEL_CH;
+        let breedte = 0;
+        for (let i = 0; i < k; i++) breedte += gIdx[i] === 10 ? 0.42 : TEL_ADV;
+        // pop bij elk heel getal, het 5,5-moment en het toppunt
+        const q = tw[w] >= 0 ? t - tw[w] : 9;
+        let pop = 1 + 0.16 * Math.exp(-Math.max(q, 0) / 0.14);
+        const q5 = t55 >= 0 ? t - t55 : 9;
+        const fl = q5 >= 0 ? Math.exp(-q5 / 0.3) : 0;
+        pop += 0.12 * fl;
+        const hold = t >= P.tA ? sm(t, P.tA, P.tA + 0.2) : 0;
+        pop += hold * (0.04 + 0.03 * Math.sin((t - P.tA) * 7)) * (c.reduceer ? 0.3 : 1);
+        const cx = breed ? -asp / 2 + 0.35 : 0;
+        const bron = n >= 55 ? GROEN : RODE;
+        const na = t >= E ? sm(t, E, E + 0.12) : 0;
+        tint[0] = mix(mix(bron[0], 1, fl * 0.7), c.kl[0], na);
+        tint[1] = mix(mix(bron[1], 1, fl * 0.7), c.kl[1], na);
+        tint[2] = mix(mix(bron[2], 1, fl * 0.7), c.kl[2], na);
+        const p = pS.gebruik();
+        c.basis(p);
+        p.i1('uModus', 0);
+        p.tex('uTex', 0, tex.teller);
+        p.v3('uTint', tint);
+        c.motor.mengen('optel');
+        p.f1('uAlpha', zicht * (0.85 + 0.15 * hold));
+        p.f1('uGloed + 0.8 * Math.exp(-Math.max(q, 0) / 0.2) + hold * (0.5 + 0.35 * Math.sin((t - P.tA) * 7)) + 2 * na * Math.exp(-(t - E) / 0.4));
+        // het woordje CIJFER
+        const lsc = (hgt * 0.26) / 100;
+        kwad(p, cx, cyL, 330 * lsc * pop, 50 * lsc * pop, 0, 0, 330 / 512, 660 / 2048, 430 / 512);
+        let x = cx - (breedte * cwv * pop) / 2;
+        for (let i = 0; i < k; i++) {
+          const gi = gIdx[i];
+          const adv = (gi === 10 ? 0.42 : TEL_ADV) * cwv * pop;
+          kwad(p, x + adv / 2, cy, (cwv / 2) * pop, (hgt / 2) * pop, 0, (gi * TEL_CW) / 2048, 0, ((gi + 1) * TEL_CW) / 2048, TEL_CH / 512);
+          x += adv;
+        }
+        tint[0] = tint[1] = tint[2] = 1;
+      }
+
+      function meldingTekenen(t) {
+        const dur = d.snel ? 1.1 : 1.6;
+        for (let i = 0; i < meldingen.length; i++) {
+          const q = t - meldingen[i][1];
+          if (q < -0.05 || q > dur) continue;
+          const al = sm(q, 0, 0.15) * (1 - sm(q, dur - 0.5, dur));
+          const asp = c.asp;
+          const breed = asp > 1.3;
+          const wv = breed ? 0.5 : asp * 0.86;
+          const hv = wv * (128 / 1536);
+          const cx = breed ? asp * 0.2 : 0;
+          const cy = (breed ? 0.15 : -0.3) + 0.02 * (1 - sm(q, 0, 0.4));
+          const p = pS.gebruik();
+          c.basis(p);
+          p.i1('uModus', 0);
+          p.tex('uTex', 0, tex.meld);
+          tint[0] = tint[1] = tint[2] = 1;
+          p.v3('uTint', tint);
+          p.f1('uAlpha', al * 0.9);
+          p.f1('uGloed', 1.1 + 1.5 * Math.exp(-Math.max(q, 0) / 0.12));
+          c.motor.mengen('optel');
+          const r = meldingen[i][0];
+          kwad(p, cx, cy, wv / 2, hv / 2, 0, 0, (r * 128) / (128 * CALLS.length), 1, ((r + 1) * 128) / (128 * CALLS.length));
+        }
       }
 
       // ───── het hele beeld ─────
@@ -2044,6 +2337,8 @@ void main(){
         }
         telling(t);
         hud(t);
+        teller(t);
+        meldingTekenen(t);
       }
 
       function post(t) {
@@ -2059,7 +2354,6 @@ void main(){
         let rad = 0;
         if (P.knal !== null && t >= P.knal) rad = Math.max(rad, 0.22 * Math.exp(-(t - P.knal) / 0.2));
         if (t >= P.TI) rad = Math.max(rad, 0.1 * Math.exp(-(t - P.TI) / 0.3));
-        if (t > P.TL && t < P.tc) rad = Math.max(rad, 0.06 * sm(S.v, 0.05, 0.3) * S.lucht);
         if (t >= E) rad = Math.max(rad, 0.2 * Math.exp(-(t - E) / 0.3) + 0.25 * sm(t, K0 - 0.6, K0));
         pst.rad = rad;
         // vóór E geen lensstreep en (bijna) geen vignet van de motor: die hebben de kleur van het niveau
@@ -2080,7 +2374,8 @@ void main(){
           tekenAlles(0.8, t, true);
         },
         schud(t) {
-          if (t < P.TI || t > P.tc + 0.1) return 0;
+          if (t < P.TI) return t > P.tellen[0] - 0.3 ? (0.0005 + 0.0024 * sm(t, P.tellen[0], P.TI)) * (c.reduceer ? 0.3 : 1) : 0;
+          if (t > P.tc + 0.1) return 0;
           hoogte(t);
           const ign = sm(t, P.TI, P.TI + 0.3);
           return ign * (0.0035 + 0.0055 * Math.exp(-S.f * 9)) * (t > P.tc - P.sputter ? 0.5 : 1);
