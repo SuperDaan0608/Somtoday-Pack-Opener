@@ -299,6 +299,9 @@
     let wachtOpKlik = false;
     let pauzeSinds = 0;
     let kaartBewaard = false;
+    // Openingen met een eigen `invoer` (Kluis kraken): de aanwijzer en pijltjes gaan tijdens een pauze naar de opening.
+    let aanwijzerId = -1;
+    let negeerKlikTot = 0;
 
     // ───── canvas en kwaliteit ─────
     function resize() {
@@ -389,6 +392,12 @@
         }
       }
       scene.teken(t, dt, inv);
+      if (wachtOpKlik) {
+        // een opening met invoer mag de pauze zelf beëindigen (bv. na een gelukte stap): true, een tijd of 'over'
+        const io = scene.opening && scene.opening.invoer;
+        const r = io && io.klaar && io.klaar();
+        if (r) hervat(r);
+      }
       beeldTeller++;
       regel(nu, ft);
       // Geeft de opening steeds een fout? Dan slaan we haar over en gaan we meteen naar de kaart.
@@ -413,12 +422,21 @@
 
     // ───── bediening ─────
     // De klik na een pauze: de klok loopt weer.
-    function hervat() {
+    // naar: undefined (klik/spatie/wachttijd), true (stap klaar, klok loopt door), een tijd (klok springt daarheen) of 'over'.
+    // Bij een opening met invoer slaat undefined/'over' ook alle volgende pauzes over (dan loopt het vanzelf).
+    function hervat(naar) {
       if (!wachtOpKlik || !scene) return;
-      const pz = scene.tl.pauzes[pauzeIdx];
+      const pzl = scene.tl.pauzes;
+      const pz = pzl[pauzeIdx];
+      const doel = typeof naar === 'number' && naar > pz ? naar : pz;
       wachtOpKlik = false;
       pauzeIdx++;
-      start = nuMs() - pz * 1000;
+      if (naar === 'over' || (naar === undefined && scene.opening && scene.opening.invoer)) pauzeIdx = pzl.length;
+      if (doel > pz) {
+        for (const e of scene.ev) if (e.tijd < doel) e.klaar = true;
+        while (pauzeIdx < pzl.length && pzl[pauzeIdx] < doel) pauzeIdx++;
+      }
+      start = nuMs() - doel * 1000;
       laatst = 0;
     }
 
@@ -573,6 +591,13 @@
         return;
       }
       const opKnop = e.composedPath && e.composedPath().some((n) => n.tagName === 'BUTTON');
+      const io = wachtOpKlik && fase === 'reeks' && !opKnop && scene && scene.opening && scene.opening.invoer;
+      if (io && io.toets && io.toets(e.key, e)) {
+        e.preventDefault();
+        e.stopPropagation();
+        pauzeSinds = nuMs();
+        return;
+      }
       if ((e.key === ' ' || e.key === 'Enter') && !opKnop) {
         e.preventDefault();
         e.stopPropagation();
@@ -604,11 +629,40 @@
       if (e.target === canvas || e.target === introEl) {
         if (fase === 'intro') begin();
         else if (fase === 'reeks') {
-          if (wachtOpKlik) hervat();
-          else if (tHuidig > 0.7) overslaan();
+          if (nuMs() < negeerKlikTot) return; // de klik die een sleepbeweging afsluit telt niet als 'verder'
+          if (wachtOpKlik) {
+            if (!(scene && scene.opening && scene.opening.invoer)) hervat();
+          } else if (tHuidig > 0.7) overslaan();
         }
       }
     });
+    // Tijdens een pauze van een opening met invoer gaan down/move/up (genormeerd 0…1 over het canvas) naar opInst.invoer.aanwijzer.
+    const geefDoor = (soort) => (e) => {
+      const io = fase === 'reeks' && wachtOpKlik && scene && scene.opening && scene.opening.invoer;
+      if (soort === 'down') {
+        if (!io || !io.aanwijzer || e.target !== canvas || aanwijzerId !== -1) return;
+        aanwijzerId = e.pointerId;
+        negeerKlikTot = nuMs() + 60000; // tot de up/cancel
+        try {
+          canvas.setPointerCapture(e.pointerId);
+        } catch (x) {
+          /* zonder capture werkt slepen binnen het canvas nog steeds */
+        }
+      } else if (e.pointerId !== aanwijzerId) return;
+      if (soort === 'up' || soort === 'cancel') {
+        aanwijzerId = -1;
+        negeerKlikTot = nuMs() + 400;
+      }
+      if (!io || !io.aanwijzer) return;
+      const r = canvas.getBoundingClientRect();
+      pauzeSinds = nuMs();
+      const res = io.aanwijzer(soort, (e.clientX - r.left) / Math.max(1, r.width), (e.clientY - r.top) / Math.max(1, r.height), e);
+      if (res) hervat(res);
+    };
+    root.addEventListener('pointerdown', geefDoor('down'));
+    root.addEventListener('pointermove', geefDoor('move'));
+    root.addEventListener('pointerup', geefDoor('up'));
+    root.addEventListener('pointercancel', geefDoor('cancel'));
     const wijs = (e) => {
       laatsteBeweging = nuMs();
       tiltDoel[0] = klem((e.clientX / Math.max(1, innerWidth) - 0.5) * 2, -1, 1);

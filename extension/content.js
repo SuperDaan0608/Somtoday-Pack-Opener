@@ -19,9 +19,10 @@
 
   const SLEUTEL_GEOPEND = 'spo_geopend';
   const SLEUTEL_INSTELLINGEN = 'spo_instellingen';
-  const STANDAARD = { afdekking: true, geluid: true, snel: false, opening: 'pak', galerij: true, laag: false, kaartThema: 'auto', kaartRand: 'standaard', zeldzaam: true, seizoen: true, gemiddelden: true };
+  const STANDAARD = { afdekking: true, geluid: true, snel: false, opening: 'pak', galerij: true, laag: false, kaartThema: 'auto', kaartRand: 'standaard', zeldzaam: true, seizoen: true, gemiddelden: true, knop: true };
   const SLEUTEL_GALERIJ = 'spo_galerij';
   const SLEUTEL_DICHT = 'spo_dicht';
+  const SLEUTEL_HUB_OPEN = 'spo_hub_open'; // { tab, ts }: de popup vraagt om het paneel te openen zodra Somtoday geladen is
   const OPENINGEN = ['pak', 'kluis', 'plinko', 'ster', 'raket', 'schiet', 'dans'];
 
   const RIJ = 'sl-laatste-resultaat-item'; // de klikbare rij in "Laatste cijfers"
@@ -307,6 +308,7 @@
     bewaarDicht(nieuweRijen);
     bewaakOverzicht();
     voorladen();
+    werkKnopBij();
     document.documentElement.setAttribute('data-spo-klaar', '');
     observer.takeRecords(); // onze eigen wijzigingen negeren
   }
@@ -340,6 +342,7 @@
     }
     geladen = true;
     scan();
+    wachtendPaneel();
   }
 
   try {
@@ -648,10 +651,455 @@
     );
   }
 
+  // ───────────────────────── De startknop en het paneel ─────────────────────────
+  // Een knop rechtsonder op de pagina opent het Pack Opener-paneel: hub.html in een iframe boven Somtoday, met alles erin
+  // (galerij, kaart ontwerpen, vrienden, calculator, proberen, instellingen, geluiden).
+  //
+  // Berichten tussen dit script en het paneel (window.postMessage; we accepteren alleen berichten van ons eigen iframe):
+  //   paneel -> hier: { bron: 'spo-hub', versie: 1, type, id?, ... }
+  //     hub-klaar | sluiten | open-volgende | alles-geopend | alles-afdekken | naar-cijfers | proef { data }
+  //   hier -> paneel: { bron: 'spo-pagina', versie: 1, type, ... }
+  //     init { tab, status } | status { status } | tab { tab } | focus { waar } | antwoord { id, ok, status }
+  const HUB_TABS = ['overzicht', 'galerij', 'kaart', 'vrienden', 'rekenen', 'proberen', 'instellingen', 'geluiden'];
+  const HUB_WACHT_MS = 2500; // zo lang wachten we op 'hub-klaar' van het iframe
+  const CIJFERS_PAD = '/cijfers';
+  // Het origin van onze eigen extensiepagina's; null als de browser er geen geeft (dan vertrouwen we alleen op event.source).
+  const eigenOrigin = (() => {
+    try {
+      const o = new URL(chrome.runtime.getURL('')).origin;
+      return o && o !== 'null' ? o : null;
+    } catch (e) {
+      return null;
+    }
+  })();
+
+  const KNOP_HTML = `
+    <style>
+      :host { position: fixed; right: 18px; bottom: 18px; z-index: 2147483647; display: block; }
+      :host([hidden]) { display: none !important; }
+      * { box-sizing: border-box; }
+      .knop {
+        position: relative; display: flex; align-items: center; gap: 10px; height: 52px; margin: 0; padding: 0 18px 0 8px;
+        border: 0; border-radius: 999px; cursor: pointer; color: #fff; -webkit-appearance: none; appearance: none;
+        font-family: 'SPO Display', 'Open Sans', system-ui, sans-serif; font-size: 14.5px; font-weight: 650; line-height: 1; letter-spacing: -0.01em;
+        background:
+          radial-gradient(120% 180% at 0% 0%, rgba(124, 131, 255, 0.5), transparent 58%),
+          linear-gradient(110deg, #10163a 0%, #1a2160 52%, #3b1d70 100%);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2), 0 0 0 1px rgba(255, 210, 74, 0.3), 0 12px 28px -8px rgba(8, 10, 40, 0.75);
+        transition: transform 0.15s, filter 0.2s;
+      }
+      .knop:hover { filter: brightness(1.14); transform: translateY(-1px); }
+      .knop:active { transform: scale(0.98); }
+      .knop:focus-visible { outline: 3px solid #ffd24a; outline-offset: 3px; }
+      .merk { flex: none; width: 36px; height: 36px; }
+      .tekst { white-space: nowrap; }
+      .badge {
+        min-width: 22px; height: 22px; padding: 0 7px; border-radius: 999px; font-size: 12px; font-weight: 800; line-height: 22px; text-align: center;
+        color: #241703; background: linear-gradient(135deg, #fff0b3, #ffd24a 45%, #ff7a3d);
+      }
+      .badge[hidden] { display: none; }
+      .uit { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+      /* Smal scherm: alleen het icoon, boven Somtoday's eigen onderbalk (de precieze hoogte meet het script in --onder) */
+      @media (max-width: 599px) {
+        :host { right: 14px; bottom: var(--onder, calc(84px + env(safe-area-inset-bottom, 0px))); }
+        .knop { width: 52px; padding: 0; justify-content: center; }
+        .tekst { display: none; }
+        .merk { width: 38px; height: 38px; }
+        .badge { position: absolute; top: -6px; right: -6px; box-shadow: 0 0 0 2px #080a14; }
+      }
+      @media (prefers-reduced-motion: reduce) { .knop { transition: none; } }
+      @media print { :host { display: none !important; } }
+    </style>
+    <button type="button" class="knop" aria-label="Pack Opener openen" aria-haspopup="dialog" aria-describedby="uit">
+      <svg class="merk" viewBox="0 0 40 40" aria-hidden="true">
+        <defs><linearGradient id="goud" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe27a"/><stop offset="0.55" stop-color="#ffb020"/><stop offset="1" stop-color="#ff6a3d"/></linearGradient></defs>
+        <rect x="6.5" y="8" width="17" height="24" rx="4" transform="rotate(-11 15 20)" fill="#ffffff" fill-opacity="0.3"/>
+        <rect x="14" y="7.5" width="18.5" height="25" rx="4.2" fill="url(#goud)"/>
+        <path d="M23.2 13.6l1.9 5.1 5.1 1.9-5.1 1.9-1.9 5.1-1.9-5.1-5.1-1.9 5.1-1.9z" fill="#2a1a02"/>
+      </svg>
+      <span class="tekst">Pack Opener</span>
+      <span class="badge" aria-hidden="true" hidden></span>
+    </button>
+    <span class="uit" id="uit"></span>`;
+
+  let knopHost = null;
+  let plaatsGepland = false;
+
+  function maakKnop() {
+    if (!document.body || !window.__SPO) return;
+    laadFonts();
+    knopHost = document.createElement('spo-knop');
+    window.__SPO.zetHtml(knopHost.attachShadow({ mode: 'open' }), KNOP_HTML);
+    knopHost.shadowRoot.querySelector('.knop').addEventListener('click', () => openPaneel('overzicht'));
+    document.documentElement.appendChild(knopHost);
+    observer.takeRecords(); // onze eigen wijziging negeren
+  }
+
+  // Op een smal scherm staat Somtoday's eigen tabbalk onderin: de knop gaat daar net boven.
+  function plaatsKnop() {
+    if (!knopHost) return;
+    let onder = null;
+    if (window.innerWidth < 600) {
+      const balk = document.querySelector('sl-tab-bar');
+      if (balk) {
+        const r = balk.getBoundingClientRect();
+        if (r.height > 0 && r.top < window.innerHeight && r.bottom > window.innerHeight - 4) onder = Math.ceil(window.innerHeight - r.top) + 14;
+      }
+    }
+    if (onder == null) knopHost.style.removeProperty('--onder');
+    else knopHost.style.setProperty('--onder', onder + 'px');
+  }
+
+  function werkKnopBij() {
+    const toon = geladen && instellingen.knop !== false && !paneel && !bezig;
+    if (!toon) {
+      if (knopHost) knopHost.hidden = true;
+      return;
+    }
+    if (!knopHost) maakKnop();
+    if (!knopHost) return;
+    knopHost.hidden = false;
+    const n = dicht.length;
+    const badge = knopHost.shadowRoot.querySelector('.badge');
+    const tekst = n > 99 ? '99+' : String(n);
+    if (badge.textContent !== (n ? tekst : '')) badge.textContent = n ? tekst : '';
+    badge.hidden = n === 0;
+    const uit = n === 0 ? '' : n === 1 ? '1 nieuw cijfer klaar' : `${n} nieuwe cijfers klaar`;
+    const el = knopHost.shadowRoot.getElementById('uit');
+    if (el.textContent !== uit) el.textContent = uit;
+    if (!plaatsGepland) {
+      plaatsGepland = true;
+      requestAnimationFrame(() => {
+        plaatsGepland = false;
+        plaatsKnop();
+      });
+    }
+  }
+  window.addEventListener('resize', () => werkKnopBij());
+
+  // ── Het paneel ──
+  const PANEEL_HTML = `
+    <style>
+      :host { position: fixed; inset: 0; z-index: 2147483647; display: block; }
+      * { box-sizing: border-box; }
+      /* Een echt modaal venster (<dialog>): het staat in de 'top layer', dus boven alles op de pagina, welke z-index die ook heeft,
+         en de rest van de pagina is zolang het open is niet te bedienen. */
+      .laag {
+        position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; padding: 24px; border: 0; overflow: hidden;
+        align-items: center; justify-content: center; color: inherit;
+        background: rgba(4, 5, 12, 0.74); -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px);
+        animation: laag-in 0.18s ease-out;
+      }
+      .laag[open] { display: flex; }
+      .laag::backdrop { background: transparent; }
+      .dialoog {
+        position: relative; width: min(1180px, 100%); height: min(90vh, 920px); overflow: hidden; border-radius: 22px; background: #080a14;
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14), 0 40px 100px -20px rgba(0, 0, 0, 0.85);
+        animation: dialoog-in 0.2s cubic-bezier(0.2, 0.9, 0.3, 1);
+      }
+      iframe { display: block; width: 100%; height: 100%; border: 0; background: #080a14; color-scheme: dark; }
+      .val { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
+      .mislukt {
+        position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 28px; text-align: center;
+        color: #eef1f8; background: #080a14; font-family: 'SPO Text', 'Open Sans', system-ui, sans-serif; font-size: 15px; line-height: 1.5;
+      }
+      .mislukt[hidden] { display: none; }
+      .mislukt h2 { margin: 0; font-family: 'SPO Display', 'Open Sans', system-ui, sans-serif; font-size: 20px; font-weight: 700; }
+      .mislukt p { margin: 0; max-width: 420px; color: #a5aec4; }
+      .acties { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+      button { margin: 0; min-height: 44px; padding: 0 20px; border-radius: 12px; font: 650 15px 'SPO Text', system-ui, sans-serif; cursor: pointer; color: #eef1f8; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.18); }
+      button.goud { border: 0; color: #241703; background: linear-gradient(135deg, #fff0b3, #ffd24a 45%, #ff7a3d); }
+      button:focus-visible { outline: 2px solid #ffd24a; outline-offset: 2px; }
+      /* Telefoon (of een laag, liggend scherm): het paneel vult het hele scherm */
+      @media (max-width: 639px), (max-height: 500px) {
+        .laag { padding: 0; }
+        .dialoog { width: 100%; height: 100%; border-radius: 0; }
+      }
+      @keyframes laag-in { from { opacity: 0; } }
+      @keyframes dialoog-in { from { opacity: 0; transform: translateY(10px) scale(0.985); } }
+      @media (prefers-reduced-motion: reduce) { .laag, .dialoog { animation: none; } }
+    </style>
+    <dialog class="laag" aria-label="Pack Opener">
+      <div class="dialoog">
+        <div class="val" tabindex="0" data-val="voor"></div>
+        <iframe title="Pack Opener" allow="clipboard-write"></iframe>
+        <div class="val" tabindex="0" data-val="na"></div>
+        <div class="mislukt" role="alert" hidden>
+          <h2>Het paneel kon niet worden geladen</h2>
+          <p>Het paneel kon niet in de pagina worden getoond. Je kunt de Pack Opener wel in een eigen tabblad openen.</p>
+          <div class="acties"><button type="button" class="goud" data-a="tabblad">Openen in een nieuw tabblad</button><button type="button" data-a="sluit">Sluiten</button></div>
+        </div>
+      </div>
+    </dialog>`;
+
+  let paneel = null; // { host, iframe, tab, klaar, timer, vorigFocus, oudeOverflow }
+
+  const hubUrl = (tab) => chrome.runtime.getURL('hub.html') + '#' + tab;
+
+  function naarHub(bericht) {
+    if (!paneel || !paneel.iframe.contentWindow) return;
+    try {
+      paneel.iframe.contentWindow.postMessage({ bron: 'spo-pagina', versie: 1, ...bericht }, eigenOrigin || '*');
+    } catch (e) {
+      /* het iframe is al weg */
+    }
+  }
+
+  function openPaneel(tab) {
+    if (!document.body || bezig || !window.__SPO) return false;
+    if (paneel) {
+      paneel.tab = tab;
+      naarHub({ type: 'tab', tab });
+      return true;
+    }
+    laadFonts();
+    const host = document.createElement('spo-paneel');
+    const wortel = host.attachShadow({ mode: 'open' });
+    window.__SPO.zetHtml(wortel, PANEEL_HTML);
+    const iframe = wortel.querySelector('iframe');
+    paneel = {
+      host,
+      iframe,
+      tab,
+      klaar: false,
+      timer: 0,
+      vorigFocus: document.activeElement,
+      oudeOverflow: [document.documentElement.style.overflow, document.body.style.overflow],
+    };
+    // Achtergrond niet meer laten scrollen
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+    // Klik naast het paneel sluit het
+    wortel.querySelector('.laag').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) sluitPaneel(true);
+    });
+    wortel.querySelector('.laag').addEventListener('touchmove', (e) => {
+      if (e.target === e.currentTarget) e.preventDefault();
+    }, { passive: false });
+    // Focus-val: Tab voorbij het laatste (of Shift+Tab voor het eerste) element van het paneel brengt je terug in het paneel
+    wortel.addEventListener('focusin', (e) => {
+      const val = e.target instanceof Element ? e.target.getAttribute('data-val') : null;
+      if (!val) return;
+      iframe.focus();
+      if (!paneel || !paneel.klaar) return; // showModal() zet de focus eerst op het eerste focusbare element: dat is deze val
+      naarHub({ type: 'focus', waar: val === 'na' ? 'begin' : 'einde' });
+    });
+    wortel.addEventListener('click', (e) => {
+      const knop = e.target instanceof Element ? e.target.closest('[data-a]') : null;
+      if (!knop) return;
+      if (knop.dataset.a === 'tabblad') {
+        if (window.open(hubUrl(paneel.tab), '_blank')) sluitPaneel(false);
+      } else {
+        sluitPaneel(true);
+      }
+    });
+    wortel.querySelector('.laag').addEventListener('cancel', (e) => {
+      e.preventDefault();
+      sluitPaneel(true);
+    });
+    iframe.addEventListener('load', () => iframe.focus({ preventScroll: true }));
+    document.documentElement.appendChild(host);
+    try {
+      wortel.querySelector('.laag').showModal();
+    } catch (e) {
+      wortel.querySelector('.laag').setAttribute('open', ''); // zonder modaal venster werkt het ook, alleen niet altijd boven alles
+    }
+    iframe.focus({ preventScroll: true });
+    iframe.src = chrome.runtime.getURL('hub.html');
+    paneel.timer = setTimeout(valTerug, HUB_WACHT_MS);
+    werkKnopBij(); // verbergt de knop zolang het paneel open is
+    observer.takeRecords();
+    return true;
+  }
+
+  function sluitPaneel(focusTerug) {
+    if (!paneel) return;
+    const { host, vorigFocus, oudeOverflow, timer } = paneel;
+    clearTimeout(timer);
+    host.remove();
+    document.documentElement.style.overflow = oudeOverflow[0];
+    document.body.style.overflow = oudeOverflow[1];
+    paneel = null;
+    werkKnopBij();
+    if (focusTerug) {
+      const knop = knopHost && !knopHost.hidden ? knopHost.shadowRoot.querySelector('.knop') : null;
+      const doel = knop || (vorigFocus && vorigFocus.isConnected ? vorigFocus : null);
+      if (doel && doel.focus) doel.focus({ preventScroll: true });
+    }
+    observer.takeRecords();
+  }
+
+  // Kwam er geen 'hub-klaar' van het iframe (bijvoorbeeld omdat een strenge CSP van de pagina het iframe blokkeert), dan openen we
+  // hetzelfde paneel in een eigen tabblad. window.open mag alleen vlak na een klik; is die er niet (het paneel werd bijvoorbeeld door
+  // de popup geopend) of wordt het geblokkeerd, dan zetten we in het paneel een knop die dat met een klik doet.
+  function valTerug() {
+    if (!paneel || paneel.klaar) return;
+    let w = null;
+    if (!navigator.userActivation || navigator.userActivation.isActive) {
+      try {
+        w = window.open(hubUrl(paneel.tab), '_blank');
+      } catch (e) {
+        w = null;
+      }
+    }
+    if (w) {
+      sluitPaneel(false);
+      return;
+    }
+    const wortel = paneel.host.shadowRoot;
+    wortel.querySelector('iframe').hidden = true;
+    const kaart = wortel.querySelector('.mislukt');
+    kaart.hidden = false;
+    kaart.querySelector('[data-a="tabblad"]').focus();
+  }
+
+  function startProef(d) {
+    if (bezig || typeof window.__somPackRun !== 'function' || !d || typeof d !== 'object') return false;
+    const cijfer = Number(d.cijfer);
+    if (!(cijfer >= 1 && cijfer <= 10)) return false;
+    bezig = true;
+    // Gewoon een pakket met zelfgekozen gegevens: er wordt niets onthouden (geen galerij, niet als geopend gemarkeerd).
+    window.__somPack = {
+      vak: String(d.vak || 'Vak').slice(0, 40),
+      cijfer: Math.round(cijfer * 10) / 10,
+      onderwerp: String(d.onderwerp || 'Toets').slice(0, 80),
+      weging: Math.min(4, Math.max(1, Math.round(Number(d.weging)) || 1)),
+      snel: !!instellingen.snel,
+      laag: !!instellingen.laag,
+      stil: !instellingen.geluid,
+      kaartThema: instellingen.kaartThema,
+      kaartRand: instellingen.kaartRand,
+      opening: instellingen.opening,
+      zeldzaam: d.zeldzaam === true,
+      seizoen: ['auto', 'halloween', 'geen'].includes(d.seizoen) ? d.seizoen : 'auto',
+      direct: true, // de klik in het paneel is er al geweest
+      opGesloten() {
+        bezig = false;
+        scan();
+      },
+    };
+    try {
+      window.__somPackRun();
+    } catch (e) {
+      bezig = false;
+      return false;
+    }
+    return true;
+  }
+
+  function behandelHubBericht(m) {
+    const antwoord = (extra) => naarHub({ type: 'antwoord', id: m.id, ...extra });
+    switch (m.type) {
+      case 'hub-klaar':
+        paneel.klaar = true;
+        clearTimeout(paneel.timer);
+        paneel.iframe.focus({ preventScroll: true });
+        naarHub({ type: 'init', tab: paneel.tab, status: status() });
+        break;
+      case 'sluiten':
+        sluitPaneel(true);
+        break;
+      case 'status':
+        antwoord({ ok: true, status: status() });
+        break;
+      case 'open-volgende': {
+        const rij = rijen.find((r) => r.vergrendeld);
+        if (!rij || bezig || typeof window.__somPackRun !== 'function') {
+          antwoord({ ok: false, reden: 'geen-rij', status: status() });
+          break;
+        }
+        sluitPaneel(false);
+        if (!open(rij, { direct: true })) {
+          openPaneel('overzicht');
+          break;
+        }
+        werkKnopBij();
+        break;
+      }
+      case 'alles-geopend':
+        allesGeopend();
+        antwoord({ ok: true, status: status() });
+        break;
+      case 'alles-afdekken':
+        allesAfdekken();
+        antwoord({ ok: true, status: status() });
+        break;
+      case 'naar-cijfers':
+        sluitPaneel(false);
+        if (location.pathname !== CIJFERS_PAD) location.assign(CIJFERS_PAD);
+        break;
+      case 'proef':
+        if (startProef(m.data)) {
+          sluitPaneel(false);
+          werkKnopBij();
+        } else {
+          antwoord({ ok: false });
+        }
+        break;
+    }
+  }
+
+  window.addEventListener('message', (e) => {
+    // Alleen berichten van ons eigen iframe, met de vaste vorm.
+    if (!paneel || e.source !== paneel.iframe.contentWindow) return;
+    if (eigenOrigin && e.origin !== eigenOrigin) return;
+    const m = e.data;
+    if (!m || typeof m !== 'object' || m.bron !== 'spo-hub' || m.versie !== 1 || typeof m.type !== 'string') return;
+    try {
+      behandelHubBericht(m);
+    } catch (x) {
+      /* een fout in het paneel mag de pagina niet storen */
+    }
+  });
+
+  // Esc sluit het paneel (staat de focus in het paneel zelf, dan regelt hub.js dat)
+  document.addEventListener(
+    'keydown',
+    (e) => {
+      if (!paneel || e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopPropagation();
+      sluitPaneel(true);
+    },
+    true,
+  );
+
+  // De popup kan het paneel niet openen als je niet op Somtoday bent: dan zet hij { tab, ts } in de opslag en opent hij Somtoday.
+  // Na het laden openen wij het paneel (alleen als dat verzoek net is gedaan; daarna wissen we het).
+  async function wachtendPaneel() {
+    try {
+      const w = (await chrome.storage.local.get(SLEUTEL_HUB_OPEN))[SLEUTEL_HUB_OPEN];
+      if (!w) return;
+      await chrome.storage.local.remove(SLEUTEL_HUB_OPEN);
+      const leeftijd = Date.now() - Number(w.ts);
+      if (Number.isFinite(leeftijd) && leeftijd > -5000 && leeftijd < 30000) openPaneel(HUB_TABS.includes(w.tab) ? w.tab : 'overzicht');
+    } catch (e) {
+      /* geen opslag */
+    }
+  }
+
   // ───────────────────────── Berichten van de popup ─────────────────────────
   function status() {
     const dicht = rijen.filter((r) => r.vergrendeld);
     return { ok: true, totaal: rijen.length, ongeopend: dicht.length, vakken: dicht.map((r) => r.d.vak), pad: location.pathname };
+  }
+
+  function allesGeopend() {
+    for (const { sig, lijst } of groepen) geopend[sig] = Math.max(geopend[sig] || 0, lijst.length);
+    bewaar();
+    dicht = [];
+    try {
+      chrome.storage.local.set({ [SLEUTEL_DICHT]: dicht });
+    } catch (e) {
+      /* geen opslag */
+    }
+    scan();
+  }
+
+  function allesAfdekken() {
+    geopend = {};
+    bewaar();
+    scan();
   }
 
   try {
@@ -669,22 +1117,15 @@
             break;
           }
           case 'alles-geopend':
-            for (const { sig, lijst } of groepen) geopend[sig] = Math.max(geopend[sig] || 0, lijst.length);
-            bewaar();
-            dicht = [];
-            try {
-              chrome.storage.local.set({ [SLEUTEL_DICHT]: dicht });
-            } catch (e) {
-              /* geen opslag */
-            }
-            scan();
+            allesGeopend();
             antwoord(status());
             break;
           case 'alles-afdekken':
-            geopend = {};
-            bewaar();
-            scan();
+            allesAfdekken();
             antwoord(status());
+            break;
+          case 'hub-open':
+            antwoord({ ok: openPaneel(HUB_TABS.includes(bericht.tab) ? bericht.tab : 'overzicht') });
             break;
           default:
             return;

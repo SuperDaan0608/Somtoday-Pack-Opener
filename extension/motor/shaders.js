@@ -540,38 +540,74 @@ void main(){
   }
   vec2 uv = vUv;
   vec2 t = uKantel;
+  int T = int(uTier + .5);
   vec4 bg = texture(uBG, uv);
-  vec4 mid = texture(uMid, uv + t * vec2(-.010, .008));
-  vec4 fg = texture(uFG, uv + t * vec2(-.020, .016));
+  vec2 uvM = uv + t * vec2(-.010, .008);
+  vec2 uvF = uv + t * vec2(-.020, .016);
+  vec4 mid = texture(uMid, uvM);
+  vec4 fg = texture(uFG, uvF);
   vec3 m = texture(uMasker, uv).rgb;
   vec3 col = bg.rgb;
+  float lm = dot(col, vec3(.299, .587, .114));
 
-  // reliëf van de rand en de lijsten
-  vec2 tx = vec2(1. / 480., 1. / 704.);
+  // reliëf van de lijst, de rand van het embleem en de klinknagels of parels: licht dat meekijkt met je muis
+  vec2 px = 1. / vec2(textureSize(uMasker, 0));
   float h0 = m.b;
-  float hx = texture(uMasker, uv + vec2(tx.x * 2., 0.)).b;
-  float hy = texture(uMasker, uv + vec2(0., tx.y * 2.)).b;
-  vec3 bn = normalize(vec3((h0 - hx) * 7., (hy - h0) * 7., 1.));
-  vec3 Ld = normalize(vec3(-.35 + t.x * .55, .55 - t.y * .5, .8));
-  float bev = dot(bn, Ld);
-  col *= .88 + .3 * bev;
+  float hx = texture(uMasker, uv + vec2(px.x * 1.5, 0.)).b;
+  float hy = texture(uMasker, uv + vec2(0., px.y * 1.5)).b;
+  vec3 bn = normalize(vec3((h0 - hx) * 10., (hy - h0) * 10., 1.));
+  vec3 Ld = normalize(vec3(-.35 + t.x * .6, .55 - t.y * .55, .75));
+  float dif = dot(bn, Ld) - Ld.z;
+  col *= 1. + dif * 1.5;
+  vec3 Hh = normalize(Ld + vec3(0., 0., 1.));
+  float spc = max(pow(max(dot(bn, Hh), 0.), 48.) - pow(Hh.z, 48.), 0.);
+  float spk = T == 1 ? 1.3 : (T == 0 ? .55 : (T == 3 ? .8 : .95));
+  col += mix(vec3(1., .97, .9), uCol, .12) * spc * spk * 1.6 * bg.a;
 
-  // folie: regenboog die met de hoek meebeweegt, alleen op de achtergrond en lijsten
+  // folie: een kleur die met de hoek meebeweegt, alleen op de patronen, de lijst en het embleem
   float ang = dot(t, vec2(.9, .6)) * 1.1 + uv.x * 1.5 - uv.y * 1.9 + uTime * .04;
-  vec3 holo = .5 + .5 * cos(6.2831853 * (ang + vec3(0., .33, .67)));
-  col += holo * m.r * uHolo * .32 * bg.a;
+  vec3 rb = .5 + .5 * cos(6.2831853 * (ang + vec3(0., .33, .67)));
+  vec3 fk = T == 0 ? vec3(1., .74, .44) : (T == 1 ? vec3(.7, .86, 1.) : (T == 2 ? vec3(1., .86, .5) : (T == 3 ? vec3(.3, .8, 1.) : vec3(1.))));
+  float rf = T == 0 ? .15 : (T == 1 ? .4 : (T == 2 ? .5 : (T == 3 ? .55 : 1.)));
+  vec3 holo = mix(fk * (.55 + .45 * rb.g), rb, rf);
+  col += holo * m.r * uHolo * .34 * bg.a;
+
+  // een brede baan licht die over het metaal glijdt als je de kaart kantelt
+  float ps = uv.x * .6 + uv.y * .9 + t.x * 1.1 - t.y * .7;
+  float bnd = exp(-pow(fract(ps * .55 + .1) * 2. - 1., 2.) * 14.);
+  vec3 sk = T == 0 ? vec3(1., .72, .42) : (T == 1 ? vec3(.82, .92, 1.) : (T == 2 ? vec3(1., .9, .55) : (T == 3 ? uCol : rb)));
+  float sw0 = T == 1 ? .3 : (T == 2 ? .24 : (T == 0 ? .17 : (T == 3 ? .12 : .2)));
+  col += sk * bnd * sw0 * (.3 + lm) * bg.a;
+
+  // speciaal: de lijnen pulseren; icoon: parelmoer dat van kleur wisselt
+  if (T == 3) {
+    float pl = .5 + .5 * sin(uTime * 2.4 - (uv.x * 5. + uv.y * 7.));
+    col += uCol * m.r * (.1 + .55 * pl * pl * pl) * bg.a;
+  } else if (T == 4) {
+    float fb = vn(uv * 4. + t * 1.5);
+    vec3 ir = .5 + .5 * cos(6.2831853 * (fb * .8 + ang * .7 + vec3(0., .33, .67)));
+    col += (ir - .5) * .14 * min(uHolo, 1.2) * bg.a * (.4 + lm);
+  }
+
   // de veeg die schuin over de kaart glijdt
   float sw = uv.x * .8 + uv.y * .6;
   float veeg = exp(-pow((sw - uVeeg) * 12., 2.));
   col += vec3(1., .97, .9) * veeg * (.16 + .5 * m.r) * bg.a;
   col += vec3(1.) * exp(-pow((sw - uVeeg * .6 - .25) * 20., 2.)) * .12 * m.r;
-  // glinsteringen
-  vec2 gc = floor(uv * vec2(96., 140.));
+
+  // glinsteringen: kleine sterretjes die met je hoek aan en uit gaan
+  vec2 gp = uv * vec2(150., 220.);
+  vec2 gc = floor(gp);
+  vec2 gd = fract(gp) - .5 - (h22(gc + 7.) - .5) * .5;
   float gh = h21(gc);
-  float tw = step(.955, gh) * pow(.5 + .5 * sin(uTime * 3.1 + gh * 90. + (t.x + t.y) * 7.), 10.);
-  col += (vec3(1., .96, .85) * tw * 1.7 + hsv(vec3(gh * 7. + ang, .6, 1.)) * tw * .7) * m.g * uGlitter;
+  float spark = step(.965, gh) * pow(.5 + .5 * sin(uTime * 2.6 + gh * 90. + (t.x * 5. + t.y * 3.) * (1. + gh * 2.)), 14.);
+  float core = exp(-dot(gd, gd) * 60.);
+  float kruis = (exp(-abs(gd.x) * 28. - abs(gd.y) * 4.) + exp(-abs(gd.y) * 28. - abs(gd.x) * 4.)) * .6;
+  col += (vec3(1., .96, .85) * (core + kruis) * 1.8 + hsv(vec3(gh * 7. + ang, .6, 1.)) * core * .6) * spark * m.g * uGlitter * bg.a;
 
   col = mid.rgb + col * (1. - mid.a);
+  // de teksten werpen een zachte schaduw: ze zweven net boven het metaal
+  col *= 1. - .3 * texture(uFG, uvF - vec2(.0016, .0026)).a * (1. - fg.a);
   col = fg.rgb + col * (1. - fg.a);
 
   // het cijfer, dat tijdens het optellen opspringt
@@ -580,15 +616,17 @@ void main(){
   if (ru.x > uCijferRect.x && ru.x < uCijferRect.z && ru.y > uCijferRect.y && ru.y < uCijferRect.w) {
     vec2 cu = (ru - uCijferRect.xy) / (uCijferRect.zw - uCijferRect.xy);
     vec4 c = texture(uCijfer, cu);
+    float sa = texture(uCijfer, cu - vec2(.014, .02)).a;
+    col *= 1. - .3 * sa * (1. - c.a);
     col = c.rgb + col * (1. - c.a);
   }
 
   // diepte: donkerder naar de rand, rijkere tinten en een zachte lichtvlek die met je muis meebeweegt
   float vgn = smoothstep(.0, .95, 1. - length((uv - .5) * vec2(1.25, 1.) * 1.45));
-  col *= .74 + .3 * vgn;
-  col = pow(max(col, 0.), vec3(1.14)) * 1.06;
+  col *= .8 + .22 * vgn;
+  col = pow(max(col, 0.), vec3(1.08)) * 1.04;
   vec2 lp = vec2(.5 + t.x * -.45, .35 + t.y * .35);
-  col += vec3(1., .96, .85) * exp(-dot(uv - lp, uv - lp) * 7.) * .09 * bg.a;
+  col += vec3(1., .96, .85) * exp(-dot(uv - lp, uv - lp) * 7.) * .07 * bg.a;
   float fres = pow(1. - abs(dot(N, V)), 3.);
   col += uCol * fres * .35 * uGlow;
   col *= uHelder;

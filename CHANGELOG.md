@@ -1,5 +1,13 @@
 # Wijzigingen
 
+## v1.3.0
+
+- **Alles in het Somtoday-venster:** een *Pack Opener*-knop rechtsonder op Somtoday (met het aantal nieuwe cijfers) opent een paneel in de pagina zelf. Daarin staan Overzicht, Galerij, Kaart ontwerpen, Vrienden, Cijfercalculator, Proberen, Instellingen en Geluiden: niets meer op losse tabbladen. Sluiten kan met ×, Esc of een klik ernaast; op een telefoon vult het paneel het scherm. De knop is uit te zetten bij Instellingen.
+- **De popup is een afstandsbediening:** de status en grote knoppen die het paneel op het juiste tabblad openen, in plaats van kleine linkjes onderaan.
+- **Kluis kraken met interactie:** je draait zelf het slot door rondjes om het wiel te slepen (muis of vinger), met klikjes, drie stappen en een handwiel om de deur te openen. Spatie of Enter slaat het over, na 14 seconden zonder invoer loopt het vanzelf door, en de snelle modus blijft automatisch.
+- **Helemaal nieuwe kaarten:** elk niveau heeft een eigen materiaal en compositie (geslagen brons, gepolijst chroom, goud met stralenkrans en lauwerkrans, neon-circuitglas, parelmoer met kroon), echt reliëf en folie die meebeweegt met je muis, een medaillon met pictogram per vak, en een mooier opslagplaatje, deelplaatje en galerij-miniatuur. Alle kleurthema's en randen werken er nog bij.
+- **Zeldzame kaarten** doen veel meer (regenboogstralen en -titel, vier schokgolven, extra vuurwerk en confetti, dubbele fanfare).
+
 ## v1.2.0
 
 - **Zeldzame kaarten:** één op de tien kaarten is zeldzaam, bij elke opening en bij elk cijfer: een regenboogrand en een label op de kaart, extra licht en glans, vuurwerk en confetti (ook bij een onvoldoende), een glinstering al bij het hoogtepunt, regenboog-licht, een regenboogtitel "ZELDZAAM!", vier schokgolven na de onthulling, twee rondes confetti, een gouden regen en een dubbele fanfare met publiek. In de galerij herken je ze aan hetzelfde label. Uit te zetten in de popup (*Zeldzame kaarten*); bij *Handmatig proberen* kun je er zelf een uitproberen.

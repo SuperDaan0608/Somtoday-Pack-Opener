@@ -35,7 +35,9 @@ en je eigen kaart voor dat vak.
   laag cijfer. Uit te zetten in de popup; bij *Handmatig proberen* kun je er zelf een uitproberen.
 - **Seizoensthema's:** rond Halloween (1 oktober t/m 2 november) krijgt het pakje een spookachtig uiterlijk met vleermuizen, een pompoen en eigen geluiden.
   Uit te zetten in de popup.
-- **Cijfercalculator** (popup → Cijfercalculator): wat moet je halen voor een bepaald gemiddelde, met de weging van de toets.
+- **Paneel in Somtoday:** de knop *Pack Opener* rechtsonder op Somtoday opent galerij, kaart ontwerpen, vrienden, cijfercalculator, proberen, instellingen en geluiden in het Somtoday-venster.
+- **Kluis kraken** doe je zelf: sleep het slot rond.
+- **Cijfercalculator** (paneel → Cijfercalculator): wat moet je halen voor een bepaald gemiddelde, met de weging van de toets.
 - **Lage grafische kwaliteit** (popup): zuiniger beeld voor een trage computer.
 - **Snelle modus** voor als je niet op de tunnel wilt wachten. Klikken of spatie slaat ook over (eerst naar het
   scheuren, dan naar de kaart).
