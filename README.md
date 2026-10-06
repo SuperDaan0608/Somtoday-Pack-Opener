@@ -45,6 +45,12 @@ wijzigen. Dat is nodig om de cijfers af te dekken.
 
 Heb je Somtoday al open staan tijdens het installeren? Ververs de pagina één keer.
 
+### Firefox
+
+Voor Firefox is er een eigen zip (`somtoday-pack-opener-v1.0-firefox.zip`, te maken met `./scripts/package-firefox.sh v1.0`),
+met de bestanden direct in de zip. Tijdelijk proberen: `about:debugging#/runtime/this-firefox` → **Tijdelijke add-on laden** →
+kies `manifest.json`. Blijvend installeren kan alleen met een door Mozilla ondertekende versie. Vereist Firefox 140 of nieuwer.
+
 ## Zo werkt het op Somtoday
 
 - Op **Cijfers → Laatste cijfers** staat elk nieuw cijfer afgedekt, met de naam van het vak en een knop

@@ -210,7 +210,7 @@
     host.id = HOST_ID;
     host.style.cssText = 'all:initial;position:fixed;inset:0;z-index:2147483647;';
     const root = host.attachShadow({ mode: 'open' });
-    root.innerHTML = `<style>${CSS}</style>
+    SPO.zetHtml(root, `<style>${CSS}</style>
       <div class="wrap" role="dialog" aria-modal="true" aria-label="${esc(OPENINGEN[d.opening].aria)}: ${esc(d.vak)}">
         <div class="canvasplek"></div>
         <div class="reserve"></div>
@@ -237,7 +237,7 @@
           <button class="knop" data-a="opslaan">${svg('opslaan')}<span>Opslaan als afbeelding</span></button>
           <button class="knop goud" data-a="sluit"><span>Sluiten</span></button>
         </div>
-      </div>`;
+      </div>`);
     document.documentElement.appendChild(host);
 
     const $ = (s) => root.querySelector(s);
@@ -252,7 +252,7 @@
     document.documentElement.style.overflow = 'hidden';
 
     function zetGeluidKnop() {
-      geluidKnop.innerHTML = svg(stil ? 'uit' : 'aan');
+      SPO.zetHtml(geluidKnop, svg(stil ? 'uit' : 'aan'));
       geluidKnop.setAttribute('aria-label', stil ? 'Geluid aanzetten' : 'Geluid uitzetten');
       geluidKnop.title = stil ? 'Geluid aanzetten' : 'Geluid uitzetten';
     }
@@ -513,7 +513,12 @@
       host.remove();
       roep('opGesloten');
       if (location.protocol === 'chrome-extension:' || /stage\.html$/.test(location.pathname)) {
-        document.body && (document.body.innerHTML = '<p style="font:15px system-ui;color:#aab;text-align:center;margin-top:40vh">Je kunt dit tabblad sluiten.</p>');
+        if (document.body) {
+          const p = document.createElement('p');
+          p.style.cssText = 'font:15px system-ui;color:#aab;text-align:center;margin-top:40vh';
+          p.textContent = 'Je kunt dit tabblad sluiten.';
+          document.body.replaceChildren(p);
+        }
         try {
           window.close();
         } catch (e) {

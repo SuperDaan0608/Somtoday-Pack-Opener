@@ -1,5 +1,6 @@
 (function () {
   'use strict';
+  const chrome = typeof browser !== 'undefined' && browser.runtime ? browser : globalThis.chrome; // Firefox heeft `browser`, Chrome `chrome`
   const NIVEAUS = ['Brons', 'Zilver', 'Goud', 'Speciaal', 'Icoon'];
   const GLOED = ['#e08a4a', '#dfe9f5', '#ffcc33', '#38e1ff', '#ff9ee8'];
   const OPENING = { pak: 'Pakje', kluis: 'Kluis kraken', plinko: 'Plinko', ster: 'Wensster', raket: 'Raket', schiet: 'Schietkraam' };
@@ -66,12 +67,14 @@
     $('st-beste').textContent = `${fmt(beste.cijfer)} ${beste.vak}`;
     const tel = [0, 0, 0, 0, 0];
     alle.forEach((e) => tel[e.tier]++);
-    $('balk').innerHTML = '';
-    $('legenda').innerHTML = '';
+    $('balk').replaceChildren();
+    $('legenda').replaceChildren();
     tel.forEach((n, t) => {
       if (n) { const i = document.createElement('i'); i.className = 'n' + t; i.style.flexGrow = n; i.title = `${NIVEAUS[t]}: ${n}`; $('balk').append(i); }
       const li = document.createElement('li');
-      li.innerHTML = `<span class="stip n${t}"></span>${NIVEAUS[t]} <b>${n}</b>`;
+      const stip = document.createElement('span'); stip.className = 'stip n' + t;
+      const bd = document.createElement('b'); bd.textContent = n;
+      li.append(stip, document.createTextNode(NIVEAUS[t] + ' '), bd);
       $('legenda').append(li);
     });
     $('balk').setAttribute('aria-label', 'Verdeling: ' + tel.map((n, t) => `${NIVEAUS[t]} ${n}`).join(', '));
@@ -79,15 +82,17 @@
     const sel = $('f-vak'), huidig = filter.vak;
     const vakken = [...new Set(alle.map((e) => e.vak))].sort((a, b) => a.localeCompare(b, 'nl'));
     if (huidig && !vakken.includes(huidig)) filter.vak = '';
-    sel.innerHTML = '<option value="">Alle vakken</option>';
+    const o0 = document.createElement('option'); o0.value = ''; o0.textContent = 'Alle vakken';
+    sel.replaceChildren(o0);
     vakken.forEach((v) => { const o = document.createElement('option'); o.value = v; o.textContent = v; sel.append(o); });
     sel.value = filter.vak;
-    $('chips').innerHTML = '';
+    $('chips').replaceChildren();
     tel.forEach((n, t) => {
       const b = document.createElement('button');
       b.type = 'button'; b.className = 'chip'; b.dataset.t = t;
       b.setAttribute('aria-pressed', filter.niv.has(t));
-      b.innerHTML = `<span class="stip n${t}"></span>${NIVEAUS[t]}`;
+      const st = document.createElement('span'); st.className = 'stip n' + t;
+      b.append(st, document.createTextNode(NIVEAUS[t]));
       $('chips').append(b);
     });
   }

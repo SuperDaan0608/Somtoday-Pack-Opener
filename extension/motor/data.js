@@ -80,6 +80,13 @@
     return OPENINGEN[v] && ok(v) ? v : 'pak';
   };
 
+  // HTML uit een tekst op een veilige manier in een element zetten (zonder de HTML-eigenschap van het element, want Firefox is daar streng op):
+  // we laten de browser de tekst eerst in een los document ontleden en zetten die knopen over.
+  SPO.zetHtml = function (el, html) {
+    const doc = new DOMParser().parseFromString('<!doctype html><html><body>' + html + '</body></html>', 'text/html');
+    el.replaceChildren(...Array.from(doc.body.childNodes, (n) => document.importNode(n, true)));
+  };
+
   SPO.klem = klem;
   SPO.mix = mix;
   SPO.glad = glad;

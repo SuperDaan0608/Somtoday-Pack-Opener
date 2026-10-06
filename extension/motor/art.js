@@ -53,7 +53,8 @@
     fontBelofte = (async () => {
       try {
         if (!window.FontFace || !document.fonts) return;
-        const basis = window.chrome && chrome.runtime && chrome.runtime.getURL ? chrome.runtime.getURL('fonts/') : 'fonts/';
+        const api = typeof browser !== 'undefined' && browser.runtime ? browser : typeof chrome !== 'undefined' ? chrome : null;
+        const basis = api && api.runtime && api.runtime.getURL ? api.runtime.getURL('fonts/') : 'fonts/';
         const lijst = [
           ['SPO Display', 'unbounded.woff2', { weight: '200 900' }],
           ['SPO Text', 'inter.woff2', { weight: '100 900' }],
@@ -1241,7 +1242,8 @@
     const [x0, y0, x1, y1] = CIJFER_RECT;
     c.drawImage(lagen.cijfer, x0 * sch, y0 * sch, (x1 - x0) * sch, (y1 - y0) * sch);
     c.restore();
-    return cv.toDataURL('image/webp', 0.9);
+    const url = cv.toDataURL('image/webp', 0.9);
+    return url.indexOf('data:image/webp') === 0 || breedte <= 200 ? url : maakMiniatuur(data, lagen, 200); // zonder webp (Firefox) wordt het een png: dan kleiner
   }
 
   const draai = (gen) => {

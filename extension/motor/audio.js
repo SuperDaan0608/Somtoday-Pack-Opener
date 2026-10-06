@@ -43,7 +43,8 @@
 
 
   const dB = (x) => Math.pow(10, x / 20);
-  const basis = window.chrome && chrome.runtime && chrome.runtime.getURL ? chrome.runtime.getURL('sounds/') : 'sounds/';
+  const api = typeof browser !== 'undefined' && browser.runtime ? browser : typeof chrome !== 'undefined' ? chrome : null;
+  const basis = api && api.runtime && api.runtime.getURL ? api.runtime.getURL('sounds/') : 'sounds/';
 
   let AC = null;
   let master = null;

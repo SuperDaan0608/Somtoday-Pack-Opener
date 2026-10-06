@@ -12,6 +12,7 @@
  */
 (function () {
   'use strict';
+  const chrome = typeof browser !== 'undefined' && browser.runtime ? browser : globalThis.chrome; // Firefox heeft `browser`, Chrome `chrome`
 
   if (window.__spoContent) return;
   window.__spoContent = true;
@@ -182,7 +183,7 @@
     laadFonts();
     const el = document.createElement('spo-afdekking');
     el.setAttribute('aria-hidden', 'true');
-    el.attachShadow({ mode: 'open' }).innerHTML = COVER_HTML;
+    window.__SPO.zetHtml(el.attachShadow({ mode: 'open' }), COVER_HTML);
     return el;
   }
 
