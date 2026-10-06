@@ -124,9 +124,9 @@
     const debug = !!dRuw.debug;
     const T0 = nuMs();
     const log = (m) => debug && console.log(`[pakket] +${Math.round(nuMs() - T0)}ms ${m}`);
-    const roep = (naam) => {
+    const roep = (naam, arg) => {
       try {
-        if (typeof dRuw[naam] === 'function') dRuw[naam]();
+        if (typeof dRuw[naam] === 'function') dRuw[naam](arg);
       } catch (e) {
         /* een fout in de koppeling mag de animatie niet stoppen */
       }
@@ -293,6 +293,11 @@
     let laatsteStap = 0;
     let basisSchaal = 1;
     let regelaar = !debug || !!dRuw.regelaar;
+    // Sommige openingen (Schietkraam) wachten op een klik: tl.pauzes = tijden waarop de klok stilstaat tot je klikt.
+    let pauzeIdx = 0;
+    let wachtOpKlik = false;
+    let pauzeSinds = 0;
+    let kaartBewaard = false;
 
     // ───── canvas en kwaliteit ─────
     function resize() {
@@ -354,7 +359,21 @@
         }
         return;
       }
-      const t = tNu(nu);
+      let t = tNu(nu);
+      const tlx = scene.tl;
+      if (fase === 'reeks' && tlx.pauzes && pauzeIdx < tlx.pauzes.length) {
+        const pz = tlx.pauzes[pauzeIdx];
+        if (t >= pz) {
+          if (!wachtOpKlik) {
+            wachtOpKlik = true;
+            pauzeSinds = nu;
+          } else if (nu - pauzeSinds > (tlx.pauzeAuto || 12) * 1000) hervat(); // niet klikken mag de animatie niet laten hangen
+          if (wachtOpKlik) {
+            start = nu - pz * 1000;
+            t = pz;
+          }
+        }
+      }
       tHuidig = t;
       for (const e of scene.ev) {
         if (!e.klaar && t >= e.tijd) {
@@ -387,13 +406,25 @@
           actiesEl.classList.add('aan');
           const g = actiesEl.querySelector('.goud');
           if (g) g.focus({ preventScroll: true });
-        } else hint(t > 1.2 && t < tl.RV - 1.2 ? 'Klik om over te slaan' : '');
+        } else hint(wachtOpKlik ? tl.klikHint || 'Klik om verder te gaan' : tl.pauzes ? '' : t > 1.2 && t < tl.RV - 1.2 ? 'Klik om over te slaan' : '');
       }
     }
 
     // ───── bediening ─────
+    // De klik na een pauze: de klok loopt weer.
+    function hervat() {
+      if (!wachtOpKlik || !scene) return;
+      const pz = scene.tl.pauzes[pauzeIdx];
+      wachtOpKlik = false;
+      pauzeIdx++;
+      start = nuMs() - pz * 1000;
+      laatst = 0;
+    }
+
     function begin() {
       if (fase !== 'intro') return;
+      pauzeIdx = 0;
+      wachtOpKlik = false;
       audio.start();
       audio.knop();
       introEl.classList.add('weg');
@@ -411,6 +442,8 @@
       const sp = scene.sprong(t);
       if (!sp) return;
       const doel = sp.doel;
+      const pzl = scene.tl.pauzes;
+      while (pzl && pauzeIdx < pzl.length && pzl[pauzeIdx] < doel) pauzeIdx++;
       for (const e of scene.ev) if (e.tijd < doel) e.klaar = true;
       audio.stopAlles();
       audio.zwiep(0.5);
@@ -423,6 +456,8 @@
       audio.stopAlles();
       actiesEl.classList.remove('aan');
       fase = 'reeks';
+      pauzeIdx = 0;
+      wachtOpKlik = false;
       scene.reset();
       start = nuMs();
       laatst = 0;
@@ -509,7 +544,7 @@
         e.stopPropagation();
         if (e.repeat) return;
         if (fase === 'intro') begin();
-        else if (fase === 'reeks') overslaan();
+        else if (fase === 'reeks') (wachtOpKlik ? hervat : overslaan)();
       }
     }
     addEventListener('keydown', toets, true);
@@ -533,7 +568,10 @@
       }
       if (e.target === canvas || e.target === introEl) {
         if (fase === 'intro') begin();
-        else if (fase === 'reeks' && tHuidig > 0.7) overslaan();
+        else if (fase === 'reeks') {
+          if (wachtOpKlik) hervat();
+          else if (tHuidig > 0.7) overslaan();
+        }
       }
     });
     const wijs = (e) => {
@@ -546,6 +584,22 @@
       tiltDoel[0] = 0;
       tiltDoel[1] = 0;
     });
+
+    // Na de onthulling maken we (als de kaart even rustig ligt) een miniatuur voor de galerij.
+    function bewaarKaart() {
+      if (kaartBewaard || !lagen) return;
+      kaartBewaard = true;
+      const doe = () => {
+        try {
+          if (gesloten) return;
+          const kaart = SPO.art.maakMiniatuur(d, lagen);
+          roep('opKaartKlaar', { vak: d.vak, cijfer: d.g, onderwerp: d.onder, weging: d.weging, opening: d.opening, tier: d.tier, kaart });
+        } catch (e) {
+          /* de galerij is een extraatje */
+        }
+      };
+      setTimeout(() => (window.requestIdleCallback ? requestIdleCallback(doe, { timeout: 1500 }) : doe()), 1800);
+    }
 
     // ───── reserve: zonder WebGL tonen we de kaart gewoon, zonder tunnel ─────
     function reserve(lagenIn) {
@@ -561,6 +615,7 @@
       audio.start();
       audio.onthulling(1);
       roep('opOnthuld');
+      bewaarKaart();
       lagen = lagenIn;
     }
 
@@ -628,7 +683,10 @@
         canvas.tabIndex = -1;
         resize();
         await volgendBeeld();
-        scene = SPO.maakScene(motor, d, art, { audio, trillen, minderBeweging, onthul: () => roep('opOnthuld') });
+        scene = SPO.maakScene(motor, d, art, { audio, trillen, minderBeweging, onthul: () => {
+            roep('opOnthuld');
+            bewaarKaart();
+          } });
         log('teksturen opgeladen');
         scene.lod = 1;
         motor.opwarmen();

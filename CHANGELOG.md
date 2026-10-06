@@ -1,5 +1,28 @@
 # Wijzigingen
 
+## v0.5-beta
+
+- **Galerij:** een pagina met al je geopende kaarten (popup → Mijn galerij). Met aantal kaarten, gemiddelde, beste kaart, een balk per niveau, filters en sorteren, en een detailweergave met downloaden en verwijderen. Je vak, cijfer en kaartplaatje blijven alleen in je eigen browser; zet "Galerij bijhouden" in de popup uit om het niet te bewaren.
+- **Schietkraam** (idee van een vriend): een raster met willekeurige cijfers waar jouw echte cijfer tussen zit. Elke klik schiet er één weg met een cartoon-pistool, tot er één overblijft: dat is jouw cijfer.
+- **Dansje:** een poppetje danst op een discovloer. Hoe beter het dansje, hoe hoger je cijfer, en hij eindigt met een dab.
+- 7 nieuwe geluiden, en de animatie kan nu wachten op een klik (voor de Schietkraam).
+
+## v0.4.1-beta
+
+- **Raket:** lichter (minder zware effecten, gebakken wolken en sterren), een veel langere aftelling en vlucht met meldingen langs de weg, en een grote **live cijferteller** die met de hoogte meestijgt tot je echte cijfer (rood onder de 5,5, groen erboven).
+- **Plinko:** een hele arcadekast met knipperende lampjes, lichtstrips, bumperringen, een invoer met tandwielen, een nieuwe camera en een **live scoreteller**.
+
+## v0.4-beta
+
+Meer manieren om je cijfer te openen. Naast het pakje zijn er vier nieuwe openingen. Kies er één in de popup, of kies **Verras me**:
+
+- **Kluis kraken:** een enorme kluisdeur met een draaiknop die klikt, lampjes, een handwiel en bouten. Door de naad lekt licht (in de kleur van je niveau), de deur zwaait open en de kaart komt uit het licht.
+- **Plinko:** een neonbord waar een chromen bal door de pennen valt. In welk vak hij landt is je cijfer, en waar in het vak hij blijft laat de decimalen zien.
+- **Wensster:** een nachthemel boven een meer. De kleur van de vallende ster verraadt je niveau; de inslag op het water brengt je kaart.
+- **Raket:** aftellen en lanceren. Hoe hoog de raket komt is je cijfer (met een streepje bij de 5,5), en op het hoogste punt opent de capsule.
+- 15 nieuwe geluiden (ElevenLabs), en een eigen startscherm per opening.
+- Onder de motorkap: elke opening is een eigen module in `motor/openingen/` (handleiding: `LEESMIJ.md`); de kaartonthulling is voor alle openingen gelijk. Werkt een opening niet op jouw videokaart, dan valt de animatie vanzelf terug op het pakje.
+
 ## v0.3.1-beta
 
 Verfijning van de onthulling.

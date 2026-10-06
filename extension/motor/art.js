@@ -1223,6 +1223,27 @@
     return cv;
   }
 
+  // Een kleine kaart met gloed op een doorzichtige achtergrond (webp), voor de galerij.
+  function maakMiniatuur(data, lagen, breedte = 280) {
+    const pad = 46;
+    const sch = breedte / (CW + pad * 2);
+    const cv = nieuw(breedte, Math.round((CH + pad * 2) * sch));
+    const c = cv.getContext('2d');
+    c.imageSmoothingQuality = 'high';
+    c.save();
+    c.translate(pad * sch, pad * sch);
+    c.shadowColor = rgba(data.T.kleur, 0.85);
+    c.shadowBlur = 36 * sch;
+    c.drawImage(lagen.bg, 0, 0, CW * sch, CH * sch);
+    c.shadowBlur = 0;
+    c.drawImage(lagen.mid, 0, 0, CW * sch, CH * sch);
+    c.drawImage(lagen.fg, 0, 0, CW * sch, CH * sch);
+    const [x0, y0, x1, y1] = CIJFER_RECT;
+    c.drawImage(lagen.cijfer, x0 * sch, y0 * sch, (x1 - x0) * sch, (y1 - y0) * sch);
+    c.restore();
+    return cv.toDataURL('image/webp', 0.9);
+  }
+
   const draai = (gen) => {
     let r;
     while (!(r = gen.next()).done);
@@ -1268,6 +1289,6 @@
   SPO.art = {
     maakAllesAsync,
     CW, CH, PW, PH, SCHEUR, CIJFER_RECT, F_SPORT, F_DISPLAY, F_TEKST,
-    laadLettertypes, maakKaartLagen, maakPak, maakVliegTekst, maakPlaat, maakTitel, maakAfbeelding, icoonVoorVak, icoon, nieuw,
+    laadLettertypes, maakKaartLagen, maakMiniatuur, maakPak, maakVliegTekst, maakPlaat, maakTitel, maakAfbeelding, icoonVoorVak, icoon, nieuw,
   };
 })();

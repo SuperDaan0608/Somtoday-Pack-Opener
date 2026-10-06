@@ -126,6 +126,22 @@ const GELUIDEN = [
   // Het sissen na de klap is erg zacht; de hoogdoorlaat haalt ook het brommen onder 100 Hz weg dat de hele opname doorloopt.
   { naam: 'raket-trap', ketting: `[0:a]aresample=44100,highpass=f=150,atrim=0:0.8,afade=t=in:d=0.002,afade=t=out:st=0.4:d=0.4${MARGE}`, piek: -2 },
   { naam: 'raket-knal', ketting: `[0:a]aresample=44100,highpass=f=45,atrim=0:1.4,afade=t=in:d=0.002,afade=t=out:st=1.0:d=0.4${MARGE}`, piek: -3 },
+  // Schietkraam
+  // De knal zit in de eerste 0,23 s; daarna volgt een stilte en een tweede, zwakkere plof bij 0,56 s die we eraf laten.
+  { naam: 'schiet-knal', ketting: `[0:a]aresample=44100,highpass=f=80,atrim=0:0.5,afade=t=in:d=0.001,afade=t=out:st=0.32:d=0.18${MARGE}`, piek: -2 },
+  // Na 0,43 s is het bijna stil (alleen nog zacht gerinkel).
+  { naam: 'schiet-scherf', ketting: `[0:a]aresample=44100,highpass=f=150,atrim=0:0.9,afade=t=in:d=0.002,afade=t=out:st=0.55:d=0.35${MARGE}`, piek: -2 },
+  // De opname begint met 0,07 s stilte; het ratelen duurt tot 0,5 s.
+  { naam: 'schiet-spin', ketting: `[0:a]aresample=44100,highpass=f=200,atrim=start=0.055:end=0.65,asetpts=PTS-STARTPTS,afade=t=in:d=0.002,afade=t=out:st=0.45:d=0.14${MARGE}`, piek: -2 },
+  { naam: 'schiet-laatste', ketting: `[0:a]aresample=44100,highpass=f=150,atrim=0:1.3,afade=t=in:d=0.003,afade=t=out:st=0.95:d=0.35${MARGE}`, piek: -3 },
+
+  // Dansje
+  // 120 BPM (kicks op 0,5 s, 1,0 s, ...); wordt één keer afgespeeld onder een animatie van ongeveer 12 s, dus alleen een korte in- en uitfade.
+  { naam: 'dans-beat', ketting: `[0:a]aresample=44100,highpass=f=40,atrim=0:12,afade=t=in:d=0.05,afade=t=out:st=11.4:d=0.6${MARGE}`, piek: -2 },
+  // Het wicka-wicka duurt 0,35 s; daarna is de opname stil.
+  { naam: 'dans-scratch', ketting: `[0:a]aresample=44100,highpass=f=120,atrim=0:0.42,afade=t=in:d=0.001,afade=t=out:st=0.38:d=0.04${MARGE}`, piek: -2 },
+  // Na 1,26 s is het stil.
+  { naam: 'dans-dab', ketting: `[0:a]aresample=44100,highpass=f=60,atrim=0:1.4,afade=t=in:d=0.002,afade=t=out:st=1.05:d=0.35${MARGE}`, piek: -3 },
 ];
 
 // ffmpeg schrijft zijn uitvoer (ook de meting) naar stderr.

@@ -16,6 +16,8 @@ en je eigen kaart voor dat vak.
   openscheurt, lichtbundels, schokgolven, bloom, confetti en vuurwerk. Elk niveau heeft een eigen uitstraling.
 - **Walkout** (vanaf een 7): de leerling loopt door de lichtbundel een stadion in, met fotografen, een hartslag en
   plaatjes voor vak, onderwerp en weging, in letterbalk-beeld.
+- **Zeven manieren om te openen:** het **pakje**, **kluis kraken**, **Plinko**, een **wensster**, een **raket**, de **Schietkraam** en een **dansje**. Kies er een in
+  de popup of laat je verrassen. De kaart en de onthulling zijn bij allemaal hetzelfde.
 - **Eigen kaart** in sportletters, met een pictogram per vak, je cijfer, weging, onderwerp en zes stats
   (INZ, FOC, KEN, TMP, TEC, MOT). De kaart draait uit het licht, het cijfer telt op en daarna glanst de folie mee
   met je muis.
@@ -23,6 +25,7 @@ en je eigen kaart voor dat vak.
   geen zware blur boven de animatie, en de kwaliteit past zich vanzelf aan als je computer moeite heeft.
 - **Echte geluiden**, gemaakt met ElevenLabs: scheurend folie, een stadion vol publiek, een fanfare, een
   treurige trombone voor een onvoldoende. Alles staat in de extensie, er wordt niets gedownload.
+- **Galerij** met al je geopende kaarten (popup → Mijn galerij).
 - **Opslaan als afbeelding**, zodat je de kaart kunt delen.
 - **Popup** met je aantal ongeopende cijfers, instellingen en een handmatige modus om een eigen cijfer te proberen.
 - **Snelle modus** voor als je niet op de tunnel wilt wachten. Klikken of spatie slaat ook over (eerst naar het
@@ -30,7 +33,7 @@ en je eigen kaart voor dat vak.
 
 ## Installeren
 
-1. Download `somtoday-pack-opener-v0.3.1-beta.zip` bij de [releases](../../releases) (of uit de map
+1. Download `somtoday-pack-opener-v0.5-beta.zip` bij de [releases](../../releases) (of uit de map
    [`downloads`](downloads)) en pak hem uit.
 2. Ga in Chrome (of Edge, Brave, Opera) naar `chrome://extensions`.
 3. Zet rechtsboven **Ontwikkelaarsmodus** aan.
@@ -58,7 +61,7 @@ cijfers gewoon zichtbaar.
 ### Privacy
 
 Alles gebeurt in je eigen browser. De extensie leest de cijfers alleen op de pagina en verstuurt niets.
-Om te onthouden wat je al hebt geopend, slaat ze een korte hash op (geen vak, geen cijfer).
+Om te onthouden wat je al hebt geopend, slaat ze een korte hash op (geen vak, geen cijfer). De **galerij** bewaart wel je vak, cijfer en kaartplaatje, maar alleen lokaal in je browser; je kunt dat uitzetten in de popup en de galerij leegmaken op de galerijpagina.
 
 ## Bediening
 
@@ -79,7 +82,8 @@ herlaad-icoon bij de extensie in `chrome://extensions`.
 | `manifest.json` | Manifest V3 |
 | `content.js` / `content.css` | De koppeling met Somtoday: cijfers lezen, afdekken, onthouden |
 | `motor/main.js` | De overlay (shadow DOM), de hoofdlus, bediening en het opwarmen |
-| `motor/scene.js` | De regie: tijdlijn, camera, schokken, deeltjes en wat wanneer getekend wordt |
+| `motor/scene.js` | De regie: tijdlijn, camera, schokken, deeltjes, de gedeelde kaartonthulling en het pakje |
+| `motor/openingen/` | Eén bestand per opening (kluis, plinko, ster, raket); zie `LEESMIJ.md` om een eigen opening te maken |
 | `motor/shaders.js` / `motor/gl.js` | De GLSL-shaders en de kleine WebGL2-laag (bloom, nabewerking) |
 | `motor/art.js` | De getekende afbeeldingen: pakje, kaart (drie lagen), plaatjes, titel, pictogrammen per vak |
 | `motor/audio.js` / `motor/data.js` | De geluiden (Web Audio) en de gegevens van één pakket |
@@ -99,8 +103,8 @@ bouwscript werkt.
 ### Een release maken
 
 ```sh
-./scripts/package.sh v0.3.1-beta      # maakt dist/somtoday-pack-opener-v0.3.1-beta.zip
-git tag v0.3.1-beta && git push origin v0.3.1-beta
+./scripts/package.sh v0.5-beta      # maakt dist/somtoday-pack-opener-v0.5-beta.zip
+git tag v0.5-beta && git push origin v0.5-beta
 ```
 
 Bij een nieuwe tag die met `v` begint, bouwt GitHub Actions de zip en zet hij een release online.

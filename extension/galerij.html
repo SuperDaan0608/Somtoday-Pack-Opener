@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Galerij</title>
+  <link rel="stylesheet" href="galerij.css" />
+</head>
+<body>
+  <a class="skip" href="#raster">Naar de kaarten</a>
+  <header class="kop">
+    <div class="kop-titel">
+      <h1>Galerij</h1>
+      <p class="onder">Al je onthulde cijferkaarten.</p>
+    </div>
+    <dl class="stats" id="stats" hidden>
+      <div><dt>Kaarten</dt><dd id="st-aantal">0</dd></div>
+      <div><dt>Gemiddelde</dt><dd id="st-gem">-</dd></div>
+      <div><dt>Beste kaart</dt><dd id="st-beste">-</dd></div>
+    </dl>
+  </header>
+
+  <section class="collectie" id="collectie" aria-label="Collectie per niveau" hidden>
+    <div class="balk" id="balk" role="img" aria-label="Verdeling per niveau"></div>
+    <ul class="legenda" id="legenda"></ul>
+  </section>
+
+  <section class="filters" id="filters" aria-label="Filters" hidden>
+    <label class="veld"><span>Vak</span>
+      <select id="f-vak"><option value="">Alle vakken</option></select>
+    </label>
+    <label class="veld"><span>Sorteren</span>
+      <select id="f-sort">
+        <option value="nieuw">Nieuwste eerst</option>
+        <option value="hoog">Hoogste cijfer</option>
+        <option value="laag">Laagste cijfer</option>
+        <option value="vak">Vak A-Z</option>
+      </select>
+    </label>
+    <div class="veld chips-veld"><span id="niv-lbl">Niveau</span>
+      <div class="chips" id="chips" role="group" aria-labelledby="niv-lbl"></div>
+    </div>
+  </section>
+
+  <main>
+    <p class="geen" id="geen" hidden>Geen kaarten die aan deze filters voldoen.</p>
+    <ul class="raster" id="raster"></ul>
+    <section class="leeg" id="leeg" hidden>
+      <div class="leeg-kaart" aria-hidden="true"><span>?</span></div>
+      <h2>Nog geen kaarten</h2>
+      <p>Nog geen kaarten. Open een cijfer op Somtoday en je kaart verschijnt hier.</p>
+      <a class="knop goud" id="naar-cijfers" href="https://leerling.somtoday.nl/cijfers" target="_blank" rel="noopener">Naar mijn cijfers</a>
+    </section>
+  </main>
+
+  <footer class="voet" id="voet" hidden>
+    <p>Je kaarten staan alleen in deze browser.</p>
+    <button type="button" class="knop gevaar" id="alles-weg">Galerij leegmaken</button>
+  </footer>
+
+  <dialog id="detail" aria-labelledby="d-vak">
+    <div class="d-in">
+      <button type="button" class="d-sluit" id="d-sluit" aria-label="Sluiten">&times;</button>
+      <button type="button" class="d-nav vorige" id="d-vorige" aria-label="Vorige kaart">&lsaquo;</button>
+      <button type="button" class="d-nav volgende" id="d-volgende" aria-label="Volgende kaart">&rsaquo;</button>
+      <div class="d-kaartvak"><div class="kaart groot" id="d-kaart"><img id="d-img" alt="" /><i class="glans"></i></div></div>
+      <div class="d-info">
+        <p class="d-niveau" id="d-niveau"></p>
+        <h2 id="d-vak"></h2>
+        <p class="d-cijfer" id="d-cijfer"></p>
+        <dl class="d-lijst">
+          <div><dt>Onderwerp</dt><dd id="d-onderwerp"></dd></div>
+          <div><dt>Weging</dt><dd id="d-weging"></dd></div>
+          <div><dt>Datum</dt><dd id="d-datum"></dd></div>
+          <div><dt>Geopend met</dt><dd id="d-opening"></dd></div>
+        </dl>
+        <div class="d-acties">
+          <a class="knop goud" id="d-dl" href="#" download>Downloaden</a>
+          <button type="button" class="knop gevaar" id="d-weg">Verwijderen</button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+  <script src="galerij.js"></script>
+</body>
+</html>
