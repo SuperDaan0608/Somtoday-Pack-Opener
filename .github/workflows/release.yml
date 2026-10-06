@@ -25,6 +25,8 @@ jobs:
         run: |
           chmod +x scripts/package.sh
           ./scripts/package.sh "$VERSIE"
+          chmod +x scripts/package-firefox.sh
+          ./scripts/package-firefox.sh "$VERSIE"
 
       - name: Release-notities uit CHANGELOG.md halen
         run: |
@@ -33,7 +35,7 @@ jobs:
             aan && /^## / { exit }
             aan { print }
           ' CHANGELOG.md > notities.md
-          printf '\n### Installeren\n\n1. Download de zip hieronder en pak hem uit.\n2. Ga naar `chrome://extensions` en zet **Ontwikkelaarsmodus** aan.\n3. Klik **Uitgepakte extensie laden** en kies de map `somtoday-pack-opener`.\n' >> notities.md
+          printf '\n### Installeren\n\n1. Download de zip hieronder en pak hem uit.\n2. Ga naar `chrome://extensions` en zet **Ontwikkelaarsmodus** aan.\n3. Klik **Uitgepakte extensie laden** en kies de **binnenste** map `somtoday-pack-opener` (daar staat `manifest.json` direct in).\n\nFirefox: gebruik de zip met `-firefox` in de naam (`about:debugging` → *Tijdelijke add-on laden* → kies `manifest.json`).\n' >> notities.md
 
       - name: Release publiceren
         env:
