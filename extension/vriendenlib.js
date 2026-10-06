@@ -1,7 +1,7 @@
 // Vriendenfunctie: versleuteling (WebCrypto) en API-client. Werkt zonder DOM (ook in Node).
 // De server ziet nooit namen of cijfers: alles wordt hier versleuteld voordat het wordt verstuurd.
 // Standaard serveradres (overschrijfbaar via ?server= op de pagina of het veld Geavanceerd).
-const SERVER_STANDAARD = 'https://570882340.swh.strato-hosting.eu/api.php';
+const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
 (function () {
   'use strict';
   const STANDAARD_SERVER = SERVER_STANDAARD;

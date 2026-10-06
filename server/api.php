@@ -23,6 +23,20 @@ function fout(int $code, string $tekst): void { uit($code, ['fout' => $tekst]); 
 set_exception_handler(function (Throwable $e) { fout(500, 'Serverfout.'); });
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') { http_response_code(204); exit; }
+// Controle voor jezelf: open api.php?status=1 in de browser. Laat zien of config.php en de tabellen kloppen (geen geheimen).
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET' && isset($_GET['status'])) {
+  $pad = getenv('SPO_CONFIG') ?: __DIR__ . '/config.php';
+  if (!is_file($pad)) fout(500, 'config.php ontbreekt naast api.php.');
+  $c = require $pad;
+  try {
+    $d = new PDO($c['db_dsn'], $c['db_user'] ?? null, $c['db_pass'] ?? null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+  } catch (Throwable $e) { fout(500, 'Database niet bereikbaar: controleer host, naam, gebruiker en wachtwoord in config.php.'); }
+  foreach (['users', 'friendships', 'blobs', 'ratelimit'] as $t) {
+    try { $d->query('SELECT 1 FROM ' . $t . ' LIMIT 1'); }
+    catch (Throwable $e) { fout(500, 'Tabel ontbreekt: ' . $t . '. Voer schema.sql uit in phpMyAdmin.'); }
+  }
+  uit(200, ['ok' => true, 'tekst' => 'Alles klopt: config en tabellen zijn in orde.']);
+}
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST')
   fout(405, 'Gebruik POST.');
 

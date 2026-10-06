@@ -128,7 +128,7 @@ async function ruw(url, body, headers, ruwTekst) {
     controle('veiligheidscode symmetrisch en 6x5 cijfers', v1 === v2 && /^(\d{5} ){5}\d{5}$/.test(v1), v1);
     controle('veiligheidscode verschilt per paar', v1 !== await L.veiligheidscode(a.pub, (await L.maakSleutelpaar()).pub));
     controle('schema.sql herhaalbaar zonder MySQL-ongeldigheden', !/CREATE INDEX/i.test(fs.readFileSync(path.join(MAP, 'schema.sql'), 'utf8')));
-    controle('server-constante', /SERVER_STANDAARD = 'https:\/\/570882340\.swh\.strato-hosting\.eu\/api\.php'/.test(fs.readFileSync(path.join(MAP, '../extension/vriendenlib.js'), 'utf8')));
+    controle('server-constante', /SERVER_STANDAARD = 'https:\/\/jummysnacks\.nl\/api\.php'/.test(fs.readFileSync(path.join(MAP, '../extension/vriendenlib.js'), 'utf8')));
 
     // Grootte
     const groot = 'A'.repeat(96 * 1024 + 1);
