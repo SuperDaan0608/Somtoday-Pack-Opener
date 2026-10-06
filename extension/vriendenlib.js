@@ -1,5 +1,14 @@
 // Vriendenfunctie: versleuteling (WebCrypto) en API-client. Werkt zonder DOM (ook in Node).
 // De server ziet nooit namen of cijfers: alles wordt hier versleuteld voordat het wordt verstuurd.
+//
+// Blob die ik voor vriend X op de server zet (versleuteld met de gedeelde ECDH/HKDF/AES-GCM-sleutel van mij en X):
+//   { v: 1, ts,
+//     kaarten:  [{ id, vak, cijfer, onderwerp, weging, ts, tier }],          kaarten die ik X laat zien
+//     reacties?: { [kaartId]: emoji },                                         mijn reacties op kaarten van X (kaartId = id uit X' galerij)
+//     raden?:   [{ rid, vak, onderwerp, weging, ts, uitslag?: { cijfer, dichtst } }],   rondes 'Voorspel mijn cijfer' waar X in `naar` staat
+//     gokken?:  { [rid]: getal } }                                             mijn gokken op rondes van X
+// De velden na `kaarten` zijn optioneel (oudere versies sturen en lezen ze niet). Is alles leeg, dan wordt de blob gewist (data = '').
+// Alles wat van een vriend komt gaat door schoonBlob() (typen, lengtes, vaste emoji-lijst, maxima) voordat het wordt getoond.
 // Standaard serveradres (overschrijfbaar via ?server= op de pagina of het veld Geavanceerd).
 const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
 (function () {
@@ -58,8 +67,8 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
   function isRid(t) { return typeof t === 'string' && /^[0-9a-f]{32}$/.test(t); }
   function schoonEmoji(e) {
     if (typeof e !== 'string' || e.length > 4) return null;
-    const kaal = e.replace(/️/g, '');
-    const r = REACTIES.find((x) => x.emoji.replace(/️/g, '') === kaal);
+    const kaal = e.replace(/\uFE0F/g, '');
+    const r = REACTIES.find((x) => x.emoji.replace(/\uFE0F/g, '') === kaal);
     return r ? r.emoji : null;
   }
   function schoonKaart(k) {
@@ -260,11 +269,19 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
     return l.map((e) => ({ id: e.id, vak: e.vak, cijfer: e.cijfer, onderwerp: e.onderwerp, weging: e.weging, ts: e.ts, tier: e.tier }));
   }
 
+  // Kaarten die ik deze vriend laat zien. Het cijfer van een ronde die nog loopt (uitslag niet gedeeld) blijft achter: dat gaat alleen
+  // via 'Toon uitslag aan vrienden' naar de vrienden uit de ronde, ook als ik ze 'Alles' laat zien.
+  function deelbareKaarten(st, vriend, galerij) {
+    zorgToestand(st);
+    const achter = new Set(st.raden.filter((r) => r && Array.isArray(r.naar) && r.naar.includes(vriend.id) && !r.uitslagGedeeld).map((r) => r.sig));
+    return kaartenVoor(vriend, galerij).filter((k) => !achter.has(k.id));
+  }
+
   // Wat er voor één vriend in de versleutelde blob komt: { v: 1, ts, kaarten, reacties?, raden?, gokken? }, of null als alles leeg is
   // (dan wordt de blob op de server gewist). Zonder `naar` komt een ronde bij niemand terecht; de sig van een cijfer zit er nooit in.
   function maakInhoud(st, vriend, galerij) {
     zorgToestand(st);
-    const inhoud = { v: 1, ts: Date.now(), kaarten: kaartenVoor(vriend, galerij) };
+    const inhoud = { v: 1, ts: Date.now(), kaarten: deelbareKaarten(st, vriend, galerij) };
     const reacties = schoonReacties(eigen(st.reacties, vriend.id));
     const raden = [];
     for (const r of st.raden) {
@@ -373,7 +390,7 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
     for (const r of vraag) {
       let v = st.vrienden.find((x) => x.id === r.id);
       if (v && (v.status === 'vriend' || v.status === 'ontvangen')) continue;
-      if (v) st.vrienden = st.vrienden.filter((x) => x !== v);
+      if (v) { st.vrienden = st.vrienden.filter((x) => x !== v); ruimOp(st, r.id); }
       st.vrienden.push({ id: r.id, pub: r.pub, alias: '', status: 'ontvangen', deel: { modus: 'niets', ids: [] } });
       meldingen.push('Je hebt een nieuw vriendverzoek.');
     }
@@ -407,7 +424,7 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
       try {
         const sl = await deelSleutel(st.privJwk, v.pub, st.id, v.id);
         const p = schoonBlob(await ontsleutel(sl, b.data));
-        if (p) kaarten[v.id] = p;
+        if (p) kaarten[v.id] = p; else mislukt.add(v.id); // onbekende versie: niets overnemen en niets opruimen
       } catch (e) { mislukt.add(v.id); if (meldingen) meldingen.push(`De cijfers van ${naam(v)} konden niet worden ontsleuteld.`); }
     }
     return { kaarten, mislukt };
@@ -437,7 +454,7 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
       if (v.status !== 'vriend') continue;
       const o = eigen(ontvangen, v.id);
       if (!o || !o.reacties) continue;
-      const gedeeld = new Set(kaartenVoor(v, galerij).map((k) => k.id));
+      const gedeeld = new Set(deelbareKaarten(st, v, galerij).map((k) => k.id));
       for (const kid of Object.keys(o.reacties)) {
         if (!gedeeld.has(kid)) continue;
         if (!perKaart.has(kid)) perKaart.set(kid, []);
@@ -527,7 +544,7 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
     maakClient, clientVan, laad, bewaar, leesGalerij, aanzetten, kaartenVoor, zetBlob, verzoek, antwoord,
     verwijderVriend, verwijderAccount, synchroniseer, naam, lees, schrijf, wis, heeftOpslag,
     // reacties en 'voorspel mijn cijfer'
-    REACTIES, GRENS, eigen, schoonBlob, schoonKaarten, schoonReacties, schoonRonden, schoonGokken, maakInhoud, zetBlobs, haalOp, zetReactie,
+    REACTIES, GRENS, eigen, deelbareKaarten, schoonBlob, schoonKaarten, schoonReacties, schoonRonden, schoonGokken, maakInhoud, zetBlobs, haalOp, zetReactie,
     reactiesOpMijnKaarten, maakRid, leesGok, startRonde, stopRonde, ranglijst, deelUitslag, slaGokOp, ruimOp, leesDicht, opOpslagWijziging,
   };
   globalThis.SPOVrienden = lib;

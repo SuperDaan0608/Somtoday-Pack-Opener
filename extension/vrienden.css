@@ -132,6 +132,8 @@ input[aria-invalid="true"] { border-color: #ff5b5b; }
 
 /* mijn eigen rondes ('Voorspel mijn cijfer') */
 .di-kop { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
+.di-kop .badge { margin-left: 0; }
+.gok-lijst:empty, .dichtlijst:empty, .rondes:empty, .reactielijst:empty { display: none; }
 .di-tekst { display: grid; min-width: 0; flex: 1 1 180px; }
 .di-vak { font-weight: 600; overflow-wrap: anywhere; }
 .di-on { font-size: 12px; color: var(--tekst-3); overflow-wrap: anywhere; }

@@ -7,7 +7,8 @@
 - **Gemiddelden ook afdekken:** zolang je een nieuw cijfer nog niet hebt geopend, worden *Vakgemiddelden* en *Cijferoverzicht* vervangen door een melding, want daar zie je je cijfer of gemiddelde al. *Naar mijn nieuwe cijfers* brengt je terug naar de lijst, *Toch tonen* laat het overzicht alsnog zien. Uit te zetten in de popup.
 - **Cijfercalculator:** wat moet je halen voor een bepaald gemiddelde, met de weging van de volgende toets. Je kunt uitgaan van je galerij of zelf je gemiddelde en weging invullen.
 - **Vrienden: reacties.** Reageer met een emoji op kaarten die een vriend met je deelt; je vriend ziet wie wat zei.
-- **Vrienden: Voorspel mijn cijfer.** Laat vrienden je cijfer raden voordat je het opent. Zij zien alleen vak en onderwerp. Het cijfer verlaat je computer pas als je zelf *Toon uitslag aan vrienden* kiest.
+- **Vrienden: Voorspel mijn cijfer.** Laat vrienden je cijfer raden voordat je het opent. Zij zien alleen vak en onderwerp (niet het cijfer). Het cijfer verlaat je computer pas als je zelf *Toon uitslag aan vrienden* kiest; zolang de ronde loopt wordt ook de kaart van dat cijfer niet met die vrienden gedeeld. Alles blijft versleuteld.
+- **Vriendenserver:** een kleine fout in het opruimen van de limieten is hersteld (`server/api.php`). Je hoeft `api.php` niet opnieuw te uploaden om de extensie te gebruiken, maar het mag.
 
 ## v1.1.0
 

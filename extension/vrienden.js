@@ -322,7 +322,7 @@
       fs.append(lab);
     }
     f.append(fs);
-    f.append(el('p', 'uitleg', 'Deze vrienden zien het vak, het onderwerp en de weging van dit cijfer, maar niet het cijfer zelf. Het cijfer krijgen ze pas als jij later zelf op ‘Toon uitslag aan vrienden’ drukt.'));
+    f.append(el('p', 'uitleg', 'Deze vrienden zien het vak, het onderwerp en de weging van dit cijfer, maar niet het cijfer zelf. Het cijfer krijgen ze pas als jij later zelf op ‘Toon uitslag aan vrienden’ drukt. Zolang de ronde loopt, deel je dit cijfer ook niet als kaart met hen, ook niet als je ze ‘Alles’ laat zien.'));
     const status = el('p', 'gok-status', ''); status.setAttribute('role', 'status');
     const acties = el('div', 'acties');
     const ja = el('button', 'knop goud klein', 'Ronde starten'); ja.type = 'submit';
