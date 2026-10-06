@@ -1225,7 +1225,7 @@
 
   // Een kleine kaart met gloed op een doorzichtige achtergrond (webp), voor de galerij.
   function maakMiniatuur(data, lagen, breedte = 280) {
-    const pad = 26;
+    const pad = 46;
     const sch = breedte / (CW + pad * 2);
     const cv = nieuw(breedte, Math.round((CH + pad * 2) * sch));
     const c = cv.getContext('2d');
@@ -1233,7 +1233,7 @@
     c.save();
     c.translate(pad * sch, pad * sch);
     c.shadowColor = rgba(data.T.kleur, 0.85);
-    c.shadowBlur = 24 * sch * 3;
+    c.shadowBlur = 36 * sch;
     c.drawImage(lagen.bg, 0, 0, CW * sch, CH * sch);
     c.shadowBlur = 0;
     c.drawImage(lagen.mid, 0, 0, CW * sch, CH * sch);
