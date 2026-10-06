@@ -1,5 +1,12 @@
 # Wijzigingen
 
+## v0.5-beta
+
+- **Galerij:** een pagina met al je geopende kaarten (popup → Mijn galerij). Met aantal kaarten, gemiddelde, beste kaart, een balk per niveau, filters en sorteren, en een detailweergave met downloaden en verwijderen. Je vak, cijfer en kaartplaatje blijven alleen in je eigen browser; zet "Galerij bijhouden" in de popup uit om het niet te bewaren.
+- **Schietkraam** (idee van een vriend): een raster met willekeurige cijfers waar jouw echte cijfer tussen zit. Elke klik schiet er één weg met een cartoon-pistool, tot er één overblijft: dat is jouw cijfer.
+- **Dansje:** een poppetje danst op een discovloer. Hoe beter het dansje, hoe hoger je cijfer, en hij eindigt met een dab.
+- 7 nieuwe geluiden, en de animatie kan nu wachten op een klik (voor de Schietkraam).
+
 ## v0.4.1-beta
 
 - **Raket:** lichter (minder zware effecten, gebakken wolken en sterren), een veel langere aftelling en vlucht met meldingen langs de weg, en een grote **live cijferteller** die met de hoogte meestijgt tot je echte cijfer (rood onder de 5,5, groen erboven).
