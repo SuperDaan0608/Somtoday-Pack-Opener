@@ -20,7 +20,7 @@
   const SLEUTEL_INSTELLINGEN = 'spo_instellingen';
   const STANDAARD = { afdekking: true, geluid: true, snel: false, opening: 'pak', galerij: true };
   const SLEUTEL_GALERIJ = 'spo_galerij';
-  const OPENINGEN = ['pak', 'kluis', 'plinko', 'ster', 'raket', 'schiet'];
+  const OPENINGEN = ['pak', 'kluis', 'plinko', 'ster', 'raket', 'schiet', 'dans'];
 
   const RIJ = 'sl-laatste-resultaat-item'; // de klikbare rij in "Laatste cijfers"
   const ITEM = 'sl-resultaat-item'; // daarbinnen: vak, onderwerp, weging en cijfer

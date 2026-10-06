@@ -65,6 +65,7 @@
     plinko: { naam: 'Plinko', knop: 'Bal laten vallen', tekst: 'Laat de bal vallen: waar komt hij terecht?', aria: 'Plinko spelen' },
     ster: { naam: 'Wensster', knop: 'Doe een wens', tekst: 'Een ster valt voor jou. Wat brengt hij mee?', aria: 'Een wens doen' },
     raket: { naam: 'Raket', knop: 'Lanceren', tekst: 'Hoe hoog komt jouw raket?', aria: 'Raket lanceren' },
+    dans: { naam: 'Dansje', knop: 'Laat hem dansen', tekst: 'Hoe beter hij danst, hoe beter je cijfer. Wat wordt het?', aria: 'Dansje' },
     schiet: { naam: 'Schietkraam', knop: 'Beginnen met schieten', tekst: 'Schiet de andere cijfers weg: welk cijfer blijft over?', aria: 'Schietkraam' },
   };
   const OPENING_LIJST = Object.keys(OPENINGEN);

@@ -3,7 +3,7 @@
   'use strict';
 
   // De bestanden van de animatie, in de volgorde waarin ze geladen moeten worden (zie manifest.json).
-  const PAKKET_BESTANDEN = ['motor/data.js', 'motor/audio.js', 'motor/shaders.js', 'motor/gl.js', 'motor/art.js', 'motor/openingen/kluis.js', 'motor/openingen/plinko.js', 'motor/openingen/ster.js', 'motor/openingen/raket.js', 'motor/openingen/schiet.js', 'motor/scene.js', 'motor/main.js'];
+  const PAKKET_BESTANDEN = ['motor/data.js', 'motor/audio.js', 'motor/shaders.js', 'motor/gl.js', 'motor/art.js', 'motor/openingen/kluis.js', 'motor/openingen/plinko.js', 'motor/openingen/ster.js', 'motor/openingen/raket.js', 'motor/openingen/schiet.js', 'motor/openingen/dans.js', 'motor/scene.js', 'motor/main.js'];
 
   const $ = (id) => document.getElementById(id);
   const SOMTODAY = /^https:\/\/leerling\.somtoday\.nl\//;
@@ -11,7 +11,7 @@
   const SLEUTEL_GEOPEND = 'spo_geopend';
   const SLEUTEL_INSTELLINGEN = 'spo_instellingen';
   const STANDAARD = { afdekking: true, geluid: true, snel: false, opening: 'pak', galerij: true };
-  const OPENINGEN = ['pak', 'kluis', 'plinko', 'ster', 'raket', 'schiet', 'willekeurig'];
+  const OPENINGEN = ['pak', 'kluis', 'plinko', 'ster', 'raket', 'schiet', 'dans', 'willekeurig'];
 
   // Het formulier onthoudt zijn invoer in localStorage (zelfde sleutels als versie 0.1).
   const opslag = {
