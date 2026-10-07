@@ -295,6 +295,8 @@ function galerij(vak, basis) {
     await B.p.waitForFunction(() => document.querySelectorAll('#rondes .ronde').length === 1);
     await A.p.click('#sync');
     await A.p.waitForFunction(() => document.querySelectorAll('.raadblok .gok').length === 1);
+    // De live-sync kan de ronde al uit beeld halen (alleen blobs) voordat de volledige sync de gok opruimt en bewaart: op de opslag wachten, niet op het scherm.
+    await A.p.waitForFunction(() => { const g = JSON.parse(localStorage.getItem('spo_vrienden')).gokken; const k = Object.keys(g)[0]; return k && Object.keys(g[k]).length === 1; }, null, { timeout: 15000 });
     controle('gestopte ronde verdwijnt bij A, en zijn gok erop wordt opgeruimd', (await A.p.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('spo_vrienden')).gokken[Object.keys(JSON.parse(localStorage.getItem('spo_vrienden')).gokken)[0]]).length)) === 1);
 
     // Een kwaadwillende vriend: B (met de echte sleutels) stuurt A een blob vol HTML en te grote velden

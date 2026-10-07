@@ -123,7 +123,8 @@ function galerijVan(lijst, basis) {
     await PA.p.waitForSelector('#bouwveld .speler');
     // Te grote teams: 11 maximaal
     const grootGal = galerijVan(Array.from({ length: 13 }, (_, i) => ['Vak' + i, 5 + (i % 5)]), 40);
-    const PC = await speler('C', A, grootGal, null, { width: 900, height: 800 });
+    // C is een eigen account zonder vrienden: met het account van A zou C de blob van A voor B overschrijven (zonder team, met 13 kaarten).
+    const PC = await speler('C', await maak(), grootGal, null, { width: 900, height: 800 });
     await PC.p.waitForSelector('#kies .kies-kaart');
     const knoppen = PC.p.locator('#kies .kies-kaart');
     for (let i = 0; i < 12; i++) { const b = PC.p.locator('#kies .kies-kaart[aria-pressed=false]:not([disabled])').first(); if (await b.count()) await b.click(); }
