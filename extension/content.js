@@ -555,7 +555,7 @@
       laag: !!instellingen.laag,
       persoon: leesNaam(),
       kaartThema: instellingen.kaartThema,
-      kaartRand: instellingen.kaartRand,
+      kaartRand: instellingen.kaartRand, kaartOntwerp: instellingen.kaartOntwerp,
       stil: !instellingen.geluid,
       opening: openingVoor(rij),
       zeldzaam: zeldzaamVoor(rij),
@@ -625,7 +625,7 @@
       const rij = rijen.find((r) => r.host === host);
       // dezelfde gegevens als bij open(): zo herkent de animatie dat de afbeeldingen al klaarstaan
       if (typeof window.__somPackWarm === 'function') {
-        window.__somPackWarm(rij && { vak: rij.d.vak, cijfer: rij.d.cijfer, onderwerp: rij.d.onderwerp || 'Nieuw cijfer', weging: rij.d.weging, snel: !!instellingen.snel, laag: !!instellingen.laag, persoon: leesNaam(), kaartThema: instellingen.kaartThema, kaartRand: instellingen.kaartRand, opening: openingVoor(rij), zeldzaam: zeldzaamVoor(rij), seizoen: seizoenKeuze() });
+        window.__somPackWarm(rij && { vak: rij.d.vak, cijfer: rij.d.cijfer, onderwerp: rij.d.onderwerp || 'Nieuw cijfer', weging: rij.d.weging, snel: !!instellingen.snel, laag: !!instellingen.laag, persoon: leesNaam(), kaartThema: instellingen.kaartThema, kaartRand: instellingen.kaartRand, kaartOntwerp: instellingen.kaartOntwerp, opening: openingVoor(rij), zeldzaam: zeldzaamVoor(rij), seizoen: seizoenKeuze() });
       }
     } catch (x) {
       /* opwarmen is een extraatje */
@@ -968,7 +968,7 @@
       laag: !!instellingen.laag,
       stil: !instellingen.geluid,
       kaartThema: instellingen.kaartThema,
-      kaartRand: instellingen.kaartRand,
+      kaartRand: instellingen.kaartRand, kaartOntwerp: instellingen.kaartOntwerp,
       opening: instellingen.opening,
       zeldzaam: d.zeldzaam === true,
       seizoen: ['auto', 'halloween', 'geen'].includes(d.seizoen) ? d.seizoen : 'auto',
