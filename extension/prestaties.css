@@ -25,7 +25,7 @@
 .b-icoon svg { width: 64px; height: 64px; display: block; filter: drop-shadow(0 3px 5px rgba(0,0,0,.45)); }
 .badge-kaart.vergrendeld .b-icoon svg { filter: none; opacity: .85; }
 .b-tekst { min-width: 0; flex: 1; }
-.b-naam { margin: 0; font: 700 15px/1.25 var(--display); }
+.b-naam { overflow-wrap: anywhere; hyphens: auto; margin: 0; font: 700 15px/1.25 var(--display); }
 .b-niveau { display: block; margin-top: 2px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--tekst-3); }
 .b-uitleg { margin: 6px 0 0; font-size: 13px; color: var(--tekst-2); }
 .b-voortgang { margin-top: 9px; }
