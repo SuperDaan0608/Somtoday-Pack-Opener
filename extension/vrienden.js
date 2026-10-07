@@ -585,7 +585,10 @@
       knop.setAttribute('aria-selected', String(actief)); knop.tabIndex = actief ? 0 : -1;
       $('sec-' + s).hidden = !actief;
     }
-    if (focus) $('stab-' + naam).focus();
+    $('kop-toevoegen').classList.toggle('verberg', naam === 'toevoegen');
+    const balk = $('subtabs'), k = $('stab-' + naam); // het gekozen onderdeel blijft in beeld op een smal scherm
+    balk.scrollLeft = Math.max(0, k.offsetLeft - 12);
+    if (focus) k.focus();
     try { sessionStorage.setItem('spo_vrienden_sec', naam); } catch (e) { /* niet erg */ }
   }
   $('subtabs').addEventListener('click', (e) => { const k = e.target.closest('[data-sec]'); if (k) toonSectie(k.dataset.sec); });
@@ -601,7 +604,10 @@
   document.addEventListener('click', (e) => { const k = e.target.closest('button[data-sec]'); if (k && !k.closest('#subtabs')) { toonSectie(k.dataset.sec); $('sec-' + k.dataset.sec).focus(); } });
 
   // Tekent alles opnieuw en houdt de focus (en de cursor in een invoerveld) op hetzelfde element.
+  let uitstel = null;
   function renderAlles() {
+    // Wacht een knop op 'Zeker weten?', dan tekenen we even niet opnieuw: anders verdwijnt de bevestiging door een live-update.
+    if (st && document.querySelector('#app .knop.zeker')) { clearTimeout(uitstel); uitstel = setTimeout(renderAlles, 1000); return; }
     const a = document.activeElement;
     const sleutel = a && a.id && $('app').contains(a) ? a.id : null;
     const cursor = sleutel && typeof a.selectionStart === 'number' ? [a.selectionStart, a.selectionEnd] : null;
@@ -672,7 +678,7 @@
   }
 
   function toonApp() {
-    $('uitleg').hidden = true; $('app').hidden = false;
+    $('uitleg').hidden = true; $('app').hidden = false; $('kop-toevoegen').hidden = false;
     toonCode();
     $('server-tekst').textContent = st.server || '';
     let s = 'vrienden'; try { s = sessionStorage.getItem('spo_vrienden_sec') || s; } catch (e) { /* niet erg */ }
@@ -731,6 +737,7 @@
   });
 
   tweestaps($('wis'), 'Alles wissen en account verwijderen', 'Zeker weten? Klik nogmaals', async () => {
+    if (live) { live.stop(); await live.klaar(); }
     try {
       await L.verwijderAccount(st);
     } catch (e) {
@@ -739,7 +746,7 @@
     }
     if (live) { live.stop(); live = null; }
     st = null; vriendKaarten = {}; opgehaald = false; raadForm = null; concept.clear();
-    $('app').hidden = true; $('uitleg').hidden = false; $('meer').open = false;
+    $('app').hidden = true; $('uitleg').hidden = false; $('meer').open = false; $('kop-toevoegen').hidden = true;
     melding('Je account en al je gedeelde gegevens zijn gewist.');
     $('aanzetten').focus();
   });

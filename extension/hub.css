@@ -96,7 +96,7 @@ html.los .sluit { display: none; }
 .kader[data-geladen] .laden { display: none; }
 
 .onder { max-width: 640px; margin-bottom: 20px; color: var(--tekst-2); }
-.sectie { margin: 28px 0 12px; font: 700 12px var(--display); letter-spacing: 0.16em; text-transform: uppercase; color: var(--tekst-3); }
+.sectie { margin: 28px 0 12px; font: 700 12px 'SPO Text', system-ui, sans-serif; letter-spacing: 0.16em; text-transform: uppercase; color: var(--tekst-3); }
 .melding { min-height: 0; margin: 10px 0 0; font-size: 13px; color: var(--tekst-2); }
 .melding:empty { display: none; }
 
@@ -109,8 +109,8 @@ html.los .sluit { display: none; }
 .knop:hover { background: rgba(255, 255, 255, 0.13); }
 .knop:active { transform: scale(0.98); }
 .knop.groot { min-height: 50px; padding: 0 22px; border-radius: 14px; font-size: 15px; }
-.knop.goud { border: 0; color: #241703; background: var(--goud); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 12px 30px -12px rgba(255, 140, 40, 0.9); }
-.knop.goud:hover { filter: brightness(1.07); background: var(--goud); }
+.knop.goud { border: 0; color: #241703; background: var(--geel); font-weight: 700; }
+.knop.goud:hover { background: #ffdc6e; }
 .knop.gevaar { border-color: #ff5b5b; background: rgba(255, 91, 91, 0.16); color: #ffc2c2; }
 .knop.gevaar:hover { background: rgba(255, 91, 91, 0.26); }
 .knop:disabled { opacity: 0.45; cursor: not-allowed; }
@@ -218,7 +218,7 @@ input::placeholder { color: var(--tekst-3); }
 
 .geschiedenis { max-width: 856px; margin-top: 30px; padding-top: 18px; border-top: 1px solid var(--lijn); }
 .g-kop { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
-.g-kop h3 { font: 700 12px var(--display); letter-spacing: 0.16em; text-transform: uppercase; color: var(--tekst-3); }
+.g-kop h3 { font: 700 12px 'SPO Text', system-ui, sans-serif; letter-spacing: 0.16em; text-transform: uppercase; color: var(--tekst-3); }
 #gemiddelde { font-size: 13px; color: var(--tekst-2); }
 #gemiddelde b { font-family: var(--display); color: #fff; }
 #lijst { display: flex; flex-direction: column; gap: 5px; margin: 0 0 8px; padding: 0; list-style: none; }
@@ -296,3 +296,8 @@ input::placeholder { color: var(--tekst-3); }
 .munten span { font-size: 12.5px; color: var(--tekst-2); }
 html.los .munten { margin-right: 0; }
 @media (max-width: 560px) { .munten span { display: none; } .munten { margin-right: 52px; } }
+
+/* Kop van de eigen pagina's (Proberen, Instellingen): zelfde als de kop van de pagina's in het paneel (zie embed.css). */
+.pagina-kop { margin: 0 0 20px; padding: 0 0 16px; border-bottom: 1px solid var(--lijn); }
+.pagina-kop h2 { font: 700 22px/1.2 var(--display); letter-spacing: -0.01em; color: #fff; }
+.pagina-kop .onder { margin: 6px 0 0; max-width: 64ch; font-size: 14px; line-height: 1.5; color: var(--tekst-2); }

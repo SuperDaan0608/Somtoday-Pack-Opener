@@ -16,6 +16,13 @@
     if (e.key !== 'Escape' || e.defaultPrevented || document.querySelector('dialog[open]')) return;
     naarPaneel({ type: 'esc' });
   });
+  // Een knop of link met data-ga="team" brengt je in de Pack Opener naar dat tabblad (bijvoorbeeld Uitdagen, naar Team).
+  document.addEventListener('click', (e) => {
+    const a = e.target instanceof Element ? e.target.closest('[data-ga]') : null;
+    if (!a || e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    e.preventDefault();
+    naarPaneel({ type: 'ga', tab: a.getAttribute('data-ga') });
+  });
   // Een link naar Somtoday opent geen los tabblad, maar brengt je in het Somtoday-venster zelf naar je cijfers.
   document.addEventListener('click', (e) => {
     const a = e.target instanceof Element ? e.target.closest('a[href^="https://leerling.somtoday.nl/"]') : null;

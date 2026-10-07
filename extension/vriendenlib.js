@@ -588,6 +588,8 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
     return {
       start() { if (!timer) { timer = setInterval(() => tik(false), interval); tik(false); } },
       stop() { clearInterval(timer); timer = null; },
+      // Wacht tot een lopend verzoek klaar is (bijvoorbeeld voor je het account wist, anders krijgt dat verzoek nog een 401).
+      async klaar() { while (bezig) await new Promise((r) => setTimeout(r, 20)); },
       pauze(p) { pauze = !!p; }, tik: () => tik(true), cursor, get verzoeken() { return aantal; },
       vergeet() { vh = null; },
     };

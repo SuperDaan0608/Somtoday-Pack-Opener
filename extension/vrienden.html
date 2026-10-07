@@ -13,27 +13,28 @@
   <header class="kop">
     <h1>Vrienden</h1>
     <p class="onder">Bekijk kaarten van vrienden, daag ze uit en raad elkaars cijfers. Jij bepaalt wie wat ziet.</p>
+    <button type="button" class="knop goud kop-knop" id="kop-toevoegen" data-sec="toevoegen" hidden>Vriend toevoegen</button>
   </header>
   <div class="melding" id="melding" role="status" aria-live="polite"></div>
 
   <main id="hoofd">
     <section class="paneel" id="uitleg" hidden aria-labelledby="u-titel">
       <h2 id="u-titel">Vriendenfunctie aanzetten</h2>
-      <p>Met de vriendenfunctie kun je cijferkaarten delen met vrienden en de kaarten van je vrienden bekijken. Standaard deelt de extensie niets met niemand. Je kiest per vriend wat die mag zien.</p>
-      <h3>Wat ziet de server?</h3>
-      <ul class="lijst">
-        <li>Alleen <strong>onleesbare data</strong>: alles wordt op jouw computer versleuteld voordat het wordt verstuurd.</li>
-        <li>Een <strong>willekeurige id</strong> en een publieke sleutel. Geen naam, geen e-mailadres, geen cijfers.</li>
-        <li>Wie met wie bevriend is (aan de hand van die willekeurige id's) en <strong>wanneer je online bent</strong>.</li>
-      </ul>
-      <p>Namen van vrienden bestaan alleen bij jou: je geeft zelf een bijnaam. Cijfers van vrienden staan nooit op jouw schijf, die worden alleen getoond zolang deze pagina openstaat.</p>
-      <p>Vrienden kunnen met een emoji reageren op kaarten die je met ze deelt. Je kunt ze ook laten raden welk cijfer je gehaald hebt, voordat je het opent: ze zien dan het vak en het onderwerp, niet het cijfer. Het cijfer gaat pas naar de vrienden die je zelf koos als jij op ‘Toon uitslag aan vrienden’ drukt.</p>
-      <p>Pas als je op de knop drukt, wordt de server benaderd en wordt er een account met sleutel gemaakt. Je kunt alles later wissen.</p>
+      <p>Met vrienden bekijk je elkaars kaarten, speel je gevechten en raad je elkaars cijfers. Standaard deelt de extensie niets met niemand. Jij kiest per vriend wat die mag zien.</p>
+      <p>Pas als je op de knop drukt, wordt de server benaderd en maak je een account zonder naam. Je kunt alles later wissen.</p>
+      <button type="button" class="knop goud" id="aanzetten">Vriendenfunctie aanzetten</button>
       <details class="geavanceerd">
-        <summary>Geavanceerd</summary>
+        <summary>Wat ziet de server? En andere uitleg</summary>
+        <h3>Wat ziet de server?</h3>
+        <ul class="lijst">
+          <li>Alleen <strong>onleesbare data</strong>: alles wordt op jouw computer versleuteld voordat het wordt verstuurd.</li>
+          <li>Een <strong>willekeurige id</strong> en een publieke sleutel. Geen naam, geen e-mailadres, geen cijfers.</li>
+          <li>Wie met wie bevriend is (aan de hand van die willekeurige id's) en <strong>wanneer je online bent</strong>.</li>
+        </ul>
+        <p>Namen van vrienden bestaan alleen bij jou: je geeft zelf een bijnaam. Cijfers van vrienden staan nooit op jouw schijf. Ze worden alleen getoond zolang deze pagina openstaat.</p>
+        <p>Vrienden kunnen met een emoji reageren op kaarten die je met ze deelt. Je kunt ze ook laten raden welk cijfer je gehaald hebt, voordat je het opent: ze zien dan het vak en het onderwerp, niet het cijfer. Het cijfer gaat pas naar de vrienden die je zelf koos als jij op ‘Toon uitslag aan vrienden’ drukt.</p>
         <label class="veld"><span>Server-adres</span><input type="url" id="server" autocomplete="off" spellcheck="false" /></label>
       </details>
-      <button type="button" class="knop goud" id="aanzetten">Vriendenfunctie aanzetten</button>
     </section>
 
     <div id="app" hidden>
