@@ -39,8 +39,14 @@ j = open(d + '/hub.js', encoding='utf-8').read()
 assert "'geluiden'];" in j
 j = j.replace("'geluiden'];", "'geluiden', 'beheer'];", 1)
 open(d + '/hub.js', 'w', encoding='utf-8').write(j)
+# Chrome blokkeert een extensiepagina in een iframe op Somtoday als hij niet in web_accessible_resources staat.
+import json
+m = json.load(open(d + '/manifest.json', encoding='utf-8'))
+for w in m['web_accessible_resources']:
+    if 'hub.html' in w['resources'] and 'beheer.html' not in w['resources']:
+        w['resources'].append('beheer.html')
+json.dump(m, open(d + '/manifest.json', 'w', encoding='utf-8'), indent=2, ensure_ascii=False)
 PY
-# beheer.html moet vanuit de hub (extensiepagina) laden: dat kan zonder extra rechten. Alleen de server moet bereikbaar zijn (CORS staat open).
 cat > "$D/LEESMIJ.txt" <<TXT
 Somtoday Pack Opener $VERSIE (EIGENAARSVERSIE)
 
