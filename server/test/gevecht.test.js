@@ -43,10 +43,10 @@ function galerijVan(lijst, basis) {
   // --- Teamchemie (zonder browser): vakherkenning, uitrekenen, en dat beide kanten dezelfde wedstrijd krijgen ---
   {
     const gr = (v) => G.groepVan(v);
-    controle('vakherkenning: hoofdletters, afkortingen en toevoegingen', gr('WISKUNDE') === 'exact' && gr('na') === 'exact' && gr('Wiskunde B') === 'exact' && gr('NLT') === 'exact' && gr('ne') === 'talen' && gr('Engels havo') === 'talen' && gr('Latijn') === 'talen' && gr('GS') === 'mens' && gr('Aardrijkskunde') === 'mens' && gr('maatschappijleer') === 'mens' && gr('lo') === 'kunst' && gr('Lichamelijke opvoeding') === 'kunst' && gr('CKV') === 'kunst' && gr('Kunstwerk') === null && gr('') === null);
+    controle('vakherkenning: hoofdletters, afkortingen en toevoegingen', gr('WISKUNDE') === 'exact' && gr('na') === 'exact' && gr('Wiskunde B') === 'exact' && gr('NLT') === 'exact' && gr('ne') === 'talen' && gr('Engels havo') === 'talen' && gr('Latijn') === 'talen' && gr('GS') === 'mens' && gr('Aardrijkskunde') === 'mens' && gr('maatschappijleer') === 'mens' && gr('lo') === 'kunst' && gr('Lichamelijke opvoeding') === 'kunst' && gr('CKV') === 'kunst' && gr('Xyzvak') === null && gr('') === null);
     const kaart = (vak, c) => ({ vak, cijfer: c, tier: 2, z: false });
     const ch = (vakken) => G.chemie(G.ordenTeam(vakken.map((v, i) => kaart(v, 7 + i / 10)), 0)).score;
-    controle('chemie: een kaart of geen groep geeft 0', ch(['Wiskunde']) === 0 && ch(['Wiskunde', 'Engels', 'Geschiedenis', 'Muziek']) === 0 && ch(['Kunstwerk', 'Iets']) === 0);
+    controle('chemie: een kaart of geen groep geeft 0', ch(['Wiskunde']) === 0 && ch(['Wiskunde', 'Engels', 'Geschiedenis', 'Muziek']) === 0 && ch(['Xyzvak', 'Iets']) === 0);
     controle('chemie: 3+ uit een groep geeft veel meer dan een paar', ch(['Wiskunde', 'Natuurkunde', 'Scheikunde']) > ch(['Wiskunde', 'Natuurkunde', 'Engels']) && ch(['Wiskunde', 'Natuurkunde', 'Engels']) > 0);
     controle('chemie: een team vol uit een groep is 100 en blijft tussen 0 en 100', ch(['Wiskunde', 'Natuurkunde', 'Scheikunde', 'Biologie', 'Informatica']) === 100 && [1, 2, 3, 5, 8, 11].every((n) => { const c = ch(Array(n).fill('Wiskunde')); return Number.isInteger(c) && c >= 0 && c <= 100; }));
     controle('chemie: lijntjes alleen tussen buren van dezelfde groep', G.chemie(G.ordenTeam(['Wiskunde', 'Natuurkunde', 'Scheikunde', 'Engels'].map((v) => kaart(v, 7)), 0)).lijnen.every(([i, j]) => i !== j));

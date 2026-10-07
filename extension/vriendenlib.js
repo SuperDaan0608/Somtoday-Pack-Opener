@@ -6,7 +6,8 @@
 //     kaarten:  [{ id, vak, cijfer, onderwerp, weging, ts, tier }],          kaarten die ik X laat zien
 //     reacties?: { [kaartId]: emoji },                                         mijn reacties op kaarten van X (kaartId = id uit X' galerij)
 //     raden?:   [{ rid, vak, onderwerp, weging, ts, uitslag?: { cijfer, dichtst } }],   rondes 'Voorspel mijn cijfer' waar X in `naar` staat
-//     gokken?:  { [rid]: getal } }                                             mijn gokken op rondes van X
+//     gokken?:  { [rid]: getal },
+//     team?, profiel?: { bn, s:[{v,n}], ovr, niv, z, k, w, g, l, t, bg }   mijn profielkaart (v2; oudere versies negeren het veld) }                                             mijn gokken op rondes van X
 // De velden na `kaarten` zijn optioneel (oudere versies sturen en lezen ze niet). Is alles leeg, dan wordt de blob gewist (data = '').
 // Alles wat van een vriend komt gaat door schoonBlob() (typen, lengtes, vaste emoji-lijst, maxima) voordat het wordt getoond.
 // Standaard serveradres (overschrijfbaar via ?server= op de pagina of het veld Geavanceerd).
@@ -152,7 +153,7 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
   // Een ontsleutelde blob van een vriend, schoongemaakt. Ontbrekende velden zijn gewoon leeg (oudere versies sturen ze niet).
   function schoonBlob(p) {
     if (!p || typeof p !== 'object' || Array.isArray(p) || p.v !== 1) return null;
-    return { ts: getal(p.ts, 0, 4.1e12) ? p.ts : 0, kaarten: schoonKaarten(p.kaarten), reacties: schoonReacties(p.reacties), raden: schoonRonden(p.raden), gokken: schoonGokken(p.gokken), team: schoonTeam(p.team) };
+    return { ts: getal(p.ts, 0, 4.1e12) ? p.ts : 0, kaarten: schoonKaarten(p.kaarten), reacties: schoonReacties(p.reacties), raden: schoonRonden(p.raden), gokken: schoonGokken(p.gokken), team: schoonTeam(p.team), profiel: globalThis.SPOEco ? globalThis.SPOEco.schoonProfiel(p.profiel) : null };
   }
 
   // ---- base64url ----
@@ -307,7 +308,7 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
 
   // Wat er voor één vriend in de versleutelde blob komt: { v: 1, ts, kaarten, reacties?, raden?, gokken? }, of null als alles leeg is
   // (dan wordt de blob op de server gewist). Zonder `naar` komt een ronde bij niemand terecht; de sig van een cijfer zit er nooit in.
-  function maakInhoud(st, vriend, galerij, team) {
+  function maakInhoud(st, vriend, galerij, team, profiel) {
     zorgToestand(st);
     const inhoud = { v: 1, ts: Date.now(), kaarten: deelbareKaarten(st, vriend, galerij) };
     const reacties = schoonReacties(eigen(st.reacties, vriend.id));
@@ -327,11 +328,13 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
     if (Object.keys(gokken).length) inhoud.gokken = gokken;
     const tm = schoonTeam(team);
     if (tm) inhoud.team = tm;
-    return inhoud.kaarten.length || inhoud.reacties || inhoud.raden || inhoud.gokken || inhoud.team ? inhoud : null;
+    const pf = globalThis.SPOEco ? globalThis.SPOEco.schoonProfiel(profiel) : null; // mijn profielkaart (bijnaam, stats): zonder echte naam
+    if (pf) inhoud.profiel = pf;
+    return inhoud.kaarten.length || inhoud.reacties || inhoud.raden || inhoud.gokken || inhoud.team || inhoud.profiel ? inhoud : null;
   }
   // Stuurt (of verwijdert) de blob voor één vriend.
   async function zetBlob(st, vriend, galerij) {
-    const inhoud = maakInhoud(st, vriend, galerij, await mijnTeamDeelbaar(galerij));
+    const inhoud = maakInhoud(st, vriend, galerij, await mijnTeamDeelbaar(galerij), globalThis.SPOEco ? await globalThis.SPOEco.mijnProfielDeelbaar(galerij) : null);
     let data = '';
     if (inhoud) {
       const sl = await deelSleutel(st.privJwk, vriend.pub, st.id, vriend.id);

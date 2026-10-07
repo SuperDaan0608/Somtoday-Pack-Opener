@@ -69,7 +69,7 @@
       try {
         const dd = SPO.maakData(data);
         mod = dd.opening !== 'pak' ? SPO.openingen[dd.opening] : null;
-        SPO.audio.voorlaad(dd.opening, dd.seizoen);
+        SPO.audio.voorlaad(dd.opening, dd.seizoen, dd.zeldzaam);
         const sleutel = sleutelVan(dd);
         if (!artCache || artCache.sleutel !== sleutel) {
           const belofte = SPO.art.laadLettertypes().then(() => SPO.art.maakAllesAsync(dd, pauzeRustig));
@@ -144,7 +144,7 @@
     };
 
     // ───── geluid: de AudioContext moet tijdens de klik worden gemaakt ─────
-    const audio = SPO.audio.maak({ tier: d.tier, stil, opening: d.opening, seizoen: d.seizoen });
+    const audio = SPO.audio.maak({ tier: d.tier, stil, opening: d.opening, seizoen: d.seizoen, zeldzaam: d.zeldzaam });
     const geluidKlaar = audio.laad();
 
     // ───── overlay (shadow DOM) ─────
@@ -416,7 +416,7 @@
           actiesEl.classList.add('aan');
           const g = actiesEl.querySelector('.goud');
           if (g) g.focus({ preventScroll: true });
-        } else hint(wachtOpKlik ? tl.klikHint || 'Klik om verder te gaan' : tl.pauzes ? '' : t > 1.2 && t < tl.RV - 1.2 ? 'Klik om over te slaan' : '');
+        } else hint(wachtOpKlik ? tl.klikHint || 'Klik om verder te gaan' : tl.pauzes ? '' : (t > 1.2 && t < tl.RV - 1.2) || (tl.vier && t > tl.vier && t < tl.EIND - 0.4) ? 'Klik om over te slaan' : '');
       }
     }
 

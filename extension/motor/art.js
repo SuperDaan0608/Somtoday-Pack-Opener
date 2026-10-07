@@ -3201,7 +3201,8 @@
       const g = op.art(d, { art: SPO.art });
       opening = g && typeof g.next === 'function' ? yield* g : g;
     }
-    return { lagen, pak, titel, vakTekst, onderTekst, platen, opening };
+    const zeld = d.zeldzaam && SPO.zeldzaam ? SPO.zeldzaam.maakArt(d) : null;
+    return { lagen, pak, titel, vakTekst, onderTekst, platen, opening, zeld };
   }
 
   // pauze: een functie die een belofte geeft; daarin mag de browser andere dingen doen.

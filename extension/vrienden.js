@@ -258,6 +258,20 @@
 
       const gek = vriendKaarten[v.id];
       if (gek && gek.team) li.append(el('p', 'uitleg', `Team van ${naam}: ${gek.team.kaarten.length} ${gek.team.kaarten.length === 1 ? 'kaart' : 'kaarten'}. Uitdagen kan op het tabblad Team.`));
+      if (gek && gek.profiel) {
+        const det = el('details', 'v-profiel');
+        det.append(el('summary', '', `Profielkaart van ${naam}${gek.profiel.bn ? ' (' + gek.profiel.bn + ')' : ''}`));
+        det.addEventListener('toggle', () => {
+          if (!det.open || det.querySelector('canvas')) return;
+          const cv = document.createElement('canvas');
+          cv.style.cssText = 'width:min(240px,100%);height:auto;border-radius:16px;margin-top:8px';
+          cv.setAttribute('role', 'img');
+          cv.setAttribute('aria-label', `Profielkaart van ${naam}: ${gek.profiel.bn || 'speler'}, niveau ${gek.profiel.ovr}`);
+          det.append(cv);
+          globalThis.SPOEco.tekenProfiel(cv, gek.profiel);
+        });
+        li.append(det);
+      }
       const gv = Array.isArray(gevechten[v.id]) ? gevechten[v.id] : [];
       if (gv.length) {
         const w = gv.filter((x) => x.mijn > x.hun).length, g = gv.filter((x) => x.mijn === x.hun).length, l = gv.length - w - g;

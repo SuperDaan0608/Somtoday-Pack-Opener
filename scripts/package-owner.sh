@@ -36,8 +36,9 @@ assert '<!-- Proberen -->' in h
 h = h.replace('<!-- Proberen -->', pan + '<!-- Proberen -->', 1)
 open(d + '/hub.html', 'w', encoding='utf-8').write(h)
 j = open(d + '/hub.js', encoding='utf-8').read()
-assert "'geluiden'];" in j
-j = j.replace("'geluiden'];", "'geluiden', 'beheer'];", 1)
+m = re.search(r"const TABS = \[[^\]]*?\];", j)
+assert m, 'TABS niet gevonden'
+j = j[:m.end() - 2] + ", 'beheer'" + j[m.end() - 2:]
 open(d + '/hub.js', 'w', encoding='utf-8').write(j)
 # Chrome blokkeert een extensiepagina in een iframe op Somtoday als hij niet in web_accessible_resources staat.
 import json

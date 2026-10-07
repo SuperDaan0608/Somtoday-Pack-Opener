@@ -278,8 +278,8 @@
     c.schok(K0, 0.05, 0.3);
     c.flits(K0, 0.7, 0.12);
     // de onthulling: groter dan de gewone en in slow-motion; een regenboog-schokgolf over het hele scherm
-    c.flits(RV, 1.0, 0.1);
-    c.flits(RV + 0.04, 0.8, 0.4);
+    c.flits(RV, 0.8, 0.05);
+    c.flits(RV + 0.04, 0.3, 0.2);
     c.schok(RV, 0.1, 0.5);
     for (let i = 0; i < 6; i++) {
       c.golf(RV + 0.18 * i, 1.0 + 0.25 * i, 1.0 - 0.07 * i, 0.03);
@@ -315,8 +315,8 @@
       const dark = 1 - sm(u, 0.88, 0.99);
       regen(t, 0.5, 0.3);
       // een klein regenboog-hart dat groeit, met dunne stralen
-      if (!snel || c.kw < 2) c.stralen(t, 0.55 * sm(u, 0.06, 0.4) * dark, 0.12 + 0.55 * u * u + 0.2 * th, 0.05 + 0.5 * Math.pow(u, 2.5) + 0.18 * th, 0.12, 0, 0, t * 0.45, 1, k1, k2, 12 + Math.round(10 * u));
-      c.licht(t, 0, 0, (0.1 + 0.55 * u * u) * dark * (0.8 + 0.4 * th), 0.01 + 0.06 * u, 0.25 * u * u * dark, 0.5 * u * u * u * dark, t * 0.6, k1);
+      if (!snel || c.kw < 2) c.stralen(t, 1.6 * sm(u, 0.06, 0.4) * dark, 0.12 + 0.55 * u * u + 0.2 * th, 0.05 + 0.5 * Math.pow(u, 2.5) + 0.18 * th, 0.12, 0, 0, t * 0.45, 1, k1, k2, 12 + Math.round(10 * u));
+      c.licht(t, 0, 0, 2.5 * (0.1 + 0.55 * u * u) * dark * (0.8 + 0.4 * th), 0.01 + 0.06 * u, 0.7 * u * u * dark, 1.2 * u * u * u * dark, t * 0.6, k1);
       // de tekst
       const ta = sm(u, 0.1, 0.17) * (1 - sm(u, 0.84, 0.92));
       if (ta > 0.002) {
@@ -324,7 +324,7 @@
         const hT = wT * (210 / 1500);
         const flik = hash(Math.floor(t * 13)) > 0.76 ? 1 : 0.12;
         const veeg = ramp(u, 0.12, 0.5) * 1.5 - 0.1;
-        c.vlak(t, tex.tease, (hash(Math.floor(t * 17)) - 0.5) * 0.012 * flik, 0.03, 0, 0, 0, 0, wT * (1 + 0.035 * th), hT * (1 + 0.035 * th), ta * (0.8 + 0.25 * th), veeg, 0, flik * 0.9 * rg, k1, (0.35 + 0.65 * flik) * rg, 0);
+        c.vlak(t, tex.tease, (hash(Math.floor(t * 17)) - 0.5) * 0.012 * flik, 0.03, 0, 0, 0, 0, wT * (1 + 0.035 * th), hT * (1 + 0.035 * th), ta * 12 * (0.8 + 0.25 * th), veeg, 1, flik * 0.9 * rg, k1, (0.35 + 0.65 * flik) * rg, 0);
       }
     }
 
@@ -345,7 +345,7 @@
       const r = t - RV;
       if (t > K0) {
         const rust = 1 - 0.35 * sm(r, 3.5, 6.5);
-        const al = sm(t, K0 + tl.spin * 0.5, RV) * 0.3 + sm(r, 0, 0.5) * 0.8;
+        const al = sm(t, K0 + tl.spin * 0.5, RV) * 0.25 + sm(r, 0, 0.5) * (0.35 + 0.4 * sm(r, 0.8, 2));
         regen(t, 0.14, 0.4);
         c.stralen(t, al * rust, 0.55 + 0.5 * Math.exp(-r / 1.2) * (r > 0 ? 1 : 0), 0.2, 0.2, 0, 0.02, t * 0.5, 1, k1, k2, 26);
         if (c.kw < 3) c.stralen(t, al * 0.5 * rust, 0.4, 0.05, 0.1, 0, 0.02, -t * 0.33 + 1, 1, k2, k1, 11);
@@ -362,11 +362,11 @@
     function voor(t, fit, asp, visB, layY) {
       const r = t - RV - 0.12;
       if (r < 0) return;
-      const wT = Math.min(2.7, visB * 0.97);
+      const wT = Math.min(2.0, visB * 0.95);
       const hT = wT * (540 / 1900);
       const slag = veer(ramp(r, 0, 0.55));
       const groot = 1 + 1.1 * Math.pow(1 - ramp(r, 0, 0.7), 2.2); // het logo slaat in vanuit groot
-      const yRust = -0.17 + 0.667 * fit + 0.5 * hT * 0.86 + 0.03;
+      const yRust = 0.47 * fit + 0.5 * hT * 0.95;
       const y = mix(yRust - 0.18, yRust, glad(ramp(r, 0, 0.9)));
       // glitch: veel in het begin, daarna af en toe een korte stoot
       const per = (r - 1.0) % 1.9;
@@ -433,7 +433,7 @@
         const u = ramp(t, t0, t1 + 0.02);
         const th = thump(t);
         const spike = hash(Math.floor(t * 9.5)) > 0.8 - 0.25 * u ? 0.5 : 0;
-        p.dark = 0.95 * sm(u, 0, 0.05) * (1 - sm(u, 0.9, 0.985));
+        p.dark = 0.93 * sm(u, 0, 0.05) * (1 - sm(u, 0.9, 0.985));
         p.gl = Math.min(1, Math.exp(-u / 0.045) + (0.22 + 0.4 * u * u + spike) * sm(u, 0.02, 0.1) + 0.5 * sm(u, 0.93, 1)) * rg;
         p.zoom = 1 + 0.045 * th + 0.03 * u;
         p.rad = 0.1 * th + 0.3 * sm(u, 0.85, 1);
@@ -450,7 +450,7 @@
         p.gl = Math.max(p.gl, (Math.exp(-r / 0.3) * 0.7 + stoot * 0.45) * rg);
       }
       if (t >= RV) {
-        p.bloom = 1 + 0.35 * Math.exp(-(t - RV) / 1.5);
+        p.bloom = 1 + 0.12 * Math.exp(-(t - RV) / 1.5);
         p.sat = 1.08;
       }
       return p;
