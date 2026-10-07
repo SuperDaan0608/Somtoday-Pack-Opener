@@ -597,7 +597,7 @@
     schuifEl.value = c || 7.5;
     zetWeging(Math.min(4, Math.max(1, parseInt(p.weging, 10) || 1)));
     $('proef-zeldzaam').checked = p.zeldzaam === true;
-    $('proef-seizoen').value = ['auto', 'halloween', 'geen'].includes(p.seizoen) ? p.seizoen : 'auto';
+    $('proef-seizoen').value = ['auto', 'halloween', 'kerst', 'zomer', 'geen'].includes(p.seizoen) ? p.seizoen : 'auto';
     geschiedenis = (Array.isArray(p.geschiedenis) ? p.geschiedenis : []).filter((x) => x && typeof x.cijfer === 'number' && typeof x.vak === 'string').slice(0, 20);
     werkVoorbeeldBij();
     tekenGeschiedenis();

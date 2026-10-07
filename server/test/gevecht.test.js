@@ -190,8 +190,8 @@ function galerijVan(lijst, basis) {
     await PA.p.screenshot({ path: path.join(TMP, 'gevecht-2-duel-A.png') });
     await PB.p.screenshot({ path: path.join(TMP, 'gevecht-2-duel-B.png') });
     const bonusA = await PA.p.textContent('#duel-bonus'), bonusB = await PB.p.textContent('#duel-bonus');
-    const chA = [...bonusA.matchAll(/chemie (\d+)/g)].map((m) => m[1]), chB = [...bonusB.matchAll(/chemie (\d+)/g)].map((m) => m[1]);
-    controle('chemie in het duel: beide kanten zien dezelfde twee getallen (gespiegeld)', chA.length === 2 && chB.length === 2 && chA[0] === chB[1] && chA[1] === chB[0] && +chA[0] > 0 && +chA[1] > 0, [bonusA, bonusB]);
+    const chA = [...bonusA.matchAll(/×(\d+,\d+)/g)].map((m) => m[1]), chB = [...bonusB.matchAll(/×(\d+,\d+)/g)].map((m) => m[1]);
+    controle('klikfactoren (met chemie) in het duel: beide kanten zien dezelfde twee getallen (gespiegeld)', chA.length === 2 && chB.length === 2 && chA[0] === chB[1] && chA[1] === chB[0], [bonusA, bonusB]);
     const meterTekst = await PA.p.evaluate(() => [document.getElementById('kl-mijn').textContent, document.getElementById('kl-hun').textContent]);
     controle('live meter: A ziet kliks van beide kanten', Number(meterTekst[0]) > 0 && Number(meterTekst[1]) > 0, meterTekst);
     await PA.p.waitForFunction(() => /GOAL|GEREDDEN/.test(document.getElementById('duel-teller').textContent), null, { timeout: 30000 });

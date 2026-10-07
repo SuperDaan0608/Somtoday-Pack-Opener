@@ -1008,7 +1008,7 @@
       kaartRand: instellingen.kaartRand, kaartOntwerp: instellingen.kaartOntwerp,
       opening: instellingen.opening,
       zeldzaam: d.zeldzaam === true,
-      seizoen: ['auto', 'halloween', 'geen'].includes(d.seizoen) ? d.seizoen : 'auto',
+      seizoen: ['auto', 'halloween', 'kerst', 'zomer', 'geen'].includes(d.seizoen) ? d.seizoen : 'auto',
       direct: true, // de klik in het paneel is er al geweest
       opGesloten() {
         bezig = false;
