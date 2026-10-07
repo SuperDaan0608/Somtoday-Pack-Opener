@@ -16,6 +16,8 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
   const STANDAARD_SERVER = SERVER_STANDAARD;
   const SLEUTEL = 'spo_vrienden';
   const GALERIJ = 'spo_galerij';
+  const TEAM = 'spo_team';             // mijn team: { ids: [keeperId, ...veldspelers] }, verwijst naar kaarten uit de galerij
+  const GEVECHTEN = 'spo_gevechten';  // uitslagen: { [vriendId]: [{ ts, mijn, hun, n }] }
   const DICHT = 'spo_dicht'; // door de content-script bijgehouden: je nog ongeopende cijfers (zonder het cijfer zelf)
   const subtle = globalThis.crypto.subtle;
   const enc = new TextEncoder();
@@ -131,10 +133,22 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
     }
     return uit;
   }
+  // Team van een vriend: alleen vak, cijfer, niveau en zeldzaam per kaart (geen namen, geen id's). De eerste kaart is de keeper.
+  function schoonTeam(t) {
+    if (!t || typeof t !== 'object' || Array.isArray(t) || !Array.isArray(t.kaarten)) return null;
+    const kaarten = [];
+    for (const k of t.kaarten.slice(0, 11)) {
+      if (!k || typeof k !== 'object') return null;
+      const vak = tekstVeld(k.vak, GRENS.vak, 0);
+      if (vak === null || !getal(k.cijfer, 1, 10) || !Number.isInteger(k.tier)) return null;
+      kaarten.push({ vak, cijfer: rond2(k.cijfer), tier: Math.max(0, Math.min(4, k.tier)), z: k.z === true });
+    }
+    return kaarten.length >= 1 ? { kaarten } : null;
+  }
   // Een ontsleutelde blob van een vriend, schoongemaakt. Ontbrekende velden zijn gewoon leeg (oudere versies sturen ze niet).
   function schoonBlob(p) {
     if (!p || typeof p !== 'object' || Array.isArray(p) || p.v !== 1) return null;
-    return { ts: getal(p.ts, 0, 4.1e12) ? p.ts : 0, kaarten: schoonKaarten(p.kaarten), reacties: schoonReacties(p.reacties), raden: schoonRonden(p.raden), gokken: schoonGokken(p.gokken) };
+    return { ts: getal(p.ts, 0, 4.1e12) ? p.ts : 0, kaarten: schoonKaarten(p.kaarten), reacties: schoonReacties(p.reacties), raden: schoonRonden(p.raden), gokken: schoonGokken(p.gokken), team: schoonTeam(p.team) };
   }
 
   // ---- base64url ----
@@ -244,7 +258,7 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
   }
   // Roept `fn` aan als de galerij of de lijst met ongeopende cijfers verandert (andere pagina of de content-script).
   function opOpslagWijziging(fn) {
-    const sleutels = [GALERIJ, DICHT];
+    const sleutels = [GALERIJ, DICHT, TEAM, GEVECHTEN];
     if (heeftOpslag && api.storage.onChanged) {
       api.storage.onChanged.addListener((c, gebied) => { if (gebied === 'local' && sleutels.some((k) => k in c)) fn(); });
     } else if (typeof addEventListener === 'function') {
@@ -279,7 +293,7 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
 
   // Wat er voor één vriend in de versleutelde blob komt: { v: 1, ts, kaarten, reacties?, raden?, gokken? }, of null als alles leeg is
   // (dan wordt de blob op de server gewist). Zonder `naar` komt een ronde bij niemand terecht; de sig van een cijfer zit er nooit in.
-  function maakInhoud(st, vriend, galerij) {
+  function maakInhoud(st, vriend, galerij, team) {
     zorgToestand(st);
     const inhoud = { v: 1, ts: Date.now(), kaarten: deelbareKaarten(st, vriend, galerij) };
     const reacties = schoonReacties(eigen(st.reacties, vriend.id));
@@ -297,11 +311,13 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
     if (Object.keys(reacties).length) inhoud.reacties = reacties;
     if (raden.length) inhoud.raden = raden.slice(0, GRENS.rondes);
     if (Object.keys(gokken).length) inhoud.gokken = gokken;
-    return inhoud.kaarten.length || inhoud.reacties || inhoud.raden || inhoud.gokken ? inhoud : null;
+    const tm = schoonTeam(team);
+    if (tm) inhoud.team = tm;
+    return inhoud.kaarten.length || inhoud.reacties || inhoud.raden || inhoud.gokken || inhoud.team ? inhoud : null;
   }
   // Stuurt (of verwijdert) de blob voor één vriend.
   async function zetBlob(st, vriend, galerij) {
-    const inhoud = maakInhoud(st, vriend, galerij);
+    const inhoud = maakInhoud(st, vriend, galerij, await mijnTeamDeelbaar(galerij));
     let data = '';
     if (inhoud) {
       const sl = await deelSleutel(st.privJwk, vriend.pub, st.id, vriend.id);
@@ -430,6 +446,117 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
     return { kaarten, mislukt };
   }
 
+  // ---- team en gevechten ----
+  async function leesTeam() { const t = await lees(TEAM); return t && Array.isArray(t.ids) ? { ids: t.ids.filter((x) => typeof x === 'string').slice(0, 11) } : null; }
+  function bewaarTeam(team) { return team && team.ids.length ? schrijf(TEAM, { v: 1, ids: team.ids.slice(0, 11), ts: Date.now() }) : wis(TEAM); }
+  // Kaarten van het team in volgorde (eerste = keeper); kaarten die niet meer in de galerij staan vallen weg.
+  function teamKaarten(team, galerij) {
+    if (!team) return [];
+    const per = new Map(galerij.map((e) => [e.id, e]));
+    return team.ids.map((id) => per.get(id)).filter(Boolean).slice(0, 11);
+  }
+  // Wat vrienden van mijn team zien: vak, cijfer, niveau en zeldzaam. Geen id's, geen namen.
+  function teamMomentopname(kaarten) {
+    return { kaarten: kaarten.map((e) => ({ vak: String(e.vak || '').slice(0, GRENS.vak), cijfer: e.cijfer, tier: Math.max(0, Math.min(4, e.tier | 0)), z: e.zeldzaam === true })) };
+  }
+  async function mijnTeamDeelbaar(galerij) {
+    const k = teamKaarten(await leesTeam(), galerij || []);
+    return k.length ? teamMomentopname(k) : null;
+  }
+  async function leesGevechten() { const g = await lees(GEVECHTEN); return g && typeof g === 'object' && !Array.isArray(g) ? g : {}; }
+  async function bewaarUitslag(vriendId, u) {
+    const g = await leesGevechten();
+    const l = Array.isArray(g[vriendId]) ? g[vriendId] : [];
+    l.unshift({ ts: u.ts, mijn: u.mijn, hun: u.hun, n: u.n });
+    g[vriendId] = l.slice(0, 20);
+    await schrijf(GEVECHTEN, g);
+    return g;
+  }
+
+  // ---- kanaal: kleine versleutelde berichten tussen twee vrienden (voor gevechten) ----
+  const sleutelCache = new Map();
+  async function sleutelVoor(st, v) {
+    const k = st.id + ':' + v.id + ':' + v.pub;
+    if (!sleutelCache.has(k)) sleutelCache.set(k, deelSleutel(st.privJwk, v.pub, st.id, v.id));
+    return sleutelCache.get(k);
+  }
+  let laatsteSeq = 0;
+  // Volgnummer: altijd hoger dan het vorige, en gebaseerd op de tijd zodat een nieuwe sessie niet opnieuw bij 1 begint.
+  function volgSeq() { laatsteSeq = Math.max(laatsteSeq + 1, Date.now()); return laatsteSeq; }
+  async function stuurBericht(st, v, obj) {
+    const data = await versleutel(await sleutelVoor(st, v), obj);
+    for (let i = 0; i < 3; i++) {
+      try { await clientVan(st).roep('send', { to: v.id, seq: volgSeq(), data }); return; }
+      catch (e) { if (e.status !== 409) throw e; }
+    }
+  }
+  // Haalt nieuwe berichten van één vriend op. `cursor` is { [vriendId]: laatste seq }. Onleesbare berichten worden overgeslagen.
+  async function haalBerichten(st, v, cursor) {
+    const r = await clientVan(st).roep('poll', { from: v.id, after: cursor[v.id] || 0 });
+    const uit = [];
+    for (const b of r.berichten || []) {
+      cursor[v.id] = Math.max(cursor[v.id] || 0, b.seq);
+      try { const m = await ontsleutel(await sleutelVoor(st, v), b.data); if (m && typeof m === 'object' && !Array.isArray(m)) uit.push({ seq: b.seq, leeftijd: b.leeftijd | 0, m }); } catch (e) { /* niet van deze vriend */ }
+    }
+    return uit;
+  }
+
+  // ---- live synchroniseren ----
+  // Elke seconde (alleen als de pagina echt zichtbaar is) een goedkope 'puls'. Pas als daar iets in verandert wordt er meer opgehaald:
+  // vrienden/verzoeken veranderd = volledige sync, een blob van een vriend veranderd = alleen 'get', nieuw bericht = alleen 'poll'.
+  // Nooit twee verzoeken tegelijk. Opties: { st: () => st, galerij: () => [], herlaad: async () => st, bij: (gebeurtenis) => {}, interval }
+  function zichtbaar() {
+    try { return document.visibilityState === 'visible' && innerWidth > 0 && innerHeight > 0; } catch (e) { return true; }
+  }
+  function maakLive(opt) {
+    const interval = opt.interval || 1000;
+    let timer = null, bezig = false, pauze = false, vorigZichtbaar = false, vh = null;
+    const blobs = new Map();
+    const cursor = {};
+    let aantal = 0;
+    async function tik(geforceerd) {
+      if (bezig || (pauze && !geforceerd)) return;
+      const zicht = zichtbaar();
+      if (!zicht) { vorigZichtbaar = false; return; }
+      bezig = true;
+      try {
+        let st = opt.st();
+        if (!vorigZichtbaar) { // net weer zichtbaar: de andere pagina kan intussen iets bewaard hebben
+          vorigZichtbaar = true;
+          if (opt.herlaad) { st = (await opt.herlaad()) || st; vh = null; }
+        }
+        const p = await clientVan(st).roep('puls');
+        aantal++;
+        const g = opt.galerij();
+        if (vh === null || p.vh !== vh) {
+          const r = await synchroniseer(st, g);
+          vh = p.vh;
+          for (const b of p.blobs || []) blobs.set(b.owner, b.updated);
+          opt.bij({ type: 'sync', meldingen: r.meldingen, kaarten: r.kaarten });
+        } else if ((p.blobs || []).some((b) => blobs.get(b.owner) !== b.updated)) {
+          const { kaarten, mislukt } = await haalOp(st, []);
+          for (const b of p.blobs) blobs.set(b.owner, b.updated);
+          opt.bij({ type: 'kaarten', kaarten, mislukt });
+        }
+        for (const x of p.post || []) {
+          if (x.seq <= (cursor[x.van] || 0)) continue;
+          const v = st.vrienden.find((y) => y.id === x.van && y.status === 'vriend');
+          if (!v) continue;
+          const lijst = await haalBerichten(st, v, cursor);
+          if (lijst.length) opt.bij({ type: 'berichten', van: v.id, berichten: lijst });
+        }
+        opt.bij({ type: 'ok' });
+      } catch (e) { opt.bij({ type: 'fout', fout: e }); }
+      finally { bezig = false; }
+    }
+    return {
+      start() { if (!timer) { timer = setInterval(() => tik(false), interval); tik(false); } },
+      stop() { clearInterval(timer); timer = null; },
+      pauze(p) { pauze = !!p; }, tik: () => tik(true), cursor, get verzoeken() { return aantal; },
+      vergeet() { vh = null; },
+    };
+  }
+
   // ---- reacties ----
   // Zet, wijzigt of haalt weg (zelfde emoji nog eens) mijn reactie op een kaart van een vriend. Geeft de nieuwe emoji of null terug.
   function zetReactie(st, vriendId, kaartId, emoji) {
@@ -542,7 +669,8 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
   const lib = {
     STANDAARD_SERVER, naB64, vanB64, maakSleutelpaar, deelSleutel, versleutel, ontsleutel, maakCode, leesCode, veiligheidscode,
     maakClient, clientVan, laad, bewaar, leesGalerij, aanzetten, kaartenVoor, zetBlob, verzoek, antwoord,
-    verwijderVriend, verwijderAccount, synchroniseer, naam, lees, schrijf, wis, heeftOpslag,
+    verwijderVriend, verwijderAccount, synchroniseer, naam,
+    TEAM, GEVECHTEN, schoonTeam, leesTeam, bewaarTeam, teamKaarten, teamMomentopname, mijnTeamDeelbaar, leesGevechten, bewaarUitslag, stuurBericht, haalBerichten, maakLive, zichtbaar, lees, schrijf, wis, heeftOpslag,
     // reacties en 'voorspel mijn cijfer'
     REACTIES, GRENS, eigen, deelbareKaarten, schoonBlob, schoonKaarten, schoonReacties, schoonRonden, schoonGokken, maakInhoud, zetBlobs, haalOp, zetReactie,
     reactiesOpMijnKaarten, maakRid, leesGok, startRonde, stopRonde, ranglijst, deelUitslag, slaGokOp, ruimOp, leesDicht, opOpslagWijziging,

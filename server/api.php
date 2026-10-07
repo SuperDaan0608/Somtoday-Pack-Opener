@@ -5,6 +5,9 @@ declare(strict_types=1);
 
 const MAX_BODY = 131072;  // 128 KB
 const MAX_BLOB = 98304;   // 96 KB
+const MAX_BERICHT = 2048; // een kanaalbericht (versleuteld) mag hoogstens 2 KB zijn
+const BERICHT_TTL = 600;  // berichten in een kanaal verdwijnen na 10 minuten
+const MAX_WACHTRIJ = 300; // hoogstens zoveel berichten tegelijk van één afzender naar één ontvanger
 
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Headers: Content-Type, X-Id, X-Token');
@@ -31,7 +34,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET' && isset($_GET['status'])) {
   try {
     $d = new PDO($c['db_dsn'], $c['db_user'] ?? null, $c['db_pass'] ?? null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
   } catch (Throwable $e) { fout(500, 'Database niet bereikbaar: controleer host, naam, gebruiker en wachtwoord in config.php.'); }
-  foreach (['users', 'friendships', 'blobs', 'ratelimit'] as $t) {
+  foreach (['users', 'friendships', 'blobs', 'ratelimit', 'berichten'] as $t) {
     try { $d->query('SELECT 1 FROM ' . $t . ' LIMIT 1'); }
     catch (Throwable $e) { fout(500, 'Tabel ontbreekt: ' . $t . '. Voer schema.sql uit in phpMyAdmin.'); }
   }
@@ -80,17 +83,20 @@ function tel(PDO $db, string $sleutel, int $venster, int $max): void {
 }
 $nu = time();
 $ipHash = hash('sha256', ($_SERVER['REMOTE_ADDR'] ?? '') . ($cfg['zout'] ?? ''));
-tel($db, hash('sha256', $ipHash . ':req'), intdiv($nu, 60), (int)($cfg['limiet_per_min'] ?? 60));
+// Per ip-adres ruim (een school deelt vaak één adres); de strengere grenzen per gebruiker staan hieronder na het inloggen.
+tel($db, hash('sha256', $ipHash . ':req'), intdiv($nu, 60), (int)($cfg['limiet_per_min'] ?? 6000));
 
 // Opruimen: oude limiet-rijen en gebruikers die 365 dagen niet actief waren (1% van de verzoeken).
 function verwijderGebruiker(PDO $db, string $id): void {
   q($db, 'DELETE FROM blobs WHERE owner = ? OR recipient = ?', [$id, $id]);
+  q($db, 'DELETE FROM berichten WHERE afz = ? OR ontv = ?', [$id, $id]);
   q($db, 'DELETE FROM friendships WHERE a = ? OR b = ?', [$id, $id]);
   q($db, 'DELETE FROM users WHERE id = ?', [$id]);
 }
 if (random_int(1, 100) === 1) {
   // Minuut-vensters (nu rond 29 miljoen) en uur-vensters (rond 490 duizend) staan in dezelfde tabel; elk krijgt zijn eigen drempel.
   q($db, 'DELETE FROM ratelimit WHERE venster >= 10000000 AND venster < ?', [intdiv($nu, 60) - 120]);
+  q($db, 'DELETE FROM berichten WHERE created < ?', [$nu - BERICHT_TTL]);
   q($db, 'DELETE FROM ratelimit WHERE venster < 10000000 AND venster < ?', [intdiv($nu, 3600) - 3]);
   $oud = q($db, 'SELECT id FROM users WHERE last_seen < ?', [$nu - 365 * 86400])->fetchAll(PDO::FETCH_COLUMN);
   foreach ($oud as $o) verwijderGebruiker($db, $o);
@@ -117,6 +123,10 @@ if (!isId($ik) || !is_string($tok) || $tok === '') fout(401, 'Niet ingelogd.');
 $rij = q($db, 'SELECT token_hash, last_seen FROM users WHERE id = ?', [$ik])->fetch();
 // Ook bij een onbekende id vergelijken we, zodat de tijd geen aanwijzing geeft.
 if (!hash_equals($rij['token_hash'] ?? str_repeat('0', 64), hash('sha256', $tok)) || !$rij) fout(401, 'Niet ingelogd.');
+// Per gebruiker: gewone verzoeken (1 per seconde sync + wat extra) en het kanaal voor gevechten (poll elke 0,25 s) apart.
+$relayActie = $actie === 'send' || $actie === 'poll';
+if ($relayActie) tel($db, hash('sha256', $ik . ':rel'), intdiv($nu, 60), (int)($cfg['limiet_relay_per_min'] ?? 1200));
+else tel($db, hash('sha256', $ik . ':usr'), intdiv($nu, 60), (int)($cfg['limiet_user_per_min'] ?? 180));
 if ($nu - (int)$rij['last_seen'] > 3600) q($db, 'UPDATE users SET last_seen = ? WHERE id = ?', [$nu, $ik]);
 
 // Zoekt de vriendschap in beide richtingen.
@@ -171,8 +181,10 @@ switch ($actie) {
     $f = vriendschap($db, $ik, $to);
     if ($f === null || $f['status'] !== 'accepted') fout(403, 'Jullie zijn geen vrienden.');
     $db->beginTransaction();
+    // `updated` gaat altijd omhoog (ook bij twee wijzigingen in dezelfde seconde), zodat 'puls' elke wijziging ziet.
+    $vorig = (int)q($db, 'SELECT updated FROM blobs WHERE owner = ? AND recipient = ?', [$ik, $to])->fetchColumn();
     q($db, 'DELETE FROM blobs WHERE owner = ? AND recipient = ?', [$ik, $to]);
-    if ($data !== '') q($db, 'INSERT INTO blobs (owner, recipient, data, updated) VALUES (?, ?, ?, ?)', [$ik, $to, $data, $nu]);
+    if ($data !== '') q($db, 'INSERT INTO blobs (owner, recipient, data, updated) VALUES (?, ?, ?, ?)', [$ik, $to, $data, max($nu, $vorig + 1)]);
     $db->commit();
     uit(200, ['ok' => true]);
   }
@@ -181,12 +193,55 @@ switch ($actie) {
     foreach ($r as &$x) $x['updated'] = (int)$x['updated'];
     uit(200, ['blobs' => $r]);
   }
+  case 'puls': {
+    // Goedkoop: geen blobs, alleen wat er veranderd is. 'vh' verandert als vrienden of verzoeken veranderen.
+    $v = q($db, 'SELECT f.a AS a, f.b AS b, f.status AS status FROM friendships f WHERE f.a = ? OR f.b = ?', [$ik, $ik])->fetchAll();
+    $ids = [];
+    foreach ($v as $x) $ids[] = ($x['a'] === $ik ? $x['b'] : $x['a']) . ':' . $x['status'] . ':' . ($x['a'] === $ik ? 'u' : 'i');
+    sort($ids);
+    $bl = q($db, 'SELECT owner, updated FROM blobs WHERE recipient = ?', [$ik])->fetchAll();
+    foreach ($bl as &$x) $x['updated'] = (int)$x['updated'];
+    unset($x);
+    $po = q($db, 'SELECT afz, MAX(seq) AS seq FROM berichten WHERE ontv = ? AND created >= ? GROUP BY afz', [$ik, $nu - BERICHT_TTL])->fetchAll();
+    $post = [];
+    foreach ($po as $x) $post[] = ['van' => $x['afz'], 'seq' => (int)$x['seq']];
+    uit(200, ['nu' => $nu, 'vh' => substr(hash('sha256', implode(',', $ids)), 0, 16), 'blobs' => $bl, 'post' => $post]);
+  }
+  case 'send': {
+    // Kanaal voor gevechten: een klein, versleuteld bericht naar een vriend. De server kijkt niet in de inhoud.
+    $to = $in['to'] ?? null;
+    $data = $in['data'] ?? null;
+    $seq = $in['seq'] ?? null;
+    if (!isId($to) || !is_string($data) || !is_int($seq) || $seq < 1 || $seq > 9007199254740991) fout(400, 'Ongeldig verzoek.');
+    if ($data === '' || strlen($data) > MAX_BERICHT) fout(413, 'Bericht te groot (max 2 KB).');
+    if (!preg_match('/^[A-Za-z0-9._-]+$/', $data)) fout(400, 'Ongeldig formaat.');
+    $f = vriendschap($db, $ik, $to);
+    if ($f === null || $f['status'] !== 'accepted') fout(403, 'Jullie zijn geen vrienden.');
+    q($db, 'DELETE FROM berichten WHERE afz = ? AND ontv = ? AND created < ?', [$ik, $to, $nu - BERICHT_TTL]);
+    $n = (int)q($db, 'SELECT COUNT(*) FROM berichten WHERE afz = ? AND ontv = ?', [$ik, $to])->fetchColumn();
+    if ($n >= MAX_WACHTRIJ) fout(429, 'Te veel berichten in de wachtrij.');
+    try { q($db, 'INSERT INTO berichten (afz, ontv, seq, data, created) VALUES (?, ?, ?, ?, ?)', [$ik, $to, $seq, $data, $nu]); }
+    catch (Throwable $e) { fout(409, 'Volgnummer is al gebruikt.'); }
+    uit(200, ['ok' => true]);
+  }
+  case 'poll': {
+    $van = $in['from'] ?? null;
+    $na = $in['after'] ?? 0;
+    if (!isId($van) || !is_int($na) || $na < 0) fout(400, 'Ongeldig verzoek.');
+    $f = vriendschap($db, $ik, $van);
+    if ($f === null || $f['status'] !== 'accepted') fout(403, 'Jullie zijn geen vrienden.');
+    $r = q($db, 'SELECT seq, data, created FROM berichten WHERE afz = ? AND ontv = ? AND seq > ? AND created >= ? ORDER BY seq LIMIT 50', [$van, $ik, $na, $nu - BERICHT_TTL])->fetchAll();
+    foreach ($r as &$x) { $x['seq'] = (int)$x['seq']; $x['leeftijd'] = $nu - (int)$x['created']; unset($x['created']); }
+    unset($x);
+    uit(200, ['nu' => $nu, 'berichten' => $r]);
+  }
   case 'unfriend': {
     $o = $in['other'] ?? null;
     if (!isId($o)) fout(400, 'Ongeldig verzoek.');
     $db->beginTransaction();
     q($db, 'DELETE FROM friendships WHERE (a = ? AND b = ?) OR (a = ? AND b = ?)', [$ik, $o, $o, $ik]);
     q($db, 'DELETE FROM blobs WHERE (owner = ? AND recipient = ?) OR (owner = ? AND recipient = ?)', [$ik, $o, $o, $ik]);
+    q($db, 'DELETE FROM berichten WHERE (afz = ? AND ontv = ?) OR (afz = ? AND ontv = ?)', [$ik, $o, $o, $ik]);
     $db->commit();
     uit(200, ['ok' => true]);
   }

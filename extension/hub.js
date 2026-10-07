@@ -569,7 +569,7 @@
     }
     // Los tabblad: geen Somtoday-pagina om op te openen, dus het pakket krijgt een eigen tabblad (zoals vroeger de reservepagina).
     const q = new URLSearchParams(
-      Object.entries({ ...data, snel: !!instellingen.snel, laag: !!instellingen.laag, stil: !instellingen.geluid, opening: instellingen.opening, thema: instellingen.kaartThema || 'auto', rand: instellingen.kaartRand || 'standaard' }).map(([k, v]) => [k, String(v)]),
+      Object.entries({ ...data, snel: !!instellingen.snel, laag: !!instellingen.laag, stil: !instellingen.geluid, opening: instellingen.opening, thema: instellingen.kaartThema || 'auto', rand: instellingen.kaartRand || 'standaard', ontwerp: JSON.stringify(instellingen.kaartOntwerp || {}) }).map(([k, v]) => [k, String(v)]),
     );
     chrome.tabs.create({ url: chrome.runtime.getURL('stage.html?' + q.toString()) });
   });
