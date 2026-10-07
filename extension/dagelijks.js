@@ -57,14 +57,14 @@
     .open .pak { animation: none; pointer-events: none; }
     .open .pak .top { transform: translate(40px, -70px) rotate(32deg); opacity: 0; }
     .open .pak .lijf { transform: scale(.6) translateY(30px); opacity: 0; }
-    .gloed { position: absolute; width: 190px; height: 190px; border-radius: 50%; opacity: 0; background: radial-gradient(closest-side, rgba(255,226,122,.85), rgba(255,210,74,0)); }
+    .gloed { position: absolute; pointer-events: none; width: 190px; height: 190px; border-radius: 50%; opacity: 0; background: radial-gradient(closest-side, rgba(255,226,122,.85), rgba(255,210,74,0)); }
     .open .gloed { animation: gloed 1.1s ease-out forwards; }
-    .prijs { position: absolute; opacity: 0; transform: scale(.3); }
+    .prijs { position: absolute; pointer-events: none; opacity: 0; transform: scale(.3); }
     .open .prijs { animation: prijs .6s .35s cubic-bezier(.2,1.4,.4,1) forwards; }
     .prijs b { display: block; font-size: 38px; font-weight: 800; color: #ffe27a; line-height: 1; }
     .prijs span { display: block; margin-top: 6px; font-size: 14px; color: #eef1f8; }
     .zeldzaam b { font-size: 24px; background: linear-gradient(90deg, #ff9ee8, #ffe27a, #7ff0ff); -webkit-background-clip: text; background-clip: text; color: transparent; }
-    .knop { margin-top: 12px; min-height: 46px; padding: 0 26px; border: 0; border-radius: 999px; font: inherit; font-weight: 800; font-size: 15px; cursor: pointer; color: #241703; background: linear-gradient(135deg, #fff0b3, #ffd24a 45%, #ff7a3d); }
+    .knop { position: relative; z-index: 2; margin-top: 12px; min-height: 46px; padding: 0 26px; border: 0; border-radius: 999px; font: inherit; font-weight: 800; font-size: 15px; cursor: pointer; color: #241703; background: linear-gradient(135deg, #fff0b3, #ffd24a 45%, #ff7a3d); }
     .knop:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
     .knop[hidden] { display: none; }
     .klein { margin-top: 10px; font-size: 12px; color: #8790a8; }
