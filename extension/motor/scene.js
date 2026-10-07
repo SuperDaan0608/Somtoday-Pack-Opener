@@ -392,7 +392,7 @@
     const eigenTex = []; // tekstuur die een opening via ctx.tekstuur heeft gemaakt: die ruimen wij op
     // Een opening zet hier per beeld haar wensen voor de nabewerking in (zie eindbeeld).
     const post = { rad: 0, zoom: 1, roll: 0, bars: 0, bloom: 1, streak: 0, vig: 1, ca: 1, sat: 1, grade: [1, 1, 1] };
-    const rust2Van = (t) => (t >= RV ? (zeldzaam ? sm(t, RV + 3.6, RV + 6.6) : sm(t, RV + 0.9, RV + 2.6)) : 0); // na de onthulling wordt het beeld rustiger
+    const rust2Van = (t) => (t >= RV ? (tl.nova ? sm(t, tl.nova + 2.5, tl.nova + 5.5) : zeldzaam ? sm(t, RV + 3.6, RV + 6.6) : sm(t, RV + 0.9, RV + 2.6)) : 0); // na de onthulling wordt het beeld rustiger
 
     // schudden van de camera: een som van dempende stoten plus een voortdurend gerommel bij het opladen
     function camera(t, uit, tp) {

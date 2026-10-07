@@ -202,6 +202,8 @@
       seizoen: opening === 'pak' ? seizoenNu(d.seizoen) : null,
       // een zeldzame kaart: een extra spectaculaire onthulling, los van je cijfer (content.js dobbelt er één op de tien)
       zeldzaam,
+      // zeldzaam met een 9,5 of hoger: de legendarische reeks (zeldzaam.js), nog een flink stuk groter
+      legendarisch: !!zeldzaam && g >= 9.5,
       vak,
       onder: tekst(d.onderwerp, 'Toets', 80),
       weging: klem(Math.round(+d.weging) || 1, 1, 10),

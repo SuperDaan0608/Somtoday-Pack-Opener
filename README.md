@@ -33,6 +33,7 @@ en je eigen kaart voor dat vak.
 - **Vrienden (opt-in):** kies per vriend wat hij of zij van je cijfers ziet. Alles wordt op je eigen computer versleuteld. De server staat in [`server/`](server).
 - **Zeldzame kaarten:** één op de tien kaarten is zeldzaam: een regenboogrand en regenboogtitel, regenboogstralen, veel vuurwerk en confetti en een fanfare, ook bij een
   laag cijfer. Uit te zetten in de popup; bij *Handmatig proberen* kun je er zelf een uitproberen.
+- **Legendarisch:** een zeldzame kaart met een 9,5 of hoger krijgt een nog grotere animatie: gouden barsten, glas dat uit elkaar spat, een gouden tunnel, een kroon en een supernova met vuurwerk en gouden munten.
 - **Seizoensthema's:** rond Halloween (1 oktober t/m 2 november) krijgt het pakje een spookachtig uiterlijk met vleermuizen, een pompoen en eigen geluiden.
   Uit te zetten in de popup.
 - **Paneel in Somtoday:** de knop *Pack Opener* rechtsonder op Somtoday opent galerij, kaart ontwerpen, vrienden, cijfercalculator, proberen, instellingen en geluiden in het Somtoday-venster.
