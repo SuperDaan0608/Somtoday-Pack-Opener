@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Prestaties</title>
+  <link rel="stylesheet" href="vrienden.css" />
+  <link rel="stylesheet" href="prestaties.css" />
+  <link rel="stylesheet" href="embed.css" />
+  <script src="embed.js"></script>
+</head>
+<body>
+  <a class="skip" href="#hoofd">Naar de badges</a>
+  <header class="kop">
+    <h1>Prestaties</h1>
+    <p class="onder">Verdien badges met je kaarten en gevechten. Alles blijft op deze computer.</p>
+  </header>
+  <div class="toast-plek" id="toast-plek" aria-live="polite"></div>
+
+  <main id="hoofd">
+    <section class="samen" aria-labelledby="samen-kop">
+      <div class="samen-getal"><b id="samen-nu">0</b><span>van <span id="samen-tot">0</span></span></div>
+      <div class="samen-tekst">
+        <h2 id="samen-kop">Badges behaald</h2>
+        <div class="balk" id="samen-balk" role="progressbar" aria-labelledby="samen-kop" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="samen-vul"></span></div>
+        <p id="samen-sub"></p>
+      </div>
+    </section>
+
+    <div class="filters" role="group" aria-label="Welke badges tonen">
+      <button type="button" class="knop klein" data-filter="alle" aria-pressed="true">Alle</button>
+      <button type="button" class="knop klein" data-filter="behaald" aria-pressed="false">Behaald</button>
+      <button type="button" class="knop klein" data-filter="open" aria-pressed="false">Nog te halen</button>
+    </div>
+
+    <ul class="badges" id="badges"></ul>
+    <p class="geen" id="geen" hidden>Hier staat niets bij.</p>
+  </main>
+
+  <script src="vriendenlib.js"></script>
+  <script src="gevecht.js"></script>
+  <script src="prestatieslib.js"></script>
+  <script src="prestaties.js"></script>
+</body>
+</html>

@@ -14,7 +14,7 @@ const TMP = process.env.SPO_TMP || '/tmp/vrienden-scratch';
 fs.mkdirSync(TMP, { recursive: true });
 const DB = path.join(TMP, 'pagina.sqlite');
 const WEB = 'http://localhost:8123';
-const PAGINA = WEB + '/vrienden.html?server=' + encodeURIComponent('http://localhost:8150/api.php');
+const PAGINA = WEB + '/vrienden.html?server=' + encodeURIComponent('http://localhost:8150/api.php') + (process.env.SPO_EMBED ? '&embed=1' : '');
 let ok = 0, mis = 0;
 function controle(naam, waar, extra) { if (waar) ok++; else { mis++; console.log('MIS:', naam, extra === undefined ? '' : extra); } }
 const slaap = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -45,6 +45,9 @@ function galerij(vak, basis) {
       await p.goto(PAGINA);
       return { ctx, p, fouten, naam };
     };
+    // De pagina heeft vier onderdelen (tabs) en 'Meer opties' per vriend: de tests gaan eerst naar het juiste onderdeel.
+    const sec = async (P, n) => { await P.p.click('#stab-' + n); };
+    const meer = async (P) => { if (!(await P.p.locator('.vriend .v-meer').first().evaluate((e) => e.open))) await P.p.click('.vriend .v-meer summary'); };
     const A = await maak('A', galerij('Wiskunde', 0));
     const B = await maak('B', galerij('Engels', 10));
 
@@ -52,6 +55,8 @@ function galerij(vak, basis) {
     controle('uitleg zichtbaar', await A.p.locator('#uitleg').isVisible() && !(await A.p.locator('#app').isVisible()));
     await A.p.screenshot({ path: path.join(TMP, '1-uitleg.png'), fullPage: true });
     await A.p.click('#aanzetten'); await B.p.click('#aanzetten');
+    await A.p.waitForSelector('#stab-toevoegen'); await B.p.waitForSelector('#stab-toevoegen');
+    await sec(A, 'toevoegen'); await sec(B, 'toevoegen');
     await A.p.waitForSelector('#mijn-code'); await B.p.waitForFunction(() => document.getElementById('mijn-code').value.startsWith('SPO1-'));
     await A.p.waitForFunction(() => document.getElementById('mijn-code').value.startsWith('SPO1-'));
     const codeB = await B.p.inputValue('#mijn-code'), codeA = await A.p.inputValue('#mijn-code');
@@ -66,11 +71,13 @@ function galerij(vak, basis) {
     controle('ongeldige code geeft melding', /geldige vriendcode/.test(await A.p.textContent('#melding p.fout')));
     await A.p.fill('#t-code', codeB); await A.p.fill('#t-alias', 'Sanne');
     await A.p.click('#toevoegen button[type=submit]');
+    await sec(A, 'vrienden');
     await A.p.waitForSelector('.vriend');
     controle('A ziet Sanne wacht op antwoord', /Sanne/.test(await A.p.textContent('.vriend')) && /Wacht op antwoord/.test(await A.p.textContent('.vriend')));
 
     // B synchroniseert en accepteert
     await B.p.click('#sync');
+    await sec(B, 'toevoegen');
     await B.p.waitForSelector('#verzoeken .verzoek');
     await B.p.screenshot({ path: path.join(TMP, '2-verzoek.png'), fullPage: true });
     const vcB = (await B.p.textContent('#verzoeken .v-code')).trim();
@@ -83,6 +90,7 @@ function galerij(vak, basis) {
     controle('accepteren zonder bevestiging geweigerd', !!(await B.p.locator('#verzoeken .verzoek').count()));
     await B.p.check('#verzoeken .bevestig input');
     await B.p.click('#verzoeken .knop.goud');
+    await sec(B, 'vrienden');
     await B.p.waitForSelector('#vrienden .vriend');
     controle('B ziet Daan als vriend', /Daan/.test(await B.p.textContent('#vrienden')));
 
@@ -91,6 +99,7 @@ function galerij(vak, basis) {
     const vcA = (await A.p.textContent('.vriend .v-code')).trim();
     const vcB2 = (await B.p.textContent('.vriend .v-code')).trim();
     controle('beide kanten zelfde veiligheidscode', vcA === vcB2 && vcA === vcB, [vcA, vcB2]);
+    await meer(A);
     await A.p.click('.vriend .veilig .knop');
     await A.p.waitForSelector('.vriend .geverifieerd');
     controle('geverifieerd met vinkje en lokaal opgeslagen', /\u2713/.test(await A.p.textContent('.geverifieerd')) && /"geverifieerd":true/.test(await A.p.evaluate(() => localStorage.getItem('spo_vrienden'))));
@@ -98,12 +107,14 @@ function galerij(vak, basis) {
     // Delen: A deelt alles; B selecteert 2 kaarten
     await A.p.click('#sync');
     await A.p.waitForFunction(() => /Vriend/.test(document.querySelector('.vriend .badge')?.textContent || ''));
+    await meer(A); await meer(B);
     await A.p.selectOption('.vriend select', 'alles');
     await B.p.selectOption('.vriend select', 'selectie');
     const vinks = B.p.locator('.vriend .selectie input');
     await vinks.nth(1).check(); await vinks.nth(4).check();
     await slaap(1200);
     await B.p.click('#sync'); await A.p.click('#sync');
+    await sec(A, 'kaarten'); await sec(B, 'kaarten');
     await A.p.waitForFunction(() => document.querySelectorAll('.v-cijfers .cijferkaart').length === 2);
     await B.p.waitForFunction(() => document.querySelectorAll('.v-cijfers .cijferkaart').length === 5);
     const tekstA = await A.p.textContent('.v-cijfers');
@@ -130,9 +141,9 @@ function galerij(vak, basis) {
     await A.p.waitForFunction(() => document.querySelectorAll('.v-cijfers .cijferkaart').length === 2);
     const idB = await B.p.evaluate(() => JSON.parse(localStorage.getItem('spo_vrienden')).id);
     const idA = await A.p.evaluate(() => JSON.parse(localStorage.getItem('spo_vrienden')).id);
-    const kaartA = (n) => A.p.locator('.vriend .cijferkaart').nth(n);
+    const kaartA = (n) => A.p.locator('.vk-groep .cijferkaart').nth(n);
     const knopNaam = (n, naam) => kaartA(n).getByRole('button', { name: naam, exact: true });
-    controle('Raden-sectie en reactie-sectie zijn er voor wie vrienden heeft', await A.p.locator('#raden-sectie').isVisible() && await A.p.locator('#reacties-sectie').isVisible());
+    controle('Raden-sectie en reactie-sectie zijn er voor wie vrienden heeft', await A.p.evaluate(() => !document.getElementById('raden-sectie').hidden && !document.getElementById('reacties-sectie').hidden));
     controle('elke kaart van een vriend heeft zes emoji-knoppen met Nederlandse labels', (await A.p.locator('.cijferkaart .reageer button').count()) === 12
       && JSON.stringify(await kaartA(0).locator('.reageer button').evaluateAll((l) => l.map((b) => b.getAttribute('aria-label')))) === JSON.stringify(['Reageer met vuur', 'Reageer met verbazing', 'Reageer met applaus', 'Reageer met lachen', 'Reageer met schedel', 'Reageer met hart']));
     controle('de emoji-knoppen staan in een groep met een label', /^Reacties op Engels/.test(await kaartA(0).locator('.reageer').getAttribute('aria-label')) && (await kaartA(0).locator('.reageer').getAttribute('role')) === 'group');
@@ -154,6 +165,7 @@ function galerij(vak, basis) {
 
     // B ziet de reacties met de bijnaam die hij zelf voor A koos
     await B.p.click('#sync');
+    await sec(B, 'kaarten');
     await B.p.waitForFunction(() => document.querySelectorAll('#reacties .rkaart').length === 2);
     const tekstReB = await B.p.textContent('#reacties');
     controle('B ziet bij zijn kaarten wie reageerde, met zijn eigen bijnaam (Daan)', /Daan/.test(tekstReB) && !/Sanne/.test(tekstReB) && /Engels/.test(tekstReB));
@@ -165,6 +177,7 @@ function galerij(vak, basis) {
     await hulpB.evaluate(() => localStorage.setItem('spo_dicht', JSON.stringify([
       { id: 'sigE1', ts: 1760000000000, vak: 'Engels', onderwerp: 'Hoofdstuk 3', weging: 2 },
       { id: 'sigE2', ts: 1760000100000, vak: 'Aardrijkskunde', onderwerp: '', weging: 1 }])));
+    await sec(B, 'uitdagingen');
     await B.p.waitForFunction(() => document.querySelectorAll('#dicht .dicht-item').length === 2);
     controle('B ziet zijn ongeopende cijfers zonder opnieuw te synchroniseren (storage-gebeurtenis)', true);
     const dichtTekst = await B.p.textContent('#dicht');
@@ -197,6 +210,7 @@ function galerij(vak, basis) {
 
     // A ziet de ronde en gokt
     await A.p.click('#sync');
+    await sec(A, 'uitdagingen');
     await A.p.waitForSelector('.raadblok');
     const vraag = (await A.p.textContent('.raadblok .gok-vraag')).trim();
     controle('A ziet: "Sanne laat je raden: Engels, Hoofdstuk 3 (weging 2). Wat denk je dat Sanne haalde?"', vraag === 'Sanne laat je raden: Engels, Hoofdstuk 3 (weging 2). Wat denk je dat Sanne haalde?', vraag);
@@ -277,6 +291,14 @@ function galerij(vak, basis) {
     await B.p.click('#sync');
     await A.p.screenshot({ path: path.join(TMP, '6-raden-desktop-a.png'), fullPage: true });
     await B.p.screenshot({ path: path.join(TMP, '6b-raden-desktop-b.png'), fullPage: true });
+    // Screenshots van elk onderdeel, voor A en B, op een breed scherm en op een telefoon.
+    for (const [b, h, naam] of [[1280, 900, 'breed'], [390, 844, 'telefoon']]) {
+      for (const P of [A, B]) {
+        await P.p.setViewportSize({ width: b, height: h });
+        for (const sn of ['vrienden', 'kaarten', 'uitdagingen', 'toevoegen']) { await sec(P, sn); await P.p.screenshot({ path: path.join(TMP, `sec-${P.naam}-${sn}-${naam}.png`), fullPage: true }); }
+      }
+    }
+    await sec(A, 'kaarten'); await sec(B, 'uitdagingen');
     for (const [b, h, naam] of [[390, 844, 'telefoon'], [1280, 800, 'breed']]) {
       await A.p.setViewportSize({ width: b, height: h }); await B.p.setViewportSize({ width: b, height: h });
       await A.p.screenshot({ path: path.join(TMP, `7-vrienden-${naam}-A.png`), fullPage: true });
@@ -295,6 +317,8 @@ function galerij(vak, basis) {
     await B.p.waitForFunction(() => document.querySelectorAll('#rondes .ronde').length === 1);
     await A.p.click('#sync');
     await A.p.waitForFunction(() => document.querySelectorAll('.raadblok .gok').length === 1);
+    // De live-sync kan de ronde al uit beeld halen (alleen blobs) voordat de volledige sync de gok opruimt en bewaart: op de opslag wachten, niet op het scherm.
+    await A.p.waitForFunction(() => { const g = JSON.parse(localStorage.getItem('spo_vrienden')).gokken; const k = Object.keys(g)[0]; return k && Object.keys(g[k]).length === 1; }, null, { timeout: 15000 });
     controle('gestopte ronde verdwijnt bij A, en zijn gok erop wordt opgeruimd', (await A.p.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('spo_vrienden')).gokken[Object.keys(JSON.parse(localStorage.getItem('spo_vrienden')).gokken)[0]]).length)) === 1);
 
     // Een kwaadwillende vriend: B (met de echte sleutels) stuurt A een blob vol HTML en te grote velden
@@ -313,6 +337,7 @@ function galerij(vak, basis) {
     const putResp = await fetch('http://localhost:8150/api.php', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Id': sB.id, 'X-Token': sB.token }, body: JSON.stringify({ a: 'put', to: idA, data: await L.versleutel(sleutelBA, evil) }) });
     controle('kwaadwillende blob is door de server aangenomen (hij ziet alleen onleesbare data)', putResp.status === 200);
     await A.p.click('#sync');
+    await sec(A, 'kaarten');
     await A.p.waitForFunction(() => /<img src=x/.test(document.querySelector('.v-cijfers')?.textContent || ''));
     const ev = await A.p.evaluate(() => ({
       pwned: window.__pwned, elementen: document.querySelectorAll('.vriend img, .vriend script, .vriend b, .vriend i, #reacties img, #reacties b').length,
@@ -335,12 +360,14 @@ function galerij(vak, basis) {
 
 
     // Verwijderen met bevestiging
+    await sec(B, 'vrienden'); await meer(B);
     const weg = B.p.locator('.vriend .knop.gevaar');
     await weg.click();
     controle('bevestiging gevraagd', /Zeker/.test(await weg.textContent()) && (await B.p.locator('.vriend').count()) === 1);
     await weg.click();
     await B.p.waitForFunction(() => !document.querySelector('.vriend'));
     await A.p.click('#sync');
+    await sec(A, 'vrienden');
     await A.p.waitForFunction(() => /Weggevallen/.test(document.querySelector('.vriend .badge')?.textContent || ''));
     controle('A ziet vriend weggevallen', true);
     const nB = await B.p.evaluate(() => { const o = JSON.parse(localStorage.getItem('spo_vrienden')); return [o.raden.length, Object.keys(o.reacties).length, Object.keys(o.gokken).length, document.getElementById('raden-sectie').hidden, document.getElementById('reacties-sectie').hidden]; });
@@ -355,6 +382,7 @@ function galerij(vak, basis) {
     await A.p.screenshot({ path: path.join(TMP, '5-weggevallen.png'), fullPage: true });
 
     // Alles wissen
+    await A.p.click('#meer summary');
     const wis = A.p.locator('#wis');
     await wis.click(); await wis.click();
     await A.p.waitForSelector('#uitleg:not([hidden])');

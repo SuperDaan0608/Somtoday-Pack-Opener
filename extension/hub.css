@@ -64,9 +64,9 @@ html.los .sluit { display: none; }
 
 /* ───────── Tabs ───────── */
 .zij { grid-area: zij; display: flex; flex-direction: column; min-height: 0; padding: 14px 12px 12px; border-right: 1px solid var(--lijn); overflow-y: auto; }
-.tabs { display: flex; flex-direction: column; gap: 3px; }
+.tabs { display: flex; flex-direction: column; gap: 2px; }
 .tabs button {
-  position: relative; display: flex; align-items: center; gap: 12px; width: 100%; min-height: 44px; padding: 0 14px;
+  position: relative; display: flex; align-items: center; gap: 12px; width: 100%; min-height: 40px; padding: 0 14px;
   border: 0; border-radius: 12px; background: none; color: var(--tekst-2); font-weight: 600; text-align: left; white-space: nowrap;
   transition: background 0.15s, color 0.15s;
 }
@@ -78,7 +78,13 @@ html.los .sluit { display: none; }
   margin-left: auto; min-width: 22px; height: 22px; padding: 0 7px; border-radius: 999px;
   font: 800 12px/22px var(--display); text-align: center; color: #241703; background: var(--goud);
 }
-.zij-voet { margin-top: auto; padding: 16px 8px 0; font-size: 11px; line-height: 1.4; color: var(--tekst-3); }
+.groep { margin: 12px 0 3px; padding: 0 14px; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--tekst-3); }
+.groep:first-child { margin-top: 0; }
+.tabs { flex: 1 1 auto; }
+.tabs .onder-groep { margin-top: auto; padding-top: 18px; border-top: 1px solid var(--lijn); }
+.tabs button.sub { min-height: 34px; padding-left: 38px; font-weight: 500; font-size: 13px; }
+.tabs button.sub .ico { width: 16px; height: 16px; }
+.zij-voet { margin-top: 0; padding: 16px 8px 0; font-size: 11px; line-height: 1.4; color: var(--tekst-3); }
 
 /* ───────── Inhoud ───────── */
 .inhoud { grid-area: inhoud; position: relative; min-width: 0; min-height: 0; }
@@ -90,7 +96,7 @@ html.los .sluit { display: none; }
 .kader[data-geladen] .laden { display: none; }
 
 .onder { max-width: 640px; margin-bottom: 20px; color: var(--tekst-2); }
-.sectie { margin: 28px 0 12px; font: 700 12px var(--display); letter-spacing: 0.16em; text-transform: uppercase; color: var(--tekst-3); }
+.sectie { margin: 28px 0 12px; font: 700 12px 'SPO Text', system-ui, sans-serif; letter-spacing: 0.16em; text-transform: uppercase; color: var(--tekst-3); }
 .melding { min-height: 0; margin: 10px 0 0; font-size: 13px; color: var(--tekst-2); }
 .melding:empty { display: none; }
 
@@ -103,8 +109,8 @@ html.los .sluit { display: none; }
 .knop:hover { background: rgba(255, 255, 255, 0.13); }
 .knop:active { transform: scale(0.98); }
 .knop.groot { min-height: 50px; padding: 0 22px; border-radius: 14px; font-size: 15px; }
-.knop.goud { border: 0; color: #241703; background: var(--goud); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 12px 30px -12px rgba(255, 140, 40, 0.9); }
-.knop.goud:hover { filter: brightness(1.07); background: var(--goud); }
+.knop.goud { border: 0; color: #241703; background: var(--geel); font-weight: 700; }
+.knop.goud:hover { background: #ffdc6e; }
 .knop.gevaar { border-color: #ff5b5b; background: rgba(255, 91, 91, 0.16); color: #ffc2c2; }
 .knop.gevaar:hover { background: rgba(255, 91, 91, 0.26); }
 .knop:disabled { opacity: 0.45; cursor: not-allowed; }
@@ -212,7 +218,7 @@ input::placeholder { color: var(--tekst-3); }
 
 .geschiedenis { max-width: 856px; margin-top: 30px; padding-top: 18px; border-top: 1px solid var(--lijn); }
 .g-kop { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
-.g-kop h3 { font: 700 12px var(--display); letter-spacing: 0.16em; text-transform: uppercase; color: var(--tekst-3); }
+.g-kop h3 { font: 700 12px 'SPO Text', system-ui, sans-serif; letter-spacing: 0.16em; text-transform: uppercase; color: var(--tekst-3); }
 #gemiddelde { font-size: 13px; color: var(--tekst-2); }
 #gemiddelde b { font-family: var(--display); color: #fff; }
 #lijst { display: flex; flex-direction: column; gap: 5px; margin: 0 0 8px; padding: 0; list-style: none; }
@@ -256,7 +262,11 @@ input::placeholder { color: var(--tekst-3); }
   .zij { flex-direction: row; padding: 8px 10px; border-right: 0; border-bottom: 1px solid var(--lijn); overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
   .zij::-webkit-scrollbar { display: none; }
   .zij-voet { display: none; }
-  .tabs { flex-direction: row; gap: 4px; }
+  .tabs { flex-direction: row; gap: 4px; align-items: center; flex: 0 0 auto; }
+  .groep { margin: 0 2px 0 10px; padding: 0 6px 0 10px; border-left: 1px solid var(--lijn); white-space: nowrap; align-self: center; }
+  .groep:first-child { margin-left: 0; padding-left: 0; border-left: 0; }
+  .tabs .onder-groep { margin-top: 0; padding-top: 0; border-top: 0; border-left: 1px solid var(--lijn); }
+  .tabs button.sub { padding: 0 14px; min-height: 42px; font-weight: 600; font-size: inherit; }
   .tabs button { width: auto; min-height: 42px; padding: 0 14px; gap: 8px; }
   .tabs button[aria-selected='true']::before { left: 12px; right: 12px; top: auto; bottom: 0; width: auto; height: 3px; border-radius: 3px 3px 0 0; }
   .paneel { padding: 18px 16px 40px; }
@@ -277,3 +287,17 @@ input::placeholder { color: var(--tekst-3); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* Muntteller in de kop */
+.munten { display: inline-flex; align-items: center; gap: 7px; margin-left: auto; margin-right: 56px; height: 34px; padding: 0 14px 0 10px; border: 1px solid var(--lijn-2); border-radius: 999px; background: rgba(255, 210, 74, 0.1); color: var(--tekst); }
+.munten:hover { background: rgba(255, 210, 74, 0.2); }
+.munten .munt { width: 18px; height: 18px; }
+.munten b { font: 800 14px/1 var(--display); color: var(--geel); }
+.munten span { font-size: 12.5px; color: var(--tekst-2); }
+html.los .munten { margin-right: 0; }
+@media (max-width: 560px) { .munten span { display: none; } .munten { margin-right: 52px; } }
+
+/* Kop van de eigen pagina's (Proberen, Instellingen): zelfde als de kop van de pagina's in het paneel (zie embed.css). */
+.pagina-kop { margin: 0 0 20px; padding: 0 0 16px; border-bottom: 1px solid var(--lijn); }
+.pagina-kop h2 { font: 700 22px/1.2 var(--display); letter-spacing: -0.01em; color: #fff; }
+.pagina-kop .onder { margin: 6px 0 0; max-width: 64ch; font-size: 14px; line-height: 1.5; color: var(--tekst-2); }

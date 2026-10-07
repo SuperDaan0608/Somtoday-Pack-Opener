@@ -9,8 +9,14 @@ globalThis.localStorage = { getItem: (k) => (mem.has(k) ? mem.get(k) : null), se
 const L = require('../../extension/vriendenlib.js');
 
 const MAP = path.resolve(__dirname, '..');
-const TMP = process.env.SPO_TMP || '/tmp/vrienden-scratch';
+// Elke run krijgt een eigen tijdelijke map (en dus eigen databases), zodat een eerdere of gelijktijdige run niets beinvloedt.
+const TMP = process.env.SPO_TMP || fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'spo-api-'));
 fs.mkdirSync(TMP, { recursive: true });
+// Een server van een eerdere run op dezelfde poort zou de tests stil op een oude database laten draaien: dan liever meteen stoppen.
+async function poortVrij(poort) {
+  try { await fetch('http://localhost:' + poort + '/api.php', { method: 'OPTIONS' }); } catch (e) { return true; }
+  return false;
+}
 let ok = 0, mis = 0;
 function controle(naam, waar, extra) { if (waar) ok++; else { mis++; console.log('MIS:', naam, extra === undefined ? '' : extra); } }
 const slaap = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -40,6 +46,9 @@ async function ruw(url, body, headers, ruwTekst) {
 }
 
 (async () => {
+  for (const poort of [8150, 8151, 8152, 8153, 8154]) {
+    if (!(await poortVrij(poort))) { console.log(`Poort ${poort} is al bezet (een server van een eerdere test?). Stop die eerst, dan kan deze test betrouwbaar draaien.`); process.exit(2); }
+  }
   const DB = path.join(TMP, 'api.sqlite');
   const URL1 = 'http://localhost:8150/api.php';
   await schema(DB);
@@ -621,6 +630,8 @@ async function ruw(url, body, headers, ruwTekst) {
     controle('verzoeklimiet 429', laatste === 429, laatste);
   } finally {
     php.kill(); php2.kill(); php3.kill(); php4.kill(); php5.kill();
+    await slaap(200);
+    if (!process.env.SPO_TMP) { try { fs.rmSync(TMP, { recursive: true, force: true }); } catch (e) { /* opruimen is bijzaak */ } }
   }
   console.log(`\nServertest: ${ok} geslaagd, ${mis} mislukt`);
   process.exit(mis ? 1 : 0);

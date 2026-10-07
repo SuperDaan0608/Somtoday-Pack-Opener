@@ -29,3 +29,7 @@ legend { padding: 0 8px; font: 700 13px var(--display); letter-spacing: .02em; }
 .melding { color: var(--tekst-3); font-size: 13px; }
 @media (max-width: 760px) { .ontwerp { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* Nog niet gekocht in de winkel */
+.slot { opacity: .45; cursor: not-allowed; }
+.slot::after { content: ' (winkel)'; font-size: .8em; }

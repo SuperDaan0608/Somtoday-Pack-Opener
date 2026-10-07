@@ -32,6 +32,10 @@
     schiet: ['schiet-knal', 'schiet-scherf', 'schiet-spin', 'schiet-laatste'],
     // seizoensthema's (zie SPO.SEIZOENEN in data.js): geluiden die alleen bij dat thema horen
     halloween: ['halloween-donder', 'halloween-kraak', 'halloween-klok', 'halloween-huil'],
+    kerst: ['kerst-bel', 'kerst-wind', 'kerst-ding', 'kerst-klokje'],
+    zomer: ['zomer-golf', 'zomer-meeuw', 'zomer-plons', 'zomer-pan'],
+    // de ZELDZAAM-reeks (zie motor/zeldzaam.js)
+    zeldzaam: ['zeldzaam-tease', 'zeldzaam-koor', 'zeldzaam-boem'],
   };
   // Het volume van de nieuwe opnames is afgestemd op de oude (gemeten in het gedeelte boven 200 Hz, dat laptopspeakers wel weergeven).
   Object.assign(NIVEAU, {
@@ -43,6 +47,10 @@
     'schiet-knal': -6, 'schiet-scherf': -8, 'schiet-spin': -9, 'schiet-laatste': -5,
     // gesynthetiseerd (scripts/bouw-halloween.py), afgestemd op RMS boven 200 Hz zoals de rest
     'halloween-donder': -7, 'halloween-kraak': -12, 'halloween-klok': -10, 'halloween-huil': -15,
+    // scripts/bouw-seizoenen.py en scripts/bouw-zeldzaam.py
+    'kerst-bel': -8, 'kerst-wind': -9, 'kerst-ding': -8, 'kerst-klokje': -8,
+    'zomer-golf': -8, 'zomer-meeuw': -15, 'zomer-plons': -4, 'zomer-pan': -8,
+    'zeldzaam-tease': 0, 'zeldzaam-koor': -4, 'zeldzaam-boem': 1,
   });
 
 
@@ -69,10 +77,11 @@
 
   // Haalt de bestanden op zonder iets af te spelen of een AudioContext te maken (dat mag pas na een klik).
   // opening en seizoen: ook de geluiden van die opening of dat thema (zie GROEPEN).
-  function voorlaad(opening, seizoen) {
+  function voorlaad(opening, seizoen, zeldzaam) {
     for (const naam of GELUIDEN) haal(naam);
     for (const naam of GROEPEN[opening] || []) haal(naam);
     for (const naam of GROEPEN[seizoen] || []) haal(naam);
+    if (zeldzaam) for (const naam of GROEPEN.zeldzaam) haal(naam);
   }
 
   function init(stil) {
@@ -175,9 +184,9 @@
   }
 
   // Maakt de geluiden voor één pakket. tier: 0 (brons) tot 4 (icoon).
-  function maak({ tier, stil, opening, seizoen }) {
+  function maak({ tier, stil, opening, seizoen, zeldzaam }) {
     init(stil);
-    const eigen = (GROEPEN[opening] || []).concat(GROEPEN[seizoen] || []);
+    const eigen = (GROEPEN[opening] || []).concat(GROEPEN[seizoen] || [], zeldzaam ? GROEPEN.zeldzaam : []);
     let eerste = Promise.resolve();
     let alles = Promise.resolve();
     return {

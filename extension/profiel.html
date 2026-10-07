@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Profiel</title>
+  <link rel="stylesheet" href="profiel.css" />
+  <link rel="stylesheet" href="embed.css" />
+  <script src="embed.js"></script>
+</head>
+<body>
+  <a class="skip" href="#hoofd">Naar de inhoud</a>
+  <header class="kop">
+    <h1>Profiel</h1>
+    <p class="onder">Je eigen spelerskaart. De stats komen van je beste vakken. Je echte naam staat er nooit op.</p>
+  </header>
+  <main id="hoofd" class="rooster">
+    <section class="plaat" aria-label="Je profielkaart">
+      <canvas id="kaart" width="360" height="540" role="img" aria-label="Je profielkaart"></canvas>
+    </section>
+    <section class="opties">
+      <label class="veld"><span>Bijnaam (max 20 tekens)</span><input type="text" id="bijnaam" maxlength="20" autocomplete="off" placeholder="Bijv. De Rekenaar" /></label>
+      <label class="veld"><span>Titel</span><select id="titel"></select></label>
+      <label class="veld"><span>Achtergrond</span><select id="bg"></select></label>
+      <p class="uitleg">Meer titels en achtergronden koop je in de <button type="button" class="tekstknop" id="naar-winkel">Winkel</button>.</p>
+      <label class="vink"><input type="checkbox" id="deel" /> Laat mijn profielkaart zien aan vrienden</label>
+      <p class="uitleg">Alleen als je de vriendenfunctie aan hebt. Vrienden zien je bijnaam, je beste zes vakken, je niveau en je gevechten. Alles blijft versleuteld.</p>
+      <div class="acties">
+        <button type="button" class="knop goud" id="download">Download als plaatje</button>
+        <span class="melding" id="melding" role="status" aria-live="polite"></span>
+      </div>
+    </section>
+  </main>
+  <script src="economie.js"></script>
+  <script src="profielkaart.js"></script>
+  <script src="profiel.js"></script>
+</body>
+</html>

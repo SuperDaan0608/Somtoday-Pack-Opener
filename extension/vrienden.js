@@ -95,7 +95,7 @@
         const alias = inv.value.trim();
         if (!alias) { melding('Kies eerst een bijnaam voor deze vriend.', true); inv.focus(); return; }
         if (!cb0.checked) { melding('Bevestig eerst dat je de veiligheidscode kent of bewust doorgaat.', true); cb0.focus(); return; }
-        try { await L.antwoord(st, v.id, true, alias); melding(`${alias} is nu je vriend. Kies hieronder wat die mag zien.`); renderAlles(); await sync(true); }
+        try { await L.antwoord(st, v.id, true, alias); melding(`${alias} is nu je vriend. Bij Meer opties kies je wat die mag zien.`); renderAlles(); await sync(true); }
         catch (e) { melding(foutTekst(e), true); }
       });
       nee.addEventListener('click', async () => {
@@ -202,81 +202,64 @@
     return wrap;
   }
 
-  function vriendItem(v) {
-    const li = el('li', 'vriend');
-    const naam = L.naam(v);
-    const kop = el('div', 'v-kop');
-    const h = el('h3', 'v-naam', naam);
-    h.style.margin = '0';
-    const badge = el('span', 'badge' + (v.status === 'weggevallen' ? ' weg' : ''),
-      v.status === 'verzonden' ? 'Wacht op antwoord' : v.status === 'weggevallen' ? 'Weggevallen' : 'Vriend');
-    h.append(badge);
-    kop.append(h);
-    li.append(kop);
+  // "Zojuist actief", "12 minuten geleden", "vandaag 14:05" of een datum: van het moment dat de vriend zijn gegevens voor jou bijwerkte.
+  function geziendTekst(ts) {
+    if (!ts) return 'Nog niet gezien';
+    const s = Math.max(0, (Date.now() - ts) / 1000);
+    if (s < 120) return 'Zojuist actief';
+    if (s < 3600) return `Gezien ${Math.round(s / 60)} minuten geleden`;
+    const d = new Date(ts), nu = new Date();
+    if (d.toDateString() === nu.toDateString()) return 'Gezien vandaag om ' + tijd(ts);
+    return 'Laatst gezien op ' + datum(ts);
+  }
+  const eersteLetter = (naam) => (String(naam).trim().charAt(0) || '?').toUpperCase();
 
-    if (v.status === 'weggevallen') {
-      li.append(el('p', 'uitleg', 'Deze persoon is geen vriend meer (verwijderd of account gewist). Jullie delen niets meer.'));
-    } else if (v.status === 'verzonden') {
-      li.append(el('p', 'uitleg', 'Je verzoek is verstuurd. Zodra je vriend accepteert, kun je kaarten delen.'));
-    } else {
-      const vb = veiligBlok(v);
-      if (v.geverifieerd) { const ok = el('p', 'geverifieerd', '\u2713 Geverifieerd'); vb.append(ok); }
-      else {
-        const kn = el('button', 'knop klein', 'Code komt overeen'); kn.type = 'button';
-        kn.addEventListener('click', async () => { v.geverifieerd = true; await bewaar(); renderVrienden(); melding('Code als geverifieerd opgeslagen.'); });
-        vb.append(kn);
-      }
-      li.append(vb);
-      const d = v.deel || (v.deel = { modus: 'niets', ids: [] });
-      const wrap = el('div', 'v-deel');
-      const lab = el('label', 'veld'); lab.append(el('span', '', 'Wat mag deze vriend zien?'));
-      const sel = el('select');
-      [['niets', 'Niets'], ['alles', 'Alles'], ['selectie', 'Alleen geselecteerde']].forEach(([w, t]) => {
-        const o = el('option', '', t); o.value = w; sel.append(o);
+  // Alles wat je zelden nodig hebt voor één vriend: wat deel je, de veiligheidscode en de vriend verwijderen.
+  function vriendMeer(v, naam) {
+    const det = el('details', 'v-meer');
+    det.id = 'meer-' + v.id;
+    det.append(el('summary', '', v.geverifieerd ? 'Meer opties' : 'Meer opties (code nog niet vergeleken)'));
+    const d = v.deel || (v.deel = { modus: 'niets', ids: [] });
+    const wrap = el('div', 'v-deel');
+    const lab = el('label', 'veld'); lab.append(el('span', '', 'Wat mag deze vriend zien?'));
+    const sel = el('select');
+    [['niets', 'Niets'], ['alles', 'Alles'], ['selectie', 'Alleen geselecteerde']].forEach(([w, t]) => {
+      const o = el('option', '', t); o.value = w; sel.append(o);
+    });
+    sel.id = 'deel-' + v.id; sel.value = d.modus; lab.append(sel); wrap.append(lab);
+    det.append(wrap);
+
+    const lijst = el('div', 'selectie');
+    lijst.setAttribute('role', 'group');
+    lijst.setAttribute('aria-label', 'Kaarten die ' + naam + ' mag zien');
+    lijst.hidden = d.modus !== 'selectie';
+    if (!galerij.length) lijst.append(el('p', 'geen', 'Je galerij is nog leeg.'));
+    for (const g of galerij) {
+      const r = el('label');
+      const cb = el('input'); cb.type = 'checkbox'; cb.id = `sel-${v.id}-${g.id}`; cb.checked = (d.ids || []).includes(g.id);
+      cb.addEventListener('change', () => {
+        const s = new Set(d.ids || []);
+        if (cb.checked) s.add(g.id); else s.delete(g.id);
+        d.ids = [...s]; planPut(v);
       });
-      sel.id = 'deel-' + v.id; sel.value = d.modus; lab.append(sel); wrap.append(lab);
-      li.append(wrap);
-
-      const lijst = el('div', 'selectie');
-      lijst.setAttribute('role', 'group');
-      lijst.setAttribute('aria-label', 'Kaarten die ' + naam + ' mag zien');
-      lijst.hidden = d.modus !== 'selectie';
-      if (!galerij.length) lijst.append(el('p', 'geen', 'Je galerij is nog leeg.'));
-      for (const g of galerij) {
-        const r = el('label');
-        const cb = el('input'); cb.type = 'checkbox'; cb.id = `sel-${v.id}-${g.id}`; cb.checked = (d.ids || []).includes(g.id);
-        cb.addEventListener('change', () => {
-          const s = new Set(d.ids || []);
-          if (cb.checked) s.add(g.id); else s.delete(g.id);
-          d.ids = [...s]; planPut(v);
-        });
-        r.append(cb, el('span', 's-cj', fmt(g.cijfer)), el('span', 's-vak', `${g.vak || ''} · ${datum(g.ts)}`));
-        lijst.append(r);
-      }
-      li.append(lijst);
-      sel.addEventListener('change', () => { d.modus = sel.value; lijst.hidden = d.modus !== 'selectie'; planPut(v); });
-
-      const gek = vriendKaarten[v.id];
-      if (gek && gek.team) li.append(el('p', 'uitleg', `Team van ${naam}: ${gek.team.kaarten.length} ${gek.team.kaarten.length === 1 ? 'kaart' : 'kaarten'}. Uitdagen kan op het tabblad Team.`));
-      const gv = Array.isArray(gevechten[v.id]) ? gevechten[v.id] : [];
-      if (gv.length) {
-        const w = gv.filter((x) => x.mijn > x.hun).length, g = gv.filter((x) => x.mijn === x.hun).length, l = gv.length - w - g;
-        li.append(el('p', 'uitleg', `Gevechten: ${w} gewonnen, ${g} gelijk, ${l} verloren. Laatste uitslag: ${gv[0].mijn}-${gv[0].hun}.`));
-      }
-      if (uitdagingen.has(v.id)) li.append(el('p', 'geverifieerd', `${naam} daagt je uit! Ga naar het tabblad Team om te accepteren.`));
-      const raad = raadBlok(v, naam, gek);
-      if (raad) li.append(raad);
-      const kop2 = el('h4', '', `Cijfers van ${naam}`);
-      kop2.style.cssText = 'margin:6px 0 8px;font-size:14px';
-      li.append(kop2);
-      if (gek && gek.kaarten.length) {
-        li.append(el('p', 'uitleg', `Reageer met één emoji. ${naam} ziet je reactie. Klik nogmaals op dezelfde emoji om je reactie weg te halen.`));
-        const ul = el('ul', 'v-cijfers');
-        gek.kaarten.slice().sort((a, b) => b.ts - a.ts).forEach((k) => ul.append(kaartje(k, v, naam)));
-        li.append(ul);
-      } else li.append(el('p', 'geen', gek ? `${naam} deelt op dit moment geen kaarten met jou.` : 'Nog niet opgehaald. Druk op Synchroniseren.'));
+      r.append(cb, el('span', 's-cj', fmt(g.cijfer)), el('span', 's-vak', `${g.vak || ''} · ${datum(g.ts)}`));
+      lijst.append(r);
     }
+    det.append(lijst);
+    sel.addEventListener('change', () => { d.modus = sel.value; lijst.hidden = d.modus !== 'selectie'; planPut(v); });
 
+    const vb = veiligBlok(v);
+    if (v.geverifieerd) vb.append(el('p', 'geverifieerd', '✓ Geverifieerd'));
+    else {
+      const kn = el('button', 'knop klein', 'Code komt overeen'); kn.type = 'button';
+      kn.addEventListener('click', async () => { v.geverifieerd = true; await bewaar(); renderVrienden(); const n = $('meer-' + v.id); if (n) n.open = true; melding('Code als geverifieerd opgeslagen.'); });
+      vb.append(kn);
+    }
+    det.append(vb);
+    det.append(verwijderKnop(v, naam));
+    return det;
+  }
+  function verwijderKnop(v, naam) {
     const voet = el('div', 'v-voet');
     const weg = el('button', 'knop gevaar klein', 'Verwijderen'); weg.type = 'button';
     weg.setAttribute('aria-label', `${naam} verwijderen`);
@@ -285,15 +268,129 @@
       catch (e) { melding(foutTekst(e), true); }
     });
     voet.append(weg);
-    li.append(voet);
+    return voet;
+  }
+
+  // Tab 1: één rij per vriend. Kaarten, gokken en gevechten staan op hun eigen tab.
+  function vriendItem(v) {
+    const li = el('li', 'vriend');
+    li.dataset.id = v.id;
+    const naam = L.naam(v);
+    const gek = vriendKaarten[v.id];
+    const kop = el('div', 'v-kop');
+    const wie = el('div', 'v-wie');
+    wie.append(el('span', 'v-avatar', eersteLetter(naam)));
+    const tekst = el('div', 'v-tekst');
+    const h = el('h3', 'v-naam', naam);
+    h.append(el('span', 'badge' + (v.status === 'weggevallen' ? ' weg' : ''),
+      v.status === 'verzonden' ? 'Wacht op antwoord' : v.status === 'weggevallen' ? 'Weggevallen' : 'Vriend'));
+    tekst.append(h);
+    wie.append(tekst);
+    kop.append(wie);
+    li.append(kop);
+
+    if (v.status === 'weggevallen') {
+      tekst.append(el('p', 'v-status', 'Geen vriend meer'));
+      li.append(el('p', 'uitleg', 'Deze persoon is geen vriend meer (verwijderd of account gewist). Jullie delen niets meer.'));
+      li.append(verwijderKnop(v, naam));
+      return li;
+    }
+    if (v.status === 'verzonden') {
+      tekst.append(el('p', 'v-status', 'Wacht op antwoord'));
+      li.append(el('p', 'uitleg', 'Je verzoek is verstuurd. Zodra je vriend accepteert, kun je kaarten delen.'));
+      li.append(verwijderKnop(v, naam));
+      return li;
+    }
+    const delen = [geziendTekst(gek && gek.ts)];
+    if (gek && gek.team) delen.push(`Team: ${gek.team.kaarten.length} ${gek.team.kaarten.length === 1 ? 'kaart' : 'kaarten'}`);
+    else if (gek) delen.push('Nog geen team');
+    const status = el('p', 'v-status', delen.join(' · '));
+    if (gek && gek.ts) { status.dataset.ts = String(gek.ts); status.dataset.rest = delen.slice(1).join(' · '); }
+    tekst.append(status);
+    const acties = el('div', 'v-acties');
+    const uit = el('a', 'knop goud klein', 'Uitdagen'); uit.href = 'team.html'; uit.dataset.ga = 'team';
+    uit.setAttribute('aria-label', `${naam} uitdagen voor een gevecht`);
+    acties.append(uit);
+    kop.append(acties);
+    if (uitdagingen.has(v.id)) li.append(el('p', 'geverifieerd', `${naam} daagt je uit! Open Team om te accepteren.`));
+
+    if (gek && gek.profiel) {
+      const det = el('details', 'v-profiel'); det.id = 'prof-' + v.id;
+      det.append(el('summary', '', `Profielkaart${gek.profiel.bn ? ' (' + gek.profiel.bn + ')' : ''}`));
+      det.addEventListener('toggle', () => {
+        if (!det.open || det.querySelector('canvas')) return;
+        const cv = document.createElement('canvas');
+        cv.style.cssText = 'width:min(240px,100%);height:auto;border-radius:16px;margin-top:8px';
+        cv.setAttribute('role', 'img');
+        cv.setAttribute('aria-label', `Profielkaart van ${naam}: ${gek.profiel.bn || 'speler'}, niveau ${gek.profiel.ovr}`);
+        det.append(cv);
+        globalThis.SPOEco.tekenProfiel(cv, gek.profiel);
+      });
+      li.append(det);
+    }
+    li.append(vriendMeer(v, naam));
     return li;
   }
 
+  // 'Zojuist actief' wordt vanzelf 'Gezien 3 minuten geleden', zonder de lijst opnieuw te tekenen.
+  setInterval(() => {
+    for (const p of document.querySelectorAll('.v-status[data-ts]')) p.textContent = [geziendTekst(Number(p.dataset.ts)), p.dataset.rest].filter(Boolean).join(' · ');
+  }, 30000);
+
   function renderVrienden() {
+    const open = new Set([...document.querySelectorAll('#vrienden details[open]')].map((d) => d.id));
     const lijst = st.vrienden.filter((v) => v.status !== 'ontvangen');
     $('geen-vrienden').hidden = lijst.length > 0;
     $('vrienden').replaceChildren(...lijst.map(vriendItem));
+    for (const d of document.querySelectorAll('#vrienden details')) if (open.has(d.id)) d.open = true;
   }
+
+  // Tab 2: per vriend de gedeelde kaarten met emoji-reacties.
+  function renderKaartenVanVrienden() {
+    const actief = actieveVrienden();
+    $('geen-kaarten-vrienden').hidden = actief.length > 0;
+    $('vk-lijst').replaceChildren(...actief.map((v) => {
+      const naam = L.naam(v), gek = vriendKaarten[v.id];
+      const li = el('li', 'vk-groep');
+      li.dataset.id = v.id;
+      li.append(el('h2', 'vk-naam', `Kaarten van ${naam}`));
+      if (gek && gek.kaarten.length) {
+        const ul = el('ul', 'v-cijfers');
+        gek.kaarten.slice().sort((a, b) => b.ts - a.ts).forEach((k) => ul.append(kaartje(k, v, naam)));
+        li.append(ul);
+      } else li.append(el('p', 'geen', gek ? `${naam} deelt op dit moment geen kaarten met jou. Vraag ${naam} om kaarten te delen.` : 'Nog niet opgehaald. Druk op Synchroniseren.'));
+      return li;
+    }));
+  }
+
+  // Tab 3: gevechten en de gokken die vrienden bij jou doen.
+  function renderUitdagingenTab() {
+    const actief = actieveVrienden();
+    $('geen-uitdagingen').hidden = actief.length > 0;
+    $('uitdagingen-inhoud').hidden = !actief.length;
+    const rijen = [];
+    for (const v of actief) {
+      const naam = L.naam(v);
+      const gv = Array.isArray(gevechten[v.id]) ? gevechten[v.id] : [];
+      const daagt = uitdagingen.has(v.id);
+      if (!gv.length && !daagt) continue;
+      const li = el('li', 'gv-rij');
+      li.append(el('strong', 'gv-naam', naam));
+      if (gv.length) {
+        const w = gv.filter((x) => x.mijn > x.hun).length, g = gv.filter((x) => x.mijn === x.hun).length, l = gv.length - w - g;
+        li.append(el('span', 'gv-stand', `${w} gewonnen, ${g} gelijk, ${l} verloren. Laatste uitslag: ${gv[0].mijn}-${gv[0].hun}.`));
+      }
+      if (daagt) { const a = el('a', 'knop goud klein', 'Gevecht accepteren'); a.href = 'team.html'; a.dataset.ga = 'team'; li.append(el('span', 'geverifieerd', `${naam} daagt je uit!`), a); }
+      rijen.push(li);
+    }
+    $('gevechten').replaceChildren(...rijen);
+    $('geen-gevechten').hidden = rijen.length > 0;
+    const blokken = [];
+    for (const v of actief) { const b = raadBlok(v, L.naam(v), vriendKaarten[v.id]); if (b) blokken.push(b); }
+    $('raden-van').replaceChildren(...blokken);
+    $('geen-raden-van').hidden = blokken.length > 0;
+  }
+
   // ---- voorspel mijn cijfer (mijn eigen rondes) ----
   // Eén ongeopend cijfer, met de knop (of het formulier) om vrienden te laten raden.
   function dichtItem(d, heeftRonde, actief) {
@@ -469,12 +566,52 @@
     }));
   }
 
+  // Kleine getalletjes op de tabs: aantal vrienden, openstaande verzoeken en dingen waar jij iets mee moet.
+  function renderTellers() {
+    const n = (id, aantal) => { $(id).hidden = !aantal; $(id).textContent = String(aantal); };
+    n('n-vrienden', actieveVrienden().length);
+    n('n-toevoegen', st.vrienden.filter((v) => v.status === 'ontvangen').length);
+    let todo = uitdagingen.size;
+    for (const v of actieveVrienden()) { const g = vriendKaarten[v.id]; for (const r of (g && g.raden) || []) if (!r.uitslag && L.eigen(L.eigen(st.gokken, v.id), r.rid) === undefined) todo++; }
+    n('n-uitdagingen', todo);
+  }
+
+  // ---- onderdelen (tabs) ----
+  const SECTIES = ['vrienden', 'kaarten', 'uitdagingen', 'toevoegen'];
+  function toonSectie(naam, focus) {
+    if (!SECTIES.includes(naam)) naam = 'vrienden';
+    for (const s of SECTIES) {
+      const knop = $('stab-' + s), actief = s === naam;
+      knop.setAttribute('aria-selected', String(actief)); knop.tabIndex = actief ? 0 : -1;
+      $('sec-' + s).hidden = !actief;
+    }
+    $('kop-toevoegen').classList.toggle('verberg', naam === 'toevoegen');
+    const balk = $('subtabs'), k = $('stab-' + naam); // het gekozen onderdeel blijft in beeld op een smal scherm
+    balk.scrollLeft = Math.max(0, k.offsetLeft - 12);
+    if (focus) k.focus();
+    try { sessionStorage.setItem('spo_vrienden_sec', naam); } catch (e) { /* niet erg */ }
+  }
+  $('subtabs').addEventListener('click', (e) => { const k = e.target.closest('[data-sec]'); if (k) toonSectie(k.dataset.sec); });
+  $('subtabs').addEventListener('keydown', (e) => {
+    const i = SECTIES.findIndex((s) => $('stab-' + s).getAttribute('aria-selected') === 'true');
+    let n = -1;
+    if (e.key === 'ArrowRight') n = (i + 1) % SECTIES.length; else if (e.key === 'ArrowLeft') n = (i + SECTIES.length - 1) % SECTIES.length;
+    else if (e.key === 'Home') n = 0; else if (e.key === 'End') n = SECTIES.length - 1;
+    if (n < 0) return;
+    e.preventDefault(); toonSectie(SECTIES[n], true);
+  });
+  // Knoppen in een lege toestand ("Vriend toevoegen") brengen je naar de juiste tab.
+  document.addEventListener('click', (e) => { const k = e.target.closest('button[data-sec]'); if (k && !k.closest('#subtabs')) { toonSectie(k.dataset.sec); $('sec-' + k.dataset.sec).focus(); } });
+
   // Tekent alles opnieuw en houdt de focus (en de cursor in een invoerveld) op hetzelfde element.
+  let uitstel = null;
   function renderAlles() {
+    // Wacht een knop op 'Zeker weten?', dan tekenen we even niet opnieuw: anders verdwijnt de bevestiging door een live-update.
+    if (st && document.querySelector('#app .knop.zeker')) { clearTimeout(uitstel); uitstel = setTimeout(renderAlles, 1000); return; }
     const a = document.activeElement;
     const sleutel = a && a.id && $('app').contains(a) ? a.id : null;
     const cursor = sleutel && typeof a.selectionStart === 'number' ? [a.selectionStart, a.selectionEnd] : null;
-    renderVerzoeken(); renderVoorspel(); renderReacties(); renderVrienden();
+    renderVerzoeken(); renderVoorspel(); renderReacties(); renderVrienden(); renderKaartenVanVrienden(); renderUitdagingenTab(); renderTellers();
     const n = sleutel && document.getElementById(sleutel);
     if (n && n !== document.activeElement) { n.focus(); try { if (cursor) n.setSelectionRange(cursor[0], cursor[1]); } catch (e) { /* geen tekstveld */ } }
   }
@@ -508,7 +645,7 @@
       else melding(foutTekst(e), true);
     } finally { bezig = false; $('sync').disabled = false; }
   }
-  function zetStatus(ok) { $('sync-status').textContent = ok ? 'Live. Laatst bijgewerkt om ' + tijd(Date.now()) + '.' : 'Verbinding haperde, ik probeer het opnieuw.'; }
+  function zetStatus(ok) { $('stip').className = 'stip ' + (ok ? 'aan' : 'uit'); $('sync-status').textContent = ok ? 'Live. Laatst bijgewerkt om ' + tijd(Date.now()) + '.' : 'Verbinding haperde, ik probeer het opnieuw.'; }
   // Elke seconde, alleen zolang de pagina zichtbaar is (zie vriendenlib maakLive).
   function startLive() {
     if (live) return;
@@ -528,12 +665,12 @@
           for (const id of Object.keys(g.kaarten)) vriendKaarten[id] = g.kaarten[id];
           if (handtekening() !== voor) renderAlles();
         } else if (g.type === 'berichten') {
-          if (g.berichten.some((b) => b.m.t === 'uitnodiging' && b.leeftijd < 300)) { uitdagingen.add(g.van); melding(`${L.naam(st.vrienden.find((v) => v.id === g.van) || { id: g.van })} daagt je uit voor een gevecht. Open het tabblad Team.`); renderAlles(); }
+          if (g.berichten.some((b) => b.m.t === 'uitnodiging' && b.leeftijd < 300)) { uitdagingen.add(g.van); melding(`${L.naam(st.vrienden.find((v) => v.id === g.van) || { id: g.van })} daagt je uit voor een gevecht. Open Team om te accepteren.`); renderAlles(); }
         } else if (g.type === 'ok') { if (!bezig) zetStatus(true); }
         else if (g.type === 'fout') {
           if (g.fout.verbannen) { $('sync-status').textContent = g.fout.message; if (!banGemeld) { banGemeld = true; melding(g.fout.message, true); } }
           else if (g.fout.status === 401) { $('sync-status').textContent = 'Je account is niet meer geldig.'; live.stop(); }
-          else $('sync-status').textContent = 'Verbinding haperde, ik probeer het opnieuw.';
+          else { $('sync-status').textContent = 'Verbinding haperde, ik probeer het opnieuw.'; $('stip').className = 'stip uit'; }
         }
       },
     });
@@ -541,8 +678,11 @@
   }
 
   function toonApp() {
-    $('uitleg').hidden = true; $('app').hidden = false;
+    $('uitleg').hidden = true; $('app').hidden = false; $('kop-toevoegen').hidden = false;
     toonCode();
+    $('server-tekst').textContent = st.server || '';
+    let s = 'vrienden'; try { s = sessionStorage.getItem('spo_vrienden_sec') || s; } catch (e) { /* niet erg */ }
+    toonSectie(s);
   }
 
   async function init() {
@@ -597,6 +737,7 @@
   });
 
   tweestaps($('wis'), 'Alles wissen en account verwijderen', 'Zeker weten? Klik nogmaals', async () => {
+    if (live) { live.stop(); await live.klaar(); }
     try {
       await L.verwijderAccount(st);
     } catch (e) {
@@ -605,7 +746,7 @@
     }
     if (live) { live.stop(); live = null; }
     st = null; vriendKaarten = {}; opgehaald = false; raadForm = null; concept.clear();
-    $('app').hidden = true; $('uitleg').hidden = false;
+    $('app').hidden = true; $('uitleg').hidden = false; $('meer').open = false; $('kop-toevoegen').hidden = true;
     melding('Je account en al je gedeelde gegevens zijn gewist.');
     $('aanzetten').focus();
   });

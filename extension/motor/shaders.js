@@ -82,6 +82,8 @@ in vec2 vUv; out vec4 o;
 uniform sampler2D uScene, uBloom, uStreak;
 uniform vec2 uRes;
 uniform float uTime, uBloomAmt, uStreakAmt, uStreakTexel, uVig, uGrain, uFade, uBars, uCA, uZoom, uRoll, uSat, uShockW;
+// zeldzaam: uGl = glitch (scheve strepen, kleurverschuiving, regenboogstrepen), uDark = scherm donker maken, uShockRegen = regenboog-schokgolf
+uniform float uGl, uDark, uShockRegen;
 uniform vec3 uVigCol, uStreakCol, uFlash, uGrade, uShockCol;
 uniform vec2 uShake;
 uniform vec3 uRadial;
@@ -104,7 +106,18 @@ void main(){
   c0 = rot2(uRoll) * (c0 * asp) / asp;
   uv = .5 + c0 / uZoom + uShake;
 
+  // glitch: horizontale stroken die verschuiven en af en toe een groot blok
+  if (uGl > .001) {
+    float tk = floor(uTime * 16.);
+    float rij = floor(uv.y * 54.);
+    float hh = h21(vec2(rij, tk));
+    uv.x += step(1. - .5 * uGl, hh) * (h21(vec2(rij * 1.7, tk + 3.)) - .5) * .14 * uGl;
+    float blk = floor(uv.y * 7.);
+    uv.x += step(.9, h21(vec2(blk, floor(uTime * 9.)))) * (h21(vec2(blk, floor(uTime * 9.) + 5.)) - .5) * .3 * uGl;
+  }
+
   float ring = 0.;
+  vec3 ringCol = vec3(0.);
   for (int i = 0; i < 3; i++) {
     vec4 s = uShock[i];
     if (s.w > 0.) {
@@ -113,7 +126,9 @@ void main(){
       float x = (r - s.z) / uShockW;
       float k = exp(-x * x) * s.w;
       uv += normalize(d + vec2(1e-4)) / asp * k * .03;
-      ring += exp(-x * x * 5.) * s.w;
+      float rr = exp(-x * x * 5.) * s.w;
+      ring += rr;
+      ringCol += mix(uShockCol, hsv(vec3(atan(d.y, d.x) / 6.2831853 + r * 1.6 - uTime * .45, .62, 1.)), uShockRegen) * rr;
     }
   }
 
@@ -139,6 +154,10 @@ void main(){
     col = texture(uScene, uv).rgb;
   }
 
+  if (uGl > .001) {
+    vec2 sp = vec2(.014 * uGl, .0);
+    col = vec3(texture(uScene, uv + sp).r, texture(uScene, uv).g, texture(uScene, uv - sp).b);
+  }
   col += texture(uBloom, uv).rgb * uBloomAmt;
   if (uStreakAmt > .001) {
     vec3 st = vec3(0.);
@@ -148,7 +167,7 @@ void main(){
     }
     col += st * uStreakCol * uStreakAmt * .1;
   }
-  col += uShockCol * ring * .35;
+  col += ringCol * .35;
 
   // kleurcorrectie en vignet
   float l = dot(col, vec3(.299, .587, .114));
@@ -156,6 +175,15 @@ void main(){
   vec2 vc = (vUv - .5) * vec2(1.05, 1.);
   float v = smoothstep(.28, .98, length(vc * vec2(asp.x * .62, 1.)));
   col = mix(col, col * (1. - uVig) + uVigCol * uVig * .09, v);
+  col *= 1. - uDark;
+  if (uGl > .001) {
+    // regenboogstrepen en een zwak lijnenpatroon, na het donker maken: ook in een zwart scherm zichtbaar
+    float lr = floor(vUv.y * uRes.y / 3.);
+    float sl = h21(vec2(lr, floor(uTime * 22.)));
+    vec3 rbw = hsv(vec3(vUv.y * 3. + uTime * 1.7 + sl, .8, 1.));
+    col += rbw * step(1. - .3 * uGl, sl) * (.35 + .65 * h21(vec2(lr * 3.1, 5.))) * .4 * uGl;
+    col += rbw * .035 * uGl * (.5 + .5 * sin(vUv.y * uRes.y * 1.6));
+  }
   col += uFlash;
   col *= uFade;
   col = mix(col, col * col * (3. - 2. * min(col, vec3(1.))), .3);
@@ -522,7 +550,7 @@ void main(){
 in vec2 vUv; in vec3 vN; in vec3 vWp; out vec4 o;
 uniform sampler2D uBG, uMid, uFG, uMasker, uAchter, uCijfer;
 uniform vec2 uKantel; uniform vec4 uCijferRect;
-uniform float uTime, uHolo, uGlitter, uVeeg, uGlow, uAlpha, uPop, uTier, uHelder;
+uniform float uTime, uHolo, uGlitter, uVeeg, uGlow, uAlpha, uPop, uTier, uHelder, uFolie;
 uniform vec3 uCol, uCol2, uCamPos;
 ${GEMEEN}
 void main(){
@@ -605,6 +633,19 @@ void main(){
   float kruis = (exp(-abs(gd.x) * 28. - abs(gd.y) * 4.) + exp(-abs(gd.y) * 28. - abs(gd.x) * 4.)) * .6;
   col += (vec3(1., .96, .85) * (core + kruis) * 1.8 + hsv(vec3(gh * 7. + ang, .6, 1.)) * core * .6) * spark * m.g * uGlitter * bg.a;
 
+  // zeldzaam: holografische folie over de hele kaart. De regenboog hangt aan de weerkaatsing, dus als de kaart
+  // ronddraait loopt hij over het hele oppervlak, met diffractiestrepen en een scherpe glans.
+  if (uFolie > .001) {
+    vec3 Rf = reflect(-V, N);
+    float ph = uv.x * .85 - uv.y * .6 + Rf.x * 1.7 + Rf.y * 1.2 + t.x * .5 + uTime * .06;
+    vec3 fr = .5 + .5 * cos(6.2831853 * (ph + vec3(0., .33, .67)));
+    float strip = .5 + .5 * sin((uv.x + uv.y * 1.3) * 46. + Rf.x * 11.);
+    float glare = exp(-pow((fract(ph * .55) - .5) * 5., 2.));
+    col = mix(col, col * (.5 + 1.1 * fr), (.28 + .3 * strip) * uFolie * (.6 + .4 * bg.a)) + fr * glare * .4 * uFolie * (.25 + lm);
+    col += vec3(1., .96, .88) * pow(max(dot(Rf, normalize(vec3(.3, .5, .8))), 0.), 36.) * .8 * uFolie;
+    col += hsv(vec3(ph * 2., .7, 1.)) * exp(-pow((fract(ph * 1.7 + uTime * .1) - .5) * 9., 2.)) * .22 * uFolie * m.r;
+  }
+
   col = mid.rgb + col * (1. - mid.a);
   // de teksten werpen een zachte schaduw: ze zweven net boven het metaal
   col *= 1. - .3 * texture(uFG, uvF - vec2(.0016, .0026)).a * (1. - fg.a);
@@ -637,13 +678,25 @@ void main(){
   const FS_PLAAT = `${KOP}
 in vec2 vUv; in vec3 vN; in vec3 vWp; out vec4 o;
 uniform sampler2D uTex;
-uniform float uAlpha, uVeeg, uOptel, uTime, uGlitch;
+uniform float uAlpha, uVeeg, uOptel, uTime, uGlitch, uHue, uRGB;
 uniform vec3 uTint;
 void main(){
   vec2 uv = vUv;
   // glitch: even verschoven strepen
   if (uGlitch > 0.) uv.x += (fract(sin(floor(uv.y * 40.) * 91.7 + floor(uTime * 20.)) * 4375.5) - .5) * .04 * uGlitch;
   vec4 t = texture(uTex, uv);
+  // kleurverschuiving: rood en blauw komen uit een iets verschoven plek
+  if (uRGB > 0.) {
+    vec4 tr = texture(uTex, uv + vec2(.012 * uRGB, 0.));
+    vec4 tb = texture(uTex, uv - vec2(.012 * uRGB, 0.));
+    t = vec4(tr.r, t.g, tb.b, max(t.a, max(tr.a, tb.a)));
+  }
+  // de tint van de regenboog draait langzaam rond (kleurwiel, behoudt de helderheid)
+  if (uHue != 0.) {
+    float cs = cos(uHue), sn = sin(uHue);
+    const vec3 k = vec3(.57735);
+    t.rgb = t.rgb * cs + cross(k, t.rgb) * sn + k * dot(k, t.rgb) * (1. - cs);
+  }
   // veeg van links naar rechts (met een schuine, felle rand)
   float k = uv.x + (uv.y - .5) * .35;
   float zicht = smoothstep(uVeeg, uVeeg - .04, k);
@@ -773,6 +826,46 @@ void main(){
       col = mix(fc, vec3(1.), r5 * .45);
       vK = 1;
     }
+  } else if (uMode == 7) {
+    // 3D-confetti: echte rechthoekjes die om alle assen tuimelen, met perspectief, diepte, schaduw en een metalen glans
+    float a = uAngle + (r1 - .5) * uSpread;
+    vec2 v0 = vec2(cos(a), sin(a)) * mix(uSpd.x, uSpd.y, r2);
+    float k = max(uDrag, .001);
+    float e = (1. - exp(-k * age)) / k;
+    float diep = r6;                                   // 0 = ver weg, 1 = vlak voor de camera
+    pos = uOrg + v0 * e + uGrav * (age - e) / k * (.6 + .8 * diep);
+    if (uPer == 2) pos.x += (fract(r5 * 7.31 + r2 * 3.7) - .5) * uAspect * 1.15; // regen over de hele breedte
+    pos.x += sin(age * (1.2 + 2.5 * r3) + r5 * 20.) * (.02 + .05 * diep);
+    float ax = r1 * 6.2831853 + age * (3. + 9. * r5);
+    float ay = r2 * 6.2831853 + age * (2. + 8. * r3);
+    float az = r3 * 6.2831853 + age * (1. + 4. * r6);
+    mat3 Rx = mat3(1., 0., 0., 0., cos(ax), sin(ax), 0., -sin(ax), cos(ax));
+    mat3 Ry = mat3(cos(ay), 0., -sin(ay), 0., 1., 0., sin(ay), 0., cos(ay));
+    mat3 Rz = mat3(cos(az), sin(az), 0., -sin(az), cos(az), 0., 0., 0., 1.);
+    float lint = step(.82, fract(r6 * 13.7));          // een deel zijn lange linten
+    vec3 q3 = Rz * Ry * Rx * vec3(c.x * (lint > .5 ? .35 : 1.), c.y * (lint > .5 ? 3.2 : .62), 0.);
+    float sz = mix(uSize.x, uSize.y, r0) * (.55 + .95 * diep);
+    float persp = 1. / (1. - q3.z * sz * 3.);
+    off = q3.xy * sz * persp;
+    vec3 nrm = Rz * Ry * Rx * vec3(0., 0., 1.);
+    float licht = .45 + .55 * abs(nrm.z);
+    float spec = pow(abs(dot(nrm, normalize(vec3(.35, .55, .75)))), 22.);
+    float pk = fract(r5 * 9.3);
+    vec3 bas = uRegen > .5 ? hsv(vec3(fract(r5 * 3. + age * .15), .72, 1.)) : (pk < .5 ? mix(uCol1, uCol2, r3) : hsv(vec3(fract(r5 * 5.1), .65, 1.)));
+    col = bas * licht * (.65 + .6 * diep) + vec3(1., .96, .9) * spec * .9;
+    alpha = smoothstep(1., .9, u) * smoothstep(0., .04, u) * (.55 + .45 * diep);
+    vK = 2;
+  } else if (uMode == 8) {
+    // zachte vlokken of stofjes die rustig vallen (sneeuw) of opstijgen (uGrav.y > 0), met zwiepende beweging en diepte
+    float diep = r6;
+    float sp = (.04 + .09 * diep) * mix(uSpd.x, uSpd.y, r2);
+    float span = 1.35;
+    float yy = mod(r3 * span + age * uGrav.y * sp * 6. * (.5 + diep), span) - span * .5;
+    pos = vec2((r1 - .5) * uAspect * 1.25 + sin(age * (.4 + .8 * r5) + r4 * 30.) * (.03 + .05 * diep) + uGrav.x * age * sp * 3., yy + uOrg.y);
+    float sz = mix(uSize.x, uSize.y, r0 * r0) * (.4 + 1.1 * diep);
+    off = c * sz;
+    alpha = smoothstep(0., 1.2, age) * smoothstep(life, life - 1., age) * (.35 + .65 * diep) * (.7 + .3 * sin(age * (1.5 + 3. * r5) + r6 * 20.));
+    vK = 4;
   } else if (uMode == 6) {
     // rook: grote, zachte, donkere wolken die opstijgen
     pos = uOrg + vec2((r1 - .5) * .3, 0.) + vec2((r1 - .5) * .12, .06 + .12 * r2) * age;

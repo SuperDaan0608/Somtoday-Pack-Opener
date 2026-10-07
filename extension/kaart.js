@@ -10,6 +10,13 @@
   let keuze = {};
   let begin = { ...STANDAARD }; // oude globale keuze: beginwaarde voor niveaus zonder eigen ontwerp
   const nu_ = (i) => keuze[i] || begin;
+  let gekocht = []; // items uit de winkel; extra kleuren en de randen Dubbele lijn en Neon zijn pas te kiezen na het kopen
+  const RAND_ITEM = { dubbel: 'rd-dubbel', neon: 'rd-neon' };
+  const slot = (b, id, naam) => {
+    const item = id && !gekocht.includes(id);
+    b.disabled = !!item;
+    if (item) { b.title = `${naam}: te koop in de Winkel`; b.classList.add('slot'); }
+  };
   let niveau = 2;
   let teken = 0;
 
@@ -83,6 +90,7 @@
       n.className = 'naam';
       n.textContent = t.naam;
       b.append(k, n);
+      slot(b, t.premium, t.naam);
       b.addEventListener('click', () => { keuze[niveau] = { ...nu_(niveau), thema: id }; vink(); bewaar(); toon(); });
       th.appendChild(b);
     }
@@ -93,6 +101,7 @@
       b.setAttribute('role', 'radio');
       b.dataset.id = id;
       b.textContent = naam;
+      slot(b, RAND_ITEM[id], naam);
       b.addEventListener('click', () => { keuze[niveau] = { ...nu_(niveau), rand: id }; vink(); bewaar(); toon(); });
       ra.appendChild(b);
     }
@@ -105,6 +114,7 @@
   }
 
   (async function start() {
+    try { gekocht = (await globalThis.SPOEco.lees()).winkel.gekocht; } catch (e) { /* geen winkel */ }
     const nu = await opslag.lees();
     if (SPO.KAART_THEMAS[nu.kaartThema]) begin.thema = nu.kaartThema;
     if (SPO.KAART_RANDEN[nu.kaartRand]) begin.rand = nu.kaartRand;

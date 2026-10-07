@@ -24,10 +24,10 @@
   const SLEUTEL_GALERIJ = 'spo_galerij';
   const SLEUTEL_GEOPEND = 'spo_geopend';
   const SLEUTEL_PROEF = 'spo_proef';
-  const STANDAARD = { afdekking: true, geluid: true, snel: false, opening: 'pak', galerij: true, laag: false, zeldzaam: true, seizoen: true, gemiddelden: true, knop: true };
+  const STANDAARD = { dagelijks: true, afdekking: true, geluid: true, snel: false, opening: 'pak', galerij: true, laag: false, zeldzaam: true, seizoen: true, gemiddelden: true, knop: true, uitval: true };
   const OPENINGEN = ['pak', 'kluis', 'plinko', 'ster', 'raket', 'schiet', 'dans', 'willekeurig'];
   const OPENING_NAAM = { pak: 'Pakje', kluis: 'Kluis', plinko: 'Plinko', ster: 'Wensster', raket: 'Raket', schiet: 'Schieten', dans: 'Dansje', willekeurig: 'Verras me' };
-  const TABS = ['overzicht', 'galerij', 'kaart', 'vrienden', 'team', 'rekenen', 'proberen', 'instellingen', 'geluiden'];
+  const TABS = ['overzicht', 'galerij', 'kaart', 'proberen', 'team', 'vrienden', 'prestaties', 'winkel', 'profiel', 'rekenen', 'instellingen', 'geluiden']; // zelfde volgorde als in de zijbalk (pijltjestoetsen)
 
   const ingebed = window.parent !== window;
   if (!ingebed) document.documentElement.classList.add('los');
@@ -597,7 +597,7 @@
     schuifEl.value = c || 7.5;
     zetWeging(Math.min(4, Math.max(1, parseInt(p.weging, 10) || 1)));
     $('proef-zeldzaam').checked = p.zeldzaam === true;
-    $('proef-seizoen').value = ['auto', 'halloween', 'geen'].includes(p.seizoen) ? p.seizoen : 'auto';
+    $('proef-seizoen').value = ['auto', 'halloween', 'kerst', 'zomer', 'geen'].includes(p.seizoen) ? p.seizoen : 'auto';
     geschiedenis = (Array.isArray(p.geschiedenis) ? p.geschiedenis : []).filter((x) => x && typeof x.cijfer === 'number' && typeof x.vak === 'string').slice(0, 20);
     werkVoorbeeldBij();
     tekenGeschiedenis();
@@ -690,6 +690,7 @@
       if (e.origin !== location.origin || !vanKader(e.source)) return;
       if (m.type === 'esc') sluit();
       else if (m.type === 'naar-cijfers') naarCijfers();
+      else if (m.type === 'ga' && TABS.includes(m.tab)) kies(m.tab);
     }
   });
 

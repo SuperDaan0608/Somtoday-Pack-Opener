@@ -15,6 +15,9 @@
     <symbol id="i-kaart" viewBox="0 0 24 24"><path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z"/><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/></symbol>
     <symbol id="i-vrienden" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
     <symbol id="i-team" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m12 8 4 3-1.5 4.5h-5L8 11z"/><path d="M12 2v6M16 11l5.5-1.5M14.5 15.5 18 20M9.5 15.5 6 20M8 11 2.5 9.5"/></symbol>
+    <symbol id="i-winkel" viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></symbol>
+    <symbol id="i-profiel" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></symbol>
+    <symbol id="i-prestaties" viewBox="0 0 24 24"><path d="m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.687a1 1 0 0 0-1.197 0l-3.586 2.686a.5.5 0 0 1-.81-.469l1.514-8.526"/><circle cx="12" cy="8" r="6"/></symbol>
     <symbol id="i-rekenen" viewBox="0 0 24 24"><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01M12 10h.01M8 10h.01M12 14h.01M8 14h.01M12 18h.01M8 18h.01"/></symbol>
     <symbol id="i-proberen" viewBox="0 0 24 24"><path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/><path d="M8.5 2h7"/><path d="M7 16h10"/></symbol>
     <symbol id="i-instellingen" viewBox="0 0 24 24"><line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/></symbol>
@@ -30,19 +33,28 @@
         <img src="icons/icon-48.png" width="30" height="30" alt="" />
         <div><small>Somtoday</small><strong>Pack Opener</strong></div>
       </div>
+      <button type="button" class="munten" id="munten" data-ga="winkel" aria-label="Je munten, naar de winkel"><svg class="munt" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8.5" fill="#ffd24a" stroke="#b8860b" stroke-width="1.5"/><circle cx="10" cy="10" r="5.2" fill="none" stroke="#b8860b" stroke-width="1.2"/></svg><b id="munt-saldo">0</b><span>munten</span></button>
     </header>
 
     <nav class="zij" aria-label="Onderdelen van de Pack Opener">
       <div class="tabs" id="tabs" role="tablist" aria-orientation="vertical">
+        <div class="groep" role="presentation">Openen</div>
         <button type="button" role="tab" id="tab-overzicht" data-tab="overzicht" aria-controls="paneel-overzicht"><svg class="ico" aria-hidden="true"><use href="#i-overzicht"/></svg><span>Overzicht</span><b class="tab-badge" id="tab-badge" hidden></b></button>
         <button type="button" role="tab" id="tab-galerij" data-tab="galerij" aria-controls="paneel-galerij"><svg class="ico" aria-hidden="true"><use href="#i-galerij"/></svg><span>Galerij</span></button>
         <button type="button" role="tab" id="tab-kaart" data-tab="kaart" aria-controls="paneel-kaart"><svg class="ico" aria-hidden="true"><use href="#i-kaart"/></svg><span>Kaart ontwerpen</span></button>
-        <button type="button" role="tab" id="tab-vrienden" data-tab="vrienden" aria-controls="paneel-vrienden"><svg class="ico" aria-hidden="true"><use href="#i-vrienden"/></svg><span>Vrienden</span></button>
-        <button type="button" role="tab" id="tab-team" data-tab="team" aria-controls="paneel-team"><svg class="ico" aria-hidden="true"><use href="#i-team"/></svg><span>Team</span></button>
-        <button type="button" role="tab" id="tab-rekenen" data-tab="rekenen" aria-controls="paneel-rekenen"><svg class="ico" aria-hidden="true"><use href="#i-rekenen"/></svg><span>Cijfercalculator</span></button>
         <button type="button" role="tab" id="tab-proberen" data-tab="proberen" aria-controls="paneel-proberen"><svg class="ico" aria-hidden="true"><use href="#i-proberen"/></svg><span>Proberen</span></button>
+        <div class="groep" role="presentation">Spelen</div>
+        <button type="button" role="tab" id="tab-team" data-tab="team" aria-controls="paneel-team"><svg class="ico" aria-hidden="true"><use href="#i-team"/></svg><span>Team</span></button>
+        <button type="button" role="tab" id="tab-vrienden" data-tab="vrienden" aria-controls="paneel-vrienden"><svg class="ico" aria-hidden="true"><use href="#i-vrienden"/></svg><span>Vrienden</span></button>
+        <button type="button" role="tab" id="tab-prestaties" data-tab="prestaties" aria-controls="paneel-prestaties"><svg class="ico" aria-hidden="true"><use href="#i-prestaties"/></svg><span>Prestaties</span></button>
+        <div class="groep" role="presentation">Shop</div>
+        <button type="button" role="tab" id="tab-winkel" data-tab="winkel" aria-controls="paneel-winkel"><svg class="ico" aria-hidden="true"><use href="#i-winkel"/></svg><span>Winkel</span></button>
+        <button type="button" role="tab" id="tab-profiel" data-tab="profiel" aria-controls="paneel-profiel"><svg class="ico" aria-hidden="true"><use href="#i-profiel"/></svg><span>Profiel</span></button>
+        <div class="groep" role="presentation">Handig</div>
+        <button type="button" role="tab" id="tab-rekenen" data-tab="rekenen" aria-controls="paneel-rekenen"><svg class="ico" aria-hidden="true"><use href="#i-rekenen"/></svg><span>Cijfercalculator</span></button>
+        <div class="groep onder-groep" role="presentation">Instellingen</div>
         <button type="button" role="tab" id="tab-instellingen" data-tab="instellingen" aria-controls="paneel-instellingen"><svg class="ico" aria-hidden="true"><use href="#i-instellingen"/></svg><span>Instellingen</span></button>
-        <button type="button" role="tab" id="tab-geluiden" data-tab="geluiden" aria-controls="paneel-geluiden"><svg class="ico" aria-hidden="true"><use href="#i-geluiden"/></svg><span>Geluiden</span></button>
+        <button type="button" class="sub" role="tab" id="tab-geluiden" data-tab="geluiden" aria-controls="paneel-geluiden"><svg class="ico" aria-hidden="true"><use href="#i-geluiden"/></svg><span>Geluiden</span></button>
       </div>
       <p class="zij-voet">Fanproject. Niet verbonden aan Somtoday of Topicus.</p>
     </nav>
@@ -81,7 +93,7 @@
           <button type="button" class="snel-kaart" data-ga="kaart"><svg class="ico" aria-hidden="true"><use href="#i-kaart"/></svg><span><strong>Kaart ontwerpen</strong><small>Kies kleuren en rand van je kaart.</small></span><svg class="pijl" aria-hidden="true"><use href="#i-pijl"/></svg></button>
         </div>
 
-        <h3 class="sectie">Beheer</h3>
+        <h3 class="sectie">Cijfers markeren</h3>
         <div class="beheer">
           <button type="button" class="knop" id="b-alles-geopend" hidden>Alles als geopend markeren</button>
           <button type="button" class="knop" id="b-alles-afdekken" hidden>Alles weer afdekken</button>
@@ -100,12 +112,15 @@
       <section class="paneel kader" id="paneel-kaart" role="tabpanel" aria-labelledby="tab-kaart" hidden data-src="kaart.html?embed=1" data-titel="Kaart ontwerpen" data-allow="clipboard-write"><p class="laden" aria-hidden="true">Laden…</p></section>
       <section class="paneel kader" id="paneel-vrienden" role="tabpanel" aria-labelledby="tab-vrienden" hidden data-src="vrienden.html?embed=1" data-titel="Vrienden" data-allow="clipboard-write"><p class="laden" aria-hidden="true">Laden…</p></section>
       <section class="paneel kader" id="paneel-team" role="tabpanel" aria-labelledby="tab-team" hidden data-src="team.html?embed=1" data-titel="Team" data-allow="clipboard-write"><p class="laden" aria-hidden="true">Laden…</p></section>
+      <section class="paneel kader" id="paneel-profiel" role="tabpanel" aria-labelledby="tab-profiel" hidden data-src="profiel.html?embed=1" data-titel="Profiel" data-allow="clipboard-write"><p class="laden" aria-hidden="true">Laden…</p></section>
+      <section class="paneel kader" id="paneel-winkel" role="tabpanel" aria-labelledby="tab-winkel" hidden data-src="winkel.html?embed=1" data-titel="Winkel"><p class="laden" aria-hidden="true">Laden…</p></section>
+      <section class="paneel kader" id="paneel-prestaties" role="tabpanel" aria-labelledby="tab-prestaties" hidden data-src="prestaties.html?embed=1" data-titel="Prestaties"><p class="laden" aria-hidden="true">Laden…</p></section>
       <section class="paneel kader" id="paneel-rekenen" role="tabpanel" aria-labelledby="tab-rekenen" hidden data-src="rekenen.html?embed=1" data-titel="Cijfercalculator" data-allow="clipboard-write"><p class="laden" aria-hidden="true">Laden…</p></section>
       <section class="paneel kader" id="paneel-geluiden" role="tabpanel" aria-labelledby="tab-geluiden" hidden data-src="geluiden.html?embed=1" data-titel="Geluiden"><p class="laden" aria-hidden="true">Laden…</p></section>
 
       <!-- Proberen -->
       <section class="paneel" id="paneel-proberen" role="tabpanel" aria-labelledby="tab-proberen" tabindex="0" hidden>
-        <p class="onder">Open een pakket met een zelfgekozen cijfer, om te zien hoe het eruitziet. Dit telt nergens mee: er wordt niets opgeslagen in je galerij.</p>
+        <header class="pagina-kop"><h2>Proberen</h2><p class="onder">Open een pakket met een zelfgekozen cijfer, om te zien hoe het eruitziet. Dit telt nergens mee: er wordt niets opgeslagen in je galerij.</p></header>
         <div class="proef-raster">
           <div>
             <section class="voorbeeld" aria-live="polite" aria-label="Voorbeeld">
@@ -154,6 +169,8 @@
                 <select id="proef-seizoen">
                   <option value="auto">Automatisch (volgens de datum)</option>
                   <option value="halloween">Halloween</option>
+                  <option value="kerst">Kerst</option>
+                  <option value="zomer">Zomer</option>
                   <option value="geen">Geen thema</option>
                 </select>
               </label>
@@ -175,7 +192,7 @@
 
       <!-- Instellingen -->
       <section class="paneel" id="paneel-instellingen" role="tabpanel" aria-labelledby="tab-instellingen" tabindex="0" hidden>
-        <p class="onder">Wijzigingen worden meteen opgeslagen en gelden direct op Somtoday.</p>
+        <header class="pagina-kop"><h2>Instellingen</h2><p class="onder">Hoe de animatie en Somtoday eruitzien. Wijzigingen worden meteen opgeslagen en gelden direct op Somtoday.</p></header>
 
         <h3 class="sectie">Hoe wil je openen?</h3>
         <div class="ok-raster" id="opening" role="radiogroup" aria-label="Hoe wil je openen?">
@@ -193,6 +210,7 @@
         <div class="schakels">
           <label class="schakel"><input type="checkbox" id="afdekking" /><span class="knopje"></span><span class="schakel-tekst">Cijfers afdekken<small>Op Somtoday blijven nieuwe cijfers verborgen tot je ze opent.</small></span></label>
           <label class="schakel"><input type="checkbox" id="gemiddelden" /><span class="knopje"></span><span class="schakel-tekst">Gemiddelden ook afdekken<small>Vakgemiddelden en Cijferoverzicht blijven verborgen zolang je een nieuw cijfer nog niet hebt geopend.</small></span></label>
+          <label class="schakel"><input type="checkbox" id="uitval" /><span class="knopje"></span><span class="schakel-tekst">Uitval-feest<small>Confetti en een label als een les op het rooster uitvalt.</small></span></label>
           <label class="schakel"><input type="checkbox" id="knop" /><span class="knopje"></span><span class="schakel-tekst">Knop op de pagina tonen<small>De knop “Pack Opener” rechtsonder op Somtoday. Staat hij uit, dan open je dit paneel via het icoon van de extensie in je browser.</small></span></label>
         </div>
 
@@ -202,6 +220,7 @@
           <label class="schakel"><input type="checkbox" id="snel" /><span class="knopje"></span><span class="schakel-tekst">Snelle modus<small>Kortere animatie.</small></span></label>
           <label class="schakel"><input type="checkbox" id="laag" /><span class="knopje"></span><span class="schakel-tekst">Lage grafische kwaliteit<small>Soepeler op een trage computer.</small></span></label>
           <label class="schakel"><input type="checkbox" id="zeldzaam" /><span class="knopje"></span><span class="schakel-tekst">Zeldzame kaarten<small>Eén op de tien kaarten is zeldzaam: een extra spectaculaire onthulling, ook bij een lager cijfer.</small></span></label>
+          <label class="schakel"><input type="checkbox" id="dagelijks" /><span class="knopje"></span><span class="schakel-tekst">Dagelijkse beloning<small>De eerste keer per dag dat Somtoday open is, krijg je een pakje met munten of een item. 7 dagen achter elkaar geeft steeds meer.</small></span></label>
           <label class="schakel"><input type="checkbox" id="seizoen" /><span class="knopje"></span><span class="schakel-tekst">Seizoensthema's<small>Rond Halloween krijgt het pakje een spookachtig uiterlijk.</small></span></label>
         </div>
 
@@ -217,5 +236,7 @@
     <button type="button" class="sluit" id="sluit" aria-label="Pack Opener sluiten"><svg class="ico" aria-hidden="true"><use href="#i-sluiten"/></svg></button>
   </div>
   <script src="hub.js"></script>
+  <script src="hub-munten.js"></script>
+  <script src="updatemelding.js"></script>
 </body>
 </html>

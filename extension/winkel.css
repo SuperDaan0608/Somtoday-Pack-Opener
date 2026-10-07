@@ -1,0 +1,76 @@
+@font-face { font-family: 'SPO Display'; src: url('fonts/unbounded.woff2') format('woff2'); font-weight: 200 900; }
+@font-face { font-family: 'SPO Text'; src: url('fonts/inter.woff2') format('woff2'); font-weight: 100 900; }
+:root {
+  color-scheme: dark; --bg: #080a14; --paneel: rgba(255,255,255,.045); --lijn: rgba(255,255,255,.09); --lijn-2: rgba(255,255,255,.17);
+  --tekst: #eef1f8; --tekst-2: #a5aec4; --tekst-3: #8790a8; --goud: linear-gradient(135deg,#fff0b3 0%,#ffd24a 40%,#ff7a3d 100%); --geel: #ffd24a;
+  --display: 'SPO Display', system-ui, sans-serif;
+  --z0: #a5aec4; --z1: #5fd0ff; --z2: #c58bff; --z3: #ffb020;
+}
+* { box-sizing: border-box; }
+html { background: var(--bg); }
+body { margin: 0; min-height: 100vh; padding: 28px 16px 48px; font: 14px/1.45 'SPO Text', system-ui, sans-serif; color: var(--tekst); background: radial-gradient(90% 40% at 50% -8%, rgba(255,204,51,.14), transparent 70%), var(--bg); -webkit-font-smoothing: antialiased; }
+body > .kop, body > main { max-width: 900px; margin-left: auto; margin-right: auto; }
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--geel); outline-offset: 2px; }
+[hidden] { display: none !important; }
+.skip { position: absolute; left: -999px; } .skip:focus { left: 16px; top: 8px; background: #000; padding: 6px 10px; border-radius: 8px; z-index: 9; }
+h1 { font: 800 clamp(28px,5vw,40px)/1 var(--display); margin: 0; letter-spacing: -.02em; background: var(--goud); -webkit-background-clip: text; background-clip: text; color: transparent; }
+h2 { font: 700 18px/1.2 var(--display); margin: 26px 0 8px; }
+.onder { margin: 8px 0 0; color: var(--tekst-3); }
+.uitleg { margin: 0 0 12px; color: var(--tekst-2); font-size: 13px; }
+.kop { margin-bottom: 18px; }
+
+.saldo-balk { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; justify-content: space-between; padding: 14px 18px; border: 1px solid var(--lijn-2); border-radius: 16px; background: rgba(255,210,74,.08); }
+.saldo-label { display: block; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--tekst-3); }
+#saldo { font: 800 30px/1.1 var(--display); color: var(--geel); }
+.dag-info { color: var(--tekst-2); font-size: 13px; }
+.melding { min-height: 20px; margin: 10px 0 0; color: var(--geel); }
+.melding.fout { color: #ff8a8a; }
+
+.knop { min-height: 40px; padding: 0 18px; border-radius: 999px; border: 1px solid var(--lijn-2); background: rgba(255,255,255,.07); font-weight: 650; }
+.knop:hover:not(:disabled) { background: rgba(255,255,255,.14); }
+.knop:disabled { opacity: .5; cursor: default; }
+.knop.goud { border: 0; color: #241703; background: var(--goud); font-weight: 800; }
+.knop.zeker { background: #b3261e; border-color: #ff8a8a; color: #fff; }
+
+.pakjes, .raster { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+.item, .pakkaart { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--lijn); border-radius: 16px; background: var(--paneel); --zk: var(--z0); }
+.item.z1 { --zk: var(--z1); } .item.z2 { --zk: var(--z2); } .item.z3 { --zk: var(--z3); }
+.item { border-color: color-mix(in srgb, var(--zk) 45%, transparent); }
+.voorbeeld { position: relative; height: 84px; border-radius: 10px; display: grid; place-items: center; overflow: hidden; font-weight: 800; text-align: center; }
+.voorbeeld .mini { width: 64%; height: 56%; border-radius: 6px; }
+.voorbeeld .tekst { font: 800 15px var(--display); padding: 0 8px; }
+.item h3 { margin: 0; font-size: 15px; }
+.item .soort { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--tekst-3); }
+.item .zeld { font-size: 11.5px; font-weight: 800; color: var(--zk); }
+.item p { margin: 0; font-size: 12.5px; color: var(--tekst-2); flex: 1; }
+.prijs-regel { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.prijs-tag { font: 800 15px var(--display); color: var(--geel); }
+.gekocht { font-size: 12px; font-weight: 800; color: #7be39a; }
+.pakkaart { align-items: center; text-align: center; }
+.pak-plaat { width: 70px; height: 92px; border-radius: 8px 8px 12px 12px; background: linear-gradient(150deg, var(--pk, #ffcc33), #3b1d70 140%); box-shadow: inset 0 0 0 2px rgba(255,255,255,.35); display: grid; place-items: center; }
+.pak-plaat svg { width: 30px; height: 30px; fill: rgba(0,0,0,.65); }
+.kansen { font-size: 11.5px; color: var(--tekst-3); }
+
+.overlay { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 16px; background: rgba(5,7,16,.85); }
+.venster { width: min(360px, 100%); padding: 22px; text-align: center; border-radius: 20px; background: #12162b; border: 1px solid var(--lijn-2); }
+.venster h2 { margin-top: 0; }
+.podium { position: relative; height: 190px; display: grid; place-items: center; }
+.pakje { position: relative; width: 104px; height: 140px; animation: wiebel .5s ease-in-out infinite; }
+.pakje .deel { position: absolute; left: 0; right: 0; background: linear-gradient(150deg, var(--pk, #ffcc33), #ff6a3d); box-shadow: inset 0 0 0 2px rgba(255,255,255,.35); transition: transform .6s cubic-bezier(.2,.8,.2,1), opacity .5s; }
+.pakje .top { top: 0; height: 30px; border-radius: 10px 10px 2px 2px; }
+.pakje .lijf { top: 28px; bottom: 0; border-radius: 2px 2px 12px 12px; }
+.gloed { position: absolute; width: 210px; height: 210px; border-radius: 50%; opacity: 0; background: radial-gradient(closest-side, var(--zc, #ffe27a), transparent); }
+.prijs { position: absolute; opacity: 0; transform: scale(.3); width: 100%; }
+.prijs b { display: block; font: 800 22px/1.2 var(--display); }
+.prijs span { display: block; margin-top: 6px; font-weight: 800; }
+.prijs .voor { height: 70px; width: 120px; margin: 0 auto 10px; border-radius: 10px; }
+.open .pakje { animation: none; }
+.open .pakje .top { transform: translate(44px, -80px) rotate(34deg); opacity: 0; }
+.open .pakje .lijf { transform: scale(.6) translateY(30px); opacity: 0; }
+.open .gloed { animation: gloed 1.2s ease-out forwards; }
+.open .prijs { animation: prijs .6s .4s cubic-bezier(.2,1.4,.4,1) forwards; }
+@keyframes wiebel { 0%, 100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg) translateY(-3px); } }
+@keyframes gloed { 0% { opacity: 0; transform: scale(.4); } 30% { opacity: 1; } 100% { opacity: 0; transform: scale(1.5); } }
+@keyframes prijs { to { opacity: 1; transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01s !important; animation-delay: 0s !important; transition-duration: .01s !important; } }

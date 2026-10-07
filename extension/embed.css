@@ -12,3 +12,34 @@ html.embed body > * { margin-left: 0; margin-right: 0; }
 html.embed .leeg { margin-left: auto; margin-right: auto; }
 /* iets lichter dan op de losse pagina's: kleine tekst moet goed leesbaar blijven */
 html.embed .onder { color: #8790a8; }
+
+/* ───────── Eén stijl voor alle pagina's in het paneel: kop, kopjes, knoppen, afstanden ───────── */
+html.embed {
+  --tekst-3: #8790a8; /* kleine tekst moet goed leesbaar blijven */
+}
+html.embed .kop { display: block; margin: 0 0 20px; padding: 0 0 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.09); }
+/* De paginakop is nu gewoon zichtbaar: de naam van de pagina en daaronder wat je hier kunt doen. */
+html.embed h1 {
+  position: static; width: auto; height: auto; margin: 0; padding: 0; overflow: visible; clip: auto; white-space: normal; border: 0;
+  font: 700 22px/1.2 'SPO Display', system-ui, sans-serif; letter-spacing: -0.01em; color: #fff; background: none; -webkit-text-fill-color: #fff;
+}
+html.embed .onder { margin: 6px 0 0; max-width: 64ch; font-size: 14px; line-height: 1.5; color: #a5aec4; }
+html.embed .kop .onder { margin-bottom: 0; }
+html.embed h2 { margin: 0 0 8px; font: 700 17px/1.25 'SPO Display', system-ui, sans-serif; }
+html.embed h3 { font-size: 15px; }
+html.embed .paneel { border-radius: 14px; margin-bottom: 16px; }
+/* Knoppen: overal dezelfde hoogte, hoeken en kleuren. */
+html.embed .knop, html.embed button.knop, html.embed a.knop {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 0 16px; border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.17); background: rgba(255, 255, 255, 0.06); color: #eef1f8;
+  font: 600 14px/1.2 'SPO Text', system-ui, sans-serif; text-decoration: none; cursor: pointer; transform: none; box-shadow: none; transition: background 0.15s, border-color 0.15s;
+}
+html.embed .knop:hover:not(:disabled) { background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.3); transform: none; }
+html.embed .knop.goud { border: 0; background: #ffd24a; color: #241703; font-weight: 700; }
+html.embed .knop.goud:hover:not(:disabled) { background: #ffdc6e; }
+html.embed .knop.klein { min-height: 34px; padding: 0 12px; font-size: 13px; margin-top: 0; }
+html.embed .knop.gevaar { border-color: rgba(255, 91, 91, 0.6); background: rgba(255, 91, 91, 0.1); color: #ffb4b4; }
+html.embed .knop.gevaar:hover:not(:disabled), html.embed .knop.gevaar.zeker { background: rgba(255, 91, 91, 0.24); border-color: #ff5b5b; color: #ffd3d3; }
+html.embed .knop:disabled { opacity: 0.45; cursor: default; }
+html.embed .knop:focus-visible { outline: 2px solid #ffd24a; outline-offset: 2px; }
+html.embed input[type='text'], html.embed input[type='url'], html.embed input[type='number'], html.embed select { border-radius: 10px; min-height: 40px; }

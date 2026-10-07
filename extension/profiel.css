@@ -1,0 +1,26 @@
+@font-face { font-family: 'SPO Display'; src: url('fonts/unbounded.woff2') format('woff2'); font-weight: 200 900; }
+@font-face { font-family: 'SPO Text'; src: url('fonts/inter.woff2') format('woff2'); font-weight: 100 900; }
+:root { color-scheme: dark; --bg: #080a14; --lijn-2: rgba(255,255,255,.17); --tekst: #eef1f8; --tekst-2: #a5aec4; --tekst-3: #8790a8; --goud: linear-gradient(135deg,#fff0b3,#ffd24a 40%,#ff7a3d); --display: 'SPO Display', system-ui, sans-serif; }
+* { box-sizing: border-box; }
+html { background: var(--bg); }
+body { margin: 0; min-height: 100vh; padding: 28px 16px 48px; font: 14px/1.45 'SPO Text', system-ui, sans-serif; color: var(--tekst); background: radial-gradient(90% 40% at 50% -8%, rgba(255,204,51,.14), transparent 70%), var(--bg); }
+body > * { max-width: 900px; margin-left: auto; margin-right: auto; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid #ffd24a; outline-offset: 2px; }
+.skip { position: absolute; left: -999px; } .skip:focus { left: 16px; top: 8px; background: #000; padding: 6px 10px; z-index: 9; }
+h1 { font: 800 clamp(28px,5vw,40px)/1 var(--display); margin: 0; background: var(--goud); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.onder { margin: 8px 0 18px; color: var(--tekst-3); }
+.rooster { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 28px; align-items: start; }
+.plaat canvas { width: 100%; height: auto; border-radius: 22px; box-shadow: 0 18px 40px -12px #000; }
+.opties { display: grid; gap: 14px; }
+.veld { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--tekst-3); }
+.veld > span { text-transform: uppercase; letter-spacing: .08em; font-size: 11px; }
+input[type=text], select { background: rgba(0,0,0,.25); border: 1px solid var(--lijn-2); border-radius: 10px; padding: 10px 12px; width: 100%; }
+select option { background: #12152a; }
+.uitleg { margin: 0; color: var(--tekst-2); font-size: 13px; }
+.tekstknop { background: none; border: 0; padding: 0; color: #ffd24a; text-decoration: underline; cursor: pointer; }
+.vink { display: flex; gap: 8px; align-items: center; }
+.acties { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.knop { min-height: 44px; padding: 0 22px; border-radius: 999px; border: 0; font-weight: 800; color: #241703; background: var(--goud); cursor: pointer; }
+.melding { color: #ffd24a; }
+@media (max-width: 640px) { .rooster { grid-template-columns: 1fr; } .plaat { max-width: 300px; } }

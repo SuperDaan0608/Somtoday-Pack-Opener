@@ -1,0 +1,102 @@
+/* Somtoday-thema's (winkel). Werkt alleen als <html data-spo-thema="..."> gezet is door thema.js; zonder dat verandert er niets.
+   We overschrijven de ontwerpvariabelen van Somtoday zelf, zodat alle onderdelen meekleuren. Onze eigen afdekking en paneel hebben een eigen opmaak en blijven zoals ze zijn. */
+
+html:root[data-spo-thema="donker"] {
+  color-scheme: dark;
+  --spo-bg: #0f1218; --spo-ac: #4d8dff;
+  --bg-neutral-none: #171b24; --bg-neutral-weakest: #0f1218; --bg-neutral-weak: #1f2430; --bg-neutral-moderate: #2a3040;
+  --bg-neutral-strong: #2d3446; --bg-neutral-strongest: #8791a6; --bg-neutral-max: #eceff6;
+  --bg-elevated-none: #171b24; --bg-elevated-weakest: #171b24; --bg-elevated-weak: #1f2430; --bg-elevated-strong: #2a3040;
+  --bg-primary-normal: #4d8dff; --bg-primary-strong: #2f6fe0; --bg-primary-strongest: #2f6fe0; --bg-primary-weak: #1b2a47; --bg-primary-weakest: #142036;
+  --fg-on-neutral-none: #eceff6; --fg-on-neutral-weakest: #eceff6; --fg-on-neutral-weak: #eceff6; --fg-on-neutral-moderate: #eceff6; --fg-on-neutral-strong: #eceff6; --fg-on-neutral-strongest: #0f1218; --fg-on-neutral-max: #0f1218;
+  --fg-neutral-normal: #a9b2c4; --fg-neutral-weak: #8791a6; --fg-neutral-moderate: #a9b2c4; --fg-neutral-strong: #eceff6; --fg-neutral-inverted: #0f1218;
+  --fg-primary-normal: #8db8ff; --fg-primary-strongest: #8db8ff;
+  --fg-on-primary-normal: #ffffff; --fg-on-primary-strong: #ffffff; --fg-on-primary-strongest: #ffffff; --fg-on-primary-max: #ffffff;
+  --fg-on-primary-weak: #eceff6; --fg-on-primary-weakest: #eceff6;
+  --border-neutral-weak: #2d3446; --border-neutral-normal: #2d3446; --border-neutral-strong: #8791a6; --border-neutral-strongest: #a9b2c4; --border-neutral-inverted: #0f1218;
+  --border-primary-normal: #4d8dff; --border-primary-strong: #8db8ff; --border-primary-weak: #1b2a47;
+  --text-strong: #eceff6; --text-moderate: #a9b2c4; --text-weak: #8791a6; --text-weakest: #8791a6; --text-inverted: #0f1218;
+  --shadow-color: rgba(0, 0, 0, 0.6);
+}
+html:root[data-spo-thema="oceaan"] {
+  color-scheme: dark;
+  --spo-bg: #041a2c; --spo-ac: #1fc8d8;
+  --bg-neutral-none: #08283f; --bg-neutral-weakest: #041a2c; --bg-neutral-weak: #0d3552; --bg-neutral-moderate: #164565;
+  --bg-neutral-strong: #1b5575; --bg-neutral-strongest: #7fb0bf; --bg-neutral-max: #e6f7fb;
+  --bg-elevated-none: #08283f; --bg-elevated-weakest: #08283f; --bg-elevated-weak: #0d3552; --bg-elevated-strong: #164565;
+  --bg-primary-normal: #1fc8d8; --bg-primary-strong: #12a3b3; --bg-primary-strongest: #12a3b3; --bg-primary-weak: #0a3d52; --bg-primary-weakest: #07303f;
+  --fg-on-neutral-none: #e6f7fb; --fg-on-neutral-weakest: #e6f7fb; --fg-on-neutral-weak: #e6f7fb; --fg-on-neutral-moderate: #e6f7fb; --fg-on-neutral-strong: #e6f7fb; --fg-on-neutral-strongest: #041a2c; --fg-on-neutral-max: #041a2c;
+  --fg-neutral-normal: #9fd0dc; --fg-neutral-weak: #7fb0bf; --fg-neutral-moderate: #9fd0dc; --fg-neutral-strong: #e6f7fb; --fg-neutral-inverted: #041a2c;
+  --fg-primary-normal: #7fe6ee; --fg-primary-strongest: #7fe6ee;
+  --fg-on-primary-normal: #03202b; --fg-on-primary-strong: #03202b; --fg-on-primary-strongest: #03202b; --fg-on-primary-max: #03202b;
+  --fg-on-primary-weak: #e6f7fb; --fg-on-primary-weakest: #e6f7fb;
+  --border-neutral-weak: #1b5575; --border-neutral-normal: #1b5575; --border-neutral-strong: #7fb0bf; --border-neutral-strongest: #9fd0dc; --border-neutral-inverted: #041a2c;
+  --border-primary-normal: #1fc8d8; --border-primary-strong: #7fe6ee; --border-primary-weak: #0a3d52;
+  --text-strong: #e6f7fb; --text-moderate: #9fd0dc; --text-weak: #7fb0bf; --text-weakest: #7fb0bf; --text-inverted: #041a2c;
+  --shadow-color: rgba(0, 0, 0, 0.6);
+}
+html:root[data-spo-thema="bos"] {
+  color-scheme: dark;
+  --spo-bg: #0b1a12; --spo-ac: #5fc77f;
+  --bg-neutral-none: #12261a; --bg-neutral-weakest: #0b1a12; --bg-neutral-weak: #1a3524; --bg-neutral-moderate: #25472f;
+  --bg-neutral-strong: #2d5a3b; --bg-neutral-strongest: #86b093; --bg-neutral-max: #e9f5ec;
+  --bg-elevated-none: #12261a; --bg-elevated-weakest: #12261a; --bg-elevated-weak: #1a3524; --bg-elevated-strong: #25472f;
+  --bg-primary-normal: #5fc77f; --bg-primary-strong: #43a864; --bg-primary-strongest: #43a864; --bg-primary-weak: #183d27; --bg-primary-weakest: #122e1e;
+  --fg-on-neutral-none: #e9f5ec; --fg-on-neutral-weakest: #e9f5ec; --fg-on-neutral-weak: #e9f5ec; --fg-on-neutral-moderate: #e9f5ec; --fg-on-neutral-strong: #e9f5ec; --fg-on-neutral-strongest: #0b1a12; --fg-on-neutral-max: #0b1a12;
+  --fg-neutral-normal: #a5cdb0; --fg-neutral-weak: #86b093; --fg-neutral-moderate: #a5cdb0; --fg-neutral-strong: #e9f5ec; --fg-neutral-inverted: #0b1a12;
+  --fg-primary-normal: #9be3b2; --fg-primary-strongest: #9be3b2;
+  --fg-on-primary-normal: #06210f; --fg-on-primary-strong: #06210f; --fg-on-primary-strongest: #06210f; --fg-on-primary-max: #06210f;
+  --fg-on-primary-weak: #e9f5ec; --fg-on-primary-weakest: #e9f5ec;
+  --border-neutral-weak: #2d5a3b; --border-neutral-normal: #2d5a3b; --border-neutral-strong: #86b093; --border-neutral-strongest: #a5cdb0; --border-neutral-inverted: #0b1a12;
+  --border-primary-normal: #5fc77f; --border-primary-strong: #9be3b2; --border-primary-weak: #183d27;
+  --text-strong: #e9f5ec; --text-moderate: #a5cdb0; --text-weak: #86b093; --text-weakest: #86b093; --text-inverted: #0b1a12;
+  --shadow-color: rgba(0, 0, 0, 0.6);
+}
+html:root[data-spo-thema="neon"] {
+  color-scheme: dark;
+  --spo-bg: #07060e; --spo-ac: #ff2fd0;
+  --bg-neutral-none: #110e22; --bg-neutral-weakest: #07060e; --bg-neutral-weak: #1a1533; --bg-neutral-moderate: #271f4a;
+  --bg-neutral-strong: #ff2fd0; --bg-neutral-strongest: #9e90cc; --bg-neutral-max: #f6f1ff;
+  --bg-elevated-none: #110e22; --bg-elevated-weakest: #110e22; --bg-elevated-weak: #1a1533; --bg-elevated-strong: #271f4a;
+  --bg-primary-normal: #ff2fd0; --bg-primary-strong: #d610ab; --bg-primary-strongest: #d610ab; --bg-primary-weak: #3a0f38; --bg-primary-weakest: #2a0b2a;
+  --fg-on-neutral-none: #f6f1ff; --fg-on-neutral-weakest: #f6f1ff; --fg-on-neutral-weak: #f6f1ff; --fg-on-neutral-moderate: #f6f1ff; --fg-on-neutral-strong: #f6f1ff; --fg-on-neutral-strongest: #07060e; --fg-on-neutral-max: #07060e;
+  --fg-neutral-normal: #c3b6ea; --fg-neutral-weak: #9e90cc; --fg-neutral-moderate: #c3b6ea; --fg-neutral-strong: #f6f1ff; --fg-neutral-inverted: #07060e;
+  --fg-primary-normal: #ff8be6; --fg-primary-strongest: #ff8be6;
+  --fg-on-primary-normal: #12000f; --fg-on-primary-strong: #12000f; --fg-on-primary-strongest: #12000f; --fg-on-primary-max: #12000f;
+  --fg-on-primary-weak: #f6f1ff; --fg-on-primary-weakest: #f6f1ff;
+  --border-neutral-weak: #ff2fd0; --border-neutral-normal: #ff2fd0; --border-neutral-strong: #9e90cc; --border-neutral-strongest: #c3b6ea; --border-neutral-inverted: #07060e;
+  --border-primary-normal: #ff2fd0; --border-primary-strong: #ff8be6; --border-primary-weak: #3a0f38;
+  --text-strong: #f6f1ff; --text-moderate: #c3b6ea; --text-weak: #9e90cc; --text-weakest: #9e90cc; --text-inverted: #07060e;
+  --shadow-color: rgba(0, 0, 0, 0.6);
+}
+html:root[data-spo-thema="goud"] {
+  color-scheme: dark;
+  --spo-bg: #0b0905; --spo-ac: #f0c04a;
+  --bg-neutral-none: #16120a; --bg-neutral-weakest: #0b0905; --bg-neutral-weak: #211b0e; --bg-neutral-moderate: #2f2714;
+  --bg-neutral-strong: #5c4a1c; --bg-neutral-strongest: #b3a373; --bg-neutral-max: #fbf1d6;
+  --bg-elevated-none: #16120a; --bg-elevated-weakest: #16120a; --bg-elevated-weak: #211b0e; --bg-elevated-strong: #2f2714;
+  --bg-primary-normal: #f0c04a; --bg-primary-strong: #d9a526; --bg-primary-strongest: #d9a526; --bg-primary-weak: #3a2d0d; --bg-primary-weakest: #2a2109;
+  --fg-on-neutral-none: #fbf1d6; --fg-on-neutral-weakest: #fbf1d6; --fg-on-neutral-weak: #fbf1d6; --fg-on-neutral-moderate: #fbf1d6; --fg-on-neutral-strong: #fbf1d6; --fg-on-neutral-strongest: #0b0905; --fg-on-neutral-max: #0b0905;
+  --fg-neutral-normal: #d8c795; --fg-neutral-weak: #b3a373; --fg-neutral-moderate: #d8c795; --fg-neutral-strong: #fbf1d6; --fg-neutral-inverted: #0b0905;
+  --fg-primary-normal: #ffe08a; --fg-primary-strongest: #ffe08a;
+  --fg-on-primary-normal: #1d1503; --fg-on-primary-strong: #1d1503; --fg-on-primary-strongest: #1d1503; --fg-on-primary-max: #1d1503;
+  --fg-on-primary-weak: #fbf1d6; --fg-on-primary-weakest: #fbf1d6;
+  --border-neutral-weak: #5c4a1c; --border-neutral-normal: #5c4a1c; --border-neutral-strong: #b3a373; --border-neutral-strongest: #d8c795; --border-neutral-inverted: #0b0905;
+  --border-primary-normal: #f0c04a; --border-primary-strong: #ffe08a; --border-primary-weak: #3a2d0d;
+  --text-strong: #fbf1d6; --text-moderate: #d8c795; --text-weak: #b3a373; --text-weakest: #b3a373; --text-inverted: #0b0905;
+  --shadow-color: rgba(0, 0, 0, 0.6);
+}
+
+/* Gedeeld: achtergrond van de pagina en een paar vaste onderdelen */
+html[data-spo-thema], html[data-spo-thema] body { background-color: var(--spo-bg) !important; color: var(--text-strong); }
+html[data-spo-thema] sl-header { border-bottom-color: var(--border-neutral-weak); }
+html[data-spo-thema] a { color: var(--fg-primary-normal); }
+html[data-spo-thema] ::selection { background: var(--bg-primary-normal); color: var(--fg-on-primary-normal); }
+html[data-spo-thema] { scrollbar-color: var(--border-neutral-normal) var(--spo-bg); }
+/* Een beetje sfeer per thema */
+html[data-spo-thema="neon"] sl-header { border-bottom: 1px solid #ff2fd0; box-shadow: 0 1px 18px -4px #ff2fd0; }
+html[data-spo-thema="neon"] sl-tab-bar { border-top: 1px solid #2cf5a0; box-shadow: 0 -1px 18px -6px #2cf5a0; }
+html[data-spo-thema="neon"] sl-laatste-resultaat-item, html[data-spo-thema="neon"] sl-resultaat-item { box-shadow: inset 0 0 0 1px rgba(44, 245, 160, 0.35); border-radius: 8px; }
+html[data-spo-thema="goud"] sl-header { border-bottom: 1px solid #f0c04a; background-image: linear-gradient(90deg, rgba(240, 192, 74, 0.14), transparent 60%); }
+html[data-spo-thema="oceaan"] body { background-image: linear-gradient(180deg, rgba(31, 200, 216, 0.1), transparent 320px) !important; }
+html[data-spo-thema="bos"] body { background-image: linear-gradient(180deg, rgba(95, 199, 127, 0.1), transparent 320px) !important; }

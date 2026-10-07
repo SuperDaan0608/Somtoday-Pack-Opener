@@ -54,7 +54,7 @@
     return tl;
   }
 
-  function maakTijdlijn(d) {
+  function maakTijdlijn0(d) {
     const op = d.opening !== 'pak' && SPO.openingen ? SPO.openingen[d.opening] : null;
     if (op) {
       // E: het hoogtepunt van de opening, K0: hier begint de kaart; staart: hoe lang de opening na K0 nog tekent.
@@ -84,6 +84,11 @@
     }
     return kaartTijden(tl, d);
   }
+  // Bij een zeldzame kaart schuift de tijdlijn op voor de tease en de lange onthulling (zie zeldzaam.js).
+  const maakTijdlijnZ = (d) => {
+    const tl = maakTijdlijn0(d);
+    return d.zeldzaam && SPO.zeldzaam ? SPO.zeldzaam.tijden(tl, d) : tl;
+  };
 
   // ───────────────────────── Scène ─────────────────────────
   // motor: SPO.Motor; d: SPO.maakData; lagen: uit art.maakKaartLagen; audio en terugroepers van pack.js
@@ -106,7 +111,10 @@
         })
       : LOOK[tier];
     const op = d.opening !== 'pak' && SPO.openingen ? SPO.openingen[d.opening] : null;
-    const tl = maakTijdlijn(d);
+    const tl = maakTijdlijnZ(d);
+    const tlOp = tl.basis || tl; // wat de opening ziet: de gewone tijdlijn
+    const Zt = tl.tease ? { t0: tl.tease[0], t1: tl.tease[1], T: tl.tease[1] - tl.tease[0] } : null;
+    let Zm = null; // de ZELDZAAM-reeks (zeldzaam.js)
     const regenboog = tier === 4;
     const reduceer = !!hulp.minderBeweging;
     const kl = [0, 0, 0];
@@ -138,7 +146,7 @@
 
     // Kleur van het licht: bij een Icoon wisselt die langzaam van tint.
     // Een zeldzame kaart krijgt vanaf het moment dat de kaart verschijnt ook het wisselende regenboog-licht.
-    const regenAan = (t) => regenboog || (zeldzaam && t >= tl.K0 - 0.05);
+    const regenAan = (t) => regenboog || (zeldzaam && (t >= tl.K0 - 0.05 || (!!Zt && t >= Zt.t0)));
     function kleuren(t) {
       if (regenAan(t)) {
         SPO.hsv(t * 0.12, 0.62, 1, kl);
@@ -155,7 +163,8 @@
 
     // ───── gebeurtenissen: dingen die één keer gebeuren (geluid, trillen, onthullen) ─────
     const ev = [];
-    const at = (tijd, fn) => ev.push({ tijd, fn, klaar: false });
+    const at = (tijd, fn) => ev.push({ tijd: tl.echt ? tl.echt(tijd) : tijd, fn, klaar: false });
+    const opT = (x) => (Zt && x > Zt.t0 ? x + Zt.T : x); // tijden van een opening schuiven mee na de tease
     const { audio, onthul, trillen } = hulp;
     const { E, K0, RV } = tl;
     const c1 = tl.pakIn[1];
@@ -181,6 +190,16 @@
         at(c1 + 0.3, () => audio.speel('halloween-kraak', { gain: 0.6, duur: Math.max(0.8, E - c1 - 0.5), fadeOut: 0.4, galmen: 0.2 }));
         at(E - 0.1, () => audio.speel('halloween-donder', { gain: 0.9, galmen: 0.25 }));
         at(E + 0.6, () => audio.speel('halloween-huil', { gain: 0.45, galmen: 0.35, pan: Math.random() < 0.5 ? -0.5 : 0.5 }));
+      }
+      const SZ = {
+        kerst: ['kerst-bel', 'kerst-wind', 'kerst-ding', 'kerst-klokje'],
+        zomer: ['zomer-golf', 'zomer-meeuw', 'zomer-plons', 'zomer-pan'],
+      }[d.seizoen];
+      if (SZ) {
+        // het seizoenspakje: sfeer tijdens het opladen (bellen of golven), een belslag of plons bij de scheur, wind of meeuw erna
+        at(c1 + 0.2, () => audio.speel(SZ[0], { gain: 0.7, duur: Math.max(0.8, E - c1 - 0.4), fadeOut: 0.4, galmen: 0.2 }));
+        at(E - 0.1, () => audio.speel(SZ[2], { gain: 0.9, galmen: 0.25 }));
+        at(E + 0.5, () => audio.speel(SZ[1], { gain: 0.55, galmen: 0.3, pan: Math.random() < 0.5 ? -0.5 : 0.5 }));
       }
       if (tl.wo) {
         const [w0, w1] = tl.wo;
@@ -228,6 +247,8 @@
         trillen([60, 40, 60, 40, 60, 40, 240]);
       }
       if (d.seizoen === 'halloween') audio.speel('halloween-klok', { gain: 0.6, galmen: 0.3, delay: 0.15 });
+      if (d.seizoen === 'kerst') audio.speel('kerst-klokje', { gain: 0.7, galmen: 0.3, delay: 0.1 });
+      if (d.seizoen === 'zomer') audio.speel('zomer-pan', { gain: 0.7, galmen: 0.3, delay: 0.1 });
       onthul();
       trillen(tier >= 3 ? [60, 40, 60, 40, 200] : tier >= 2 ? [40, 30, 80] : 30);
     });
@@ -325,6 +346,9 @@
     // stof en bokeh door alles heen (alleen bij het pakje)
     let stof = null;
     if (!op) {
+      // sneeuw bij het kerstpakje, opstijgende zonnestofjes bij het zomerpakje
+      if (d.seizoen === 'kerst') e({ mode: 8, t0: 0, life: 900, n: 320, size: [0.004, 0.012], grav: [0, -1], spd: [0.6, 1.6], col1: [1, 1, 1], col2: [0.8, 0.9, 1], alpha: 0.9, blend: 'alpha', seed: 51 });
+      if (d.seizoen === 'zomer') e({ mode: 8, t0: 0, life: 900, n: 140, size: [0.004, 0.014], grav: [0, 1], spd: [0.4, 1.0], col1: [1, 0.92, 0.5], col2: [1, 1, 0.85], alpha: 0.7, seed: 52 });
       stof = e({ mode: 1, n: 70, life: 9, size: [0.006, 0.03], col1: sk1, col2: sk2, alpha: 0.5, seed: 11, lod: true });
       // vonken uit de naad tijdens het opladen
       const lekY = lekP;
@@ -368,21 +392,26 @@
     const eigenTex = []; // tekstuur die een opening via ctx.tekstuur heeft gemaakt: die ruimen wij op
     // Een opening zet hier per beeld haar wensen voor de nabewerking in (zie eindbeeld).
     const post = { rad: 0, zoom: 1, roll: 0, bars: 0, bloom: 1, streak: 0, vig: 1, ca: 1, sat: 1, grade: [1, 1, 1] };
-    const rust2Van = (t) => (t >= RV ? sm(t, RV + 0.9, RV + 2.6) : 0); // na de onthulling wordt het beeld rustiger
+    const rust2Van = (t) => (t >= RV ? (zeldzaam ? sm(t, RV + 3.6, RV + 6.6) : sm(t, RV + 0.9, RV + 2.6)) : 0); // na de onthulling wordt het beeld rustiger
 
     // schudden van de camera: een som van dempende stoten plus een voortdurend gerommel bij het opladen
-    function camera(t, uit) {
+    function camera(t, uit, tp) {
       let a = 0;
       for (let i = 0; i < schokken.length; i++) {
         const s = schokken[i];
         const dt = t - s.t;
         if (dt >= 0 && dt < s.dec * 6) a += s.amp * Math.exp(-dt / s.dec);
       }
-      if (op) {
-        if (opInst && opInst.schud) a += opInst.schud(t) * (reduceer ? 0.15 : 1);
+      const inTease = Zt && t >= Zt.t0 && t < Zt.t1;
+      if (Zm) a += Zm.schud(t);
+      if (inTease) {
+        /* tijdens de tease schudt alleen de tease zelf */
+      } else if (op) {
+        if (opInst && opInst.schud) a += opInst.schud(tp) * (reduceer ? 0.15 : 1);
       } else {
-        if (t > c1 && t < E) a += 0.0006 + 0.0075 * Math.pow(ramp(t, c1, E), 2.2) * L.schud * (0.5 + I) * (reduceer ? 0.15 : 1);
-        if (tl.wo && t > tl.wo[0] && t < K0) a += 0.0008 + 0.004 * Math.pow(ramp(t, tl.wo[0], K0), 3) * L.schud * (reduceer ? 0.15 : 1);
+        const K0o = tlOp.K0;
+        if (tp > c1 && tp < E) a += 0.0006 + 0.0075 * Math.pow(ramp(tp, c1, E), 2.2) * L.schud * (0.5 + I) * (reduceer ? 0.15 : 1);
+        if (tl.wo && tp > tl.wo[0] && tp < K0o) a += 0.0008 + 0.004 * Math.pow(ramp(tp, tl.wo[0], K0o), 3) * L.schud * (reduceer ? 0.15 : 1);
       }
       uit.x = a * (Math.sin(t * 61.3) * 0.6 + Math.sin(t * 37.1 + 1.3) * 0.4);
       uit.y = a * (Math.sin(t * 53.7 + 0.7) * 0.6 + Math.sin(t * 29.9 + 2.1) * 0.4);
@@ -485,7 +514,7 @@
       motor.volledig();
     }
 
-    function vlak(t, tx, x, y, z, rx, ry, rz, w, h, alpha, veeg, optel, glitch, tint = kl) {
+    function vlak(t, tx, x, y, z, rx, ry, rz, w, h, alpha, veeg, optel, glitch, tint = kl, rgb = 0, hue = 0) {
       const p = P.plaat.gebruik();
       obj(p, x, y, z, rx, ry, rz, w, h);
       p.tex('uTex', 0, tx);
@@ -494,6 +523,8 @@
       p.f1('uOptel', optel || 0);
       p.f1('uTime', t);
       p.f1('uGlitch', glitch || 0);
+      p.f1('uRGB', rgb || 0);
+      p.f1('uHue', hue || 0);
       p.v3('uTint', tint);
       motor.mengen('alpha');
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -555,7 +586,7 @@
     // De opening krijgt alles wat ze nodig heeft in één object (zie motor/openingen/LEESMIJ.md).
     if (op) {
       const ctx = {
-        motor, gl, d, tl, art: art.opening, artAlles: art, I, tier, T, L, regenboog, reduceer, kl, kl2, cam, post, audio, trillen, onthul,
+        motor, gl, d, tl: tlOp, art: art.opening, artAlles: art, I, tier, T, L, regenboog, reduceer, kl, kl2, cam, post, audio, trillen, onthul,
         H_ZICHT, F, CAM_Z, KAART_H, KAART_B, TWEE_PI,
         get asp() {
           return asp;
@@ -566,7 +597,10 @@
         get lod() {
           return lod;
         },
-        at, schok, flits, golf,
+        at: (x, fn) => at(opT(x), fn),
+        schok: (x, a, dd) => schok(opT(x), a, dd),
+        flits: (x, a, dd) => flits(opT(x), a, dd),
+        golf: (x, a, b, y) => golf(opT(x), a, b, y),
         // een eigen deeltjesbron: die tekent de opening zelf (ctx.zend) en wordt niet automatisch meegetekend
         e(o) {
           const x = e(o);
@@ -585,6 +619,20 @@
         },
       };
       opInst = op.maak(ctx);
+    }
+    if (Zt && art.zeld) {
+      Zm = SPO.zeldzaam.maak({
+        tl, d, I, audio, trillen, reduceer, art: art.zeld, TWEE_PI,
+        at, schok, flits, golf, e0: e, zend: zendDeeltjes, vlak, stralen, licht, warp,
+        tekstuur(bron, opties) {
+          const x = motor.tekstuur(bron, opties);
+          eigenTex.push(x);
+          return x;
+        },
+        get kw() {
+          return motor.kwaliteit;
+        },
+      });
     }
     ev.sort((a, b) => a.tijd - b.tijd);
 
@@ -622,31 +670,40 @@
 
     // ───── één beeld ─────
     // inv: { tilt: [x, y] (-1..1), afspelen: bool }
-    function teken(t, dt, inv) {
+    function teken(tEcht, dt, inv) {
+      // slow-motion bij de onthulling van een zeldzame kaart: alles hieronder rekent met de scènetijd
+      let t = tl.warp ? tl.warp(tEcht) : tEcht;
+      const tp = tl.pre ? tl.pre(t) : t; // de tijd van de opening/het pakje: bevroren tijdens de tease
+      const K0o = tlOp.K0;
+      const inTease = !!Zt && t >= Zt.t0 && t < Zt.t1;
       asp = motor.breedte / motor.hoogte;
       kleuren(t);
-      camera(t, cam);
+      camera(t, cam, tp);
       // Op smalle schermen (een telefoon rechtop) passen we de afmetingen aan de breedte aan.
       const visB = H_ZICHT * asp; // zichtbare breedte op z = 0
       const fit = klem((visB * 0.8) / KAART_B, 0.5, 1);
       const R = (v) => v * fit;
-      const laad = op ? 1 : t < c1 ? 0 : glad(ramp(t, c1, E));
+      const laad = op ? 1 : tp < c1 ? 0 : glad(ramp(tp, c1, E));
       const wo = tl.wo;
-      const walkoutBezig = !!wo && t >= wo[0] - 0.02 && t < K0 + 0.12;
+      const walkoutBezig = !!wo && tp >= wo[0] - 0.02 && tp < K0o + 0.12;
+      const tStr = t < K0 ? tp : t; // voor de lichtbundels: de wereld van vóór de kaart, daarna de kaart
 
       motor.doel(motor.doelen.scene);
       gl.clearColor(0, 0, 0, 1);
       gl.clear(gl.COLOR_BUFFER_BIT);
       motor.mengen('optel');
 
-      // ── achtergrond ──
+      // ── de wereld van vóór de kaart: bij een zeldzame kaart staat die tijdens de tease stil ──
+      {
+      const t = tp;
+      const K0 = K0o;
       if (!op) {
         neutraal(t);
         const aanloop = (1 - sm(t, c1, c1 + 0.3)) * sm(t, 0, 0.5);
         if (aan('warp')) warp(t, aanloop, 0.45 + 1.4 * sm(t, 0, c1) - (t > c1 ? 1.2 * ramp(t, c1, c1 + 0.12) : 0), 0.25 + 0.6 * sm(t, tl.pakIn[0], c1));
       }
 
-      if (!op) kaartStralen(t, laad);
+      if (!op) kaartStralen(tStr, laad);
 
       if (op) {
         // de opening tekent haar eigen wereld; daarna de stralen van de kaart eroverheen
@@ -669,7 +726,7 @@
           }
         }
         motor.mengen('optel');
-        kaartStralen(t, laad);
+        kaartStralen(tStr, laad);
       } else {
         // de walkout-arena
         if (walkoutBezig && aan('arena')) {
@@ -775,11 +832,6 @@
           const b = Math.exp(-dt2 / (0.35 + 0.25 * I));
           licht(t, 0, lekP, (0.3 + 0.55 * I) * b * aan, 0.01 + 0.12 * Math.pow(Math.min(dt2, 0.6), 0.7) + 0.015, (0.35 + 0.55 * I) * Math.exp(-dt2 / 0.65) * aan, (0.3 + 0.4 * I) * Math.exp(-dt2 / 0.9), t * 0.35);
         }
-        if (t >= RV - 0.05 && aan('licht')) {
-          const dt2 = t - RV;
-          const b = Math.exp(-dt2 / (0.4 + 0.5 * I));
-          licht(t, 0, 0.02, (0.2 + 0.4 * I) * b, 0.04 + 0.1 * Math.min(dt2, 0.7), (0.3 + 0.5 * I) * Math.exp(-dt2 / 0.9), (0.35 + 0.6 * I) * Math.exp(-dt2 / 1.2), t * 0.3);
-        }
 
         // ── plaatjes tijdens de walkout ──
         if (wo && tex.plaat.length && t >= wo[0] && t < K0 + 0.1) {
@@ -801,6 +853,19 @@
 
       }
 
+      }
+
+      // het licht van de onthulling (bij het pakje; de andere openingen hebben alleen de stralen)
+      if (!op && t >= RV - 0.05 && aan('licht')) {
+        const dt2 = t - RV;
+        const b = Math.exp(-dt2 / (0.4 + 0.5 * I));
+        licht(t, 0, 0.02, (0.2 + 0.4 * I) * b, 0.04 + 0.1 * Math.min(dt2, 0.7), (0.3 + 0.5 * I) * Math.exp(-dt2 / 0.9), (0.35 + 0.6 * I) * Math.exp(-dt2 / 1.2), t * 0.3);
+      }
+      if (Zm) {
+        if (inTease) Zm.teaseTeken(t, asp, visB);
+        Zm.achter(t, asp);
+      }
+
       // de vonken van de onthulling komen van achter de kaart vandaan
       if (t >= RV - 0.01 && t <= RV + 2.6) zendDeeltjes(t, rvVonken);
 
@@ -809,13 +874,14 @@
         const q = t - K0;
         const u = ramp(q, 0, tl.spin);
         const uit = 1 - Math.pow(1 - u, 3);
-        const draai = (1 - uit) * (Math.PI * 5); // eindigt met de voorkant naar je toe
+        const zk = Zm ? Zm.kaart(t) : null;
+        const draai = (1 - uit) * (Math.PI * (zk ? 7 : 5)) + (zk ? zk.rot : 0); // eindigt met de voorkant naar je toe
         const pas = 1 - Math.pow(1 - ramp(q, 0, tl.spin * 0.75), 3);
         const z = -3.0 * Math.pow(1 - pas, 2);
         const op = veer(ramp(q, 0, 0.6));
         // na de onthulling schuift de kaart wat omlaag en wordt hij iets kleiner, zodat de titel erboven past
         const lay = sm(t, RV + 0.15, RV + 0.9);
-        const sc = KAART_H * R(1) * (0.02 + 0.98 * Math.min(1.12, op)) * mix(1, 0.92, lay);
+        const sc = KAART_H * R(1) * (0.02 + 0.98 * Math.min(1.12, op)) * mix(1, zk ? 0.84 : 0.92, lay) * (zk ? zk.schaal : 1);
         // tel het cijfer op
         const cp = ramp(t, tl.telStart, RV);
         const val = t >= RV ? d.g : 1 + (d.g - 1) * (1 - Math.pow(1 - cp, 2));
@@ -861,6 +927,7 @@
         p.f1('uGlow', 0.5 + 0.8 * rust);
         p.f1('uAlpha', sm(q, 0, 0.12));
         p.f1('uPop', pop);
+        p.f1('uFolie', zk ? zk.folie : 0);
         p.f1('uTier', tier);
         p.f1('uHelder', 1 + (t >= RV ? 0.35 * Math.exp(-(t - RV) / 0.3) : 0));
         p.v3('uCol', kl);
@@ -871,7 +938,9 @@
       }
 
       // ── titel na de onthulling ──
-      if (t >= RV + 0.05) {
+      if (Zm) {
+        Zm.voor(t, fit, asp, visB, -0.2);
+      } else if (t >= RV + 0.05) {
         const q = t - RV - 0.05;
         const pop = Math.max(0.001, veer(ramp(q, 0, 0.55)));
         const w = Math.min(2.05 * (0.9 + 0.1 * I), visB * 0.96);
@@ -885,14 +954,20 @@
         const o = emit[i];
         if (o === stof || o === rvVonken || o.eigen) continue;
         if (o.mode === 1) {
-          zendDeeltjes(t, o);
+          zendDeeltjes(tp, o);
         } else if (o.mode === 4) {
           if (vuurwerk.length && t >= RV) {
             // de x-positie van het vuurwerk hangt af van de beeldverhouding
             for (let k = 0; k < vuurwerk.length; k++) fwData[k * 4] = vuurwerk[k].x * asp;
             zendDeeltjes(t, o);
           }
-        } else if (t >= o.t0 - 0.01 && t <= o.t0 + o.delay + o.life + 0.2) zendDeeltjes(t, o);
+        } else {
+          const tz = Zt && o.t0 > Zt.t0 ? t : tp;
+          if (tz >= o.t0 - 0.01 && tz <= o.t0 + o.delay + o.life + 0.2) {
+            if (o.bij) o.bij(o, asp);
+            zendDeeltjes(tz, o);
+          }
+        }
       }
 
       eindbeeld(t, false, aan('post'));
@@ -941,7 +1016,7 @@
           n++;
         }
       }
-      const rust2 = !rustig && t >= RV ? sm(t, RV + 0.9, RV + 2.6) : 0;
+      const rust2 = !rustig ? rust2Van(t) : 0;
       const bl = motor.bloom(0.62 + 0.12 * rust2);
       motor.doel(null);
       motor.mengen('geen');
@@ -953,12 +1028,16 @@
       p.f2('uRes', motor.breedte, motor.hoogte);
       p.f1('uTime', t);
       const heftig = Math.min(1, flash);
+      const zp = !rustig && Zm ? Zm.post(t) : null; // de wensen van de zeldzaam-reeks
+      p.f1('uGl', zp ? zp.gl : 0);
+      p.f1('uDark', zp ? zp.dark : 0);
+      p.f1('uShockRegen', zp ? zp.regen : 0);
       const pk = !rustig && op ? post : null; // de wensen van de opening voor dit beeld
-      p.f1('uBloomAmt', (L.bloom * 0.9 + 0.3 * heftig) * (0.9 + 0.2 * I) * (1 - 0.4 * rust2) * (pk ? pk.bloom : 1));
+      p.f1('uBloomAmt', (L.bloom * 0.9 + 0.3 * heftig) * (0.9 + 0.2 * I) * (1 - 0.4 * rust2) * (pk ? pk.bloom : 1) * (zp ? zp.bloom : 1));
       p.f1('uStreakAmt', rustig || motor.kwaliteit >= 2 ? 0 : Math.min(1.5, 0.12 + 1.2 * heftig + (!op && t >= E && t < E + 1 ? 0.7 : 0) + (pk ? pk.streak : 0)) * (1 - 0.7 * rust2));
       p.f1('uStreakTexel', 1 / sd.w);
       p.v3('uStreakCol', kl);
-      p.f1('uVig', L.vig * (1 + 0.55 * rust2) * (pk ? pk.vig : 1));
+      p.f1('uVig', L.vig * (1 + 0.55 * rust2) * (pk ? pk.vig : 1) * (zp ? zp.vig : 1));
       p.v3('uVigCol', rustig ? koel2 : kl2); // op het startscherm nog geen tint van het niveau
       p.f1('uGrain', motor.kwaliteit < 3 ? 0.03 : 0);
       p.f1('uFade', rustig ? 1 : sm(t, 0, 0.45));
@@ -986,6 +1065,7 @@
         if (zeldzaam && t >= RV + 0.35) rad = Math.max(rad, 0.16 * Math.exp(-((t - RV - 0.35) % 0.3) / 0.1) * (t < RV + 1.5 ? 1 : 0));
         if (t > K0 - 0.3 && t < K0) rad = Math.max(rad, 0.3 * ramp(t, K0 - 0.3, K0));
       }
+      if (zp) rad = Math.max(rad, zp.rad);
       p.f3('uRadial', 0.5, 0.5, rad * (reduceer ? 0.2 : 1));
       let zoom = 1;
       if (!rustig) {
@@ -1000,10 +1080,11 @@
           if (t >= c1 && t < c1 + 0.4) zoom += 0.025 * Math.exp(-(t - c1) / 0.1);
         }
       }
+      if (zp) zoom *= zp.zoom;
       p.f1('uZoom', zoom);
       p.f1('uRoll', rustig ? 0 : (Math.sin(t * 0.7) * 0.004 + (pk ? pk.roll : t >= E && t < E + 0.6 ? 0.012 * Math.exp(-(t - E) / 0.2) * Math.sin(t * 40) : 0)) * (reduceer ? 0.2 : 1));
       p.f2('uShake', 0, 0);
-      p.f1('uSat', rustig ? 1 : L.sat * (pk ? pk.sat : 1));
+      p.f1('uSat', rustig ? 1 : L.sat * (pk ? pk.sat : 1) * (zp ? zp.sat : 1));
       if (pk) p.f3('uGrade', pk.grade[0], pk.grade[1], pk.grade[2]);
       else p.f3('uGrade', 1, 1, 1);
       p.f1('uShockW', 0.035);
@@ -1024,6 +1105,13 @@
 
     // Waar springt de animatie heen als je erop klikt? { doel, riser } of null (nu even niet).
     function sprong(t) {
+      if (Zt) {
+        if (t < Zt.t0 - 0.05 && !(opInst && opInst.sprong)) { /* gewone regels hieronder */ }
+        else if (t >= Zt.t0 - 0.05 && t < K0) return null; // de tease laten we even gebeuren
+        if (t >= tl.vier && t < tl.EIND - 0.3) return { doel: tl.EIND + 0.05 };
+        if (t >= K0 && t < RV - 0.6) return { doel: RV - 0.5 };
+        if (t >= RV - 0.6) return null;
+      }
       if (opInst && opInst.sprong) {
         const r = opInst.sprong(t);
         if (r !== undefined) return r;
@@ -1077,7 +1165,7 @@
   }
 
   SPO.maakScene = maakScene;
-  SPO.maakTijdlijn = maakTijdlijn;
+  SPO.maakTijdlijn = maakTijdlijnZ;
   SPO.LOOK = LOOK;
   SPO.H_ZICHT = H_ZICHT;
 })();

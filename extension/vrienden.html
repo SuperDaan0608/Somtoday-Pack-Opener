@@ -12,90 +12,138 @@
   <a class="skip" href="#hoofd">Naar de inhoud</a>
   <header class="kop">
     <h1>Vrienden</h1>
-    <p class="onder">Deel cijferkaarten met mensen die je vertrouwt. Jij bepaalt wie wat ziet.</p>
+    <p class="onder">Bekijk kaarten van vrienden, daag ze uit en raad elkaars cijfers. Jij bepaalt wie wat ziet.</p>
+    <button type="button" class="knop goud kop-knop" id="kop-toevoegen" data-sec="toevoegen" hidden>Vriend toevoegen</button>
   </header>
   <div class="melding" id="melding" role="status" aria-live="polite"></div>
 
   <main id="hoofd">
     <section class="paneel" id="uitleg" hidden aria-labelledby="u-titel">
       <h2 id="u-titel">Vriendenfunctie aanzetten</h2>
-      <p>Met de vriendenfunctie kun je cijferkaarten delen met vrienden en de kaarten van je vrienden bekijken. Standaard deelt de extensie niets met niemand. Je kiest per vriend wat die mag zien.</p>
-      <h3>Wat ziet de server?</h3>
-      <ul class="lijst">
-        <li>Alleen <strong>onleesbare data</strong>: alles wordt op jouw computer versleuteld voordat het wordt verstuurd.</li>
-        <li>Een <strong>willekeurige id</strong> en een publieke sleutel. Geen naam, geen e-mailadres, geen cijfers.</li>
-        <li>Wie met wie bevriend is (aan de hand van die willekeurige id's) en <strong>wanneer je online bent</strong>.</li>
-      </ul>
-      <p>Namen van vrienden bestaan alleen bij jou: je geeft zelf een bijnaam. Cijfers van vrienden staan nooit op jouw schijf, die worden alleen getoond zolang deze pagina openstaat.</p>
-      <p>Vrienden kunnen met een emoji reageren op kaarten die je met ze deelt. Je kunt ze ook laten raden welk cijfer je gehaald hebt, voordat je het opent: ze zien dan het vak en het onderwerp, niet het cijfer. Het cijfer gaat pas naar de vrienden die je zelf koos als jij op ‘Toon uitslag aan vrienden’ drukt.</p>
-      <p>Pas als je op de knop drukt, wordt de server benaderd en wordt er een account met sleutel gemaakt. Je kunt alles later wissen.</p>
+      <p>Met vrienden bekijk je elkaars kaarten, speel je gevechten en raad je elkaars cijfers. Standaard deelt de extensie niets met niemand. Jij kiest per vriend wat die mag zien.</p>
+      <p>Pas als je op de knop drukt, wordt de server benaderd en maak je een account zonder naam. Je kunt alles later wissen.</p>
+      <button type="button" class="knop goud" id="aanzetten">Vriendenfunctie aanzetten</button>
       <details class="geavanceerd">
-        <summary>Geavanceerd</summary>
+        <summary>Wat ziet de server? En andere uitleg</summary>
+        <h3>Wat ziet de server?</h3>
+        <ul class="lijst">
+          <li>Alleen <strong>onleesbare data</strong>: alles wordt op jouw computer versleuteld voordat het wordt verstuurd.</li>
+          <li>Een <strong>willekeurige id</strong> en een publieke sleutel. Geen naam, geen e-mailadres, geen cijfers.</li>
+          <li>Wie met wie bevriend is (aan de hand van die willekeurige id's) en <strong>wanneer je online bent</strong>.</li>
+        </ul>
+        <p>Namen van vrienden bestaan alleen bij jou: je geeft zelf een bijnaam. Cijfers van vrienden staan nooit op jouw schijf. Ze worden alleen getoond zolang deze pagina openstaat.</p>
+        <p>Vrienden kunnen met een emoji reageren op kaarten die je met ze deelt. Je kunt ze ook laten raden welk cijfer je gehaald hebt, voordat je het opent: ze zien dan het vak en het onderwerp, niet het cijfer. Het cijfer gaat pas naar de vrienden die je zelf koos als jij op ‘Toon uitslag aan vrienden’ drukt.</p>
         <label class="veld"><span>Server-adres</span><input type="url" id="server" autocomplete="off" spellcheck="false" /></label>
       </details>
-      <button type="button" class="knop goud" id="aanzetten">Vriendenfunctie aanzetten</button>
     </section>
 
     <div id="app" hidden>
-      <div class="balk-boven">
-        <button type="button" class="knop" id="sync">Synchroniseren</button>
-        <span class="status" id="sync-status" aria-live="polite">Verbinden...</span>
+      <div class="subbalk">
+        <div class="subtabs" id="subtabs" role="tablist" aria-label="Onderdelen van Vrienden">
+          <button type="button" role="tab" id="stab-vrienden" data-sec="vrienden" aria-controls="sec-vrienden" aria-selected="true">Vrienden<b class="n" id="n-vrienden" hidden></b></button>
+          <button type="button" role="tab" id="stab-kaarten" data-sec="kaarten" aria-controls="sec-kaarten" aria-selected="false" tabindex="-1">Kaarten van vrienden<b class="n" id="n-kaarten" hidden></b></button>
+          <button type="button" role="tab" id="stab-uitdagingen" data-sec="uitdagingen" aria-controls="sec-uitdagingen" aria-selected="false" tabindex="-1">Uitdagingen<b class="n" id="n-uitdagingen" hidden></b></button>
+          <button type="button" role="tab" id="stab-toevoegen" data-sec="toevoegen" aria-controls="sec-toevoegen" aria-selected="false" tabindex="-1">Vriend toevoegen<b class="n" id="n-toevoegen" hidden></b></button>
+        </div>
+        <p class="live"><span class="stip" id="stip" aria-hidden="true"></span><span class="status" id="sync-status" aria-live="polite">Verbinden...</span><button type="button" class="tekstknop" id="sync">Synchroniseren</button></p>
       </div>
 
-      <section class="paneel" aria-labelledby="c-titel">
-        <h2 id="c-titel">Mijn vriendcode</h2>
-        <p class="uitleg">Geef deze code aan een vriend. De code bevat geen naam en geen cijfers.</p>
-        <div class="rij">
-          <input type="text" id="mijn-code" readonly aria-labelledby="c-titel" />
-          <button type="button" class="knop" id="kopieer">Kopieer</button>
+      <!-- 1. Vrienden -->
+      <section class="sec" id="sec-vrienden" role="tabpanel" aria-labelledby="stab-vrienden" tabindex="0">
+        <p class="sec-uitleg">Je vrienden. Klap een profielkaart open of daag iemand uit voor een gevecht.</p>
+        <div class="leeg-blok" id="geen-vrienden" hidden>
+          <p><strong>Je hebt nog geen vrienden.</strong> Geef je vriendcode aan een klasgenoot, of vul zijn code in.</p>
+          <button type="button" class="knop goud" data-sec="toevoegen">Vriend toevoegen</button>
         </div>
-      </section>
-
-      <section class="paneel" aria-labelledby="t-titel">
-        <h2 id="t-titel">Vriend toevoegen</h2>
-        <form id="toevoegen" autocomplete="off">
-          <label class="veld"><span>Vriendcode van je vriend</span><input type="text" id="t-code" placeholder="SPO1-..." spellcheck="false" required /></label>
-          <label class="veld"><span>Bijnaam (alleen zichtbaar voor jou)</span><input type="text" id="t-alias" maxlength="30" required /></label>
-          <button type="submit" class="knop goud">Verzoek sturen</button>
-        </form>
-      </section>
-
-      <section class="paneel" id="verzoeken-sectie" aria-labelledby="v-titel" hidden>
-        <h2 id="v-titel">Verzoeken</h2>
-        <ul class="kaartlijst" id="verzoeken"></ul>
-      </section>
-
-      <section class="paneel" id="raden-sectie" aria-labelledby="r-titel" hidden>
-        <h2 id="r-titel">Voorspel mijn cijfer</h2>
-        <p class="uitleg">Laat vrienden raden welk cijfer je gehaald hebt, voordat je het opent. De vrienden die je kiest zien het <strong>vak</strong>, het <strong>onderwerp</strong> en de weging van dat cijfer, maar <strong>niet het cijfer zelf</strong>. Het cijfer verlaat dit apparaat pas als jij zelf op ‘Toon uitslag aan vrienden’ drukt, en dan alleen naar de vrienden die je voor die ronde koos. Zolang een ronde loopt, deel je dat cijfer ook niet als kaart met die vrienden, ook niet als je ze ‘Alles’ laat zien. De server ziet ook dan alleen onleesbare data.</p>
-        <h3 id="d-kop">Nog dicht</h3>
-        <p class="geen" id="geen-dicht">Er zijn nu geen ongeopende cijfers bekend. Ze verschijnen hier zodra de extensie ze op Somtoday ziet.</p>
-        <ul class="dichtlijst" id="dicht" aria-labelledby="d-kop"></ul>
-        <h3 id="ro-kop" tabindex="-1">Jouw rondes</h3>
-        <p class="geen" id="geen-rondes">Je hebt nog geen rondes. Kies hierboven een cijfer om vrienden te laten raden.</p>
-        <ul class="rondes" id="rondes" aria-labelledby="ro-kop"></ul>
-      </section>
-
-      <section class="paneel" id="reacties-sectie" aria-labelledby="re-titel" hidden>
-        <h2 id="re-titel">Reacties op jouw kaarten</h2>
-        <p class="uitleg">Vrienden kunnen met één emoji reageren op de kaarten die je met ze deelt. Je ziet hier alleen reacties van vrienden aan wie je die kaart nu deelt.</p>
-        <p class="geen" id="geen-reacties">Nog geen reacties.</p>
-        <ul class="reactielijst" id="reacties"></ul>
-      </section>
-
-      <section class="paneel" aria-labelledby="w-titel">
-        <h2 id="w-titel">Vrienden</h2>
-        <p class="geen" id="geen-vrienden">Je hebt nog geen vrienden. Deel je vriendcode of voeg een vriend toe.</p>
         <ul class="vrienden" id="vrienden"></ul>
       </section>
 
-      <section class="paneel gevaar-paneel" aria-labelledby="x-titel">
-        <h2 id="x-titel">Alles wissen</h2>
-        <p class="uitleg">Verwijdert je account op de server, al je gedeelde gegevens en je sleutels op dit apparaat. Je kaartengalerij blijft bestaan.</p>
-        <button type="button" class="knop gevaar" id="wis">Alles wissen en account verwijderen</button>
+      <!-- 2. Kaarten van vrienden -->
+      <section class="sec" id="sec-kaarten" role="tabpanel" aria-labelledby="stab-kaarten" tabindex="0" hidden>
+        <p class="sec-uitleg">Kaarten die je vrienden met jou delen. Reageer met één emoji; je vriend ziet je reactie.</p>
+        <div class="leeg-blok" id="geen-kaarten-vrienden" hidden>
+          <p><strong>Nog geen vrienden om kaarten van te zien.</strong> Voeg eerst een vriend toe.</p>
+          <button type="button" class="knop goud" data-sec="toevoegen">Vriend toevoegen</button>
+        </div>
+        <ul class="vk-lijst" id="vk-lijst"></ul>
+        <section id="reacties-sectie" aria-labelledby="re-titel" hidden>
+          <h2 id="re-titel">Reacties op jouw kaarten</h2>
+          <p class="sec-uitleg">Je ziet hier alleen reacties van vrienden aan wie je die kaart nu deelt.</p>
+          <p class="geen" id="geen-reacties">Nog geen reacties. Deel een kaart met een vriend (bij Vrienden, Meer opties).</p>
+          <ul class="reactielijst" id="reacties"></ul>
+        </section>
       </section>
+
+      <!-- 3. Uitdagingen -->
+      <section class="sec" id="sec-uitdagingen" role="tabpanel" aria-labelledby="stab-uitdagingen" tabindex="0" hidden>
+        <p class="sec-uitleg">Gevechten met je team, vrienden die jou laten raden en jouw eigen raadrondes.</p>
+        <div class="leeg-blok" id="geen-uitdagingen" hidden>
+          <p><strong>Uitdagen kan pas met een vriend.</strong> Voeg eerst een vriend toe.</p>
+          <button type="button" class="knop goud" data-sec="toevoegen">Vriend toevoegen</button>
+        </div>
+        <div id="uitdagingen-inhoud">
+          <section class="blok" aria-labelledby="gv-kop">
+            <h2 id="gv-kop">Gevechten</h2>
+            <ul class="gv-lijst" id="gevechten"></ul>
+            <p class="geen" id="geen-gevechten">Nog geen gevechten. Zet een team op en daag een vriend uit.</p>
+            <a class="knop" href="team.html" data-ga="team">Naar Team</a>
+          </section>
+          <section class="blok" aria-labelledby="rv-kop">
+            <h2 id="rv-kop">Vrienden laten jou raden</h2>
+            <div id="raden-van"></div>
+            <p class="geen" id="geen-raden-van">Op dit moment laat niemand je een cijfer raden.</p>
+          </section>
+          <section class="blok" id="raden-sectie" aria-labelledby="r-titel" hidden>
+            <h2 id="r-titel">Voorspel mijn cijfer</h2>
+            <p class="uitleg">Laat vrienden raden welk cijfer je gehaald hebt, voordat je het opent. De vrienden die je kiest zien het <strong>vak</strong>, het <strong>onderwerp</strong> en de weging van dat cijfer, maar <strong>niet het cijfer zelf</strong>. Het cijfer verlaat dit apparaat pas als jij zelf op ‘Toon uitslag aan vrienden’ drukt, en dan alleen naar de vrienden die je voor die ronde koos.</p>
+            <h3 id="d-kop">Nog dicht</h3>
+            <p class="geen" id="geen-dicht">Er zijn nu geen ongeopende cijfers bekend. Ze verschijnen hier zodra de extensie ze op Somtoday ziet.</p>
+            <ul class="dichtlijst" id="dicht" aria-labelledby="d-kop"></ul>
+            <h3 id="ro-kop" tabindex="-1">Jouw rondes</h3>
+            <p class="geen" id="geen-rondes">Je hebt nog geen rondes. Kies hierboven een cijfer om vrienden te laten raden.</p>
+            <ul class="rondes" id="rondes" aria-labelledby="ro-kop"></ul>
+          </section>
+        </div>
+      </section>
+
+      <!-- 4. Vriend toevoegen -->
+      <section class="sec" id="sec-toevoegen" role="tabpanel" aria-labelledby="stab-toevoegen" tabindex="0" hidden>
+        <p class="sec-uitleg">Stuur je code naar een vriend, of vul de code van je vriend in. Pas als jullie allebei akkoord zijn, zijn jullie vrienden.</p>
+        <section class="blok" id="verzoeken-sectie" aria-labelledby="v-titel" hidden>
+          <h2 id="v-titel">Verzoeken</h2>
+          <ul class="kaartlijst" id="verzoeken"></ul>
+        </section>
+        <section class="blok code-blok" aria-labelledby="c-titel">
+          <h2 id="c-titel">Jouw vriendcode</h2>
+          <p class="uitleg">Geef deze code aan een vriend. De code bevat geen naam en geen cijfers.</p>
+          <div class="rij">
+            <input type="text" id="mijn-code" class="grote-code" readonly aria-labelledby="c-titel" />
+            <button type="button" class="knop goud" id="kopieer">Kopieer</button>
+          </div>
+        </section>
+        <section class="blok" aria-labelledby="t-titel">
+          <h2 id="t-titel">Code van een vriend invoeren</h2>
+          <form id="toevoegen" autocomplete="off">
+            <label class="veld"><span>Vriendcode van je vriend</span><input type="text" id="t-code" placeholder="SPO1-..." spellcheck="false" required /></label>
+            <label class="veld"><span>Bijnaam (alleen zichtbaar voor jou)</span><input type="text" id="t-alias" maxlength="30" required /></label>
+            <button type="submit" class="knop goud">Verzoek sturen</button>
+          </form>
+        </section>
+      </section>
+
+      <details class="meer" id="meer">
+        <summary>Meer opties</summary>
+        <div class="meer-inhoud">
+          <p class="uitleg">Server: <code id="server-tekst"></code></p>
+          <h3>Alles wissen</h3>
+          <p class="uitleg">Verwijdert je account op de server, al je gedeelde gegevens en je sleutels op dit apparaat. Je kaartengalerij blijft bestaan.</p>
+          <button type="button" class="knop gevaar" id="wis">Alles wissen en account verwijderen</button>
+        </div>
+      </details>
     </div>
   </main>
+  <script src="economie.js"></script>
+  <script src="profielkaart.js"></script>
   <script src="vriendenlib.js"></script>
   <script src="vrienden.js"></script>
 </body>

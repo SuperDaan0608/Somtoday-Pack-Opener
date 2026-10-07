@@ -62,6 +62,16 @@
   }
   const mijnKaart = (e) => ({ vak: e.vak, cijfer: e.cijfer, tier: e.tier | 0, z: e.zeldzaam === true, kaart: e.kaart, id: e.id });
 
+  // ---- prestaties: reddingen onthouden en een melding bij een nieuwe badge ----
+  async function nieuweBadges(reddingen) {
+    const P = globalThis.SPOPrestaties;
+    if (!P) return;
+    try {
+      if (reddingen) await P.telOp('reddingen', reddingen);
+      for (const b of await P.controleer()) melding(`Nieuwe badge: ${b.naam}. ${b.tekst}`);
+    } catch (e) { /* prestaties zijn een extraatje */ }
+  }
+
   // ---- team ----
   function teamLijst() { return L.teamKaarten(team, galerij); }
   function opschonenTeam() {
@@ -91,14 +101,81 @@
     return Math.max(24, Math.min(w * 0.17, h * 0.085 * (n <= 4 ? 1.5 : 1.0) * 0.68 * 1.45, 110));
   }
 
+  // ---- chemie: meter, groepen, tips en lijntjes tussen kaarten ----
+  const SVGNS = 'http://www.w3.org/2000/svg';
+  function tekenChemie(veld, gesorteerd, plekken, kw) {
+    veld.querySelectorAll('.chemie-lijnen').forEach((e) => e.remove());
+    const paneel = $('chemie');
+    const n = gesorteerd.length;
+    paneel.hidden = !n;
+    if (!n) return;
+    const c = G.chemie(gesorteerd);
+    const w = veld.clientWidth, h = veld.clientHeight;
+    const svg = document.createElementNS(SVGNS, 'svg');
+    svg.setAttribute('class', 'chemie-lijnen'); svg.setAttribute('viewBox', `0 0 ${w} ${h}`); svg.setAttribute('aria-hidden', 'true');
+    const kleurVan = (id) => (G.GROEPEN.find((g) => g.id === id) || {}).kleur || '#fff';
+    for (const [i, j] of c.lijnen) {
+      const l = document.createElementNS(SVGNS, 'line');
+      l.setAttribute('x1', plekken[i].x * w); l.setAttribute('y1', plekken[i].y * h);
+      l.setAttribute('x2', plekken[j].x * w); l.setAttribute('y2', plekken[j].y * h);
+      l.setAttribute('stroke', kleurVan(c.groepen[i]));
+      l.setAttribute('stroke-width', Math.max(3, kw * 0.07));
+      l.setAttribute('stroke-linecap', 'round');
+      svg.append(l);
+    }
+    veld.prepend(svg);
+    // Een gekleurd bolletje op elke kaart die bij een groep hoort.
+    veld.querySelectorAll('.speler').forEach((e, i) => {
+      e.querySelectorAll('.groep-stip').forEach((x) => x.remove());
+      if (c.groepen[i]) { const d = el('i', 'groep-stip'); d.style.background = kleurVan(c.groepen[i]); d.title = (G.GROEPEN.find((g) => g.id === c.groepen[i]) || {}).naam || ''; e.append(d); }
+    });
+    $('chemie-getal').textContent = c.score;
+    $('chemie-meter').setAttribute('aria-valuenow', c.score);
+    $('chemie-meter').setAttribute('aria-valuetext', `${c.score} van 100`);
+    $('chemie-vul').style.width = c.score + '%';
+    paneel.dataset.niveau = c.score >= 75 ? 'hoog' : c.score >= 40 ? 'midden' : 'laag';
+    const ul = $('chemie-groepen');
+    ul.replaceChildren();
+    for (const g of c.lijst) {
+      const li = el('li', g.n >= 3 ? 'vol' : g.n === 2 ? 'half' : g.n ? 'een' : 'leeg');
+      const stip = el('i', 'groep-stip'); stip.style.background = g.kleur;
+      li.append(stip, el('span', 'g-naam', g.naam), el('b', '', String(g.n)));
+      li.title = g.n >= 3 ? 'Volle bonus' : g.n === 2 ? 'Halve bonus. Nog één kaart uit deze groep geeft de volle bonus.' : 'Geen bonus';
+      ul.append(li);
+    }
+    const pct = (x) => (x * 100).toFixed(1).replace('.', ',');
+    $('chemie-bonus').textContent = c.score ? `In een gevecht: +${pct(G.chemieBonus(c.score))}% passkans en +${pct(G.chemieBonus(c.score))}% klikkracht.` : 'Nog geen bonus in een gevecht.';
+    $('chemie-tip').textContent = chemieTip(c, n);
+    const vl = $('chemie-vakken');
+    if (!vl.children.length) for (const g of G.GROEPEN) { const li = el('li'); const st = el('i', 'groep-stip'); st.style.background = g.kleur; li.append(st, el('strong', '', g.naam + ': '), document.createTextNode(g.vakken)); vl.append(li); }
+  }
+  function chemieTip(c, n) {
+    if (n < 2) return 'Tip: zet meer kaarten in je team. Chemie krijg je met kaarten uit dezelfde groep.';
+    if (c.score >= 100) return 'Perfecte chemie! Je team past helemaal bij elkaar.';
+    const naam = (g) => g.naam;
+    const grootste = c.lijst.slice().sort((a, b) => b.n - a.n)[0];
+    const nietHerkend = c.groepen.filter((g) => !g).length;
+    if (grootste.n === 0) return 'Tip: geen van je kaarten hoort bij een groep. Kies kaarten van vakken zoals wiskunde, Engels of geschiedenis.';
+    if (grootste.n === 2 && c.lijst.filter((g) => g.n === 2).length === 1) return `Tip: je hebt 2 kaarten uit ${naam(grootste)}. Met nog één kaart uit die groep krijg je de volle bonus.`;
+    const verspreid = n - c.lijst.filter((g) => g.n >= 3).reduce((a, g) => a + g.n, 0);
+    if (verspreid > 0) {
+      const lossen = c.lijst.filter((g) => g.n > 0 && g.n < 3);
+      const tekst = lossen.length ? ` Je ${verspreid === 1 ? 'kaart' : 'kaarten'} uit ${lossen.map(naam).join(' en ')} ${verspreid === 1 ? 'telt' : 'tellen'} nog niet mee.` : '';
+      return `Tip: ${naam(grootste)} is je sterkste groep (${grootste.n}).${tekst} Wissel ze om voor kaarten uit ${naam(grootste)}.` + (nietHerkend ? ` ${nietHerkend} ${nietHerkend === 1 ? 'kaart heeft' : 'kaarten hebben'} een vak dat we niet herkennen.` : '');
+    }
+    return 'Tip: de kaarten van één groep staan niet allemaal naast elkaar. Het veld ordent op sterkte, dus een andere keeper of andere cijfers veranderen de plekken.';
+  }
+
   function tekenBouw() {
     const veld = $('bouwveld');
     veld.querySelectorAll('.speler').forEach((e) => e.remove());
+    veld.querySelectorAll('.chemie-lijnen').forEach((e) => e.remove());
     veld._els = null;
     const lijst = teamLijst();
     const n = lijst.length;
     $('team-leeg').disabled = n === 0;
     if (!n) {
+      $('chemie').hidden = true;
       veld.dataset.leeg = '1';
       $('team-info').textContent = 'Nog geen team. Kies kaarten rechts.';
       return;
@@ -118,6 +195,7 @@
       e.addEventListener('click', kies);
       e.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); kies(); } });
     });
+    tekenChemie(veld, gesorteerd, plekken, kw);
     const gem = lijst.reduce((a, k) => a + G.sterkte(mijnKaart(k)), 0) / n;
     $('team-info').textContent = `${n} ${n === 1 ? 'kaart' : 'kaarten'} · gemiddelde sterkte ${fmt(gem)}${n === 1 ? ' · één kaart is keeper en schutter tegelijk' : ''}`;
   }
@@ -357,12 +435,13 @@
     });
     void wachtTekst;
     try {
-      await L.stuurBericht(st, v, { t: 'uitnodiging', mid, nonce, team: L.teamMomentopname(mijn) });
+      const snap = L.teamMomentopname(mijn);
+      await L.stuurBericht(st, v, { t: 'uitnodiging', mid, nonce, team: snap });
       kn.start(); live.pauze(true);
       const a = await kn.wacht('accepteer:', 90000);
       const hunTeam = L.schoonTeam(a.team);
       if (!hunTeam || hunTeam.kaarten.length !== mijn.length) throw new Error('Het team van je vriend klopt niet.');
-      await speelGevecht({ mid, rol: 'A', kanaal: kn, vriend: v, seedTekst: `${mid}|${nonce}|${a.nonce}`, mijnTeam: mijn.map(mijnKaart), hunTeam: hunTeam.kaarten, hunNaam: L.naam(v) });
+      await speelGevecht({ mid, rol: 'A', kanaal: kn, vriend: v, seedTekst: `${mid}|${nonce}|${a.nonce}`, mijnTeam: mijn.map(mijnKaart), hunTeam: hunTeam.kaarten, mijnCh: snap.ch, hunCh: hunTeam.ch, hunNaam: L.naam(v) });
     } catch (e) {
       afbreken(e, v);
     }
@@ -380,8 +459,9 @@
     try {
       const nonce = L.maakRid().slice(0, 16);
       kn.start(); live.pauze(true);
-      await L.stuurBericht(st, v, { t: 'accepteer', mid: u.mid, nonce, team: L.teamMomentopname(mijn) });
-      await speelGevecht({ mid: u.mid, rol: 'B', kanaal: kn, vriend: v, seedTekst: `${u.mid}|${u.nonce}|${nonce}`, mijnTeam: mijn.map(mijnKaart), hunTeam: u.team.kaarten, hunNaam: L.naam(v) });
+      const snap = L.teamMomentopname(mijn);
+      await L.stuurBericht(st, v, { t: 'accepteer', mid: u.mid, nonce, team: snap });
+      await speelGevecht({ mid: u.mid, rol: 'B', kanaal: kn, vriend: v, seedTekst: `${u.mid}|${u.nonce}|${nonce}`, mijnTeam: mijn.map(mijnKaart), hunTeam: u.team.kaarten, mijnCh: snap.ch, hunCh: u.team.ch, hunNaam: L.naam(v) });
     } catch (e) { afbreken(e, v); }
   }
   async function oefenen() {
@@ -396,7 +476,7 @@
     tekenVrienden();
     kn._hun = hun; kn.start();
     try {
-      await speelGevecht({ mid: 'oefen', rol: 'A', kanaal: kn, computer: true, seed, mijnTeam: mijn.map(mijnKaart), hunTeam: hun, hunNaam: 'Computer', rngKeeper: (k) => hun[0] });
+      await speelGevecht({ mid: 'oefen', rol: 'A', kanaal: kn, computer: true, seed, mijnTeam: mijn.map(mijnKaart), hunTeam: hun, mijnCh: G.chemie(G.ordenTeam(mijn.map(mijnKaart), 0)).score, hunCh: G.chemie(G.ordenTeam(hun, 0)).score, hunNaam: 'Computer', rngKeeper: (k) => hun[0] });
     } catch (e) { afbreken(e, null); }
   }
   function afbreken(e, v) {
@@ -444,7 +524,11 @@
     // Beide computers zetten hetzelfde team A en team B neer: eerst de keeper, dan de rest op sterkte.
     const mijnVol = G.ordenTeam(o.mijnTeam, 0), hunVol = G.ordenTeam(o.hunTeam, 0);
     const teams = ik === 'A' ? { A: mijnVol, B: hunVol } : { A: hunVol, B: mijnVol };
-    const sim = G.maakSim(seed, teams);
+    // Chemie komt uit de teamgegevens die beide kanten kregen (`ch` bij het team). Heeft een van beide geen `ch` (oude versie), dan is het voor allebei 0.
+    const heeftCh = Number.isInteger(o.mijnCh) && Number.isInteger(o.hunCh);
+    const chemie = heeftCh ? (ik === 'A' ? { A: o.mijnCh, B: o.hunCh } : { A: o.hunCh, B: o.mijnCh }) : { A: 0, B: 0 };
+    const sim = G.maakSim(seed, teams, { chemie });
+    const mijnChem = chemie[ik], hunChem = chemie[ik === 'A' ? 'B' : 'A'];
     const n = sim.n;
     const hun = ik === 'A' ? 'B' : 'A';
     const flip = ik === 'B';
@@ -498,6 +582,7 @@
     layout(); markeerHouder();
 
     const stand = { A: 0, B: 0 };
+    let reddingen = 0;      // duels die mijn keeper stopte (voor de prestaties)
     function zetStand() { $('score-a').textContent = stand[ik]; $('score-b').textContent = stand[hun]; }
     const controleer = () => { if (kn.dood || kn.gestopt) throw kn.dood || new Error('afgebroken'); };
     let klok = 0;
@@ -510,6 +595,7 @@
     await kn.wacht('rdy:0', 30000);
     await aftellenGroot(controleer);
     $('bord-status').textContent = 'Aftrap!';
+    if (mijnChem || hunChem) tekst(`Chemie: jij ${mijnChem}, ${o.hunNaam} ${hunChem}`, 1800);
     speel('menigte', 0.25);
 
     function vlieg(van, naar, dur, boog) {
@@ -566,7 +652,7 @@
         const uitkomst = await duel(ev);
         if (uitkomst.goal) {
           stand[ev.schutter.z]++; zetStand();
-        }
+        } else if (ev.keeper.z === ik) reddingen++;
         houder = sim.houder;
         const dicht = rustPlek(houder.z, houder.i);
         await vlieg(balXY, dicht, 450 * snel, 14);
@@ -593,8 +679,8 @@
       $('duel-keeper').replaceChildren(kaartEl(ev.keeper.z === ik ? keeperKaart : Object.assign({}, keeperKaart, { kaart: null })));
       $('duel-schutter').className = 'duel-kaart schutter'; $('duel-keeper').className = 'duel-kaart keeper';
       $('duel-rol').textContent = ikSchiet ? 'Jij schiet! Klik zo snel als je kunt.' : 'Jij verdedigt! Klik zo snel als je kunt.';
-      const mf = G.klikFactor(mijnKaartD), hf = G.klikFactor(hunKaartD);
-      $('duel-bonus').textContent = `Jouw ${ikSchiet ? 'schutter' : 'keeper'} (${fmt(mijnKaartD.cijfer)}): elke klik telt ×${fmtFlex(mf)}. Bij ${o.hunNaam} ×${fmtFlex(hf)}.`;
+      const mf = G.klikFactor(mijnKaartD, mijnChem), hf = G.klikFactor(hunKaartD, hunChem);
+      $('duel-bonus').textContent = `Jouw ${ikSchiet ? 'schutter' : 'keeper'} (${fmt(mijnKaartD.cijfer)}): elke klik telt ×${fmtFlex(mf)}${mijnChem ? ` (chemie ${mijnChem})` : ''}. Bij ${o.hunNaam} ×${fmtFlex(hf)}${hunChem ? ` (chemie ${hunChem})` : ''}.`;
       $('kl-mijn').textContent = '0'; $('kl-hun').textContent = '0';
       $('meter-mijn').style.width = '50%'; $('meter-hun').style.width = '50%';
       $('duel-teller').textContent = ''; $('duel-teller').className = 'duel-teller';
@@ -698,6 +784,7 @@
     if (o.vriend) {
       try { gevechten = await L.bewaarUitslag(o.vriend.id, { ts: Date.now(), mijn: mijnS, hun: hunS, n }); } catch (e) { /* uitslag niet bewaard */ }
     }
+    nieuweBadges(reddingen);
     speel(mijnS > hunS ? 'gejuich' : 'menigte', 0.7);
     kn.stop();
     if (live) live.pauze(false);
