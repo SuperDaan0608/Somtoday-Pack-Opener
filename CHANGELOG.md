@@ -1,5 +1,9 @@
 # Wijzigingen
 
+## v1.4.1
+
+- Bij "te veel verzoeken" wacht de live-synchronisatie steeds langer (tot 2 minuten) in plaats van elke seconde opnieuw te proberen.
+
 ## v1.4.0
 
 - **Live synchroniseren:** de vriendenpagina en het tabblad Team synchroniseren elke seconde, alleen zolang je ze ziet. Een lichte controle (`puls`) haalt pas iets op als er echt iets veranderd is.
