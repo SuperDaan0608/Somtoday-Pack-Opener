@@ -521,8 +521,10 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
     const blobs = new Map();
     const cursor = {};
     let aantal = 0;
+    let rust = 0, rustTot = 0;
     async function tik(geforceerd) {
       if (bezig || (pauze && !geforceerd)) return;
+      if (!geforceerd && Date.now() < rustTot) return; // na 'te veel verzoeken' even wachten
       const zicht = zichtbaar();
       if (!zicht) { vorigZichtbaar = false; return; }
       bezig = true;
@@ -553,8 +555,13 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
           const lijst = await haalBerichten(st, v, cursor);
           if (lijst.length) opt.bij({ type: 'berichten', van: v.id, berichten: lijst });
         }
+        rust = 0;
         opt.bij({ type: 'ok' });
-      } catch (e) { opt.bij({ type: 'fout', fout: e }); }
+      } catch (e) {
+        // De server zegt 'te veel verzoeken' (of is weg): steeds langer wachten, tot 2 minuten, zodat we de server niet blijven belasten.
+        if (e.status === 429 || e.status === 0 || e.status >= 500) { rust = Math.min(120000, rust ? rust * 2 : 5000); rustTot = Date.now() + rust; }
+        opt.bij({ type: 'fout', fout: e });
+      }
       finally { bezig = false; }
     }
     return {
