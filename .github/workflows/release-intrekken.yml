@@ -1,0 +1,22 @@
+name: Release intrekken
+
+# Zet een gepubliceerde release terug naar concept (draft): onzichtbaar voor bezoekers, niet verwijderd.
+on:
+  workflow_dispatch:
+    inputs:
+      versie:
+        description: 'Versie-tag, bijv. v2.0.0'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  intrekken:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Release naar concept zetten
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release edit "${{ inputs.versie }}" --draft=true
