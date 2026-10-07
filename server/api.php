@@ -10,7 +10,7 @@ const BERICHT_TTL = 600;  // berichten in een kanaal verdwijnen na 10 minuten
 const MAX_WACHTRIJ = 300; // hoogstens zoveel berichten tegelijk van één afzender naar één ontvanger
 
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Headers: Content-Type, X-Id, X-Token');
+header('Access-Control-Allow-Headers: Content-Type, X-Id, X-Token, X-Beheer');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
@@ -34,7 +34,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET' && isset($_GET['status'])) {
   try {
     $d = new PDO($c['db_dsn'], $c['db_user'] ?? null, $c['db_pass'] ?? null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
   } catch (Throwable $e) { fout(500, 'Database niet bereikbaar: controleer host, naam, gebruiker en wachtwoord in config.php.'); }
-  foreach (['users', 'friendships', 'blobs', 'ratelimit', 'berichten'] as $t) {
+  foreach (['users', 'friendships', 'blobs', 'ratelimit', 'berichten', 'bans'] as $t) {
     try { $d->query('SELECT 1 FROM ' . $t . ' LIMIT 1'); }
     catch (Throwable $e) { fout(500, 'Tabel ontbreekt: ' . $t . '. Voer schema.sql uit in phpMyAdmin.'); }
   }
@@ -91,6 +91,7 @@ function verwijderGebruiker(PDO $db, string $id): void {
   q($db, 'DELETE FROM blobs WHERE owner = ? OR recipient = ?', [$id, $id]);
   q($db, 'DELETE FROM berichten WHERE afz = ? OR ontv = ?', [$id, $id]);
   q($db, 'DELETE FROM friendships WHERE a = ? OR b = ?', [$id, $id]);
+  q($db, 'DELETE FROM bans WHERE id = ?', [$id]);
   q($db, 'DELETE FROM users WHERE id = ?', [$id]);
 }
 if (random_int(1, 100) === 1) {
@@ -98,12 +99,93 @@ if (random_int(1, 100) === 1) {
   q($db, 'DELETE FROM ratelimit WHERE venster >= 10000000 AND venster < ?', [intdiv($nu, 60) - 120]);
   q($db, 'DELETE FROM berichten WHERE created < ?', [$nu - BERICHT_TTL]);
   q($db, 'DELETE FROM ratelimit WHERE venster < 10000000 AND venster < ?', [intdiv($nu, 3600) - 3]);
+  q($db, 'DELETE FROM bans WHERE tot > 0 AND tot <= ?', [$nu]);
   $oud = q($db, 'SELECT id FROM users WHERE last_seen < ?', [$nu - 365 * 86400])->fetchAll(PDO::FETCH_COLUMN);
   foreach ($oud as $o) verwijderGebruiker($db, $o);
 }
 
 $actie = $in['a'] ?? '';
 if (!is_string($actie)) fout(400, 'Ongeldige actie.');
+
+// ---- Beheer (alleen voor de eigenaar) ----
+// Aan als config.php een lange 'beheer_sleutel' heeft; anders bestaan deze acties niet (404).
+// De beheerder ziet alleen id's, tijden en aantallen/groottes: de inhoud is versleuteld en blijft onleesbaar.
+if (strncmp($actie, 'beheer', 6) === 0) {
+  $bs = $cfg['beheer_sleutel'] ?? '';
+  if (!is_string($bs) || strlen($bs) < 16) fout(404, 'Onbekende actie.');
+  // Eigen, strenge limiet per ip-adres (ook voor foute sleutels), tegen raden.
+  tel($db, hash('sha256', $ipHash . ':beh'), intdiv($nu, 60), (int)($cfg['limiet_beheer_per_min'] ?? 30));
+  $gegeven = $_SERVER['HTTP_X_BEHEER'] ?? ($in['beheer'] ?? '');
+  if (!is_string($gegeven) || $gegeven === '' || !hash_equals($bs, $gegeven)) fout(403, 'Geen toegang.');
+  unset($in['beheer']);
+  $bid = $in['id'] ?? null;
+  switch ($actie) {
+    case 'beheerLijst': {
+      $u = q($db, 'SELECT id, created, last_seen FROM users ORDER BY last_seen DESC')->fetchAll();
+      $vr = []; $bl = []; $be = []; $bn = [];
+      foreach (q($db, 'SELECT a, b FROM friendships WHERE status = ?', ['accepted'])->fetchAll() as $x) { $vr[$x['a']] = ($vr[$x['a']] ?? 0) + 1; $vr[$x['b']] = ($vr[$x['b']] ?? 0) + 1; }
+      foreach (q($db, 'SELECT owner, COUNT(*) AS n, SUM(LENGTH(data)) AS g FROM blobs GROUP BY owner')->fetchAll() as $x) $bl[$x['owner']] = [(int)$x['n'], (int)$x['g']];
+      foreach (q($db, 'SELECT afz, COUNT(*) AS n, SUM(LENGTH(data)) AS g FROM berichten GROUP BY afz')->fetchAll() as $x) $be[$x['afz']] = [(int)$x['n'], (int)$x['g']];
+      foreach (q($db, 'SELECT id, tot, reden FROM bans WHERE tot = 0 OR tot > ?', [$nu])->fetchAll() as $x) $bn[$x['id']] = ['tot' => (int)$x['tot'], 'reden' => $x['reden']];
+      $lijst = [];
+      foreach ($u as $x) {
+        $i = $x['id'];
+        $lijst[] = ['id' => $i, 'aangemaakt' => (int)$x['created'], 'laatstActief' => (int)$x['last_seen'], 'vrienden' => $vr[$i] ?? 0,
+          'blobs' => $bl[$i][0] ?? 0, 'blobBytes' => $bl[$i][1] ?? 0, 'berichten' => $be[$i][0] ?? 0, 'berichtBytes' => $be[$i][1] ?? 0, 'ban' => $bn[$i] ?? null];
+      }
+      uit(200, ['nu' => $nu, 'gebruikers' => $lijst]);
+    }
+    case 'beheerStats': {
+      $n = fn(string $sql, array $p = []) => (int)q($db, $sql, $p)->fetchColumn();
+      uit(200, ['nu' => $nu,
+        'gebruikers' => $n('SELECT COUNT(*) FROM users'),
+        'actief24u' => $n('SELECT COUNT(*) FROM users WHERE last_seen >= ?', [$nu - 86400]),
+        'actief7d' => $n('SELECT COUNT(*) FROM users WHERE last_seen >= ?', [$nu - 7 * 86400]),
+        'nieuw24u' => $n('SELECT COUNT(*) FROM users WHERE created >= ?', [$nu - 86400]),
+        'vriendschappen' => $n('SELECT COUNT(*) FROM friendships WHERE status = ?', ['accepted']),
+        'verzoeken' => $n('SELECT COUNT(*) FROM friendships WHERE status = ?', ['pending']),
+        'blobs' => $n('SELECT COUNT(*) FROM blobs'),
+        'blobBytes' => $n('SELECT COALESCE(SUM(LENGTH(data)), 0) FROM blobs'),
+        'berichten' => $n('SELECT COUNT(*) FROM berichten'),
+        'verbannen' => $n('SELECT COUNT(*) FROM bans WHERE tot = 0 OR tot > ?', [$nu])]);
+    }
+  }
+  // Acties met een doelgebruiker.
+  if (!isId($bid)) fout(400, 'Ongeldige id.');
+  if (!bestaat($db, $bid)) fout(404, 'Deze gebruiker bestaat niet (meer).');
+  switch ($actie) {
+    case 'beheerBan': {
+      $tot = $in['tot'] ?? 0;
+      $reden = $in['reden'] ?? '';
+      if (!is_int($tot) || $tot < 0 || ($tot > 0 && $tot <= $nu) || $tot > 4102444800) fout(400, 'Ongeldige einddatum.');
+      if (!is_string($reden)) fout(400, 'Ongeldige reden.');
+      $reden = function_exists('mb_substr') ? mb_substr(trim($reden), 0, 200) : substr(trim($reden), 0, 200);
+      $db->beginTransaction();
+      q($db, 'DELETE FROM bans WHERE id = ?', [$bid]);
+      q($db, 'INSERT INTO bans (id, tot, reden, gemaakt) VALUES (?, ?, ?, ?)', [$bid, $tot, $reden, $nu]);
+      $db->commit();
+      uit(200, ['ok' => true, 'tot' => $tot, 'reden' => $reden]);
+    }
+    case 'beheerOnban':
+      q($db, 'DELETE FROM bans WHERE id = ?', [$bid]);
+      uit(200, ['ok' => true]);
+    case 'beheerWisKaarten': {
+      $db->beginTransaction();
+      q($db, 'DELETE FROM blobs WHERE owner = ? OR recipient = ?', [$bid, $bid]);
+      q($db, 'DELETE FROM berichten WHERE afz = ? OR ontv = ?', [$bid, $bid]);
+      $db->commit();
+      uit(200, ['ok' => true]);
+    }
+    case 'beheerWisAccount': {
+      $db->beginTransaction();
+      verwijderGebruiker($db, $bid);
+      $db->commit();
+      uit(200, ['ok' => true]);
+    }
+    default:
+      fout(400, 'Onbekende actie.');
+  }
+}
 
 if ($actie === 'register') {
   tel($db, hash('sha256', $ipHash . ':reg'), intdiv($nu, 3600), (int)($cfg['limiet_reg_per_uur'] ?? 5));
@@ -123,6 +205,13 @@ if (!isId($ik) || !is_string($tok) || $tok === '') fout(401, 'Niet ingelogd.');
 $rij = q($db, 'SELECT token_hash, last_seen FROM users WHERE id = ?', [$ik])->fetch();
 // Ook bij een onbekende id vergelijken we, zodat de tijd geen aanwijzing geeft.
 if (!hash_equals($rij['token_hash'] ?? str_repeat('0', 64), hash('sha256', $tok)) || !$rij) fout(401, 'Niet ingelogd.');
+// Verbannen? Dan alleen deleteAccount en mijnStatus. Een verlopen ban wordt hier meteen opgeruimd.
+$ban = q($db, 'SELECT tot, reden FROM bans WHERE id = ?', [$ik])->fetch();
+if ($ban && (int)$ban['tot'] > 0 && (int)$ban['tot'] <= $nu) { q($db, 'DELETE FROM bans WHERE id = ?', [$ik]); $ban = false; }
+if ($actie === 'mijnStatus') {
+  uit(200, $ban ? ['verbannen' => true, 'tot' => (int)$ban['tot'], 'reden' => (string)$ban['reden']] : ['verbannen' => false]);
+}
+if ($ban && $actie !== 'deleteAccount') uit(403, ['fout' => 'Je bent verbannen', 'verbannen' => true, 'tot' => (int)$ban['tot'], 'reden' => (string)$ban['reden']]);
 // Per gebruiker: gewone verzoeken (1 per seconde sync + wat extra) en het kanaal voor gevechten (poll elke 0,25 s) apart.
 $relayActie = $actie === 'send' || $actie === 'poll';
 if ($relayActie) tel($db, hash('sha256', $ik . ':rel'), intdiv($nu, 60), (int)($cfg['limiet_relay_per_min'] ?? 1200));

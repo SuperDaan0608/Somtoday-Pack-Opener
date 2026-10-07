@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Beheer</title>
+  <link rel="stylesheet" href="beheer.css" />
+  <link rel="stylesheet" href="embed.css" />
+  <script src="embed.js"></script>
+</head>
+<body>
+  <a class="skip" href="#hoofd">Naar de inhoud</a>
+  <header class="kop">
+    <h1>Beheer</h1>
+    <p class="onder">Alleen voor de eigenaar. Je ziet id's, tijden en aantallen; wat gebruikers delen is versleuteld en blijft onleesbaar.</p>
+  </header>
+  <div class="melding" id="melding" role="status" aria-live="polite"></div>
+
+  <main id="hoofd">
+    <section class="paneel" id="inloggen" hidden aria-labelledby="i-titel">
+      <h2 id="i-titel">Beheersleutel</h2>
+      <p>Plak de <code>beheer_sleutel</code> uit het config.php van je server. Hij wordt één keer gevraagd en blijft alleen in deze browser bewaard (niet in de extensie of in git).</p>
+      <form id="sleutel-form" autocomplete="off">
+        <label class="veld"><span>Beheersleutel</span><input id="sleutel" type="password" autocomplete="off" spellcheck="false" required /></label>
+        <label class="veld"><span>Server</span><input id="server" type="url" spellcheck="false" required /></label>
+        <button class="knop goud" type="submit">Opslaan en openen</button>
+      </form>
+    </section>
+
+    <div id="app" hidden>
+      <section class="stats" id="stats" aria-label="Totalen"></section>
+
+      <section class="paneel">
+        <div class="filters">
+          <label class="veld"><span>Zoeken</span><input id="zoek" type="text" placeholder="Bijnaam of id" autocomplete="off" /></label>
+          <label class="veld"><span>Tonen</span>
+            <select id="filter">
+              <option value="alle">Alle gebruikers</option>
+              <option value="verbannen">Verbannen</option>
+              <option value="actief">Actief afgelopen 24 uur</option>
+              <option value="stil">Niet actief afgelopen 30 dagen</option>
+              <option value="bekend">Alleen mijn vrienden</option>
+              <option value="onbekend">Alleen onbekenden</option>
+            </select>
+          </label>
+          <label class="veld"><span>Sorteren</span>
+            <select id="sorteer">
+              <option value="actief">Laatst actief</option>
+              <option value="nieuw">Nieuwste eerst</option>
+              <option value="grootte">Meeste data</option>
+              <option value="vrienden">Meeste vrienden</option>
+            </select>
+          </label>
+          <div class="filter-acties">
+            <button class="knop klein" id="ververs" type="button">Verversen</button>
+            <button class="knop klein" id="vergeet" type="button">Sleutel vergeten</button>
+          </div>
+        </div>
+        <p class="status" id="status" role="status"></p>
+        <div class="tabel-wrap">
+          <table class="tabel" id="tabel">
+            <thead><tr><th scope="col">Gebruiker</th><th scope="col">Laatst actief</th><th scope="col">Aangemaakt</th><th scope="col" class="num">Vrienden</th><th scope="col" class="num">Kaarten</th><th scope="col" class="num">Berichten</th><th scope="col" class="num">Grootte</th><th scope="col">Status</th><th scope="col">Acties</th></tr></thead>
+            <tbody id="rijen"></tbody>
+          </table>
+        </div>
+        <p class="geen" id="leeg" hidden>Geen gebruikers gevonden.</p>
+      </section>
+    </div>
+  </main>
+  <script src="vriendenlib.js"></script>
+  <script src="beheer.js"></script>
+</body>
+</html>

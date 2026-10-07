@@ -12,6 +12,8 @@ trap 'rm -rf "$WERK"' EXIT
 
 cp -R "$ROOT/extension/." "$WERK/"
 # Alleen voor ontwikkelaars: horen niet in de zip.
+# De beheerpagina is alleen voor de eigenaar (scripts/package-owner.sh).
+rm -f "$WERK"/beheer.html "$WERK"/beheer.js "$WERK"/beheer.css
 rm -f "$WERK/motor/openingen/proef.js" "$WERK/motor/openingen/LEESMIJ.md"
 sed -i '/openingen\/proef\.js/d' "$WERK/stage.html"
 find "$WERK" -name '.DS_Store' -delete

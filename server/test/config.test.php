@@ -8,4 +8,6 @@ return [
   'limiet_user_per_min' => (int)(getenv('SPO_LIMIET_USER') ?: 180),
   'limiet_relay_per_min' => (int)(getenv('SPO_LIMIET_REL') ?: 1200),
   'limiet_reg_per_uur' => (int)(getenv('SPO_REGLIMIET') ?: 100),
+  'beheer_sleutel' => getenv('SPO_BEHEER') ?: null,
+  'limiet_beheer_per_min' => (int)(getenv('SPO_LIMIET_BEHEER') ?: 30),
 ];

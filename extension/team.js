@@ -21,6 +21,7 @@
   let vriendKaarten = {}; // wat vrienden delen (hier: hun team)
   let gevechten = {};
   let live = null;
+  let banGemeld = false;  // de verbanningsmelding maar één keer tonen
   let uitnodigingen = []; // binnengekomen: { mid, van, team, nonce, ts }
   let actief = null;      // lopend gevecht of lopende uitnodiging die ik stuurde
   let geluidAan = true;
@@ -250,7 +251,8 @@
         else if (g.type === 'berichten') opBerichten(g.van, g.berichten);
         else if (g.type === 'ok') $('sync-status').textContent = 'Live. Laatst bijgewerkt om ' + tijd(Date.now()) + '.';
         else if (g.type === 'fout') {
-          if (g.fout.status === 401) { $('sync-status').textContent = 'Je account is niet meer geldig.'; live.stop(); }
+          if (g.fout.verbannen) { $('sync-status').textContent = g.fout.message; if (!banGemeld) { banGemeld = true; melding(g.fout.message, true); } }
+          else if (g.fout.status === 401) { $('sync-status').textContent = 'Je account is niet meer geldig.'; live.stop(); }
           else $('sync-status').textContent = 'Verbinding haperde, ik probeer het opnieuw.';
         }
       },
