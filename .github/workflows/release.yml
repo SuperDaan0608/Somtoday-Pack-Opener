@@ -46,6 +46,10 @@ jobs:
           TITEL="Somtoday Pack Opener ${VERSIE#v}"
           TITEL="${TITEL/-beta/ bèta}"
           # Bij handmatig starten maakt gh de tag zelf aan op deze commit.
+          # Een eerder ingetrokken release (concept) met dezelfde versie wordt vervangen.
+          if [ "$(gh release view "$VERSIE" --json isDraft -q .isDraft 2>/dev/null)" = "true" ]; then
+            gh release delete "$VERSIE" -y --cleanup-tag
+          fi
           gh release create "$VERSIE" dist/*.zip \
             --target "$GITHUB_SHA" \
             --title "$TITEL" \
