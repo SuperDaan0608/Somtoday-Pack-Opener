@@ -335,7 +335,14 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
     if (eerste) throw eerste;
   }
 
-  async function verzoek(st, code, alias) {
+  // Vriendenlijst-wijzigingen en synchroniseren lopen na elkaar, nooit door elkaar (de live-sync loopt elke seconde).
+  let ketting = Promise.resolve();
+  function serieel(fn) { const r = ketting.then(fn, fn); ketting = r.catch(() => {}); return r; }
+  const verzoek = (...a) => serieel(() => verzoek_(...a));
+  const antwoord = (...a) => serieel(() => antwoord_(...a));
+  const verwijderVriend = (...a) => serieel(() => verwijderVriend_(...a));
+  const synchroniseer = (...a) => serieel(() => synchroniseer_(...a));
+  async function verzoek_(st, code, alias) {
     const c = leesCode(code);
     if (!c) throw new Error('Dit is geen geldige vriendcode.');
     if (c.id === st.id) throw new Error('Dit is je eigen vriendcode.');
@@ -347,14 +354,14 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
     await bewaar(st);
     return r.status;
   }
-  async function antwoord(st, id, accepteer, alias) {
+  async function antwoord_(st, id, accepteer, alias) {
     await clientVan(st).roep('respond', { from: id, accept: accepteer });
     const v = st.vrienden.find((x) => x.id === id);
     if (accepteer && v) { v.status = 'vriend'; v.alias = alias || v.alias; }
     else { st.vrienden = st.vrienden.filter((x) => x.id !== id); ruimOp(st, id); }
     await bewaar(st);
   }
-  async function verwijderVriend(st, id) {
+  async function verwijderVriend_(st, id) {
     try { await clientVan(st).roep('unfriend', { other: id }); } catch (e) { if (e.status !== 404) throw e; }
     st.vrienden = st.vrienden.filter((x) => x.id !== id);
     ruimOp(st, id);
@@ -380,7 +387,7 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
 
   // Synchroniseert: verzoeken en vrienden ophalen, eigen blobs sturen, blobs van vrienden ontsleutelen.
   // Geeft { meldingen, kaarten: { [vriendId]: { ts, kaarten, reacties, raden, gokken } } } terug; wat vrienden delen blijft in het geheugen.
-  async function synchroniseer(st, galerij) {
+  async function synchroniseer_(st, galerij) {
     const cl = clientVan(st);
     const meldingen = [];
     const [fr, inb] = await Promise.all([cl.roep('friends'), cl.roep('inbox')]);
@@ -457,7 +464,7 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
   }
   // Wat vrienden van mijn team zien: vak, cijfer, niveau en zeldzaam. Geen id's, geen namen.
   function teamMomentopname(kaarten) {
-    return { kaarten: kaarten.map((e) => ({ vak: String(e.vak || '').slice(0, GRENS.vak), cijfer: e.cijfer, tier: Math.max(0, Math.min(4, e.tier | 0)), z: e.zeldzaam === true })) };
+    return { kaarten: kaarten.map((e) => ({ vak: String(e.vak || '').slice(0, 24), cijfer: Math.round(e.cijfer * 100) / 100, tier: Math.max(0, Math.min(4, e.tier | 0)), z: e.zeldzaam === true })) };
   }
   async function mijnTeamDeelbaar(galerij) {
     const k = teamKaarten(await leesTeam(), galerij || []);
@@ -510,7 +517,7 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
   }
   function maakLive(opt) {
     const interval = opt.interval || 1000;
-    let timer = null, bezig = false, pauze = false, vorigZichtbaar = false, vh = null;
+    let timer = null, bezig = false, pauze = false, vorigZichtbaar = false, vh = null, eerste = true;
     const blobs = new Map();
     const cursor = {};
     let aantal = 0;
@@ -523,8 +530,9 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
         let st = opt.st();
         if (!vorigZichtbaar) { // net weer zichtbaar: de andere pagina kan intussen iets bewaard hebben
           vorigZichtbaar = true;
-          if (opt.herlaad) { st = (await opt.herlaad()) || st; vh = null; }
+          if (opt.herlaad && !eerste) { st = (await opt.herlaad()) || st; vh = null; }
         }
+        eerste = false;
         const p = await clientVan(st).roep('puls');
         aantal++;
         const g = opt.galerij();

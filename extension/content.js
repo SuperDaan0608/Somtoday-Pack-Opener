@@ -660,7 +660,7 @@
   //     hub-klaar | sluiten | open-volgende | alles-geopend | alles-afdekken | naar-cijfers | proef { data }
   //   hier -> paneel: { bron: 'spo-pagina', versie: 1, type, ... }
   //     init { tab, status } | status { status } | tab { tab } | focus { waar } | antwoord { id, ok, status }
-  const HUB_TABS = ['overzicht', 'galerij', 'kaart', 'vrienden', 'rekenen', 'proberen', 'instellingen', 'geluiden'];
+  const HUB_TABS = ['overzicht', 'galerij', 'kaart', 'vrienden', 'team', 'rekenen', 'proberen', 'instellingen', 'geluiden'];
   const HUB_WACHT_MS = 2500; // zo lang wachten we op 'hub-klaar' van het iframe
   const CIJFERS_PAD = '/cijfers';
   // Het origin van onze eigen extensiepagina's; null als de browser er geen geeft (dan vertrouwen we alleen op event.source).

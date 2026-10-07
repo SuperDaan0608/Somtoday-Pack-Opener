@@ -28,6 +28,9 @@
   const timers = new Map();
   const wacht = new Map();
   let bezig = false;
+  let gevechten = {};     // uitslagen van gevechten met vrienden (spo_gevechten)
+  let uitdagingen = new Set(); // vrienden die je uitdagen (alleen om te melden)
+  let live = null;
 
   function el(tag, klas, tekst) {
     const e = document.createElement(tag);
@@ -253,6 +256,13 @@
       sel.addEventListener('change', () => { d.modus = sel.value; lijst.hidden = d.modus !== 'selectie'; planPut(v); });
 
       const gek = vriendKaarten[v.id];
+      if (gek && gek.team) li.append(el('p', 'uitleg', `Team van ${naam}: ${gek.team.kaarten.length} ${gek.team.kaarten.length === 1 ? 'kaart' : 'kaarten'}. Uitdagen kan op het tabblad Team.`));
+      const gv = Array.isArray(gevechten[v.id]) ? gevechten[v.id] : [];
+      if (gv.length) {
+        const w = gv.filter((x) => x.mijn > x.hun).length, g = gv.filter((x) => x.mijn === x.hun).length, l = gv.length - w - g;
+        li.append(el('p', 'uitleg', `Gevechten: ${w} gewonnen, ${g} gelijk, ${l} verloren. Laatste uitslag: ${gv[0].mijn}-${gv[0].hun}.`));
+      }
+      if (uitdagingen.has(v.id)) li.append(el('p', 'geverifieerd', `${naam} daagt je uit! Ga naar het tabblad Team om te accepteren.`));
       const raad = raadBlok(v, naam, gek);
       if (raad) li.append(raad);
       const kop2 = el('h4', '', `Cijfers van ${naam}`);
@@ -477,22 +487,54 @@
     }, 500));
   }
 
+  // Handmatig synchroniseren (de knop): altijd een volledige ronde. Het automatische synchroniseren doet `live` elke seconde.
   async function sync(stil) {
     if (bezig) return;
     bezig = true; $('sync').disabled = true; $('sync-status').textContent = 'Bezig met synchroniseren...';
     try {
       galerij = await L.leesGalerij();
       dicht = await L.leesDicht();
+      gevechten = await L.leesGevechten();
       const r = await L.synchroniseer(st, galerij);
       vriendKaarten = r.kaarten; opgehaald = true;
       [...new Set(r.meldingen)].forEach((m) => melding(m));
-      $('sync-status').textContent = 'Gesynchroniseerd om ' + tijd(Date.now()) + '.';
+      zetStatus(true);
       renderAlles();
     } catch (e) {
       $('sync-status').textContent = 'Synchroniseren mislukt.';
       if (e.status === 401) melding('Je account is niet meer geldig op de server. Wis alles en zet de functie opnieuw aan.', true);
-      else if (!stil || true) melding(foutTekst(e), true);
+      else melding(foutTekst(e), true);
     } finally { bezig = false; $('sync').disabled = false; }
+  }
+  function zetStatus(ok) { $('sync-status').textContent = ok ? 'Live. Laatst bijgewerkt om ' + tijd(Date.now()) + '.' : 'Verbinding haperde, ik probeer het opnieuw.'; }
+  // Elke seconde, alleen zolang de pagina zichtbaar is (zie vriendenlib maakLive).
+  function startLive() {
+    if (live) return;
+    live = L.maakLive({
+      st: () => st, galerij: () => galerij,
+      herlaad: async () => { const n = await L.laad(); if (n) { st = n; galerij = await L.leesGalerij(); gevechten = await L.leesGevechten(); renderAlles(); } return st; },
+      bij(g) {
+        if (!st) return;
+        // Alleen opnieuw tekenen als er echt iets veranderd is: anders raak je wat je net intikte kwijt.
+        const handtekening = () => JSON.stringify([vriendKaarten, st.vrienden.map((v) => [v.id, v.status, v.alias])]);
+        const voor = handtekening();
+        if (g.type === 'sync') {
+          vriendKaarten = g.kaarten; opgehaald = true;
+          [...new Set(g.meldingen)].forEach((m) => melding(m));
+          if (handtekening() !== voor) renderAlles();
+        } else if (g.type === 'kaarten') {
+          for (const id of Object.keys(g.kaarten)) vriendKaarten[id] = g.kaarten[id];
+          if (handtekening() !== voor) renderAlles();
+        } else if (g.type === 'berichten') {
+          if (g.berichten.some((b) => b.m.t === 'uitnodiging' && b.leeftijd < 300)) { uitdagingen.add(g.van); melding(`${L.naam(st.vrienden.find((v) => v.id === g.van) || { id: g.van })} daagt je uit voor een gevecht. Open het tabblad Team.`); renderAlles(); }
+        } else if (g.type === 'ok') { if (!bezig) zetStatus(true); }
+        else if (g.type === 'fout') {
+          if (g.fout.status === 401) { $('sync-status').textContent = 'Je account is niet meer geldig.'; live.stop(); }
+          else $('sync-status').textContent = 'Verbinding haperde, ik probeer het opnieuw.';
+        }
+      },
+    });
+    live.start();
   }
 
   function toonApp() {
@@ -508,11 +550,13 @@
     dicht = await L.leesDicht();
     // Een cijfer wordt geopend (galerij) of er komt een nieuw cijfer bij (dicht): het scherm volgt zonder opnieuw te synchroniseren.
     L.opOpslagWijziging(async () => {
-      try { galerij = await L.leesGalerij(); dicht = await L.leesDicht(); if (st) renderAlles(); } catch (e) { /* pagina blijft zoals hij was */ }
+      try { galerij = await L.leesGalerij(); dicht = await L.leesDicht(); gevechten = await L.leesGevechten(); if (st) renderAlles(); } catch (e) { /* pagina blijft zoals hij was */ }
     });
     if (!st) { $('uitleg').hidden = false; return; }
     toonApp(); renderAlles();
+    gevechten = await L.leesGevechten();
     await sync();
+    startLive();
   }
 
   $('aanzetten').addEventListener('click', async () => {
@@ -523,11 +567,12 @@
       toonApp(); renderAlles(); melding('Vriendenfunctie staat aan.');
       $('sync').focus();
       await sync(true);
+      startLive();
     } catch (e) { melding(foutTekst(e), true); }
     knop.disabled = false;
   });
 
-  $('sync').addEventListener('click', () => sync());
+  $('sync').addEventListener('click', () => { if (live) live.vergeet(); sync(); });
 
   $('kopieer').addEventListener('click', async () => {
     const t = $('mijn-code').value;
@@ -555,6 +600,7 @@
       if (e.status !== 401) { melding(foutTekst(e), true); return; }
       await L.wis('spo_vrienden'); // account bestond al niet meer op de server
     }
+    if (live) { live.stop(); live = null; }
     st = null; vriendKaarten = {}; opgehaald = false; raadForm = null; concept.clear();
     $('app').hidden = true; $('uitleg').hidden = false;
     melding('Je account en al je gedeelde gegevens zijn gewist.');
