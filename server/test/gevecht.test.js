@@ -40,6 +40,31 @@ function galerijVan(lijst, basis) {
   });
   const php = spawn('php', ['-S', 'localhost:8150', '-t', MAP], { env: Object.assign({}, process.env, { SPO_CONFIG: path.join(MAP, 'test/config.test.php'), SPO_TESTDB: DB }), stdio: 'ignore' });
   const web = spawn('http-server', ['-p', '8123', '-s', '-c-1', path.resolve(MAP, '../extension')], { stdio: 'ignore' });
+  // --- Teamchemie (zonder browser): vakherkenning, uitrekenen, en dat beide kanten dezelfde wedstrijd krijgen ---
+  {
+    const gr = (v) => G.groepVan(v);
+    controle('vakherkenning: hoofdletters, afkortingen en toevoegingen', gr('WISKUNDE') === 'exact' && gr('na') === 'exact' && gr('Wiskunde B') === 'exact' && gr('NLT') === 'exact' && gr('ne') === 'talen' && gr('Engels havo') === 'talen' && gr('Latijn') === 'talen' && gr('GS') === 'mens' && gr('Aardrijkskunde') === 'mens' && gr('maatschappijleer') === 'mens' && gr('lo') === 'kunst' && gr('Lichamelijke opvoeding') === 'kunst' && gr('CKV') === 'kunst' && gr('Kunstwerk') === null && gr('') === null);
+    const kaart = (vak, c) => ({ vak, cijfer: c, tier: 2, z: false });
+    const ch = (vakken) => G.chemie(G.ordenTeam(vakken.map((v, i) => kaart(v, 7 + i / 10)), 0)).score;
+    controle('chemie: een kaart of geen groep geeft 0', ch(['Wiskunde']) === 0 && ch(['Wiskunde', 'Engels', 'Geschiedenis', 'Muziek']) === 0 && ch(['Kunstwerk', 'Iets']) === 0);
+    controle('chemie: 3+ uit een groep geeft veel meer dan een paar', ch(['Wiskunde', 'Natuurkunde', 'Scheikunde']) > ch(['Wiskunde', 'Natuurkunde', 'Engels']) && ch(['Wiskunde', 'Natuurkunde', 'Engels']) > 0);
+    controle('chemie: een team vol uit een groep is 100 en blijft tussen 0 en 100', ch(['Wiskunde', 'Natuurkunde', 'Scheikunde', 'Biologie', 'Informatica']) === 100 && [1, 2, 3, 5, 8, 11].every((n) => { const c = ch(Array(n).fill('Wiskunde')); return Number.isInteger(c) && c >= 0 && c <= 100; }));
+    controle('chemie: lijntjes alleen tussen buren van dezelfde groep', G.chemie(G.ordenTeam(['Wiskunde', 'Natuurkunde', 'Scheikunde', 'Engels'].map((v) => kaart(v, 7)), 0)).lijnen.every(([i, j]) => i !== j));
+    // dezelfde seed en teams: zonder chemie hetzelfde als vroeger; met chemie nog steeds op beide kanten hetzelfde
+    const teamsX = { A: G.ordenTeam(['Wiskunde', 'Natuurkunde', 'Engels', 'Frans', 'Muziek', 'Biologie'].map((v, i) => kaart(v, 6 + i / 2)), 0), B: G.ordenTeam(['Geschiedenis', 'Economie', 'Duits', 'LO', 'Scheikunde', 'Latijn'].map((v, i) => kaart(v, 6.2 + i / 2)), 0) };
+    const speel = (seed, opties) => {
+      const sim = G.maakSim(seed, teamsX, opties), uit = [];
+      for (let i = 0; i < 400 && !sim.klaar; i++) { const e = sim.volgende(); if (e.t === 'eind') break; uit.push(e.t + (e.naar ? e.naar.z + e.naar.i : '') + (e.min || '')); if (e.t === 'kans') uit.push(sim.duelUitslag(20 + (i % 7), 19 + (i % 5)).goal ? 'G' : 'N'); }
+      return uit.join(',') + '|' + sim.stand.A + '-' + sim.stand.B;
+    };
+    controle('seed-simulatie: zonder chemie gelijk aan chemie 0', [1, 2, 3, 99, 123456].every((sd) => speel(sd) === speel(sd, { chemie: { A: 0, B: 0 } }) && speel(sd) === speel(sd, {})));
+    controle('seed-simulatie: met chemie twee keer precies hetzelfde', [1, 2, 3, 99, 123456].every((sd) => speel(sd, { chemie: { A: 70, B: 35 } }) === speel(sd, { chemie: { A: 70, B: 35 } })));
+    controle('chemie verandert de uitkomst echt (klikken en passes)', [1, 2, 3, 4, 5, 6, 7, 8].some((sd) => speel(sd, { chemie: { A: 100, B: 0 } }) !== speel(sd)) && G.duelUitslag(kaart('a', 7), kaart('b', 7), 20, 21, 0, 0).goal === false && G.duelUitslag(kaart('a', 7), kaart('b', 7), 20, 21, 100, 0).goal === true);
+    // team met `ch` bij een vriend; oude versie zonder `ch` blijft een geldig team
+    const snap = L.teamMomentopname([{ vak: 'Wiskunde', cijfer: 8, tier: 2 }, { vak: 'Natuurkunde', cijfer: 7, tier: 2 }, { vak: 'Scheikunde', cijfer: 6, tier: 1 }]);
+    controle('team delen: ch zit mee in het teamdeel', Number.isInteger(snap.ch) && snap.ch > 0 && L.schoonTeam(snap).ch === snap.ch);
+    controle('oude versie zonder ch: team geldig, ch ontbreekt (dan chemie 0)', L.schoonTeam({ kaarten: snap.kaarten }) !== null && !('ch' in L.schoonTeam({ kaarten: snap.kaarten })) && !('ch' in L.schoonTeam(Object.assign({}, snap, { ch: 101 }))) && !('ch' in L.schoonTeam(Object.assign({}, snap, { ch: 'x' }))));
+  }
   const br = await chromium.launch({ channel: 'chromium', args: ['--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   try {
     for (let i = 0; i < 80; i++) { try { await fetch(API, { method: 'OPTIONS' }); await fetch(WEB + '/team.html'); break; } catch (e) { await slaap(100); } }
@@ -164,6 +189,9 @@ function galerijVan(lijst, basis) {
     await PA.p.waitForFunction(() => +document.getElementById('kl-mijn').textContent > 5 && +document.getElementById('kl-hun').textContent > 3, null, { timeout: 20000 }).catch(() => {});
     await PA.p.screenshot({ path: path.join(TMP, 'gevecht-2-duel-A.png') });
     await PB.p.screenshot({ path: path.join(TMP, 'gevecht-2-duel-B.png') });
+    const bonusA = await PA.p.textContent('#duel-bonus'), bonusB = await PB.p.textContent('#duel-bonus');
+    const chA = [...bonusA.matchAll(/chemie (\d+)/g)].map((m) => m[1]), chB = [...bonusB.matchAll(/chemie (\d+)/g)].map((m) => m[1]);
+    controle('chemie in het duel: beide kanten zien dezelfde twee getallen (gespiegeld)', chA.length === 2 && chB.length === 2 && chA[0] === chB[1] && chA[1] === chB[0] && +chA[0] > 0 && +chA[1] > 0, [bonusA, bonusB]);
     const meterTekst = await PA.p.evaluate(() => [document.getElementById('kl-mijn').textContent, document.getElementById('kl-hun').textContent]);
     controle('live meter: A ziet kliks van beide kanten', Number(meterTekst[0]) > 0 && Number(meterTekst[1]) > 0, meterTekst);
     await PA.p.waitForFunction(() => /GOAL|GEREDDEN/.test(document.getElementById('duel-teller').textContent), null, { timeout: 30000 });

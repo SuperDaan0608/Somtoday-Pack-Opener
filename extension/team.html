@@ -25,6 +25,23 @@
         <div class="veld-kolom">
           <div class="veld bouwveld" id="bouwveld" aria-label="Opstelling van je team"></div>
           <p class="team-info" id="team-info" aria-live="polite"></p>
+          <section class="chemie" id="chemie" aria-labelledby="chemie-kop" hidden>
+            <div class="chemie-kop">
+              <h3 id="chemie-kop">Teamchemie</h3>
+              <span class="chemie-getal"><b id="chemie-getal">0</b><small>/100</small></span>
+            </div>
+            <div class="chemie-meter" id="chemie-meter" role="meter" aria-labelledby="chemie-kop" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="chemie-vul"></span></div>
+            <ul class="chemie-groepen" id="chemie-groepen"></ul>
+            <p class="chemie-bonus" id="chemie-bonus"></p>
+            <p class="chemie-tip" id="chemie-tip"></p>
+            <details class="chemie-uitleg">
+              <summary>Hoe werkt chemie?</summary>
+              <p>Vakken die bij elkaar horen vormen een groep. Heb je <strong>3 of meer kaarten uit één groep</strong>, dan krijgt je team chemie. Twee kaarten geven een halve bonus.</p>
+              <p>Staan kaarten uit dezelfde groep <strong>naast elkaar</strong> op het veld, dan zie je er een lijntje tussen en komt er nog wat chemie bij.</p>
+              <p>In een gevecht geeft chemie hooguit <strong>8% extra passkans en klikkracht</strong>. Je vriend ziet alleen het getal, niet welke vakken je hebt.</p>
+              <ul class="chemie-vakken" id="chemie-vakken"></ul>
+            </details>
+          </section>
         </div>
         <div class="kies-kolom">
           <div class="kies-kop">

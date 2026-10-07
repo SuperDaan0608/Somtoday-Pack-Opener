@@ -1,0 +1,20 @@
+/* Uitval-feest op het Somtoday-rooster: een klein label en een gloed op uitgevallen lessen. */
+sl-rooster-item.spo-uitval {
+  outline: 2px solid #f2b705;
+  outline-offset: -2px;
+  box-shadow: 0 0 0 3px rgba(242, 183, 5, 0.25), 0 0 14px rgba(242, 183, 5, 0.55);
+  position: absolute;
+}
+sl-rooster-item.spo-uitval::after {
+  content: "UITVAL!";
+  position: absolute;
+  right: 4px;
+  bottom: 3px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #f2b705;
+  color: #2a1a02;
+  font: 800 10px/1.4 system-ui, sans-serif;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+}

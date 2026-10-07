@@ -38,7 +38,68 @@
   // Sterkte van een kaart in het veld: het cijfer, met een beetje extra voor een hoog niveau en voor zeldzame kaarten.
   function sterkte(k) { return k.cijfer + 0.4 * (k.tier | 0) + (k.z ? 0.3 : 0); }
   // Bonus voor de klik-duels: hoe hoger het cijfer, hoe sterker je kliks tellen (0,85 bij een 1, 1,3 bij een 10).
-  function klikFactor(k) { return 0.8 + 0.05 * k.cijfer; }
+  // `ch` is de teamchemie (0 tot 100) en geeft hooguit +8% extra.
+  const CHEMIE_MAX_BONUS = 0.08;
+  const chemieBonus = (ch) => CHEMIE_MAX_BONUS * Math.max(0, Math.min(100, ch | 0)) / 100;
+  function klikFactor(k, ch) { return (0.8 + 0.05 * k.cijfer) * (1 + chemieBonus(ch)); }
+
+  // ---- Teamchemie ----
+  // Vakken die bij elkaar horen vormen een groep. Hoe meer kaarten uit dezelfde groep, en hoe vaker ze naast elkaar staan, hoe hoger de chemie.
+  const GROEPEN = [
+    { id: 'exact', naam: 'Exact', kleur: '#4aa8ff', vakken: 'wiskunde, natuurkunde, scheikunde, biologie, informatica, NLT' },
+    { id: 'talen', naam: 'Talen', kleur: '#ff8a4a', vakken: 'Nederlands, Engels, Frans, Duits, Spaans, Latijn, Grieks' },
+    { id: 'mens', naam: 'Mens & maatschappij', kleur: '#a678ff', vakken: 'geschiedenis, aardrijkskunde, economie, maatschappijleer, filosofie, levensbeschouwing' },
+    { id: 'kunst', naam: 'Kunst & sport', kleur: '#3fcf8e', vakken: 'LO, tekenen, muziek, CKV, drama' },
+  ];
+  // Herkenning op de hele naam of op losse woorden (hoofdletters en leestekens maken niet uit), met de gewone Somtoday-afkortingen.
+  const GROEP_WOORDEN = {
+    exact: ['wiskunde', 'wisk', 'wis', 'wi', 'rekenen', 'statistiek', 'natuurkunde', 'natuurk', 'nat', 'na', 'scheikunde', 'scheik', 'sk', 'biologie', 'biol', 'bio', 'bi', 'informatica', 'inform', 'info', 'inf', 'in', 'nlt', 'natuur leven en technologie', 'techniek', 'technasium', 'ict'],
+    talen: ['nederlands', 'nederl', 'ned', 'nl', 'ne', 'engels', 'eng', 'en', 'frans', 'fra', 'fa', 'fr', 'duits', 'dui', 'du', 'dt', 'spaans', 'spa', 'sp', 'latijn', 'lat', 'la', 'grieks', 'gr', 'gri', 'taal', 'italiaans', 'russisch', 'chinees', 'turks', 'arabisch'],
+    mens: ['geschiedenis', 'gesch', 'gs', 'ges', 'aardrijkskunde', 'aardr', 'ak', 'aard', 'economie', 'econ', 'ec', 'eco', 'bedrijfseconomie', 'beco', 'maatschappijleer', 'maatschappij', 'maatsch', 'ml', 'maat', 'maw', 'maatschappijwetenschappen', 'filosofie', 'filos', 'fi', 'fil', 'levensbeschouwing', 'lev', 'lb', 'godsdienst', 'gods', 'kunstgeschiedenis'],
+    kunst: ['lichamelijke opvoeding', 'lichamelijke', 'lichamelijk', 'lo', 'gymnastiek', 'gym', 'sport', 'bewegen', 'bewegingsonderwijs', 'tekenen', 'teken', 'tekenen en handvaardigheid', 'handvaardigheid', 'handv', 'tehv', 'te', 'kunst', 'beeldende vorming', 'beeldende', 'ckv', 'culturele en kunstzinnige vorming', 'muziek', 'muz', 'mu', 'drama', 'dr', 'dans', 'theater', 'kunstvakken'],
+  };
+  const WOORD_NAAR_GROEP = new Map();
+  for (const g of GROEPEN) for (const w of GROEP_WOORDEN[g.id]) WOORD_NAAR_GROEP.set(w, g.id);
+  const TOEVOEGING = /^(a|b|c|d|i|ii|iii|iv|havo|vwo|mavo|vmbo|tl|gl|kb|bb|mondeling|schriftelijk|se|ce|pta|\d+)$/;
+  function groepVan(vak) {
+    const t = String(vak || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!t) return null;
+    if (WOORD_NAAR_GROEP.has(t)) return WOORD_NAAR_GROEP.get(t);
+    // Een vaknaam met een toevoeging ("wiskunde A", "Engels havo", "Nederlands 2"): laat de toevoegingen weg en kijk naar de losse woorden.
+    const woorden = t.split(' ').filter((w) => !TOEVOEGING.test(w));
+    if (woorden.length && WOORD_NAAR_GROEP.has(woorden.join(' '))) return WOORD_NAAR_GROEP.get(woorden.join(' '));
+    for (const w of woorden) if (WOORD_NAAR_GROEP.has(w) && (w.length >= 3 || woorden.length === 1)) return WOORD_NAAR_GROEP.get(w);
+    // Beginstuk van een langer woord ("natuurkunde-2", "wiskundige"): alleen bij lange stukken.
+    for (const w of woorden) {
+      if (w.length < 5) continue;
+      for (const [x, id] of WOORD_NAAR_GROEP) if (x.length >= 5 && (w.startsWith(x) || x.startsWith(w))) return id;
+    }
+    return null;
+  }
+  // Welke spelers staan naast elkaar? Op het veld (zelfde plekken als in het gevecht): dichterbij dan deze afstand.
+  const NAAST_AFSTAND = 0.36;
+  function buren(n) {
+    const p = posities(n, 'A'), uit = [];
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) if (Math.hypot(p[i].x - p[j].x, p[i].y - p[j].y) <= NAAST_AFSTAND) uit.push([i, j]);
+    return uit;
+  }
+  // Chemie van een team in de vaste volgorde (keeper eerst, dan op sterkte: zie ordenTeam). Geeft een geheel getal 0 tot 100:
+  //  - tot 70 punten voor het aandeel kaarten dat in een groep van 3 of meer zit (een paar telt voor de helft),
+  //  - tot 30 punten voor het aandeel naastgelegen spelers dat in dezelfde groep zit.
+  function chemie(geordend) {
+    const n = geordend.length;
+    const groepen = geordend.map((k) => groepVan(k.vak));
+    const tel = {};
+    for (const g of groepen) if (g) tel[g] = (tel[g] || 0) + 1;
+    const lijst = GROEPEN.map((g) => ({ id: g.id, naam: g.naam, kleur: g.kleur, n: tel[g.id] || 0 }));
+    const bb = n > 1 ? buren(n) : [];
+    const lijnen = bb.filter(([i, j]) => groepen[i] && groepen[i] === groepen[j]);
+    let gekoppeld = 0;
+    for (const g of lijst) gekoppeld += g.n >= 3 ? g.n : g.n === 2 ? 1 : 0;
+    const deelGroep = n > 1 ? 70 * gekoppeld / n : 0;
+    const deelNaast = bb.length ? 30 * lijnen.length / bb.length : 0;
+    return { score: Math.max(0, Math.min(100, Math.round(deelGroep + deelNaast))), groepen, lijst, lijnen, deelGroep: Math.round(deelGroep), deelNaast: Math.round(deelNaast) };
+  }
 
   // Hoeveel veldspelers per lijn (achterhoede, middenveld, voorhoede) bij n kaarten (inclusief keeper).
   const LIJNEN = { 0: [0, 0, 0], 1: [0, 1, 0], 2: [1, 0, 1], 3: [1, 1, 1], 4: [2, 1, 1], 5: [2, 2, 1], 6: [2, 2, 2], 7: [3, 2, 2], 8: [3, 3, 2], 9: [4, 3, 2], 10: [4, 4, 2] };
@@ -72,12 +133,15 @@
   const kies = (rng, lijst) => lijst[Math.floor(rng() * lijst.length) % lijst.length];
 
   // De wedstrijd. teams = { A: [kaart...], B: [kaart...] } (al in volgorde: keeper eerst).
-  function maakSim(seed, teams) {
+  function maakSim(seed, teams, opties) {
     const rng = maakRng(seed);
     const n = teams.A.length;
+    // Chemie per kant (0 tot 100, geheel getal). Zonder opties (oude versie of oude test) is het 0 en verandert er niets.
+    const ch = { A: 0, B: 0 };
+    if (opties && opties.chemie) { ch.A = Math.max(0, Math.min(100, Math.round(Number(opties.chemie.A)) || 0)); ch.B = Math.max(0, Math.min(100, Math.round(Number(opties.chemie.B)) || 0)); }
     const pos = { A: posities(n, 'A'), B: posities(n, 'B') };
     const s = {
-      n, teams, pos, minuut: 0, stand: { A: 0, B: 0 }, kansen: 0, sindsKans: 99, stap: 0,
+      n, teams, pos, chemie: ch, minuut: 0, stand: { A: 0, B: 0 }, kansen: 0, sindsKans: 99, stap: 0,
       houder: null, kans: null, klaar: false, aftrapDoor: null,
     };
     // De aftrap is voor kant A, in het midden van het veld (de middelste veldspeler, of de keeper bij n = 1).
@@ -139,7 +203,7 @@
       const d = tegen.length ? kies(rng, tegen) : 0;
       const sPass = (sterkte(teams[z][h.i]) + sterkte(teams[z][naar])) / 2;
       const sD = sterkte(teams[o][d]);
-      const pOk = Math.max(0.4, Math.min(0.93, 0.76 + 0.05 * (sPass - sD)));
+      const pOk = Math.max(0.4, Math.min(0.93, 0.76 + 0.05 * (sPass - sD) + chemieBonus(ch[z])));
       const a = pos[z][h.i], b = pos[z][naar];
       const dist = Math.hypot(a.x - b.x, a.y - b.y);
       const dur = Math.round(550 + 700 * dist + rng() * 150);
@@ -163,7 +227,7 @@
     s.duelUitslag = function (ca, ck) {
       if (!s.kans) throw new Error('Er is geen duel.');
       const { schutter, keeper } = s.kans;
-      const u = duelUitslag(teams[schutter.z][schutter.i], teams[keeper.z][keeper.i], ca, ck);
+      const u = duelUitslag(teams[schutter.z][schutter.i], teams[keeper.z][keeper.i], ca, ck, ch[schutter.z], ch[keeper.z]);
       s.kans = null;
       if (u.goal) {
         s.stand[schutter.z]++;
@@ -180,9 +244,9 @@
 
   function schoonKlik(c) { return Number.isFinite(c) ? Math.max(0, Math.min(KLIK_MAX, Math.round(c))) : 0; }
   // Los van de wedstrijd, zodat het ook te testen is. De keeper houdt hem bij gelijke stand.
-  function duelUitslag(schutterKaart, keeperKaart, ca, ck) {
-    const sa = schoonKlik(ca) * klikFactor(schutterKaart);
-    const sk = schoonKlik(ck) * klikFactor(keeperKaart);
+  function duelUitslag(schutterKaart, keeperKaart, ca, ck, chA, chK) {
+    const sa = schoonKlik(ca) * klikFactor(schutterKaart, chA);
+    const sk = schoonKlik(ck) * klikFactor(keeperKaart, chK);
     return { goal: sa > sk, sa, sk };
   }
 
@@ -206,7 +270,7 @@
   }
 
   const lib = {
-    MAX_MIN, STAPPEN, KLIK_MAX, maakRng, seedUitTekst, seedUitHash, sterkte, klikFactor, lijnen, lijnVan, posities, ordenTeam,
+    MAX_MIN, STAPPEN, KLIK_MAX, maakRng, seedUitTekst, seedUitHash, sterkte, klikFactor, GROEPEN, groepVan, chemie, chemieBonus, CHEMIE_MAX_BONUS, lijnen, lijnVan, posities, ordenTeam,
     maakSim, duelUitslag, schoonKlik, maakComputerTeam, computerKliks,
   };
   globalThis.SPOGevecht = lib;

@@ -95,6 +95,22 @@
       tekst: 'Een spookpakje. Trick or treat: wat zit erin?',
       aria: 'Spookpakje openen',
     },
+    kerst: {
+      naam: 'Kerst',
+      van: [12, 1],
+      tot: [1, 6],
+      knop: 'Kerstpakje openen',
+      tekst: 'Een kerstpakje, vers van onder de boom. Wat zit erin?',
+      aria: 'Kerstpakje openen',
+    },
+    zomer: {
+      naam: 'Zomer',
+      van: [7, 1],
+      tot: [8, 31],
+      knop: 'Zomerpakje openen',
+      tekst: 'Een zomerpakje vol zon en zee. Wat zit erin?',
+      aria: 'Zomerpakje openen',
+    },
   };
   // keuze: 'auto' (volgens de datum), 'geen' (uit) of de naam van een thema (om het te proberen). nu: een Date, voor de tests.
   const seizoenNu = (keuze, nu) => {

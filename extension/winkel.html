@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Winkel</title>
+  <link rel="stylesheet" href="winkel.css" />
+  <link rel="stylesheet" href="embed.css" />
+  <script src="embed.js"></script>
+</head>
+<body>
+  <a class="skip" href="#hoofd">Naar de inhoud</a>
+  <header class="kop">
+    <h1>Winkel</h1>
+    <p class="onder">Koop mooie dingen met munten. Je verdient munten met cijfers openen, gevechten winnen, prestaties en elke dag een beloning. Het verandert nooit je cijfers.</p>
+  </header>
+
+  <main id="hoofd">
+    <section class="saldo-balk" aria-label="Je munten">
+      <div><span class="saldo-label">Je munten</span><strong id="saldo">0</strong></div>
+      <div class="dag-info" id="dag-info"></div>
+    </section>
+    <p class="melding" id="melding" role="status" aria-live="polite"></p>
+
+    <h2>Pakjes</h2>
+    <p class="uitleg">Een pakje geeft een willekeurig item. Heb je het al? Dan krijg je een deel van de waarde terug in munten.</p>
+    <ul class="pakjes" id="pakjes"></ul>
+
+    <div id="rijen"></div>
+  </main>
+
+  <div class="overlay" id="overlay" hidden>
+    <div class="venster" role="dialog" aria-modal="true" aria-labelledby="ov-kop" tabindex="-1">
+      <h2 id="ov-kop">Pakje openen</h2>
+      <div class="podium">
+        <div class="gloed"></div>
+        <div class="pakje" id="ov-pak"><span class="deel top"></span><span class="deel lijf"></span></div>
+        <div class="prijs" id="ov-prijs" aria-live="polite"></div>
+      </div>
+      <p id="ov-tekst" class="uitleg"></p>
+      <button type="button" class="knop goud" id="ov-sluit" hidden>Top!</button>
+    </div>
+  </div>
+
+  <script src="economie.js"></script>
+  <script src="profielkaart.js"></script>
+  <script src="winkel.js"></script>
+</body>
+</html>

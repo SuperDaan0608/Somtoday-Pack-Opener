@@ -9,15 +9,17 @@
   "content_scripts": [
     {
       "matches": ["https://leerling.somtoday.nl/*"],
-      "css": ["content.css"],
+      "css": ["content.css", "rooster.css", "thema.css"],
+      "js": ["thema.js"],
       "run_at": "document_start"
     },
     {
       "matches": ["https://leerling.somtoday.nl/*"],
-      "js": ["motor/data.js", "motor/audio.js", "motor/shaders.js", "motor/gl.js", "motor/art.js", "motor/openingen/kluis.js", "motor/openingen/plinko.js", "motor/openingen/ster.js", "motor/openingen/raket.js", "motor/openingen/schiet.js", "motor/openingen/dans.js", "motor/scene.js", "motor/main.js", "content.js"],
+      "js": ["motor/data.js", "motor/audio.js", "motor/shaders.js", "motor/gl.js", "motor/art.js", "motor/openingen/kluis.js", "motor/openingen/plinko.js", "motor/openingen/ster.js", "motor/openingen/raket.js", "motor/openingen/schiet.js", "motor/openingen/dans.js", "motor/scene.js", "motor/main.js", "gevecht.js", "prestatieslib.js", "economie.js", "content.js", "dagelijks.js", "rooster.js", "updatemelding.js"],
       "run_at": "document_idle"
     }
   ],
+  "background": { "service_worker": "update.js", "scripts": ["update.js"] },
   "action": {
     "default_popup": "popup.html",
     "default_title": "Pakket openen",
@@ -46,7 +48,7 @@
       "matches": ["<all_urls>"]
     },
     {
-      "resources": ["hub.html", "galerij.html", "kaart.html", "vrienden.html", "team.html", "rekenen.html", "geluiden.html"],
+      "resources": ["hub.html", "galerij.html", "kaart.html", "vrienden.html", "team.html", "prestaties.html", "rekenen.html", "geluiden.html", "winkel.html", "profiel.html"],
       "matches": ["https://leerling.somtoday.nl/*"]
     }
   ]

@@ -2319,6 +2319,8 @@
   // ───────────────────────── Het pakje ─────────────────────────
   function maakPak(data) {
     const hw = data.seizoen === 'halloween';
+    const kerst = data.seizoen === 'kerst';
+    const zomer = data.seizoen === 'zomer';
     const S = 3.2;
     const cv = nieuw(PW * S, PH * S);
     const c = cv.getContext('2d');
@@ -2348,6 +2350,19 @@
       bg.addColorStop(0.35, '#3a1270');
       bg.addColorStop(0.72, '#1a0838');
       bg.addColorStop(1, '#07020f');
+    } else if (kerst) {
+      // rood en groen folie, als inpakpapier
+      bg.addColorStop(0, '#e8304a');
+      bg.addColorStop(0.34, '#b01630');
+      bg.addColorStop(0.56, '#17703f');
+      bg.addColorStop(0.8, '#0a4a2a');
+      bg.addColorStop(1, '#041f12');
+    } else if (zomer) {
+      // zonnig turquoise: de zee, met de zon rechtsboven
+      bg.addColorStop(0, '#5fe6ee');
+      bg.addColorStop(0.4, '#1db4d2');
+      bg.addColorStop(0.75, '#0d78a8');
+      bg.addColorStop(1, '#075078');
     } else {
       bg.addColorStop(0, '#4650d8');
       bg.addColorStop(0.35, '#262e98');
@@ -2359,7 +2374,7 @@
     // grote, zachte lichtveeg
     const vg = c.createLinearGradient(-40, 60, PW + 40, 250);
     vg.addColorStop(0, 'rgba(255,255,255,0)');
-    vg.addColorStop(0.5, hw ? 'rgba(255,150,70,.26)' : 'rgba(170,200,255,.3)');
+    vg.addColorStop(0.5, hw ? 'rgba(255,150,70,.26)' : kerst ? 'rgba(255,236,190,.3)' : zomer ? 'rgba(255,250,190,.42)' : 'rgba(170,200,255,.3)');
     vg.addColorStop(1, 'rgba(255,255,255,0)');
     c.fillStyle = vg;
     c.fillRect(0, 0, PW, PH);
@@ -2367,7 +2382,7 @@
     let s = 4242;
     const r = () => ((s = (s * 16807) % 2147483647) / 2147483647);
     for (let i = 0; i < 160; i++) {
-      c.fillStyle = hw ? `rgba(${r() < 0.6 ? '255,170,70' : '200,140,255'},${0.08 + r() * 0.35})` : `rgba(190,210,255,${0.08 + r() * 0.35})`;
+      c.fillStyle = hw ? `rgba(${r() < 0.6 ? '255,170,70' : '200,140,255'},${0.08 + r() * 0.35})` : kerst ? `rgba(255,255,255,${0.12 + r() * 0.5})` : zomer ? `rgba(255,255,205,${0.1 + r() * 0.4})` : `rgba(190,210,255,${0.08 + r() * 0.35})`;
       const z = 0.5 + r() * 1.4;
       c.fillRect(r() * PW, r() * PH, z, z);
     }
@@ -2426,6 +2441,154 @@
       }
       c.restore();
     }
+    if (kerst) {
+      // sneeuwvlokken met zes armen
+      const vlok = (x, y, k, a) => {
+        c.save();
+        c.translate(x, y);
+        c.strokeStyle = `rgba(255,255,255,${a})`;
+        c.lineWidth = 0.9;
+        for (let i = 0; i < 6; i++) {
+          c.rotate(Math.PI / 3);
+          c.beginPath();
+          c.moveTo(0, 0);
+          c.lineTo(0, -6 * k);
+          c.moveTo(0, -3.6 * k);
+          c.lineTo(-2.2 * k, -5.4 * k);
+          c.moveTo(0, -3.6 * k);
+          c.lineTo(2.2 * k, -5.4 * k);
+          c.stroke();
+        }
+        c.restore();
+      };
+      [[38, 132, 1.5, 0.7], [204, 150, 1.1, 0.6], [30, 292, 1.2, 0.55], [206, 270, 1.6, 0.7], [118, 322, 0.9, 0.45], [214, 76, 0.9, 0.5], [22, 84, 0.8, 0.5]].forEach((a) => vlok(...a));
+      // dennentakken in de onderhoeken, met rode besjes
+      const tak = (x, y, len, rot, spiegel) => {
+        c.save();
+        c.translate(x, y);
+        c.rotate(rot);
+        c.scale(spiegel, 1);
+        c.strokeStyle = '#0c3a1f';
+        c.lineWidth = 2.4;
+        c.beginPath();
+        c.moveTo(0, 0);
+        c.lineTo(len, 0);
+        c.stroke();
+        for (let i = 0; i < 12; i++) {
+          const px = 6 + i * (len / 12.5);
+          const nl = 15 * (1 - i / 16);
+          c.strokeStyle = i % 2 ? '#1f8f4d' : '#27a85b';
+          c.lineWidth = 2.2;
+          for (const g of [-1, 1]) {
+            c.beginPath();
+            c.moveTo(px, 0);
+            c.lineTo(px + nl * 0.55, g * nl);
+            c.stroke();
+          }
+        }
+        for (const [bx, by] of [[len * 0.3, -3], [len * 0.36, 4], [len * 0.45, -2]]) {
+          c.beginPath();
+          c.arc(bx, by, 2.6, 0, 6.2832);
+          c.fillStyle = '#ff2d4a';
+          c.fill();
+          c.beginPath();
+          c.arc(bx - 0.8, by - 0.8, 0.9, 0, 6.2832);
+          c.fillStyle = 'rgba(255,255,255,.8)';
+          c.fill();
+        }
+        c.restore();
+      };
+      tak(-4, PH - 28, 92, -0.42, 1);
+      tak(PW + 4, PH - 28, 92, Math.PI + 0.42, 1);
+      // een sneeuwlaag onder de bovenste klemrand en wat sneeuw onderaan
+      c.fillStyle = 'rgba(255,255,255,.92)';
+      c.beginPath();
+      c.moveTo(0, 22);
+      for (let x = 0; x <= PW; x += 6) c.lineTo(x, 28 + 5 * Math.sin(x * 0.19) + 3 * Math.sin(x * 0.53 + 1));
+      c.lineTo(PW, 20);
+      c.lineTo(0, 20);
+      c.closePath();
+      c.fill();
+    }
+    if (zomer) {
+      // zonnestralen die schuin over de folie vallen
+      c.save();
+      c.translate(PW - 18, 10);
+      for (let i = 0; i < 9; i++) {
+        const hoek = 1.45 + i * 0.2;
+        c.beginPath();
+        c.moveTo(0, 0);
+        c.lineTo(Math.cos(hoek - 0.045) * 420, Math.sin(hoek - 0.045) * 420);
+        c.lineTo(Math.cos(hoek + 0.045) * 420, Math.sin(hoek + 0.045) * 420);
+        c.closePath();
+        c.fillStyle = 'rgba(255,248,190,.16)';
+        c.fill();
+      }
+      c.restore();
+      // de zon rechtsboven
+      const zg = c.createRadialGradient(PW - 18, 34, 2, PW - 18, 34, 46);
+      zg.addColorStop(0, 'rgba(255,255,230,1)');
+      zg.addColorStop(0.3, 'rgba(255,230,90,.95)');
+      zg.addColorStop(1, 'rgba(255,200,40,0)');
+      c.fillStyle = zg;
+      c.fillRect(PW - 70, 0, 80, 90);
+      // golven met schuim onderaan en een strookje zand
+      const golf = (y0, amp, kleur, fase) => {
+        c.beginPath();
+        c.moveTo(0, PH);
+        for (let x = 0; x <= PW; x += 4) c.lineTo(x, y0 + amp * Math.sin(x * 0.045 + fase) + amp * 0.5 * Math.sin(x * 0.11 + fase * 2));
+        c.lineTo(PW, PH);
+        c.closePath();
+        c.fillStyle = kleur;
+        c.fill();
+      };
+      golf(PH - 54, 4, 'rgba(255,255,255,.55)', 0);
+      golf(PH - 49, 4, '#0a9ec2', 1.2);
+      golf(PH - 32, 3, '#f6dc8e', 2.5);
+      golf(PH - 24, 2, '#e9c670', 0.3);
+      // een palmboom linksonder
+      c.save();
+      c.translate(26, PH - 30);
+      c.strokeStyle = '#6b4a22';
+      c.lineWidth = 5;
+      c.lineCap = 'round';
+      c.beginPath();
+      c.moveTo(0, 0);
+      c.quadraticCurveTo(10, -50, 4, -96);
+      c.stroke();
+      c.strokeStyle = 'rgba(0,0,0,.18)';
+      c.lineWidth = 1;
+      for (let i = 1; i < 9; i++) {
+        c.beginPath();
+        c.moveTo(-1 + i * 0.1, -i * 11);
+        c.lineTo(7 + i * 0.1, -i * 11 - 2);
+        c.stroke();
+      }
+      const blad = (hoek, len, kleur) => {
+        c.save();
+        c.translate(4, -96);
+        c.rotate(hoek);
+        c.beginPath();
+        c.moveTo(0, 0);
+        c.quadraticCurveTo(len * 0.5, -len * 0.34, len, len * 0.18);
+        c.quadraticCurveTo(len * 0.5, -len * 0.08, 0, 0);
+        c.fillStyle = kleur;
+        c.fill();
+        c.restore();
+      };
+      blad(-2.9, 52, '#1c8a3c');
+      blad(-2.3, 56, '#27a54b');
+      blad(-1.6, 50, '#1c8a3c');
+      blad(-0.9, 56, '#27a54b');
+      blad(-0.2, 52, '#1c8a3c');
+      blad(0.45, 46, '#1f9443');
+      c.beginPath();
+      c.arc(2, -92, 3.4, 0, 6.2832);
+      c.arc(8, -90, 3.2, 0, 6.2832);
+      c.fillStyle = '#7a4a1a';
+      c.fill();
+      c.restore();
+    }
     // kreukels in de folie
     c.fillStyle = 'rgba(255,255,255,.05)';
     for (let i = -6; i < 8; i++) {
@@ -2446,7 +2609,7 @@
       c.fillStyle = kleur;
       c.fill();
       c.lineWidth = 1.5;
-      c.strokeStyle = hw ? 'rgba(255,140,50,.55)' : 'rgba(255,214,120,.5)';
+      c.strokeStyle = hw ? 'rgba(255,140,50,.55)' : kerst ? 'rgba(255,224,130,.75)' : zomer ? 'rgba(255,255,255,.6)' : 'rgba(255,214,120,.5)';
       c.stroke();
       c.restore();
     }
@@ -2567,6 +2730,115 @@
       c.closePath();
       c.fill();
       c.restore();
+    } else if (kerst) {
+      // een kerstbal met een gouden dop en een glinsterende ster erboven
+      const px = PW / 2;
+      const by = ey + 6;
+      const bal = c.createRadialGradient(px - 11, by - 12, 3, px, by, 36);
+      bal.addColorStop(0, '#ff8a8a');
+      bal.addColorStop(0.35, '#e0213c');
+      bal.addColorStop(1, '#6e0818');
+      c.beginPath();
+      c.arc(px, by, 32, 0, 6.2832);
+      c.fillStyle = bal;
+      c.fill();
+      // gouden banden en stippen
+      c.save();
+      c.beginPath();
+      c.arc(px, by, 32, 0, 6.2832);
+      c.clip();
+      c.strokeStyle = '#ffd24a';
+      c.lineWidth = 3.4;
+      c.beginPath();
+      c.ellipse(px, by, 32, 11, -0.25, 0, 6.2832);
+      c.stroke();
+      c.lineWidth = 1.6;
+      c.strokeStyle = 'rgba(255,240,170,.9)';
+      c.beginPath();
+      c.ellipse(px, by + 4, 32, 11, -0.25, 0.2, 2.9);
+      c.stroke();
+      c.fillStyle = '#fff1b0';
+      for (const [dx, dy] of [[-18, -8], [-6, -20], [16, -14], [22, 6], [-22, 14], [8, 22], [-4, 8]]) {
+        c.beginPath();
+        c.arc(px + dx, by + dy, 1.7, 0, 6.2832);
+        c.fill();
+      }
+      c.restore();
+      // glans
+      c.beginPath();
+      c.ellipse(px - 12, by - 14, 8, 4.6, -0.7, 0, 6.2832);
+      c.fillStyle = 'rgba(255,255,255,.62)';
+      c.fill();
+      // dop en haakje
+      c.fillStyle = '#e8b830';
+      c.fillRect(px - 7, by - 41, 14, 9);
+      c.fillStyle = '#fff0a8';
+      c.fillRect(px - 7, by - 41, 14, 2.6);
+      c.strokeStyle = '#e8b830';
+      c.lineWidth = 2;
+      c.beginPath();
+      c.arc(px, by - 46, 4.4, Math.PI * 0.1, Math.PI * 1.9, true);
+      c.stroke();
+      // de ster
+      c.save();
+      c.shadowColor = 'rgba(255,230,120,.95)';
+      c.shadowBlur = 8;
+      c.translate(px + 30, by - 34);
+      c.rotate(0.2);
+      c.beginPath();
+      for (let i = 0; i < 10; i++) {
+        const rr = i % 2 ? 6 : 14;
+        const aa = (i / 10) * 6.2832 - Math.PI / 2;
+        c.lineTo(Math.cos(aa) * rr, Math.sin(aa) * rr);
+      }
+      c.closePath();
+      const sg2 = c.createLinearGradient(0, -14, 0, 12);
+      sg2.addColorStop(0, '#fffbd0');
+      sg2.addColorStop(1, '#ffc020');
+      c.fillStyle = sg2;
+      c.fill();
+      c.restore();
+    } else if (zomer) {
+      // een zon met stralen en een zonnebril, midden in de ring
+      const px = PW / 2;
+      c.save();
+      c.shadowColor = 'rgba(255,220,80,.95)';
+      c.shadowBlur = 10;
+      c.strokeStyle = '#ffd43a';
+      c.lineWidth = 3.2;
+      c.lineCap = 'round';
+      for (let i = 0; i < 14; i++) {
+        const aa = (i / 14) * 6.2832;
+        c.beginPath();
+        c.moveTo(px + Math.cos(aa) * 31, ey + Math.sin(aa) * 31);
+        c.lineTo(px + Math.cos(aa) * (i % 2 ? 40 : 45), ey + Math.sin(aa) * (i % 2 ? 40 : 45));
+        c.stroke();
+      }
+      const zk = c.createRadialGradient(px - 6, ey - 8, 2, px, ey, 29);
+      zk.addColorStop(0, '#fffbd0');
+      zk.addColorStop(0.5, '#ffd23a');
+      zk.addColorStop(1, '#ff9a1a');
+      c.beginPath();
+      c.arc(px, ey, 27, 0, 6.2832);
+      c.fillStyle = zk;
+      c.fill();
+      c.restore();
+      // zonnebril en glimlach
+      c.fillStyle = '#10252e';
+      c.beginPath();
+      c.roundRect(px - 20, ey - 8, 17, 11, 4);
+      c.roundRect(px + 3, ey - 8, 17, 11, 4);
+      c.fill();
+      c.fillRect(px - 4, ey - 6, 8, 2.4);
+      c.fillStyle = 'rgba(255,255,255,.5)';
+      c.fillRect(px - 17, ey - 6, 6, 2);
+      c.fillRect(px + 6, ey - 6, 6, 2);
+      c.strokeStyle = '#8a3a08';
+      c.lineWidth = 2.2;
+      c.lineCap = 'round';
+      c.beginPath();
+      c.arc(px, ey + 3, 12, 0.25, Math.PI - 0.25);
+      c.stroke();
     } else {
       c.font = `800 86px ${F_DISPLAY}`;
       const qg = c.createLinearGradient(0, ey - 40, 0, ey + 40);
@@ -2586,7 +2858,7 @@
     c.font = `700 10px ${F_SPORT}`;
     spatie(c, 3);
     c.fillStyle = 'rgba(255,255,255,.7)';
-    c.fillText(pas(c, `${hw ? 'HALLOWEEN' : '1 CIJFER'} · ${data.vak.toUpperCase()}`, PW - 40), PW / 2 + 1.5, PH - 44);
+    c.fillText(pas(c, `${hw ? 'HALLOWEEN' : kerst ? 'KERST' : zomer ? 'ZOMER' : '1 CIJFER'} · ${data.vak.toUpperCase()}`, PW - 40), PW / 2 + 1.5, PH - 44);
     spatie(c, 0);
     c.restore();
     // metalen rand

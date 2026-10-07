@@ -143,7 +143,11 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
       if (vak === null || !getal(k.cijfer, 1, 10) || !Number.isInteger(k.tier)) return null;
       kaarten.push({ vak, cijfer: rond2(k.cijfer), tier: Math.max(0, Math.min(4, k.tier)), z: k.z === true });
     }
-    return kaarten.length >= 1 ? { kaarten } : null;
+    if (!kaarten.length) return null;
+    const uit = { kaarten };
+    // Teamchemie (0 tot 100), door de afzender uitgerekend. Oudere versies sturen dit niet mee: dan is er geen `ch` en tellen we geen chemie.
+    if (Number.isInteger(t.ch) && t.ch >= 0 && t.ch <= 100) uit.ch = t.ch;
+    return uit;
   }
   // Een ontsleutelde blob van een vriend, schoongemaakt. Ontbrekende velden zijn gewoon leeg (oudere versies sturen ze niet).
   function schoonBlob(p) {
@@ -474,7 +478,10 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
   }
   // Wat vrienden van mijn team zien: vak, cijfer, niveau en zeldzaam. Geen id's, geen namen.
   function teamMomentopname(kaarten) {
-    return { kaarten: kaarten.map((e) => ({ vak: String(e.vak || '').slice(0, 24), cijfer: Math.round(e.cijfer * 100) / 100, tier: Math.max(0, Math.min(4, e.tier | 0)), z: e.zeldzaam === true })) };
+    const uit = { kaarten: kaarten.map((e) => ({ vak: String(e.vak || '').slice(0, 24), cijfer: Math.round(e.cijfer * 100) / 100, tier: Math.max(0, Math.min(4, e.tier | 0)), z: e.zeldzaam === true })) };
+    const G = globalThis.SPOGevecht;
+    if (G && G.chemie && uit.kaarten.length) uit.ch = G.chemie(G.ordenTeam(uit.kaarten.map((k) => ({ vak: k.vak, cijfer: k.cijfer, tier: k.tier, z: k.z })), 0)).score;
+    return uit;
   }
   async function mijnTeamDeelbaar(galerij) {
     const k = teamKaarten(await leesTeam(), galerij || []);

@@ -1,5 +1,10 @@
 # Wijzigingen
 
+## v2.0.0
+
+- **Uitval-feest:** valt er een les uit op het rooster, dan krijgt die les een label en gloed, en volgt eenmalig een korte viering met confetti, "UITVAL!" en gejuich. Alleen een hash van week, dag, tijd en vak wordt onthouden. Uit te zetten bij Instellingen (*Uitval-feest*).
+- **Updatemelding:** de extensie kijkt hoogstens elke 6 uur op GitHub of er een nieuwe versie is (één GET, geen tracking). Is die er, dan zie je "Nieuwe versie X" met *Downloaden* (de juiste zip voor Chrome of Firefox) boven de knop op Somtoday en in het paneel. *Later* verbergt de melding tot de volgende versie.
+
 ## v1.4.1
 
 - Bij "te veel verzoeken" wacht de live-synchronisatie steeds langer (tot 2 minuten) in plaats van elke seconde opnieuw te proberen.

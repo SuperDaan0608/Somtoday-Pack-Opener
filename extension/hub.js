@@ -24,10 +24,10 @@
   const SLEUTEL_GALERIJ = 'spo_galerij';
   const SLEUTEL_GEOPEND = 'spo_geopend';
   const SLEUTEL_PROEF = 'spo_proef';
-  const STANDAARD = { afdekking: true, geluid: true, snel: false, opening: 'pak', galerij: true, laag: false, zeldzaam: true, seizoen: true, gemiddelden: true, knop: true };
+  const STANDAARD = { dagelijks: true, afdekking: true, geluid: true, snel: false, opening: 'pak', galerij: true, laag: false, zeldzaam: true, seizoen: true, gemiddelden: true, knop: true, uitval: true };
   const OPENINGEN = ['pak', 'kluis', 'plinko', 'ster', 'raket', 'schiet', 'dans', 'willekeurig'];
   const OPENING_NAAM = { pak: 'Pakje', kluis: 'Kluis', plinko: 'Plinko', ster: 'Wensster', raket: 'Raket', schiet: 'Schieten', dans: 'Dansje', willekeurig: 'Verras me' };
-  const TABS = ['overzicht', 'galerij', 'kaart', 'vrienden', 'team', 'rekenen', 'proberen', 'instellingen', 'geluiden'];
+  const TABS = ['overzicht', 'galerij', 'kaart', 'vrienden', 'team', 'prestaties', 'profiel', 'winkel', 'rekenen', 'proberen', 'instellingen', 'geluiden'];
 
   const ingebed = window.parent !== window;
   if (!ingebed) document.documentElement.classList.add('los');
@@ -690,6 +690,7 @@
       if (e.origin !== location.origin || !vanKader(e.source)) return;
       if (m.type === 'esc') sluit();
       else if (m.type === 'naar-cijfers') naarCijfers();
+      else if (m.type === 'ga' && TABS.includes(m.tab)) kies(m.tab);
     }
   });
 

@@ -24,7 +24,8 @@ import json, sys
 p = sys.argv[1]
 m = json.load(open(p))
 m.pop('version_name', None)
-m['host_permissions'] = ['https://leerling.somtoday.nl/*']
+m['host_permissions'] = ['https://leerling.somtoday.nl/*', 'https://api.github.com/*']
+m['background'] = {'scripts': ['update.js']}
 m['browser_specific_settings'] = {'gecko': {
     'id': 'pack-opener@superdaan0608.github.io',
     'strict_min_version': '140.0',

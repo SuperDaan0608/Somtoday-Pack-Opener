@@ -159,3 +159,33 @@ body.in-gevecht { overflow: hidden; }
   .duel, .duel-vignet, .duel-kaart, .speler.in-duel { animation: none !important; }
   .duel.schud .duel-binnen, .duel.schud-groot .duel-binnen { animation: none !important; }
 }
+
+/* Teamchemie */
+.chemie-lijnen { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; opacity: .85; }
+.chemie-lijnen line { filter: drop-shadow(0 0 3px rgba(255,255,255,.55)); }
+.groep-stip { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid #fff; box-shadow: 0 0 0 1px #0006; flex: none; }
+.speler > .groep-stip { position: absolute; left: -3px; top: -3px; width: 12px; height: 12px; z-index: 3; }
+.chemie { margin-top: 14px; padding: 12px 14px; border-radius: 12px; background: var(--paneel); border: 1px solid var(--lijn-2); }
+.chemie[hidden] { display: none; }
+.chemie-kop { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.chemie-kop h3 { margin: 0; }
+.chemie-getal b { font: 800 26px/1 var(--display); }
+.chemie-getal small { opacity: .7; margin-left: 2px; }
+.chemie-meter { height: 12px; border-radius: 6px; background: #0004; margin: 8px 0 10px; overflow: hidden; box-shadow: inset 0 0 0 1px #ffffff22; }
+.chemie-meter span { display: block; height: 100%; width: 0; border-radius: 6px; background: #e0a43a; transition: width .35s ease; }
+.chemie[data-niveau="midden"] .chemie-meter span { background: #c9d34a; }
+.chemie[data-niveau="hoog"] .chemie-meter span { background: #3fcf8e; }
+.chemie-groepen { list-style: none; margin: 0 0 8px; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; font-size: 13px; }
+.chemie-groepen li { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.chemie-groepen .g-naam { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chemie-groepen b { margin-left: auto; }
+.chemie-groepen li.leeg { opacity: .55; }
+.chemie-groepen li.vol b::after { content: ' \2713'; }
+.chemie-bonus, .chemie-tip { margin: 6px 0 0; font-size: 13px; }
+.chemie-tip { color: var(--tekst-2); }
+.chemie-uitleg { margin-top: 8px; font-size: 13px; }
+.chemie-uitleg summary { cursor: pointer; font-weight: 650; }
+.chemie-uitleg p { margin: 6px 0 0; }
+.chemie-vakken { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; }
+.chemie-vakken li { display: block; line-height: 1.35; }
+.chemie-vakken .groep-stip { margin-right: 6px; vertical-align: -1px; }

@@ -19,7 +19,7 @@
 
   const SLEUTEL_GEOPEND = 'spo_geopend';
   const SLEUTEL_INSTELLINGEN = 'spo_instellingen';
-  const STANDAARD = { afdekking: true, geluid: true, snel: false, opening: 'pak', galerij: true, laag: false, kaartThema: 'auto', kaartRand: 'standaard', zeldzaam: true, seizoen: true, gemiddelden: true, knop: true };
+  const STANDAARD = { dagelijks: true, afdekking: true, geluid: true, snel: false, opening: 'pak', galerij: true, laag: false, kaartThema: 'auto', kaartRand: 'standaard', zeldzaam: true, seizoen: true, gemiddelden: true, knop: true, uitval: true };
   const SLEUTEL_GALERIJ = 'spo_galerij';
   const SLEUTEL_DICHT = 'spo_dicht';
   const SLEUTEL_HUB_OPEN = 'spo_hub_open'; // { tab, ts }: de popup vraagt om het paneel te openen zodra Somtoday geladen is
@@ -420,6 +420,40 @@
     return st.willekeur;
   }
 
+  // ───────────────────────── Prestaties (badges) ─────────────────────────
+  // Welke opening en welk seizoen je gebruikte onthouden we (alleen hier, in spo_stats). Daarna kijken we of er een badge bij is gekomen.
+  async function onthoudVoorPrestaties(k) {
+    const P = window.SPOPrestaties;
+    if (!P) return;
+    if (typeof k.opening === 'string') await P.voegToe('openingen', k.opening);
+    let seizoen = null;
+    try { seizoen = k.opening === 'pak' && window.__SPO && window.__SPO.seizoenNu ? window.__SPO.seizoenNu(seizoenKeuze()) : null; } catch (e) { /* geen seizoen */ }
+    if (seizoen === 'halloween') await P.voegToe('seizoenen', 'halloween');
+    if (instellingen.galerij === false) await controleerPrestaties();
+  }
+  async function controleerPrestaties() {
+    const P = window.SPOPrestaties;
+    if (!P) return;
+    try {
+      const nieuw = await P.controleer();
+      if (nieuw.length) toonBadgeToast(nieuw);
+    } catch (e) {
+      /* badges zijn een extraatje */
+    }
+  }
+  let toastHost = null;
+  function toonBadgeToast(lijst) {
+    if (!document.body || !window.__SPO) return;
+    if (toastHost) toastHost.remove();
+    toastHost = document.createElement('spo-toast');
+    toastHost.style.cssText = 'position:fixed;left:50%;top:18px;transform:translateX(-50%);z-index:2147483647;display:block;max-width:calc(100vw - 24px);';
+    const root = toastHost.attachShadow({ mode: 'open' });
+    root.append(window.SPOPrestaties.maakToast(document, lijst));
+    document.documentElement.appendChild(toastHost);
+    const mijn = toastHost;
+    setTimeout(() => { if (toastHost === mijn) { mijn.remove(); toastHost = null; } }, 7000);
+  }
+
   // ───────────────────────── Pakket openen ─────────────────────────
   function markeer(sig) {
     geopend[sig] = (geopend[sig] || 0) + 1;
@@ -565,16 +599,19 @@
         if (gemarkeerd) return;
         gemarkeerd = true;
         markeer(rij.sig);
+        try { if (window.SPOEco) window.SPOEco.verdienCijfer(rij.sig, d.cijfer, !!window.__somPack.zeldzaam); } catch (e) { /* geen munten */ }
       },
       // de miniatuur van de kaart, kort na de onthulling: bewaren voor de galerij (alleen in deze browser)
       opKaartKlaar(k) {
-        if (instellingen.galerij === false || !k || typeof k.kaart !== 'string') return;
+        if (!k) return;
+        onthoudVoorPrestaties(k).catch(() => {});
+        if (instellingen.galerij === false || typeof k.kaart !== 'string') return;
         try {
           chrome.storage.local.get(SLEUTEL_GALERIJ).then((r) => {
             const lijst = Array.isArray(r[SLEUTEL_GALERIJ]) ? r[SLEUTEL_GALERIJ].filter((x) => x && x.id !== rij.sig) : [];
             lijst.unshift({ id: rij.sig, ts: Date.now(), vak: String(k.vak).slice(0, 60), cijfer: k.cijfer, onderwerp: String(k.onderwerp).slice(0, 120), weging: k.weging, opening: k.opening, tier: k.tier, zeldzaam: !!k.zeldzaam, kaart: k.kaart });
-            chrome.storage.local.set({ [SLEUTEL_GALERIJ]: lijst.slice(0, 150) });
-          });
+            return chrome.storage.local.set({ [SLEUTEL_GALERIJ]: lijst.slice(0, 150) });
+          }).then(() => controleerPrestaties(), () => {});
         } catch (e) {
           /* opslag niet beschikbaar */
         }
@@ -653,14 +690,14 @@
 
   // ───────────────────────── De startknop en het paneel ─────────────────────────
   // Een knop rechtsonder op de pagina opent het Pack Opener-paneel: hub.html in een iframe boven Somtoday, met alles erin
-  // (galerij, kaart ontwerpen, vrienden, calculator, proberen, instellingen, geluiden).
+  // (galerij, kaart ontwerpen, vrienden, team, prestaties, calculator, proberen, instellingen, geluiden).
   //
   // Berichten tussen dit script en het paneel (window.postMessage; we accepteren alleen berichten van ons eigen iframe):
   //   paneel -> hier: { bron: 'spo-hub', versie: 1, type, id?, ... }
   //     hub-klaar | sluiten | open-volgende | alles-geopend | alles-afdekken | naar-cijfers | proef { data }
   //   hier -> paneel: { bron: 'spo-pagina', versie: 1, type, ... }
   //     init { tab, status } | status { status } | tab { tab } | focus { waar } | antwoord { id, ok, status }
-  const HUB_TABS = ['overzicht', 'galerij', 'kaart', 'vrienden', 'team', 'rekenen', 'proberen', 'instellingen', 'geluiden'];
+  const HUB_TABS = ['overzicht', 'galerij', 'kaart', 'vrienden', 'team', 'prestaties', 'profiel', 'winkel', 'rekenen', 'proberen', 'instellingen', 'geluiden'];
   const HUB_WACHT_MS = 2500; // zo lang wachten we op 'hub-klaar' van het iframe
   const CIJFERS_PAD = '/cijfers';
   // Het origin van onze eigen extensiepagina's; null als de browser er geen geeft (dan vertrouwen we alleen op event.source).
