@@ -1,5 +1,10 @@
 # Wijzigingen
 
+## v2.1.0
+
+- **Legendarisch:** trek je een zeldzame kaart met een 9,5 of hoger, dan krijg je een nog veel grotere animatie dan bij zeldzaam. Eerst wordt het stil en zwart, met twee zware hartslagen. Bij elke slag barst het scherm verder in gouden barsten en verschijnt "DIT IS GEEN GEWONE KAART". Dan volgt de gewone zeldzaam-tease, het glas spat in 3D-scherven uit elkaar en de kaart komt door een gouden tunnel. De onthulling gaat in nog tragere slow-motion, met een gouden **LEGENDARISCH!**-logo met regenboogrand en een kroon die erop valt. Na een paar seconden wordt het nog één keer donker, laadt de kaart op en volgt een supernova: een gouden ster, schokgolven, de kaart draait nog twee keer rond, vuurwerk door het hele beeld en een regen van gouden munten en confetti. Uitproberen: *Proberen*, cijfer 9,5 of hoger, *Als zeldzame kaart*.
+- **Nieuwe badge:** *Legendarisch* (trek een zeldzame kaart met een 9,5 of hoger).
+
 ## v2.0.0
 
 - **Teamchemie:** vakken die bij elkaar horen vormen een groep (Exact, Talen, Mens & maatschappij, Kunst & sport). Heb je 3 of meer kaarten uit één groep, of staan ze naast elkaar op het veld, dan krijgt je team chemie (0 tot 100). Op het tabblad Team zie je een meter, lijntjes tussen kaarten die bij elkaar horen, en een tip. In een gevecht geeft chemie hooguit 8% extra passkans en klikkracht. Beide spelers rekenen met dezelfde getallen uit de teamgegevens, dus de uitslag blijft gelijk. Een vriend met een oudere versie stuurt geen chemie mee: dan is de chemie voor allebei 0.

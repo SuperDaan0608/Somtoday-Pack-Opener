@@ -35,7 +35,7 @@
     kerst: ['kerst-bel', 'kerst-wind', 'kerst-ding', 'kerst-klokje'],
     zomer: ['zomer-golf', 'zomer-meeuw', 'zomer-plons', 'zomer-pan'],
     // de ZELDZAAM-reeks (zie motor/zeldzaam.js)
-    zeldzaam: ['zeldzaam-tease', 'zeldzaam-koor', 'zeldzaam-boem'],
+    zeldzaam: ['zeldzaam-tease', 'zeldzaam-koor', 'zeldzaam-boem', 'schiet-scherf', 'schiet-laatste'],
   };
   // Het volume van de nieuwe opnames is afgestemd op de oude (gemeten in het gedeelte boven 200 Hz, dat laptopspeakers wel weergeven).
   Object.assign(NIVEAU, {

@@ -31,13 +31,15 @@
   //   warp(t) / echt(ts)   slow-motion rond de onthulling: werkelijke tijd <-> scènetijd
   function tijden(o, d) {
     const snel = d.snel;
-    const TEASE = snel ? 1.15 : 2.5;
+    const leg = !!d.legendarisch;
+    // legendarisch: eerst een stuk zonder geluid van de tease (barsten in het glas), daarna de gewone tease
+    const TEASE = leg ? (snel ? 2.0 : 4.4) : snel ? 1.15 : 2.5;
     const t0 = o.K0 - 0.06;
     const z = Object.create(o);
     z.basis = o;
     z.tease = [t0, t0 + TEASE];
     z.K0 = o.K0 + TEASE;
-    z.spin = snel ? 1.2 : 2.3;
+    z.spin = leg ? (snel ? 1.5 : 2.9) : snel ? 1.2 : 2.3;
     z.telStart = z.K0 + z.spin * 0.85;
     z.telDuur = snel ? 0.95 : 1.5 + 0.9 * d.I;
     z.RV = z.telStart + z.telDuur;
@@ -46,7 +48,7 @@
     z.pre = (t) => (t < t0 ? t : t < t0 + TEASE ? t0 : t - TEASE);
 
     // slow-motion: eerst een korte, trage stukje (snelheid v0), dan een vloeiend herstel naar normaal tempo
-    const v0 = snel ? 0.32 : 0.17;
+    const v0 = leg ? (snel ? 0.25 : 0.12) : snel ? 0.32 : 0.17;
     const S0 = snel ? 0.35 : 0.6;
     const S1 = snel ? 0.95 : 1.6;
     const F = (u) => u * u * u - (u * u * u * u) / 2;
@@ -70,6 +72,12 @@
       }
       return RV + (a + b) / 2;
     };
+    if (leg) {
+      // de supernova (scènetijd) en een langere viering; het eind en de klik-grens zijn echte tijd
+      z.nova = RV + (snel ? 1.7 : 3.3);
+      z.EIND = z.echt(z.nova + (snel ? 2.6 : 6.2));
+      z.vier = RV + (snel ? 1.2 : 2.0);
+    }
     return z;
   }
 
@@ -77,6 +85,7 @@
   function maakArt(d) {
     const A = SPO.art;
     const sport = A.F_SPORT;
+    const leg = !!d.legendarisch;
     const regenboog = ['#ff4d6d', '#ffb02e', '#fff04a', '#4dff9a', '#3bd8ff', '#8a6bff', '#ff5fd2', '#ff4d6d'];
 
     // het logo: ZELDZAAM! met dikke lijn, schuine diepte, regenboog en een glans; eronder het niveau
@@ -85,7 +94,7 @@
       const c = logo.getContext('2d');
       c.textAlign = 'center';
       c.textBaseline = 'alphabetic';
-      const txt = 'ZELDZAAM!';
+      const txt = leg ? 'LEGENDARISCH!' : 'ZELDZAAM!';
       let fs = 340;
       c.font = `italic 900 ${fs}px ${sport}`;
       while (fs > 160 && c.measureText(txt).width > 1740) {
@@ -98,26 +107,47 @@
       c.miterLimit = 2;
       // gloed
       c.save();
-      c.shadowColor = 'rgba(255,90,230,.95)';
+      c.shadowColor = leg ? 'rgba(255,190,40,.95)' : 'rgba(255,90,230,.95)';
       c.shadowBlur = 46;
       c.lineWidth = 34;
-      c.strokeStyle = 'rgba(40,10,70,.9)';
+      c.strokeStyle = leg ? 'rgba(70,35,0,.9)' : 'rgba(40,10,70,.9)';
       c.strokeText(txt, cx, by);
       c.restore();
       // diepte: donkere kopieën schuin naar beneden
       for (let i = 16; i >= 1; i--) {
-        c.fillStyle = i > 12 ? '#16062e' : i > 6 ? '#2a0f55' : '#3d1a7a';
+        c.fillStyle = leg ? (i > 12 ? '#2a1400' : i > 6 ? '#4a2600' : '#6e3a00') : i > 12 ? '#16062e' : i > 6 ? '#2a0f55' : '#3d1a7a';
         c.fillText(txt, cx + i * 0.9, by + i * 1.15);
       }
       c.lineWidth = 30;
-      c.strokeStyle = '#120528';
+      c.strokeStyle = leg ? '#2a1400' : '#120528';
       c.strokeText(txt, cx, by);
-      c.lineWidth = 15;
-      c.strokeStyle = '#ffffff';
-      c.strokeText(txt, cx, by);
-      // regenboogvulling
-      const g = c.createLinearGradient(130, 0, 1770, 0);
-      regenboog.forEach((k, i, l) => g.addColorStop(i / (l.length - 1), k));
+      if (leg) {
+        // legendarisch: een regenboogrand om goud
+        const rb = c.createLinearGradient(130, 0, 1770, 0);
+        regenboog.forEach((k, i, l) => rb.addColorStop(i / (l.length - 1), k));
+        c.lineWidth = 19;
+        c.strokeStyle = rb;
+        c.strokeText(txt, cx, by);
+        c.lineWidth = 7;
+        c.strokeStyle = '#fffbe8';
+        c.strokeText(txt, cx, by);
+      } else {
+        c.lineWidth = 15;
+        c.strokeStyle = '#ffffff';
+        c.strokeText(txt, cx, by);
+      }
+      // vulling: regenboog, of goud bij legendarisch
+      let g;
+      if (leg) {
+        g = c.createLinearGradient(0, by - fs * 0.86, 0, by);
+        g.addColorStop(0, '#fffbe0');
+        g.addColorStop(0.38, '#ffd84a');
+        g.addColorStop(0.62, '#f29a00');
+        g.addColorStop(1, '#ffe7a0');
+      } else {
+        g = c.createLinearGradient(130, 0, 1770, 0);
+        regenboog.forEach((k, i, l) => g.addColorStop(i / (l.length - 1), k));
+      }
       c.fillStyle = g;
       c.fillText(txt, cx, by);
       // glans over de bovenste helft en een donkere onderkant
@@ -140,7 +170,7 @@
       c.fillRect(0, by - fs * 0.34, 1900, fs * 0.5);
       c.restore();
       // het niveau eronder
-      const regel = `${d.T.label.toUpperCase()}  ·  ${d.T.naam.toUpperCase()}`;
+      const regel = leg ? `ZELDZAAM  ·  ${d.T.naam.toUpperCase()}` : `${d.T.label.toUpperCase()}  ·  ${d.T.naam.toUpperCase()}`;
       c.font = `800 74px ${sport}`;
       if ('letterSpacing' in c) c.letterSpacing = '10px';
       c.lineWidth = 12;
@@ -206,7 +236,165 @@
       c.fillStyle = '#fff';
       c.fill();
     }
-    return { logo, tease, ster };
+    if (!leg) return { logo, tease, ster };
+
+    // ── alleen bij legendarisch ──
+    // de tweede tekst van de tease, in goud
+    const tease2 = A.nieuw(1500, 210);
+    {
+      const c = tease2.getContext('2d');
+      c.textAlign = 'center';
+      c.textBaseline = 'alphabetic';
+      const txt = 'DIT IS GEEN GEWONE KAART';
+      let fs = 130;
+      c.font = `italic 900 ${fs}px ${sport}`;
+      if ('letterSpacing' in c) c.letterSpacing = '6px';
+      while (fs > 60 && c.measureText(txt).width > 1420) {
+        fs -= 3;
+        c.font = `italic 900 ${fs}px ${sport}`;
+      }
+      const y = 40 + fs * 0.86;
+      c.save();
+      c.shadowColor = 'rgba(255,170,20,.95)';
+      c.shadowBlur = 30;
+      c.fillStyle = '#ffcf40';
+      c.fillText(txt, 750, y);
+      c.restore();
+      const gg = c.createLinearGradient(0, y - fs * 0.8, 0, y);
+      gg.addColorStop(0, '#fffbe6');
+      gg.addColorStop(0.55, '#ffd34a');
+      gg.addColorStop(1, '#ff9d00');
+      c.fillStyle = gg;
+      c.fillText(txt, 750, y);
+      c.globalCompositeOperation = 'destination-out';
+      for (let yy = 0; yy < 210; yy += 7) {
+        c.fillStyle = 'rgba(0,0,0,.22)';
+        c.fillRect(0, yy, 1500, 2);
+      }
+      if ('letterSpacing' in c) c.letterSpacing = '0px';
+    }
+
+    // barsten in het 'glas' voor het beeld: drie stappen, elke stap gaat verder; wit met een gouden gloed
+    const BW = 1920, BH = 1080;
+    const takken = [];
+    {
+      let zaad = 7;
+      const rnd = () => ((zaad = (zaad * 16807) % 2147483647) / 2147483647);
+      const tak = (x, y, hoek, lengte, dikte, diepte) => {
+        const pad = [[x, y]];
+        let a = hoek;
+        for (let l = 0; l < lengte; ) {
+          a += (rnd() - 0.5) * 0.7;
+          const st = 22 + rnd() * 40;
+          x += Math.cos(a) * st;
+          y += Math.sin(a) * st;
+          l += st;
+          pad.push([x, y]);
+          if (diepte < 2 && rnd() < 0.09) tak(x, y, a + (rnd() < 0.5 ? -1 : 1) * (0.5 + rnd() * 0.6), lengte * 0.45, dikte * 0.6, diepte + 1);
+        }
+        takken.push({ pad, dikte, diepte });
+      };
+      for (let i = 0; i < 13; i++) tak(BW / 2 + (rnd() - 0.5) * 30, BH / 2 + (rnd() - 0.5) * 30, (i / 13) * Math.PI * 2 + rnd() * 0.4, 380 + rnd() * 900, 5 + rnd() * 3, 0);
+      // ringen om het inslagpunt
+      for (let r = 0; r < 3; r++) {
+        const R = 70 + r * 85 + rnd() * 20;
+        const pad = [];
+        for (let k = 0; k <= 26; k++) {
+          const a = (k / 26) * Math.PI * 2;
+          const rr = R * (0.85 + rnd() * 0.3);
+          pad.push([BW / 2 + Math.cos(a) * rr, BH / 2 + Math.sin(a) * rr]);
+        }
+        takken.push({ pad, dikte: 3.5 - r, diepte: 0, ring: r });
+      }
+    }
+    const barst = [0.3, 0.6, 1].map((stap) => {
+      const cv = A.nieuw(BW, BH);
+      const c = cv.getContext('2d');
+      c.lineCap = 'round';
+      c.lineJoin = 'round';
+      for (const [breed, kleur, blur] of [[3.2, 'rgba(255,190,60,.55)', 18], [1, 'rgba(255,236,170,.95)', 6], [0.42, 'rgba(255,255,255,1)', 0]]) {
+        c.shadowColor = 'rgba(255,170,30,.9)';
+        c.shadowBlur = blur;
+        c.strokeStyle = kleur;
+        for (const t of takken) {
+          if (t.ring !== undefined && t.ring > stap * 3 - 1) continue;
+          const n = Math.max(2, Math.floor(t.pad.length * Math.min(1, stap * (t.diepte ? 0.8 : 1.15))));
+          c.lineWidth = t.dikte * breed;
+          c.beginPath();
+          c.moveTo(t.pad[0][0], t.pad[0][1]);
+          for (let k = 1; k < n; k++) c.lineTo(t.pad[k][0], t.pad[k][1]);
+          c.stroke();
+        }
+      }
+      // een felle kern in het midden
+      const g = c.createRadialGradient(BW / 2, BH / 2, 0, BW / 2, BH / 2, 120 * stap + 40);
+      g.addColorStop(0, `rgba(255,250,220,${0.15 + 0.25 * stap})`);
+      g.addColorStop(1, 'rgba(255,190,60,0)');
+      c.shadowBlur = 0;
+      c.fillStyle = g;
+      c.fillRect(0, 0, BW, BH);
+      return cv;
+    });
+
+    // een gouden kroon met juwelen
+    const kroon = A.nieuw(520, 360);
+    {
+      const c = kroon.getContext('2d');
+      const vorm = () => {
+        c.beginPath();
+        c.moveTo(60, 300);
+        c.lineTo(36, 110);
+        c.lineTo(150, 205);
+        c.lineTo(260, 52);
+        c.lineTo(370, 205);
+        c.lineTo(484, 110);
+        c.lineTo(460, 300);
+        c.closePath();
+      };
+      c.save();
+      c.shadowColor = 'rgba(255,180,30,.95)';
+      c.shadowBlur = 40;
+      vorm();
+      c.fillStyle = '#ffcc33';
+      c.fill();
+      c.restore();
+      vorm();
+      const g = c.createLinearGradient(0, 50, 0, 300);
+      g.addColorStop(0, '#fffbe2');
+      g.addColorStop(0.35, '#ffd84a');
+      g.addColorStop(0.7, '#d98200');
+      g.addColorStop(1, '#ffe08a');
+      c.fillStyle = g;
+      c.fill();
+      c.lineWidth = 10;
+      c.strokeStyle = '#5a2c00';
+      c.lineJoin = 'round';
+      c.stroke();
+      // de band
+      c.fillStyle = '#b86a00';
+      c.fillRect(64, 262, 392, 44);
+      c.strokeRect(64, 262, 392, 44);
+      // juwelen
+      const juweel = (x, y, r, k) => {
+        const jg = c.createRadialGradient(x - r * 0.3, y - r * 0.3, 1, x, y, r);
+        jg.addColorStop(0, '#ffffff');
+        jg.addColorStop(0.35, k);
+        jg.addColorStop(1, '#1a0630');
+        c.fillStyle = jg;
+        c.beginPath();
+        c.arc(x, y, r, 0, Math.PI * 2);
+        c.fill();
+        c.lineWidth = 5;
+        c.stroke();
+      };
+      juweel(36, 104, 20, '#ff3d7a');
+      juweel(260, 46, 26, '#3bd8ff');
+      juweel(484, 104, 20, '#4dff9a');
+      juweel(160, 284, 15, '#8a6bff');
+      juweel(260, 284, 18, '#ff4d6d');
+      juweel(360, 284, 15, '#3bd8ff');
+    }
+    return { logo, tease, ster, tease2, barst, kroon };
   }
 
   // ───────────────────────── De reeks ─────────────────────────
@@ -218,7 +406,19 @@
     const K0 = tl.K0;
     const RV = tl.RV;
     const snel = d.snel;
+    const leg = !!d.legendarisch && !!art.barst;
+    // tb: het begin van de gewone tease. Bij legendarisch komt daar eerst een stuk met barsten in het glas voor (t0 … tb).
+    const tb = leg ? t1 - (snel ? 1.15 : 2.5) : t0;
+    const N = leg ? tl.nova : Infinity; // de supernova (scènetijd)
+    const echt = (ts) => (tl.echt ? tl.echt(ts) : ts);
     const tex = { logo: c.tekstuur(art.logo), tease: c.tekstuur(art.tease), ster: c.tekstuur(art.ster) };
+    if (leg) {
+      tex.tease2 = c.tekstuur(art.tease2);
+      tex.barst = art.barst.map((b) => c.tekstuur(b));
+      tex.kroon = c.tekstuur(art.kroon);
+    }
+    const goud1 = [1, 0.8, 0.28];
+    const goud2 = [1, 0.95, 0.72];
     const k1 = [1, 1, 1];
     const k2 = [1, 1, 1];
     const regen = (t, a = 0.12, b = 0.35) => {
@@ -232,9 +432,9 @@
     const eindGeluid = t1 + 0.04;
     let startGeluid = eindGeluid - 2.58;
     let offset = 0;
-    if (startGeluid < t0 - 0.05) {
-      offset = t0 - startGeluid;
-      startGeluid = t0;
+    if (startGeluid < tb - 0.05) {
+      offset = tb - startGeluid;
+      startGeluid = tb;
     }
     const slagen = [];
     {
@@ -245,7 +445,19 @@
         tb += 0.62 - 0.32 * q;
       }
     }
-    const beats = slagen.map((s) => startGeluid - offset + s).filter((b) => b >= t0 - 0.02 && b < t1 - 0.1);
+    const beats = slagen.map((s) => startGeluid - offset + s).filter((b) => b >= tb - 0.02 && b < t1 - 0.1);
+    // legendarisch: twee trage, zware slagen vóór de gewone tease; bij elke slag barst het glas verder
+    const A = tb - t0;
+    const slagenA = leg ? [t0 + 0.14 * A, t0 + 0.6 * A] : [];
+    const barstStap = (t) => (t >= tb + 0.45 * (t1 - tb) ? 2 : t >= slagenA[1] ? 1 : t >= slagenA[0] ? 0 : -1);
+    const thumpA = (t) => {
+      let s = 0;
+      for (const b of slagenA) {
+        const dt = t - b;
+        if (dt >= 0 && dt < 1.2) s += Math.exp(-dt / 0.14);
+      }
+      return Math.min(1.4, s);
+    };
     const thump = (t) => {
       let s = 0;
       for (let i = 0; i < beats.length; i++) {
@@ -264,7 +476,7 @@
     // ───── flitsen, schokken en golven ─────
     // de tease: een schok op elke hartslag en één grote ontlading precies voor de kaart
     for (const b of beats) {
-      c.schok(b, 0.006 + 0.01 * ramp(b, t0, t1), 0.12);
+      c.schok(b, 0.006 + 0.01 * ramp(b, tb, t1), 0.12);
     }
     c.flits(t1 - 0.02, 1.5, 0.05);
     c.flits(t1 - 0.02, 0.9, 0.22);
@@ -308,9 +520,103 @@
     w(vlak({ t0: RV + 2.6, life: 6, delay: 3.0, n: 800, org: [0, 0.66], angle: -Math.PI / 2, spread: 0.5, spd: [0.05, 0.4], grav: [0, -0.13], size: [0.006, 0.015], col1: [1, 0.85, 0.3], col2: [0.7, 0.4, 1], seed: 45, per: 2 }));
     w(vlak({ t0: RV + 5.2, life: 8, delay: 6.0, n: 420, org: [0, 0.66], angle: -Math.PI / 2, spread: 0.5, spd: [0.05, 0.35], grav: [0, -0.12], size: [0.006, 0.015], col1: [1, 0.85, 0.3], col2: [1, 0.4, 0.7], regen: 1, seed: 46, per: 2 }));
 
+    // ───── LEGENDARISCH: barsten, glas, gouden tunnel, kroon en een supernova ─────
+    if (leg) {
+      // het stuk vóór de tease: twee zware slagen, glas dat barst
+      for (const b of slagenA) {
+        c.at(b, () => {
+          audio.speel('hartslag', { gain: 1.2, rate: 0.72, galmen: 0.35 });
+          audio.speel('schiet-scherf', { gain: 0.55, rate: 0.7, galmen: 0.4 });
+        });
+        c.schok(b, 0.025, 0.25);
+        c.flits(b, 0.25, 0.08);
+      }
+      c.at(t0 + 0.02, () => audio.speel('boem', { gain: 0.55, rate: 0.55, galmen: 0.4 }));
+      const s3 = tb + 0.45 * (t1 - tb);
+      c.at(s3, () => audio.speel('schiet-scherf', { gain: 0.7, rate: 0.85, galmen: 0.3 }));
+      c.schok(s3, 0.02, 0.2);
+      // het glas spat uit elkaar
+      c.at(t1 - 0.03, () => {
+        audio.speel('schiet-scherf', { gain: 1.0, rate: 1.0, galmen: 0.3 });
+        audio.speel('schiet-laatste', { gain: 0.6, rate: 0.8, galmen: 0.3 });
+      });
+      w({ mode: 7, t0: t1 - 0.02, delay: 0.05, life: 2.4, n: 520, org: [0, 0], angle: 0, spread: c.TWEE_PI, spd: [0.5, 2.8], grav: [0, -0.8], drag: 0.9, size: [0.012, 0.042], col1: [0.85, 0.95, 1], col2: [1, 0.88, 0.5], alpha: 1, blend: 'alpha', regen: 0, seed: 61, per: 1 });
+      w({ mode: 0, t0: t1 - 0.02, delay: 0.08, life: 1.6, n: 800, org: [0, 0], angle: 0, spread: c.TWEE_PI, spd: [0.6, 3.6], grav: [0, -0.3], drag: 1.3, size: [0.002, 0.007], col1: goud1, col2: goud2, alpha: 1, seed: 62 });
+      c.golf(t1 + 0.05, 2.2, 1.0, 0);
+      // de kaart komt: een gouden explosie extra
+      w({ mode: 0, t0: K0, delay: 0.25, life: 2.2, n: 600, org: [0, 0.01], angle: 0, spread: c.TWEE_PI, spd: [0.4, 3.0], grav: [0, -0.15], drag: 1.1, size: [0.002, 0.007], col1: goud1, col2: goud2, alpha: 1, seed: 63 });
+
+      // ── de supernova ──
+      c.at(echt(N - 1.25), () => audio.speel('riser', { gain: 1.1, rate: 0.9, galmen: 0.3 }));
+      c.at(echt(N - 1.0), () => audio.speel('zeldzaam-tease', { gain: 0.7, offset: 1.5, duur: 1.0, fadeOut: 0.05, galmen: 0.2 }));
+      c.at(echt(N - 0.04), () => {
+        audio.speel('zeldzaam-boem', { gain: 1.2, rate: 0.75, galmen: 0.35 });
+        audio.boem(1, 0.6);
+        audio.fanfare(1);
+        trillen([120, 40, 120, 40, 120, 40, 500]);
+      });
+      c.at(echt(N + 0.15), () => audio.speel('zeldzaam-koor', { gain: 1.0, rate: 0.9, fadeOut: 1.5, galmen: 0.35 }));
+      c.at(echt(N + 0.3), () => audio.publiek(5, 1));
+      c.flits(N, 0.9, 0.05);
+      c.flits(N + 0.03, 0.35, 0.25);
+      c.schok(N, 0.14, 0.55);
+      for (let i = 0; i < 3; i++) c.golf(N + 0.14 * i, 1.4 + 0.4 * i, 0.75 - 0.15 * i, 0.02);
+      // de knal: goud en regenboog
+      w({ mode: 0, t0: N, delay: 0.15, life: 2.6, n: 1000, org: [0, 0.02], angle: 0, spread: c.TWEE_PI, spd: [0.5, 4.2], grav: [0, -0.25], drag: 1.0, size: [0.0022, 0.008], col1: goud1, col2: goud2, alpha: 1, seed: 71 });
+      w({ mode: 0, t0: N, delay: 0.4, life: 3.0, n: 800, org: [0, 0.02], angle: 0, spread: c.TWEE_PI, spd: [0.3, 2.8], grav: [0, -0.3], drag: 1.0, size: [0.002, 0.007], col1: k1, col2: k2, alpha: 0.9, regen: 1, seed: 72 });
+      // vuurwerk overal
+      for (let i = 0; i < 14; i++) {
+        const tt = N + 0.35 + i * 0.26 + hash(i * 1.7) * 0.12;
+        const x = (hash(i * 3.1 + 1) - 0.5) * 1.3;
+        const y = 0.05 + hash(i * 5.3 + 2) * 0.33;
+        const kl = [0, 0, 0];
+        const kl2 = [0, 0, 0];
+        SPO.hsv(i % 3 === 0 ? 0.12 : hash(i * 7.7), i % 3 === 0 ? 0.65 : 0.75, 1, kl);
+        SPO.hsv(i % 3 === 0 ? 0.14 : hash(i * 7.7) + 0.08, 0.3, 1, kl2);
+        w({ mode: 0, t0: tt, delay: 0.04, life: 1.7, n: 420, org: [x, y], angle: 0, spread: c.TWEE_PI, spd: [0.15, 0.62], grav: [0, -0.12], drag: 1.5, size: [0.0018, 0.005], col1: kl, col2: kl2, alpha: 1, seed: 80 + i });
+        c.at(echt(tt), () => audio.vuurwerk());
+      }
+      // een regen van gouden munten en nog meer confetti
+      w(vlak({ t0: N + 0.1, life: 6.5, delay: 3.6, n: 1100, org: [0, 0.66], angle: -Math.PI / 2, spread: 0.5, spd: [0.05, 0.4], grav: [0, -0.2], size: [0.009, 0.02], col1: [1, 0.72, 0.15], col2: [1, 0.93, 0.55], seed: 90, per: 2 }));
+      w(vlak({ t0: N + 0.2, life: 5.0, delay: 2.4, n: 1000, org: [0, 0.66], angle: -Math.PI / 2, spread: 0.6, spd: [0.05, 0.4], grav: [0, -0.14], size: [0.006, 0.016], col1: [1, 0.5, 0.8], col2: [0.5, 0.9, 1], regen: 1, seed: 91, per: 2 }));
+      const kanonN = (zijde, seed) => {
+        const o = w(vlak({ t0: N + 0.05, life: 4.4, delay: 0.4, n: 800, org: [0, -0.52], angle: Math.PI / 2 - zijde * 0.55, spread: 0.6, spd: [0.8, 2.3], grav: [0, -0.5], drag: 1.15, size: [0.006, 0.016], col1: goud1, col2: goud2, regen: 0, seed }));
+        o.bij = (x, asp) => {
+          x.org[0] = zijde * asp * 0.5 * 0.95;
+        };
+      };
+      kanonN(-1, 92);
+      kanonN(1, 93);
+    }
+
+    // het stuk vóór de gewone tease (alleen legendarisch): de tekst in goud
+    function teaseA(t, visB) {
+      const u = ramp(t, t0, tb);
+      const th = thumpA(t);
+      c.licht(t, 0, 0, 0.6 * th, 0.02, 0.5 * th, 0.6 * th, t * 0.3, goud1);
+      const ta = sm(u, 0.45, 0.6) * (1 - sm(u, 0.94, 1));
+      if (ta > 0.002) {
+        const wT = Math.min(2.1, visB * 0.9);
+        const hT = wT * (210 / 1500);
+        const flik = hash(Math.floor(t * 11)) > 0.82 ? 1 : 0.1;
+        c.vlak(t, tex.tease2, 0, -0.42, 0, 0, 0, 0, wT, hT, ta * 9, ramp(u, 0.45, 0.8) * 1.5 - 0.1, 1, flik * 0.5 * rg, goud1, 0.25 * flik * rg, 0);
+      }
+    }
+    // de barsten in het glas, over alles heen; feller op elke slag
+    function barstTeken(t, asp, visB) {
+      const st = barstStap(t);
+      if (st < 0 || t >= t1) return;
+      const bt = st === 0 ? slagenA[0] : st === 1 ? slagenA[1] : tb + 0.45 * (t1 - tb);
+      const fel = 1 + 1.2 * Math.exp(-(t - bt) / 0.12) + (t > t1 - 0.4 ? 0.6 * ramp(t, t1 - 0.4, t1) : 0);
+      const breed = Math.max(visB, (visB / asp) * (1920 / 1080));
+      c.vlak(t, tex.barst[st], 0, 0, 0, 0, 0, 0, breed * 1.02, breed * 1.02 * (1080 / 1920), (t < tb ? 1.6 : 3.2) * fel, 2, 1, 0, goud1, 0, 0);
+    }
+
     // ───── de tease tekenen ─────
     function teaseTeken(t, asp, visB) {
-      const u = ramp(t, t0, t1);
+      if (leg) barstTeken(t, asp, visB);
+      if (t < tb) return teaseA(t, visB);
+      const u = ramp(t, tb, t1);
       const th = thump(t);
       const dark = 1 - sm(u, 0.88, 0.99);
       regen(t, 0.5, 0.3);
@@ -337,14 +643,31 @@
         const h = t * 0.35;
         const a = [0, 0, 0];
         const b = [0, 0, 0];
-        SPO.hsv(h, 0.7, 1, a);
-        SPO.hsv(h + 0.4, 0.85, 1, b);
-        c.warp(t, tun * 0.9, 1.7 - 1.0 * ramp(t, K0, K0 + tl.spin), 0.7, a, b);
+        if (leg) {
+          // goud, met af en toe een regenboogflits
+          SPO.hsv(0.11 + 0.03 * Math.sin(t * 3), 0.7, 1, a);
+          SPO.hsv(h, 0.6, 1, b);
+          c.warp(t, tun * 0.8, 2.0 - 1.2 * ramp(t, K0, K0 + tl.spin), 0.6, a, b);
+          c.licht(t, 0, 0, 0.25 * tun, 0.04, 0.3 * tun, 0.35 * tun, t * 0.5, goud1);
+        } else {
+          SPO.hsv(h, 0.7, 1, a);
+          SPO.hsv(h + 0.4, 0.85, 1, b);
+          c.warp(t, tun * 0.9, 1.7 - 1.0 * ramp(t, K0, K0 + tl.spin), 0.7, a, b);
+        }
       }
       // draaiende lichtbundels: twee lagen die tegen elkaar in draaien, en zoeklichten vanuit de onderhoeken
       const r = t - RV;
+      if (leg && t > N - 1.3 && t < N + 4) {
+        // de supernova: eerst trekt het licht samen, dan een enorme gouden ster en stralen die wegschieten
+        const pre = sm(t, N - 1.2, N) * (t < N ? 1 : 0);
+        const na = t >= N ? Math.exp(-(t - N) / 0.9) : 0;
+        c.licht(t, 0, 0.02, 0.2 * pre + 0.6 * na, 0.02 + 0.1 * (1 - na), 0.3 * pre + 0.8 * na, 0.25 * pre + 0.9 * na, t * 0.4, goud1);
+        if (na > 0.01) c.stralen(t, 0.55 * na, 0.9, 0.3 * na, 0.2, 0, 0.02, -t * 0.8, 1, goud1, goud2, 40);
+      }
       if (t > K0) {
-        const rust = 1 - 0.35 * sm(r, 3.5, 6.5);
+        // legendarisch: vlak voor de supernova wordt het stil en donker, daarna komt alles terug
+        const stilte = leg ? 1 - 0.9 * sm(t, N - 1.1, N - 0.2) * (1 - sm(t, N, N + 0.5)) : 1;
+        const rust = (1 - 0.35 * sm(r, leg ? N - RV + 2.5 : 3.5, leg ? N - RV + 5.5 : 6.5)) * stilte;
         const al = sm(t, K0 + tl.spin * 0.5, RV) * 0.25 + sm(r, 0, 0.5) * (0.35 + 0.4 * sm(r, 0.8, 2));
         regen(t, 0.14, 0.4);
         c.stralen(t, al * rust, 0.55 + 0.5 * Math.exp(-r / 1.2) * (r > 0 ? 1 : 0), 0.2, 0.2, 0, 0.02, t * 0.5, 1, k1, k2, 26);
@@ -378,6 +701,16 @@
       const sc = Math.max(0.001, slag) * groot * (1 + 0.025 * Math.sin(t * 3));
       const al = sm(r, 0, 0.1);
       c.vlak(t, tex.logo, (stoot ? (hash(Math.floor(t * 30)) - 0.5) * 0.05 : 0), y, 0.02, 0, 0, wob - 0.03 * (1 - slag), wT * sc, hT * sc, al, 2, 0, gl * 0.8, k1, gl * (0.5 + 0.5 * fl) + 0.12, hue);
+      // legendarisch: een kroon die op het logo valt, en bij de supernova een felle gloed
+      if (leg && r > 0.55) {
+        const q = r - 0.55;
+        const val = veer(ramp(q, 0, 0.7));
+        const kw = wT * 0.17 * (1 + (t >= N ? 0.25 * Math.exp(-(t - N) / 0.35) : 0));
+        const kh = kw * (360 / 520);
+        const ky = y + hT * 0.52 * sc + kh * 0.38 + (1 - val) * 0.5;
+        c.vlak(t, tex.kroon, 0, ky, 0.03, 0, Math.sin(t * 1.4) * 0.25, Math.sin(t * 2) * 0.04, kw, kh, sm(q, 0, 0.1), 2, 0, 0, goud1, 0, 0);
+        if (t >= N) c.vlak(t, tex.ster, 0, ky + kh * 0.3, 0.04, 0, 0, t * 0.6, kw * 1.3 * Math.exp(-(t - N) / 0.5), kw * 1.3 * Math.exp(-(t - N) / 0.5), 1, 2, 1, 0, k1, 0, 0);
+      }
       // glinsterende sterren rond het logo
       const aantal = 12;
       for (let i = 0; i < aantal; i++) {
@@ -414,6 +747,14 @@
       // na de draai wiegt de kaart rustig heen en weer
       kaartNu.rot = r < 0 ? 0 : Math.PI * 2 * e + (r > 1.5 ? 0.28 * Math.sin((r - 1.5) * 0.9) * sm(r, 1.5, 2.3) : 0);
       kaartNu.schaal = 1 + (r > 0 ? 0.1 * Math.exp(-r / 0.5) : 0);
+      if (leg) {
+        // de supernova: de kaart trilt en zwelt op, en draait na de knal nog twee keer rond
+        const pre = sm(t, N - 1.2, N) * (t < N ? 1 : 0);
+        const d2 = ramp(t, N, N + 1.6);
+        kaartNu.rot += Math.PI * 4 * (1 - Math.pow(1 - d2, 3));
+        kaartNu.schaal += 0.05 * pre + (t >= N ? 0.16 * Math.exp(-(t - N) / 0.45) : 0) + pre * 0.01 * Math.sin(t * 70);
+        kaartNu.folie += 0.6 * pre + (t >= N ? 0.8 * Math.exp(-(t - N) / 1.5) : 0);
+      }
       return kaartNu;
     }
 
@@ -429,8 +770,20 @@
       p.sat = 1;
       p.bloom = 1;
       p.regen = t >= RV - 0.05 ? 1 : 0;
-      if (t >= t0 && t < t1 + 0.02) {
-        const u = ramp(t, t0, t1 + 0.02);
+      if (leg && t >= t0 && t < tb) {
+        // het stuk vóór de tease: bijna zwart, een zware schok op elke slag
+        const u = ramp(t, t0, tb);
+        const th = thumpA(t);
+        p.dark = 0.88 * sm(u, 0, 0.12);
+        p.gl = Math.min(1, Math.exp(-u / 0.06) * 0.8 + th * 0.35) * rg;
+        p.zoom = 1 + 0.06 * th + 0.02 * u;
+        p.rad = 0.18 * th;
+        p.vig = 1 + 0.8 * th + 0.4 * u;
+        p.sat = 0.6;
+        return p;
+      }
+      if (t >= tb && t < t1 + 0.02) {
+        const u = ramp(t, tb, t1 + 0.02);
         const th = thump(t);
         const spike = hash(Math.floor(t * 9.5)) > 0.8 - 0.25 * u ? 0.5 : 0;
         p.dark = 0.93 * sm(u, 0, 0.05) * (1 - sm(u, 0.9, 0.985));
@@ -453,14 +806,30 @@
         p.bloom = 1 + 0.12 * Math.exp(-(t - RV) / 1.5);
         p.sat = 1.08;
       }
+      if (leg && t > N - 1.3) {
+        const pre = sm(t, N - 1.2, N) * (t < N ? 1 : 0);
+        const na = t >= N ? Math.exp(-(t - N) / 0.35) : 0;
+        p.vig = Math.max(p.vig, 1 + 2.4 * pre);
+        p.dark = Math.max(p.dark, 0.5 * pre);
+        p.sat = mix(p.sat, 0.7, pre);
+        p.zoom *= 1 + 0.06 * pre + 0.09 * na;
+        p.rad = Math.max(p.rad, 0.12 * pre + 0.4 * na);
+        p.gl = Math.max(p.gl, 0.45 * na * rg);
+        p.bloom *= 1 + 0.15 * pre + 0.3 * Math.exp(-Math.max(0, t - N) / 1.0) * (t >= N ? 1 : 0);
+      }
       return p;
     }
 
     // kleine extra schudbeving: rommelen tijdens de tease en een lange nasidderen na de onthulling
     function schud(t) {
-      if (t >= t0 && t < t1) {
-        const u = ramp(t, t0, t1);
+      if (leg && t >= t0 && t < tb) return (0.001 + 0.006 * thumpA(t)) * (reduceer ? 0.15 : 1);
+      if (t >= tb && t < t1) {
+        const u = ramp(t, tb, t1);
         return (0.0015 + 0.011 * u * u * u) * (reduceer ? 0.15 : 1);
+      }
+      if (leg && t >= N - 1.2 && t < N + 3) {
+        // de supernova laadt op (gerommel) en knalt
+        return (t < N ? 0.006 * Math.pow(ramp(t, N - 1.2, N), 2) : 0.012 * Math.exp(-(t - N) / 0.5)) * (reduceer ? 0.15 : 1);
       }
       if (t >= RV && t < RV + 4) return 0.003 * Math.exp(-(t - RV) / 1.4) * (reduceer ? 0.15 : 1);
       return 0;
