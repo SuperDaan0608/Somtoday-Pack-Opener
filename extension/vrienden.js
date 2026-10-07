@@ -31,6 +31,7 @@
   let gevechten = {};     // uitslagen van gevechten met vrienden (spo_gevechten)
   let uitdagingen = new Set(); // vrienden die je uitdagen (alleen om te melden)
   let live = null;
+  let banGemeld = false;  // de verbanningsmelding maar één keer tonen
 
   function el(tag, klas, tekst) {
     const e = document.createElement(tag);
@@ -501,8 +502,9 @@
       zetStatus(true);
       renderAlles();
     } catch (e) {
-      $('sync-status').textContent = 'Synchroniseren mislukt.';
-      if (e.status === 401) melding('Je account is niet meer geldig op de server. Wis alles en zet de functie opnieuw aan.', true);
+      $('sync-status').textContent = e.verbannen ? e.message : 'Synchroniseren mislukt.';
+      if (e.verbannen) { if (!banGemeld) { banGemeld = true; melding(e.message, true); } }
+      else if (e.status === 401) melding('Je account is niet meer geldig op de server. Wis alles en zet de functie opnieuw aan.', true);
       else melding(foutTekst(e), true);
     } finally { bezig = false; $('sync').disabled = false; }
   }
@@ -529,7 +531,8 @@
           if (g.berichten.some((b) => b.m.t === 'uitnodiging' && b.leeftijd < 300)) { uitdagingen.add(g.van); melding(`${L.naam(st.vrienden.find((v) => v.id === g.van) || { id: g.van })} daagt je uit voor een gevecht. Open het tabblad Team.`); renderAlles(); }
         } else if (g.type === 'ok') { if (!bezig) zetStatus(true); }
         else if (g.type === 'fout') {
-          if (g.fout.status === 401) { $('sync-status').textContent = 'Je account is niet meer geldig.'; live.stop(); }
+          if (g.fout.verbannen) { $('sync-status').textContent = g.fout.message; if (!banGemeld) { banGemeld = true; melding(g.fout.message, true); } }
+          else if (g.fout.status === 401) { $('sync-status').textContent = 'Je account is niet meer geldig.'; live.stop(); }
           else $('sync-status').textContent = 'Verbinding haperde, ik probeer het opnieuw.';
         }
       },

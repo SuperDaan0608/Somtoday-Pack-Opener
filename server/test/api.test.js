@@ -46,10 +46,16 @@ async function ruw(url, body, headers, ruwTekst) {
   const php = start(8150, DB, {});
   const php2 = start(8151, path.join(TMP, 'streng.sqlite'), { SPO_LIMIET: '10', SPO_REGLIMIET: '3' });
   const php3 = start(8152, path.join(TMP, 'user.sqlite'), { SPO_LIMIET_USER: '8', SPO_LIMIET_REL: '5' });
+  const BDB = path.join(TMP, 'beheer.sqlite'), BDB2 = path.join(TMP, 'beheer2.sqlite');
+  const SL = 'test-beheersleutel-0123456789abcdef';
+  const URLB = 'http://localhost:8153/api.php', URLB2 = 'http://localhost:8154/api.php';
+  const php4 = start(8153, BDB, { SPO_BEHEER: SL });
+  const php5 = start(8154, BDB2, { SPO_BEHEER: SL, SPO_LIMIET_BEHEER: '5' });
   try {
+    await schema(BDB); await schema(BDB2);
     await schema(path.join(TMP, 'user.sqlite'));
     await schema(path.join(TMP, 'streng.sqlite'));
-    await wacht(URL1); await wacht('http://localhost:8151/api.php'); await wacht('http://localhost:8152/api.php');
+    await wacht(URLB); await wacht(URLB2); await wacht(URL1); await wacht('http://localhost:8151/api.php'); await wacht('http://localhost:8152/api.php');
 
     const o = await fetch(URL1, { method: 'OPTIONS' });
     controle('OPTIONS 204', o.status === 204 && o.headers.get('access-control-allow-origin') === '*');
@@ -505,6 +511,98 @@ async function ruw(url, body, headers, ruwTekst) {
       controle('standaardlimiet: 100 pulsen in korte tijd zonder 429', ruim === 0, ruim);
     }
 
+    // ---- Beheer ----
+    {
+      // Zonder beheer_sleutel in de config: 404, ook met een sleutel.
+      for (const act of ['beheerLijst', 'beheerStats', 'beheerBan', 'beheerOnban', 'beheerWisKaarten', 'beheerWisAccount'])
+        controle('beheer uit: ' + act + ' geeft 404', (await ruw(URL1, { a: act, id: 'a'.repeat(32) }, { 'X-Beheer': SL })).s === 404);
+      const hb = { 'X-Beheer': SL };
+      const B = (act, body, h) => ruw(URLB, Object.assign({ a: act }, body || {}), h === undefined ? hb : h);
+      const mk = async (naam) => {
+        const sl = await L.maakSleutelpaar();
+        const r = await L.maakClient(URLB).roep('register', { pub: sl.pub });
+        return { server: URLB, id: r.id, token: r.token, privJwk: sl.privJwk, pub: sl.pub, vrienden: [] };
+      };
+      const X = await mk('X'), Y = await mk('Y'), Z = await mk('Z');
+      const hx = { 'X-Id': X.id, 'X-Token': X.token };
+      // Sleutel ontbreekt of fout
+      controle('beheer: zonder sleutel 403', (await B('beheerLijst', {}, {})).s === 403);
+      controle('beheer: foute sleutel 403', (await B('beheerLijst', {}, { 'X-Beheer': SL + 'x' })).s === 403);
+      controle('beheer: gebruikerstoken is geen sleutel', (await B('beheerLijst', {}, hx)).s === 403);
+      controle('beheer: sleutel in body werkt', (await B('beheerLijst', { beheer: SL }, {})).s === 200);
+      controle('beheer: fout sleutel in body 403', (await B('beheerLijst', { beheer: 'nee' }, {})).s === 403);
+      // Vriendschap en data zodat de lijst iets te tellen heeft
+      const cx = L.clientVan(X);
+      await cx.roep('request', { to: Y.id });
+      await L.clientVan(Y).roep('respond', { from: X.id, accept: true });
+      await cx.roep('put', { to: Y.id, data: 'v1.aaaa.bbbbbbbb' });
+      await cx.roep('send', { to: Y.id, seq: 1, data: 'v1.cc.dd' });
+      const lijst = await B('beheerLijst');
+      const rijX = (lijst.j.gebruikers || []).find((u) => u.id === X.id);
+      controle('beheerLijst: velden en tellingen', lijst.s === 200 && lijst.j.gebruikers.length === 3 && rijX && rijX.vrienden === 1 && rijX.blobs === 1 && rijX.blobBytes === 16 && rijX.berichten === 1 && rijX.berichtBytes === 8 && rijX.ban === null && rijX.aangemaakt > 0 && rijX.laatstActief > 0, JSON.stringify(rijX));
+      controle('beheerLijst: geen geheimen (token, pub, data)', !JSON.stringify(lijst.j).match(/token|pub|aaaa|bbbbbbbb/));
+      const st0 = await B('beheerStats');
+      controle('beheerStats: totalen', st0.s === 200 && st0.j.gebruikers === 3 && st0.j.vriendschappen === 1 && st0.j.blobs === 1 && st0.j.berichten === 1 && st0.j.verbannen === 0, JSON.stringify(st0.j));
+      // Ban
+      controle('ban: ongeldige id 400', (await B('beheerBan', { id: 'xyz', tot: 0 })).s === 400);
+      controle('ban: onbekende gebruiker 404', (await B('beheerBan', { id: 'b'.repeat(32), tot: 0 })).s === 404);
+      controle('ban: einddatum in het verleden 400', (await B('beheerBan', { id: X.id, tot: 5 })).s === 400);
+      controle('ban: nog niet verbannen werkt alles', (await ruw(URLB, { a: 'friends' }, hx)).s === 200);
+      const lang = 'r'.repeat(300);
+      const tot = Math.floor(Date.now() / 1000) + 3600;
+      const bn = await B('beheerBan', { id: X.id, tot, reden: lang });
+      controle('ban: ok en reden afgekapt op 200', bn.s === 200 && bn.j.reden.length === 200 && bn.j.tot === tot, JSON.stringify(bn.j).slice(0, 80));
+      for (const act of ['friends', 'inbox', 'get', 'puls', 'put', 'send', 'poll', 'request', 'respond', 'unfriend']) {
+        const r = await ruw(URLB, { a: act, to: Y.id, from: Y.id, other: Y.id, data: 'v1.a.b', seq: 2, after: 0, accept: true }, hx);
+        controle('verbannen: ' + act + ' geeft 403', r.s === 403 && r.j.fout === 'Je bent verbannen' && r.j.tot === tot && r.j.reden.length === 200, r.s + ' ' + JSON.stringify(r.j).slice(0, 60));
+      }
+      const ms = await ruw(URLB, { a: 'mijnStatus' }, hx);
+      controle('mijnStatus verbannen', ms.s === 200 && ms.j.verbannen === true && ms.j.tot === tot, JSON.stringify(ms.j));
+      const msY = await ruw(URLB, { a: 'mijnStatus' }, { 'X-Id': Y.id, 'X-Token': Y.token });
+      controle('mijnStatus niet verbannen', msY.s === 200 && msY.j.verbannen === false);
+      controle('verbannen: vriend (Y) wordt niet geraakt', (await ruw(URLB, { a: 'friends' }, { 'X-Id': Y.id, 'X-Token': Y.token })).s === 200);
+      let cl403 = null; try { await cx.roep('puls'); } catch (e) { cl403 = e; }
+      controle('client: fout krijgt status 403 en tot/reden mee', cl403 && cl403.status === 403 && cl403.verbannen === true && cl403.tot === tot && cl403.reden.length === 200, cl403 && JSON.stringify([cl403.status, cl403.tot]));
+      controle('verbannen: foute token blijft 401', (await ruw(URLB, { a: 'mijnStatus' }, { 'X-Id': X.id, 'X-Token': 'ff'.repeat(32) })).s === 401);
+      const lb = await B('beheerLijst');
+      controle('beheerLijst toont ban', lb.j.gebruikers.find((u) => u.id === X.id).ban.tot === tot);
+      controle('beheerStats telt verbannen', (await B('beheerStats')).j.verbannen === 1);
+      // Opheffen
+      controle('onban: ok', (await B('beheerOnban', { id: X.id })).s === 200);
+      controle('onban: gebruiker werkt weer', (await ruw(URLB, { a: 'friends' }, hx)).s === 200);
+      controle('mijnStatus na onban', (await ruw(URLB, { a: 'mijnStatus' }, hx)).j.verbannen === false);
+      // Verlopen ban
+      const nu = Math.floor(Date.now() / 1000);
+      controle('ban van 2 seconden', (await B('beheerBan', { id: Z.id, tot: nu + 2, reden: 'kort' })).s === 200);
+      controle('kort verbannen: 403', (await ruw(URLB, { a: 'friends' }, { 'X-Id': Z.id, 'X-Token': Z.token })).s === 403);
+      await slaap(3200);
+      controle('verlopen ban: werkt vanzelf weer', (await ruw(URLB, { a: 'friends' }, { 'X-Id': Z.id, 'X-Token': Z.token })).s === 200);
+      controle('verlopen ban: niet meer in lijst', (await B('beheerLijst')).j.gebruikers.find((u) => u.id === Z.id).ban === null);
+      // Voorgoed
+      controle('ban voorgoed', (await B('beheerBan', { id: Z.id, tot: 0 })).s === 200);
+      const fz = await ruw(URLB, { a: 'puls' }, { 'X-Id': Z.id, 'X-Token': Z.token });
+      controle('voorgoed: 403 met tot 0', fz.s === 403 && fz.j.tot === 0);
+      // Verbannen gebruiker mag wel zijn account wissen
+      controle('verbannen: deleteAccount mag', (await ruw(URLB, { a: 'deleteAccount' }, { 'X-Id': Z.id, 'X-Token': Z.token })).s === 200);
+      controle('na deleteAccount: ban weg, gebruiker weg', (await B('beheerLijst')).j.gebruikers.every((u) => u.id !== Z.id) && (await B('beheerStats')).j.verbannen === 0);
+      // Kaarten wissen
+      controle('wisKaarten: onbekende id 404', (await B('beheerWisKaarten', { id: 'c'.repeat(32) })).s === 404);
+      controle('wisKaarten: ok', (await B('beheerWisKaarten', { id: X.id })).s === 200);
+      const na = await B('beheerStats');
+      controle('wisKaarten: blobs en berichten weg, vriendschap blijft', na.j.blobs === 0 && na.j.berichten === 0 && na.j.vriendschappen === 1 && na.j.gebruikers === 2, JSON.stringify(na.j));
+      // Account wissen
+      controle('wisAccount: ok', (await B('beheerWisAccount', { id: X.id })).s === 200);
+      const na2 = await B('beheerStats');
+      controle('wisAccount: gebruiker en vriendschap weg', na2.j.gebruikers === 1 && na2.j.vriendschappen === 0, JSON.stringify(na2.j));
+      controle('wisAccount: token werkt niet meer', (await ruw(URLB, { a: 'friends' }, hx)).s === 401);
+      controle('wisAccount: tweede keer 404', (await B('beheerWisAccount', { id: X.id })).s === 404);
+      controle('beheer: onbekende beheeractie 400', (await B('beheerFoo', { id: Y.id })).s === 400);
+      // Strenge limiet (5 per minuut op server 8154): foute sleutels tellen mee
+      const codesB = []; for (let i = 0; i < 9; i++) codesB.push((await ruw(URLB2, { a: 'beheerLijst' }, { 'X-Beheer': 'fout' + i })).s);
+      controle('beheer: strenge ratelimit geeft 429', codesB.slice(0, 5).every((c) => c === 403) && codesB.slice(5).every((c) => c === 429), codesB);
+      controle('beheer: limiet raakt gewone acties niet (andere teller)', (await ruw(URLB2, { a: 'friends' })).s === 401);
+    }
+
     // Rate limit op strenge server (10/min, 3 registraties/uur)
     const U2 = 'http://localhost:8151/api.php';
     const pubs = await L.maakSleutelpaar();
@@ -522,7 +620,7 @@ async function ruw(url, body, headers, ruwTekst) {
     for (let i = 0; i < 12; i++) laatste = (await ruw(U2, { a: 'friends' })).s;
     controle('verzoeklimiet 429', laatste === 429, laatste);
   } finally {
-    php.kill(); php2.kill(); php3.kill();
+    php.kill(); php2.kill(); php3.kill(); php4.kill(); php5.kill();
   }
   console.log(`\nServertest: ${ok} geslaagd, ${mis} mislukt`);
   process.exit(mis ? 1 : 0);

@@ -212,6 +212,12 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
   }
 
   // ---- API-client ----
+  // Tekst voor een verbannen gebruiker: 'Je bent verbannen tot 12 oktober 2026 14:30 (reden)'. tot 0 = voorgoed.
+  function banTekst(tot, reden) {
+    let wanneer = 'voorgoed';
+    if (tot > 0) { try { wanneer = 'tot ' + new Date(tot * 1000).toLocaleString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }); } catch (e) { wanneer = 'tot ' + new Date(tot * 1000).toISOString(); } }
+    return 'Je bent verbannen ' + wanneer + (reden ? ' (' + reden + ')' : '') + '.';
+  }
   function maakClient(server, id, token) {
     async function roep(a, body) {
       const headers = { 'Content-Type': 'application/json' };
@@ -221,7 +227,11 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
       catch (e) { const f = new Error('Geen verbinding met de server.'); f.status = 0; throw f; }
       let j = {};
       try { j = await r.json(); } catch (e) { /* leeg antwoord */ }
-      if (!r.ok) { const f = new Error(j.fout || 'Serverfout ' + r.status); f.status = r.status; throw f; }
+      if (!r.ok) {
+        const f = new Error(j.fout || 'Serverfout ' + r.status); f.status = r.status;
+        if (r.status === 403 && j.verbannen === true) { f.verbannen = true; f.tot = Number.isInteger(j.tot) ? j.tot : 0; f.reden = typeof j.reden === 'string' ? j.reden.slice(0, 200) : ''; f.message = banTekst(f.tot, f.reden); }
+        throw f;
+      }
       return j;
     }
     return { roep };
@@ -558,6 +568,7 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
         rust = 0;
         opt.bij({ type: 'ok' });
       } catch (e) {
+        if (e.verbannen) { if (e.tot > 0) rustTot = Math.max(rustTot, e.tot * 1000); else rustTot = Infinity; }
         // De server zegt 'te veel verzoeken' (of is weg): steeds langer wachten, tot 2 minuten, zodat we de server niet blijven belasten.
         if (e.status === 429 || e.status === 0 || e.status >= 500) { rust = Math.min(120000, rust ? rust * 2 : 5000); rustTot = Date.now() + rust; }
         opt.bij({ type: 'fout', fout: e });
@@ -683,7 +694,7 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
 
   const lib = {
     STANDAARD_SERVER, naB64, vanB64, maakSleutelpaar, deelSleutel, versleutel, ontsleutel, maakCode, leesCode, veiligheidscode,
-    maakClient, clientVan, laad, bewaar, leesGalerij, aanzetten, kaartenVoor, zetBlob, verzoek, antwoord,
+    maakClient, clientVan, banTekst, laad, bewaar, leesGalerij, aanzetten, kaartenVoor, zetBlob, verzoek, antwoord,
     verwijderVriend, verwijderAccount, synchroniseer, naam,
     TEAM, GEVECHTEN, schoonTeam, leesTeam, bewaarTeam, teamKaarten, teamMomentopname, mijnTeamDeelbaar, leesGevechten, bewaarUitslag, stuurBericht, haalBerichten, maakLive, zichtbaar, lees, schrijf, wis, heeftOpslag,
     // reacties en 'voorspel mijn cijfer'

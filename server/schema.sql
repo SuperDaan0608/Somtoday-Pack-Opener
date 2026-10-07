@@ -34,3 +34,10 @@ CREATE TABLE IF NOT EXISTS berichten (
   created INT NOT NULL,
   PRIMARY KEY (afz, ontv, seq)
 );
+-- Beheer: verbannen gebruikers. tot = unix-tijd waarop de ban afloopt, 0 = voorgoed. Herhaalbaar, dus ook de migratie voor bestaande servers.
+CREATE TABLE IF NOT EXISTS bans (
+  id CHAR(32) NOT NULL PRIMARY KEY,
+  tot INT NOT NULL,
+  reden VARCHAR(200) NOT NULL,
+  gemaakt INT NOT NULL
+);

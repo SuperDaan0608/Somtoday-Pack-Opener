@@ -1,0 +1,40 @@
+@import url('vrienden.css');
+
+code { font-size: 13px; background: rgba(0,0,0,.3); border-radius: 6px; padding: 1px 6px; }
+body > * { max-width: 1180px; }
+
+.stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-bottom: 16px; }
+.stat { border: 1px solid var(--lijn); border-radius: 12px; padding: 12px 14px; background: var(--paneel); }
+.stat b { display: block; font: 800 24px/1.1 var(--display); }
+.stat span { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--tekst-3); }
+
+.filters { display: grid; grid-template-columns: 1.4fr 1fr 1fr auto; gap: 12px; align-items: end; margin-bottom: 12px; }
+.filter-acties { display: flex; gap: 8px; }
+.paneel .status { margin: 0 0 10px; min-height: 18px; }
+
+.tabel-wrap { overflow-x: auto; border: 1px solid var(--lijn); border-radius: 12px; }
+.tabel { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tabel th { text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--tekst-3); padding: 10px 10px; border-bottom: 1px solid var(--lijn); white-space: nowrap; }
+.tabel td { padding: 10px 10px; border-bottom: 1px solid var(--lijn); vertical-align: top; }
+.tabel tr:last-child td { border-bottom: 0; }
+.tabel .num { text-align: right; font-variant-numeric: tabular-nums; }
+.tabel .wie strong { display: block; color: var(--tekst); overflow-wrap: anywhere; }
+.tabel .wie small { color: var(--tekst-3); font-family: ui-monospace, monospace; font-size: 11px; }
+.tabel .ik { color: var(--geel, #ffd24a); }
+.tabel tr.verbannen td { background: rgba(255,91,91,.06); }
+.tabel .acties { display: flex; flex-wrap: wrap; gap: 6px; min-width: 200px; }
+.tabel .acties .knop { width: auto; padding: 5px 10px; font-size: 12px; }
+.tabel .ban-info { display: block; margin-top: 4px; color: var(--tekst-3); font-size: 12px; overflow-wrap: anywhere; }
+.nu { white-space: nowrap; }
+
+.tabel tr.banrij td { background: rgba(255,255,255,.03); }
+.banform { display: grid; grid-template-columns: 200px minmax(0, 1fr) minmax(0, 2fr); gap: 10px; padding: 12px; margin: 6px 0 2px; border: 1px solid var(--lijn-2); border-radius: 12px; background: rgba(0,0,0,.2); margin: 0; }
+.banform .rij-knoppen { grid-column: 1 / -1; }
+.banform .rij-knoppen { display: flex; gap: 8px; }
+.banform .knop { width: auto; }
+.banform input[type=datetime-local] { background: rgba(0,0,0,.25); border: 1px solid var(--lijn-2); border-radius: 10px; padding: 8px 10px; color: var(--tekst); color-scheme: dark; width: 100%; }
+
+@media (max-width: 760px) {
+  .filters, .banform { grid-template-columns: 1fr; }
+}
+.banform .veld { min-width: 0; }

@@ -26,3 +26,11 @@ Foutcodes: 400, 401, 403, 404, 413, 429, met `{fout: "..."}`.
 
 - Limieten (60 verzoeken per minuut en 5 registraties per uur per IP) en het opruimen van accounts die 365 dagen niet actief waren gebeuren in `api.php`.
 - Tests lokaal: zie `test/` (vereist php met pdo_sqlite en Node 20+).
+
+## Beheer voor de eigenaar
+
+1. Maak een sleutel: `openssl rand -hex 32` en zet in config.php: `'beheer_sleutel' => '...'` (zie config.example.php). Zonder deze regel bestaan de beheeracties niet (404).
+2. Voer schema.sql opnieuw uit in phpMyAdmin (herhaalbaar; voegt de tabel `bans` toe).
+3. Bouw de eigenaarsversie: `./scripts/package-owner.sh v1.4`, laad de uitgepakte zip in Chrome en open de tab Beheer. De pagina vraagt de sleutel één keer en bewaart hem in chrome.storage.local.
+
+De server ziet en toont alleen id's, tijden, aantallen en groottes; de inhoud blijft versleuteld.
