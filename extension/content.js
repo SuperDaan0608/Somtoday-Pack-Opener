@@ -555,7 +555,7 @@
       laag: !!instellingen.laag,
       persoon: leesNaam(),
       kaartThema: instellingen.kaartThema,
-      kaartRand: instellingen.kaartRand,
+      kaartRand: instellingen.kaartRand, kaartOntwerp: instellingen.kaartOntwerp,
       stil: !instellingen.geluid,
       opening: openingVoor(rij),
       zeldzaam: zeldzaamVoor(rij),
@@ -625,7 +625,7 @@
       const rij = rijen.find((r) => r.host === host);
       // dezelfde gegevens als bij open(): zo herkent de animatie dat de afbeeldingen al klaarstaan
       if (typeof window.__somPackWarm === 'function') {
-        window.__somPackWarm(rij && { vak: rij.d.vak, cijfer: rij.d.cijfer, onderwerp: rij.d.onderwerp || 'Nieuw cijfer', weging: rij.d.weging, snel: !!instellingen.snel, laag: !!instellingen.laag, persoon: leesNaam(), kaartThema: instellingen.kaartThema, kaartRand: instellingen.kaartRand, opening: openingVoor(rij), zeldzaam: zeldzaamVoor(rij), seizoen: seizoenKeuze() });
+        window.__somPackWarm(rij && { vak: rij.d.vak, cijfer: rij.d.cijfer, onderwerp: rij.d.onderwerp || 'Nieuw cijfer', weging: rij.d.weging, snel: !!instellingen.snel, laag: !!instellingen.laag, persoon: leesNaam(), kaartThema: instellingen.kaartThema, kaartRand: instellingen.kaartRand, kaartOntwerp: instellingen.kaartOntwerp, opening: openingVoor(rij), zeldzaam: zeldzaamVoor(rij), seizoen: seizoenKeuze() });
       }
     } catch (x) {
       /* opwarmen is een extraatje */
@@ -660,7 +660,7 @@
   //     hub-klaar | sluiten | open-volgende | alles-geopend | alles-afdekken | naar-cijfers | proef { data }
   //   hier -> paneel: { bron: 'spo-pagina', versie: 1, type, ... }
   //     init { tab, status } | status { status } | tab { tab } | focus { waar } | antwoord { id, ok, status }
-  const HUB_TABS = ['overzicht', 'galerij', 'kaart', 'vrienden', 'rekenen', 'proberen', 'instellingen', 'geluiden'];
+  const HUB_TABS = ['overzicht', 'galerij', 'kaart', 'vrienden', 'team', 'rekenen', 'proberen', 'instellingen', 'geluiden'];
   const HUB_WACHT_MS = 2500; // zo lang wachten we op 'hub-klaar' van het iframe
   const CIJFERS_PAD = '/cijfers';
   // Het origin van onze eigen extensiepagina's; null als de browser er geen geeft (dan vertrouwen we alleen op event.source).
@@ -968,7 +968,7 @@
       laag: !!instellingen.laag,
       stil: !instellingen.geluid,
       kaartThema: instellingen.kaartThema,
-      kaartRand: instellingen.kaartRand,
+      kaartRand: instellingen.kaartRand, kaartOntwerp: instellingen.kaartOntwerp,
       opening: instellingen.opening,
       zeldzaam: d.zeldzaam === true,
       seizoen: ['auto', 'halloween', 'geen'].includes(d.seizoen) ? d.seizoen : 'auto',

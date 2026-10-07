@@ -12,6 +12,7 @@
     persoon: q.get('persoon') || '',
     kaartThema: q.get('thema') || 'auto',
     kaartRand: q.get('rand') || 'standaard',
+    kaartOntwerp: (() => { try { return JSON.parse(q.get('ontwerp')) || undefined; } catch (e) { return undefined; } })(),
     stil: q.get('stil') === 'true',
     direct: q.get('direct') === 'true',
     opening: q.get('opening') || 'pak',

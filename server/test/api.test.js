@@ -45,9 +45,11 @@ async function ruw(url, body, headers, ruwTekst) {
   await schema(DB);
   const php = start(8150, DB, {});
   const php2 = start(8151, path.join(TMP, 'streng.sqlite'), { SPO_LIMIET: '10', SPO_REGLIMIET: '3' });
+  const php3 = start(8152, path.join(TMP, 'user.sqlite'), { SPO_LIMIET_USER: '8', SPO_LIMIET_REL: '5' });
   try {
+    await schema(path.join(TMP, 'user.sqlite'));
     await schema(path.join(TMP, 'streng.sqlite'));
-    await wacht(URL1); await wacht('http://localhost:8151/api.php');
+    await wacht(URL1); await wacht('http://localhost:8151/api.php'); await wacht('http://localhost:8152/api.php');
 
     const o = await fetch(URL1, { method: 'OPTIONS' });
     controle('OPTIONS 204', o.status === 204 && o.headers.get('access-control-allow-origin') === '*');
@@ -417,6 +419,92 @@ async function ruw(url, body, headers, ruwTekst) {
     // Een blob die eerst gevuld was en daarna leeg is, wordt echt gewist op de server
     await cRC.roep('unfriend', { other: RB.id }).catch(() => {});
 
+    // --- v1.4: puls, kanaal (send/poll), team in de blob, limieten ---
+    {
+      const X = await maak('X'), Y = await maak('Y'), Z = await maak('Z');
+      const hx = { 'X-Id': X.id, 'X-Token': X.token }, hy = { 'X-Id': Y.id, 'X-Token': Y.token }, hz = { 'X-Id': Z.id, 'X-Token': Z.token };
+      await L.verzoek(X, L.maakCode(Y.id, Y.pub), 'y'); await L.antwoord({ ...Y, vrienden: [{ id: X.id, pub: X.pub, status: 'ontvangen' }] }, X.id, true, 'x');
+      X.vrienden = [{ id: Y.id, pub: Y.pub, status: 'vriend', deel: { modus: 'niets', ids: [] } }];
+      Y.vrienden = [{ id: X.id, pub: X.pub, status: 'vriend', deel: { modus: 'niets', ids: [] } }];
+      const P = (h, b) => ruw(URL1, b, h);
+      let pu = await P(hy, { a: 'puls' });
+      controle('puls: vorm', pu.s === 200 && /^[0-9a-f]{16}$/.test(pu.j.vh) && Array.isArray(pu.j.blobs) && Array.isArray(pu.j.post) && Number.isInteger(pu.j.nu), pu);
+      controle('puls: zonder token 401', (await ruw(URL1, { a: 'puls' })).s === 401);
+      const vh0 = pu.j.vh;
+      const team = { kaarten: [{ vak: 'Wiskunde', cijfer: 8.5, tier: 2, z: false }, { vak: 'Engels', cijfer: 6, tier: 1, z: true }] };
+      const gal = [{ id: 'k1', vak: 'Wis', cijfer: 8.5, onderwerp: '', weging: 1, ts: Date.now(), tier: 2 }];
+      const inh = L.maakInhoud(X, Y, gal, team);
+      controle('team zit in de blob; zonder kaarten wel een blob', inh && inh.team && inh.team.kaarten.length === 2 && L.maakInhoud(X, Y, [], team) !== null && L.maakInhoud(X, Y, [], null) === null);
+      controle('schoonTeam: geen id/naam, grenzen', L.schoonTeam({ kaarten: [{ vak: 'a', cijfer: 11, tier: 1 }] }) === null && L.schoonTeam({ kaarten: Array(12).fill({ vak: 'a', cijfer: 5, tier: 1 }) }).kaarten.length === 11 && !('id' in L.schoonTeam({ kaarten: [{ vak: 'a', cijfer: 5, tier: 1, id: 'x' }] }).kaarten[0]));
+      await P(hx, { a: 'put', to: Y.id, data: await L.versleutel(await L.deelSleutel(X.privJwk, Y.pub, X.id, Y.id), inh) });
+      const pu1 = await P(hy, { a: 'puls' });
+      const u1 = pu1.j.blobs.find((b) => b.owner === X.id);
+      await P(hx, { a: 'put', to: Y.id, data: 'v1.aa.bb' });
+      const u2 = (await P(hy, { a: 'puls' })).j.blobs.find((b) => b.owner === X.id);
+      controle('puls: blob-versie gaat bij elke put omhoog (ook in dezelfde seconde)', u1 && u2 && u2.updated > u1.updated, [u1, u2]);
+      controle('puls: alleen owner en updated, geen data', Object.keys(u2).sort().join() === 'owner,updated');
+      // kanaal
+      const D = 'v1.' + 'A'.repeat(40) + '.' + 'B'.repeat(60);
+      controle('send: zonder vriendschap 403', (await P(hz, { a: 'send', to: X.id, seq: 1, data: D })).s === 403);
+      controle('poll: zonder vriendschap 403', (await P(hz, { a: 'poll', from: X.id, after: 0 })).s === 403);
+      controle('send: ongeldige velden 400', (await P(hx, { a: 'send', to: Y.id, seq: 'a', data: D })).s === 400 && (await P(hx, { a: 'send', to: Y.id, seq: 0, data: D })).s === 400 && (await P(hx, { a: 'send', to: Y.id, seq: 1, data: 'ongeldig teken!' })).s === 400 && (await P(hx, { a: 'send', to: 'xyz', seq: 1, data: D })).s === 400 && (await P(hx, { a: 'send', to: Y.id, seq: 1.5, data: D })).s === 400);
+      controle('send: te groot 413', (await P(hx, { a: 'send', to: Y.id, seq: 1, data: 'a'.repeat(2049) })).s === 413 && (await P(hx, { a: 'send', to: Y.id, seq: 1, data: '' })).s === 413);
+      controle('send: 2048 mag nog', (await P(hx, { a: 'send', to: Y.id, seq: 5, data: 'a'.repeat(2048) })).s === 200);
+      controle('send: 1, 2, 3 ok; zelfde seq 409', (await P(hx, { a: 'send', to: Y.id, seq: 1, data: D })).s === 200 && (await P(hx, { a: 'send', to: Y.id, seq: 3, data: D })).s === 200 && (await P(hx, { a: 'send', to: Y.id, seq: 2, data: D })).s === 200 && (await P(hx, { a: 'send', to: Y.id, seq: 2, data: D })).s === 409);
+      const pl = await P(hy, { a: 'poll', from: X.id, after: 0 });
+      controle('poll: op volgorde, met leeftijd', pl.s === 200 && pl.j.berichten.map((b) => b.seq).join() === '1,2,3,5' && pl.j.berichten.every((b) => b.leeftijd >= 0 && b.leeftijd < 5 && b.data), pl.j);
+      controle('poll: after filtert', (await P(hy, { a: 'poll', from: X.id, after: 3 })).j.berichten.map((b) => b.seq).join() === '5');
+      controle('poll: ontvanger ziet alleen eigen post (X ziet niets van Y)', (await P(hx, { a: 'poll', from: Y.id, after: 0 })).j.berichten.length === 0);
+      controle('poll: ongeldige after 400', (await P(hy, { a: 'poll', from: X.id, after: -1 })).s === 400 && (await P(hy, { a: 'poll', from: X.id, after: 'a' })).s === 400);
+      const pu2 = (await P(hy, { a: 'puls' })).j;
+      controle('puls: post toont laatste volgnummer per afzender', pu2.post.length === 1 && pu2.post[0].van === X.id && pu2.post[0].seq === 5, pu2.post);
+      // TTL: oude berichten verdwijnen
+      const oud = path.join(TMP, 'oud.php');
+      fs.writeFileSync(oud, `<?php $d=new PDO('sqlite:'.$argv[1]); $d->exec("UPDATE berichten SET created = created - 700 WHERE seq IN (1,2)");`);
+      await new Promise((res) => spawn('php', [oud, DB]).on('exit', res));
+      const pl2 = await P(hy, { a: 'poll', from: X.id, after: 0 });
+      controle('TTL: berichten ouder dan 10 minuten komen niet meer terug', pl2.j.berichten.map((b) => b.seq).join() === '3,5', pl2.j);
+      await P(hx, { a: 'send', to: Y.id, seq: 6, data: D }); // opruimen oude rijen gebeurt bij send
+      const tel = path.join(TMP, 'tel.php');
+      fs.writeFileSync(tel, `<?php $d=new PDO('sqlite:'.$argv[1]); echo $d->query("SELECT COUNT(*) FROM berichten WHERE afz='".$argv[2]."'")->fetchColumn();`);
+      const aantal = await new Promise((res) => { let t = ''; const c = spawn('php', [tel, DB, X.id]); c.stdout.on('data', (d) => (t += d)); c.on('exit', () => res(Number(t))); });
+      controle('TTL: send ruimt oude rijen op', aantal === 3, aantal);
+      // wachtrij-limiet
+      let l429 = 0;
+      for (let i = 100; i < 100 + 305; i++) { const r = await P(hx, { a: 'send', to: Y.id, seq: i, data: D }); if (r.s === 429) l429++; }
+      controle('wachtrij: maximaal 300 berichten tegelijk (429 daarboven)', l429 > 0, l429);
+      // db ziet niets leesbaars: payload blijft wat de client stuurde
+      // unfriend wist het kanaal; vriendschap weg = geen send meer
+      await P(hy, { a: 'unfriend', other: X.id });
+      controle('unfriend wist berichten en blokkeert send/poll', (await P(hx, { a: 'send', to: Y.id, seq: 9999, data: D })).s === 403 && (await P(hy, { a: 'poll', from: X.id, after: 0 })).s === 403);
+      const aantal2 = await new Promise((res) => { let t = ''; const c = spawn('php', [tel, DB, X.id]); c.stdout.on('data', (d) => (t += d)); c.on('exit', () => res(Number(t))); });
+      controle('unfriend: kanaal leeg', aantal2 === 0, aantal2);
+      controle('puls: vriendenhash verandert bij unfriend', (await P(hy, { a: 'puls' })).j.vh !== vh0);
+      // clientfuncties: stuurBericht / haalBerichten in twee richtingen (opnieuw bevriend)
+      X.vrienden = [];
+      await L.verzoek(X, L.maakCode(Y.id, Y.pub), 'y'); await L.antwoord({ ...Y, vrienden: [{ id: X.id, pub: X.pub, status: 'ontvangen' }] }, X.id, true, 'x');
+      X.vrienden = [{ id: Y.id, pub: Y.pub, status: 'vriend' }]; Y.vrienden = [{ id: X.id, pub: X.pub, status: 'vriend' }];
+      await L.stuurBericht(X, X.vrienden[0], { t: 'uitnodiging', mid: 'abc' });
+      await L.stuurBericht(X, X.vrienden[0], { t: 'rdy', k: 1 });
+      const cur = {};
+      const ber = await L.haalBerichten(Y, Y.vrienden[0], cur);
+      controle('client: versleuteld bericht komt heel en in volgorde aan', ber.length === 2 && ber[0].m.t === 'uitnodiging' && ber[1].m.k === 1 && cur[X.id] === ber[1].seq && ber[1].seq > ber[0].seq);
+      controle('client: tweede keer ophalen levert niets', (await L.haalBerichten(Y, Y.vrienden[0], cur)).length === 0);
+      const uit3 = await new Promise((res) => { let t = ''; const c = spawn('php', [dump, DB]); c.stdout.on('data', (d) => (t += d)); c.on('exit', () => res(t)); });
+      controle('db bevat geen leesbaar bericht', !uit3.includes('uitnodiging') && !uit3.includes('"rdy"'));
+      // limieten per gebruiker (strenge server)
+      const U2b = 'http://localhost:8152/api.php';
+      const S = await L.maakClient(U2b).roep('register', { pub: (await L.maakSleutelpaar()).pub });
+      const hs = { 'X-Id': S.id, 'X-Token': S.token };
+      let c429 = 0; for (let i = 0; i < 12; i++) if ((await ruw(U2b, { a: 'puls' }, hs)).s === 429) c429++;
+      controle('gebruikerslimiet: puls boven de grens geeft 429', c429 > 0, c429);
+      let r429 = 0; for (let i = 0; i < 10; i++) if ((await ruw(U2b, { a: 'poll', from: 'a'.repeat(32), after: 0 }, hs)).s === 429) r429++;
+      controle('relaylimiet apart: poll geeft ook 429 boven de eigen grens', r429 > 0, r429);
+      // ruime limiet: 1 verzoek per seconde plus gevechtsverkeer past
+      const W = await maak('W'); let ruim = 0; for (let i = 0; i < 100; i++) if ((await P({ 'X-Id': W.id, 'X-Token': W.token }, { a: 'puls' })).s === 429) ruim++;
+      controle('standaardlimiet: 100 pulsen in korte tijd zonder 429', ruim === 0, ruim);
+    }
+
     // Rate limit op strenge server (10/min, 3 registraties/uur)
     const U2 = 'http://localhost:8151/api.php';
     const pubs = await L.maakSleutelpaar();
@@ -434,7 +522,7 @@ async function ruw(url, body, headers, ruwTekst) {
     for (let i = 0; i < 12; i++) laatste = (await ruw(U2, { a: 'friends' })).s;
     controle('verzoeklimiet 429', laatste === 429, laatste);
   } finally {
-    php.kill(); php2.kill();
+    php.kill(); php2.kill(); php3.kill();
   }
   console.log(`\nServertest: ${ok} geslaagd, ${mis} mislukt`);
   process.exit(mis ? 1 : 0);

@@ -1,5 +1,12 @@
 # Wijzigingen
 
+## v1.4.0
+
+- **Live synchroniseren:** de vriendenpagina en het tabblad Team synchroniseren elke seconde, alleen zolang je ze ziet. Een lichte controle (`puls`) haalt pas iets op als er echt iets veranderd is.
+- **Team:** kies 1 tot 11 kaarten uit je galerij, één keeper, en zie je opstelling op een voetbalveld. Vrienden zien alleen vak, cijfer, niveau en zeldzaam van je teamkaarten.
+- **Gevecht:** daag een vriend uit met een team van evenveel kaarten, of oefen tegen de computer. De bal gaat van kaart naar kaart en bij een kans volgt een klikduel van 3 seconde. Uitslagen staan bij je vriend.
+- **Server:** nieuwe tabel `berichten` en acties `puls`, `send` en `poll`; `api.php` en `schema.sql` opnieuw uploaden.
+
 ## v1.3.0
 
 - **Alles in het Somtoday-venster:** een *Pack Opener*-knop rechtsonder op Somtoday (met het aantal nieuwe cijfers) opent een paneel in de pagina zelf. Daarin staan Overzicht, Galerij, Kaart ontwerpen, Vrienden, Cijfercalculator, Proberen, Instellingen en Geluiden: niets meer op losse tabbladen. Sluiten kan met ×, Esc of een klik ernaast; op een telefoon vult het paneel het scherm. De knop is uit te zetten bij Instellingen.

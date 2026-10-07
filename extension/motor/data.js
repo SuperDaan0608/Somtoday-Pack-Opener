@@ -160,7 +160,11 @@
       T.label = 'Topper!';
       T.sub = 'Dit is een topcijfer.';
     }
-    const thema = KAART_THEMAS[d.kaartThema];
+    // ontwerp per niveau (kaartOntwerp = {0:{thema,rand},...}); zonder eigen keuze geldt de oude globale kaartThema/kaartRand
+    const eigen = d.kaartOntwerp && typeof d.kaartOntwerp === 'object' && d.kaartOntwerp[tier] && typeof d.kaartOntwerp[tier] === 'object' ? d.kaartOntwerp[tier] : {};
+    const themaId = KAART_THEMAS[eigen.thema] ? eigen.thema : d.kaartThema;
+    const randId = KAART_RANDEN[eigen.rand] ? eigen.rand : d.kaartRand;
+    const thema = KAART_THEMAS[themaId];
     if (thema && thema.pal) {
       T.pal = thema.pal;
       T.tekst = thema.tekst;
@@ -189,7 +193,7 @@
       laag: !!d.laag,
       // de naam komt live van de Somtoday-pagina en wordt nergens opgeslagen (ook niet in de galerij)
       persoon: tekst(d.persoon, '', 40),
-      rand: KAART_RANDEN[d.kaartRand] ? d.kaartRand : 'standaard',
+      rand: KAART_RANDEN[randId] ? randId : 'standaard',
       direct: !!d.direct,
       fmt,
       cijferTekst: fmt(g),

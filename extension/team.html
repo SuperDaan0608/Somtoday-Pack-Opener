@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Team</title>
+  <link rel="stylesheet" href="vrienden.css" />
+  <link rel="stylesheet" href="team.css" />
+  <link rel="stylesheet" href="embed.css" />
+  <script src="embed.js"></script>
+</head>
+<body>
+  <a class="skip" href="#hoofd">Naar de inhoud</a>
+  <header class="kop">
+    <h1>Team</h1>
+    <p class="onder">Zet je beste kaarten in een team en battle tegen je vrienden.</p>
+  </header>
+  <div class="melding" id="melding" role="status" aria-live="polite"></div>
+
+  <main id="hoofd">
+    <section class="paneel" aria-labelledby="tm-titel">
+      <h2 id="tm-titel">Mijn team</h2>
+      <p class="uitleg">Kies 1 tot 11 kaarten uit je galerij. De eerste kaart is de <strong>keeper</strong>. Klik op een kaart op het veld om die keeper te maken. De beste kaarten spelen voorin, de zwakste achterin. Hoe hoger het cijfer, hoe sterker de kaart.</p>
+      <div class="bouw">
+        <div class="veld-kolom">
+          <div class="veld bouwveld" id="bouwveld" aria-label="Opstelling van je team"></div>
+          <p class="team-info" id="team-info" aria-live="polite"></p>
+        </div>
+        <div class="kies-kolom">
+          <div class="kies-kop">
+            <h3 id="kies-kop">Kaarten in je galerij</h3>
+            <button type="button" class="knop klein" id="team-leeg">Team leegmaken</button>
+          </div>
+          <p class="geen" id="geen-galerij" hidden>Je galerij is nog leeg. Open eerst een paar cijfers, dan kun je ze hier in je team zetten.</p>
+          <ul class="kies-raster" id="kies" aria-labelledby="kies-kop"></ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="paneel" aria-labelledby="gv-titel">
+      <h2 id="gv-titel">Gevecht</h2>
+      <div class="balk-boven">
+        <span class="status" id="sync-status">Verbinden...</span>
+        <button type="button" class="knop klein" id="sync">Synchroniseren</button>
+      </div>
+      <p class="uitleg">Je kunt alleen vechten als jullie teams <strong>evenveel kaarten</strong> hebben. Je ziet de kaarten van je vriend pas als het gevecht begint. Tijdens een kans klik je zo snel mogelijk: wie het meeste klikt, wint het duel.</p>
+      <div id="uitnodigingen"></div>
+      <div id="vriend-uitleg" class="geen" hidden>De vriendenfunctie staat nog uit. Zet hem aan op het tabblad Vrienden om tegen een vriend te spelen. Oefenen tegen de computer kan wel.</div>
+      <ul class="gv-lijst" id="gv-vrienden"></ul>
+      <div class="oefen">
+        <button type="button" class="knop goud" id="oefen">Oefenen tegen de computer</button>
+        <span class="uitleg" id="oefen-info"></span>
+      </div>
+    </section>
+  </main>
+
+  <div class="scherm" id="scherm" role="dialog" aria-modal="true" aria-label="Gevecht" hidden>
+    <div class="bord">
+      <div class="bord-team" id="bord-a"><span class="bn" id="naam-a"></span><b id="score-a">0</b></div>
+      <div class="bord-klok"><span id="klok">0'</span><small id="bord-status"></small></div>
+      <div class="bord-team rechts" id="bord-b"><b id="score-b">0</b><span class="bn" id="naam-b"></span></div>
+      <button type="button" class="knop klein stop" id="stop">Stoppen</button>
+    </div>
+    <div class="veld-vak" id="veld-vak">
+      <div class="veld wedstrijdveld" id="wveld">
+        <div class="bal" id="bal" aria-hidden="true"></div>
+        <div class="veld-tekst" id="veld-tekst" aria-live="polite"></div>
+      </div>
+    </div>
+    <div class="duel" id="duel" hidden>
+      <div class="duel-vignet"></div>
+      <div class="duel-binnen">
+        <p class="duel-rol" id="duel-rol"></p>
+        <div class="duel-kaarten"><div id="duel-schutter"></div><span class="duel-vs">tegen</span><div id="duel-keeper"></div></div>
+        <div class="duel-teller" id="duel-teller" aria-live="assertive">3</div>
+        <div class="meter" aria-hidden="true">
+          <div class="meter-vul mijn" id="meter-mijn"></div><div class="meter-vul hun" id="meter-hun"></div>
+        </div>
+        <div class="duel-tellers"><span>Jij <b id="kl-mijn">0</b></span><span><b id="kl-hun">0</b> <em id="kl-naam">tegenstander</em></span></div>
+        <button type="button" class="klik" id="klik">KLIK!</button>
+        <p class="duel-uitleg" id="duel-bonus"></p>
+      </div>
+    </div>
+    <div class="einde" id="einde" hidden>
+      <div class="einde-binnen">
+        <p class="einde-kop" id="einde-kop"></p>
+        <p class="einde-stand" id="einde-stand"></p>
+        <p class="einde-tekst" id="einde-tekst"></p>
+        <button type="button" class="knop goud" id="einde-terug">Terug</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="vriendenlib.js"></script>
+  <script src="gevecht.js"></script>
+  <script src="team.js"></script>
+</body>
+</html>

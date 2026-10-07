@@ -36,7 +36,7 @@
 
 <section id="openingen">
   <h2>Zeven manieren<br>om te openen</h2>
-  <p class="intro">Kies er één in de popup, of laat de extensie elke keer iets anders kiezen. Het cijfer en de kaart zijn bij allemaal hetzelfde. Dit zijn echte beelden uit de extensie.</p>
+  <p class="intro">Kies er één bij Instellingen, of laat de extensie elke keer iets anders kiezen. Het cijfer en de kaart zijn bij allemaal hetzelfde. Dit zijn echte beelden uit de extensie.</p>
   <div class="mozaiek">
     <figure><img src="img/dans.jpg" width="1280" height="720" alt="Een poppetje doet een dab op een dansvloer" loading="lazy"><figcaption>Dansje</figcaption></figure>
     <figure><img src="img/kluis.jpg" width="1280" height="720" alt="Een kluisdeur met een draaiwiel" loading="lazy"><figcaption>Kluis kraken</figcaption></figure>
@@ -62,7 +62,7 @@
 
 <section id="extra">
   <h2>Soms is een kaart zeldzaam</h2>
-  <p class="intro">Eén op de tien kaarten is zeldzaam, ook bij een onvoldoende: een regenboogrand, extra licht, vuurwerk en een fanfare. Rond Halloween krijgt het pakje een spookachtig uiterlijk, met eigen geluiden. Beide staan standaard aan en zijn uit te zetten in de popup.</p>
+  <p class="intro">Eén op de tien kaarten is zeldzaam, ook bij een onvoldoende: een regenboogrand, extra licht, vuurwerk en een fanfare. Rond Halloween krijgt het pakje een spookachtig uiterlijk, met eigen geluiden. Beide staan standaard aan en zijn uit te zetten bij Instellingen.</p>
   <div class="paar">
     <figure><img src="img/zeldzaam.jpg" width="1280" height="720" alt="Een zeldzame zilveren kaart met een regenboogtitel, regenboogstralen en confetti" loading="lazy"><figcaption>Zeldzame kaart</figcaption></figure>
     <figure><img src="img/halloween.jpg" width="1280" height="720" alt="Het Halloween-pakje: paarse folie met vleermuizen en een pompoen" loading="lazy"><figcaption>Halloween-pakje</figcaption></figure>
@@ -71,21 +71,61 @@
 
 <section id="installeren">
   <h2>Installeren</h2>
-  <p class="intro">De extensie staat nog niet in de Chrome Web Store of bij Firefox. Tot dat zo ver is, installeer je hem zelf. Dat kost een minuut. Kijk de video, of volg de stappen.</p>
-  <div class="install">
-    <video controls preload="metadata" poster="img/installeren.jpg" playsinline width="1920" height="1080">
-      <source src="installeren.mp4" type="video/mp4">
+  <p class="intro">De extensie staat nog niet in de Chrome Web Store of bij Firefox. Tot dat zo ver is, installeer je hem zelf. Dat kost een minuut. Kies je browser, kijk de video of volg de stappen.</p>
+  <div class="browsers" role="tablist" aria-label="Kies je browser" hidden>
+    <button type="button" role="tab" id="tab-chrome" aria-controls="p-chrome" aria-selected="true">Chrome, Brave, Opera</button>
+    <button type="button" role="tab" id="tab-edge" aria-controls="p-edge" aria-selected="false" tabindex="-1">Edge</button>
+    <button type="button" role="tab" id="tab-firefox" aria-controls="p-firefox" aria-selected="false" tabindex="-1">Firefox</button>
+  </div>
+
+  <div class="install" id="p-chrome" role="tabpanel" aria-labelledby="tab-chrome">
+    <h3 class="paneelkop">Chrome, Brave en Opera</h3>
+    <video controls preload="metadata" poster="img/installeren-chrome.jpg" playsinline width="1280" height="720">
+      <source src="installeren-chrome.mp4" type="video/mp4">
       Je browser kan deze video niet afspelen.
     </video>
     <div>
       <ol class="stappen">
-        <li><b>Download de zip</b> bij de <a href="https://github.com/SuperDaan0608/Somtoday-Pack-Opener/releases/latest">nieuwste release op GitHub</a>. Kies het bestand dat eindigt op <code>.zip</code>, zonder “firefox” in de naam (tenzij je Firefox gebruikt).</li>
-        <li><b>Pak de zip uit.</b> Klik met rechts op het bestand en kies <i>Alles uitpakken</i>. Er zit nog een map in (<code>somtoday-pack-opener</code>). Open die: daar staat <code>manifest.json</code>. Laat alles staan waar het is, want als je het later verwijdert werkt de extensie niet meer.</li>
-        <li><b>Ga naar <code>chrome://extensions</code></b> in Chrome (of Edge, Brave, Opera) en zet rechtsboven <i>Ontwikkelaarsmodus</i> aan.</li>
-        <li><b>Klik op <i>Uitgepakte extensie laden</i></b> en kies de <b>binnenste</b> map, de map waar <code>manifest.json</code> direct in staat. Kies je de buitenste, dan krijg je een foutmelding.</li>
+        <li><b>Download de zip</b> bij de <a href="https://github.com/SuperDaan0608/Somtoday-Pack-Opener/releases/latest">nieuwste release op GitHub</a>. Kies het bestand <b>zonder</b> “firefox” in de naam.</li>
+        <li><b>Pak de zip uit.</b> Klik met rechts op het bestand en kies <i>Alles uitpakken</i>. Er zit nog een map in: <code>somtoday-pack-opener</code>. Dat is de map die je zo kiest. Je hoeft niets te openen, ook <code>manifest.json</code> niet. Laat de map staan: verwijder je hem, dan stopt de extensie.</li>
+        <li><b>Ga naar <code>chrome://extensions</code></b> (Brave: <code>brave://extensions</code>, Opera: <code>opera://extensions</code>) en zet rechtsboven <i>Ontwikkelaarsmodus</i> aan.</li>
+        <li><b>Klik op <i>Uitgepakte extensie laden</i></b> en kies de map <code>somtoday-pack-opener</code>, de binnenste. Je kiest een map, geen bestand. Kies je de buitenste, dan krijg je een foutmelding.</li>
         <li><b>Open <code>leerling.somtoday.nl</code>.</b> Je nieuwe cijfers staan nu afgedekt. Klik erop.</li>
       </ol>
-      <p class="notitie">Firefox? Open <code>about:debugging#/runtime/this-firefox</code>, klik <i>Tijdelijke add-on laden</i> en kies <code>manifest.json</code>. Dat blijft staan tot je Firefox afsluit.</p>
+    </div>
+  </div>
+
+  <div class="install" id="p-edge" role="tabpanel" aria-labelledby="tab-edge">
+    <h3 class="paneelkop">Microsoft Edge</h3>
+    <video controls preload="none" poster="img/installeren-edge.jpg" playsinline width="1280" height="720">
+      <source src="installeren-edge.mp4" type="video/mp4">
+      Je browser kan deze video niet afspelen.
+    </video>
+    <div>
+      <ol class="stappen">
+        <li><b>Download de zip</b> bij de <a href="https://github.com/SuperDaan0608/Somtoday-Pack-Opener/releases/latest">nieuwste release op GitHub</a>. Kies het bestand <b>zonder</b> “firefox” in de naam.</li>
+        <li><b>Pak de zip uit.</b> Klik met rechts op het bestand en kies <i>Alles uitpakken</i>. Er zit nog een map in: <code>somtoday-pack-opener</code>. Dat is de map die je zo kiest. Je hoeft niets te openen, ook <code>manifest.json</code> niet. Laat de map staan: verwijder je hem, dan stopt de extensie.</li>
+        <li><b>Ga naar <code>edge://extensions</code></b> en zet linksonder <i>Ontwikkelaarsmodus</i> aan.</li>
+        <li><b>Klik bovenaan op <i>Uitgepakte extensie laden</i></b> en kies de map <code>somtoday-pack-opener</code>, de binnenste. Je kiest een map, geen bestand.</li>
+        <li><b>Open <code>leerling.somtoday.nl</code>.</b> Je nieuwe cijfers staan nu afgedekt. Klik erop.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="install" id="p-firefox" role="tabpanel" aria-labelledby="tab-firefox">
+    <h3 class="paneelkop">Firefox</h3>
+    <video controls preload="none" poster="img/installeren-firefox.jpg" playsinline width="1280" height="720">
+      <source src="installeren-firefox.mp4" type="video/mp4">
+      Je browser kan deze video niet afspelen.
+    </video>
+    <div>
+      <ol class="stappen">
+        <li><b>Download de Firefox-zip</b> bij de <a href="https://github.com/SuperDaan0608/Somtoday-Pack-Opener/releases/latest">nieuwste release op GitHub</a>: het bestand <b>met</b> “firefox” in de naam. Uitpakken hoeft niet.</li>
+        <li><b>Typ <code>about:debugging</code></b> in de adresbalk en klik links op <i>Deze Firefox</i>.</li>
+        <li><b>Klik op <i>Tijdelijke add-on laden…</i></b> en kies de zip die je net hebt gedownload.</li>
+        <li><b>Open <code>leerling.somtoday.nl</code>.</b> Je nieuwe cijfers staan nu afgedekt. Klik erop.</li>
+      </ol>
+      <p class="notitie">Firefox houdt een tijdelijke add-on tot je Firefox afsluit. Daarna doe je stap 2 en 3 opnieuw. Zie je geen afgedekte cijfers? Klik rechtsboven op het puzzelstukje en geef de extensie toegang tot <code>leerling.somtoday.nl</code>.</p>
     </div>
   </div>
 </section>
@@ -95,8 +135,8 @@
   <details><summary>Ziet iemand mijn cijfers?</summary><p>Nee. De extensie draait alleen in je eigen browser en stuurt niets weg. Er zijn geen accounts, geen analyse en geen advertenties. Lees het <a href="privacy.html">privacybeleid</a>.</p></details>
   <details><summary>Is dit van Somtoday?</summary><p>Nee. Het is een fanproject, niet verbonden aan of goedgekeurd door Somtoday of Topicus.</p></details>
   <details><summary>Wat kost het?</summary><p>Niets. De code staat open op GitHub, dus je kunt zelf zien wat de extensie doet.</p></details>
-  <details><summary>Het hapert op mijn laptop. Wat nu?</summary><p>Zet in de popup <i>Lage grafische kwaliteit</i> aan. Dan start de animatie meteen in de zuinige stand. Hij schakelt ook zelf terug als hij merkt dat het niet soepel loopt.</p></details>
-  <details><summary>Ik wil mijn oude kaarten terugzien.</summary><p>Open de popup en klik op <i>Mijn galerij</i>. Alle kaarten die je hebt geopend staan daar, alleen op jouw computer.</p></details>
+  <details><summary>Het hapert op mijn laptop. Wat nu?</summary><p>Klik rechtsonder in Somtoday op <i>Pack Opener</i>, ga naar <i>Instellingen</i> en zet <i>Lage grafische kwaliteit</i> aan. Dan start de animatie meteen in de zuinige stand. Hij schakelt ook zelf terug als hij merkt dat het niet soepel loopt.</p></details>
+  <details><summary>Ik wil mijn oude kaarten terugzien.</summary><p>Klik rechtsonder in Somtoday op <i>Pack Opener</i> en kies <i>Galerij</i>. Alle kaarten die je hebt geopend staan daar, alleen op jouw computer.</p></details>
 </section>
 </main>
 
@@ -105,5 +145,34 @@
   <p><a href="privacy.html">Privacy</a> · <a href="https://github.com/SuperDaan0608/Somtoday-Pack-Opener">GitHub</a></p>
 </footer>
 </div>
+<script>
+(function () {
+  var lijst = document.querySelector('.browsers');
+  if (!lijst) return;
+  var tabs = [].slice.call(lijst.querySelectorAll('[role=tab]'));
+  var sectie = document.getElementById('installeren');
+  sectie.classList.add('js');
+  lijst.hidden = false;
+  function kies(tab, focus) {
+    tabs.forEach(function (t) {
+      var aan = t === tab, p = document.getElementById(t.getAttribute('aria-controls'));
+      t.setAttribute('aria-selected', aan ? 'true' : 'false');
+      t.tabIndex = aan ? 0 : -1;
+      p.hidden = !aan;
+      if (!aan) { var v = p.querySelector('video'); if (v && !v.paused) v.pause(); }
+    });
+    if (focus) tab.focus();
+  }
+  tabs.forEach(function (t, i) {
+    t.addEventListener('click', function () { kies(t); });
+    t.addEventListener('keydown', function (e) {
+      var n = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+      if (n) { e.preventDefault(); kies(tabs[(i + n + tabs.length) % tabs.length], true); }
+    });
+  });
+  var ua = navigator.userAgent;
+  kies(document.getElementById(/Firefox\//.test(ua) ? 'tab-firefox' : /Edg\//.test(ua) ? 'tab-edge' : 'tab-chrome'));
+})();
+</script>
 </body>
 </html>

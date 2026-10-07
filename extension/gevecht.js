@@ -1,0 +1,214 @@
+// Gevecht: de wedstrijd zelf. Alles hier is "deterministisch": met dezelfde seed en dezelfde teams geeft het
+// op beide computers precies dezelfde wedstrijd. Er staat geen scherm of netwerk in; dat doet team.js.
+//
+// Teams: lijst met kaarten { vak, cijfer, tier, z }. Plaats 0 is de keeper, de rest zijn veldspelers.
+// Kant 'A' is degene die uitnodigde (onderaan in het canonieke veld), kant 'B' degene die accepteerde (bovenaan).
+(function () {
+  'use strict';
+
+  const MAX_MIN = 90;       // een wedstrijd van 90 spelminuten
+  const STAPPEN = 40;       // ... in 40 stappen (passes), samen ongeveer een minuut echte tijd
+  const MAX_KANSEN = 6;
+  const MIN_KANSEN = 3;
+  const KLIK_MAX = 60;      // meer dan dit tellen we niet mee (60 kliks in 3 seconde is al onmenselijk snel)
+
+  // Kleine, snelle generator met een seed (mulberry32).
+  function maakRng(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a = (a + 0x6D2B79F5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  // Seed uit tekst (FNV-1a), voor als er geen WebCrypto is.
+  function seedUitTekst(t) {
+    let h = 2166136261;
+    for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return h >>> 0;
+  }
+  // Seed uit een SHA-256 van tekst (de eerste vier bytes).
+  async function seedUitHash(tekst) {
+    const h = new Uint8Array(await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(tekst)));
+    return ((h[0] << 24) | (h[1] << 16) | (h[2] << 8) | h[3]) >>> 0;
+  }
+
+  // Sterkte van een kaart in het veld: het cijfer, met een beetje extra voor een hoog niveau en voor zeldzame kaarten.
+  function sterkte(k) { return k.cijfer + 0.4 * (k.tier | 0) + (k.z ? 0.3 : 0); }
+  // Bonus voor de klik-duels: hoe hoger het cijfer, hoe sterker je kliks tellen (0,85 bij een 1, 1,3 bij een 10).
+  function klikFactor(k) { return 0.8 + 0.05 * k.cijfer; }
+
+  // Hoeveel veldspelers per lijn (achterhoede, middenveld, voorhoede) bij n kaarten (inclusief keeper).
+  const LIJNEN = { 0: [0, 0, 0], 1: [0, 1, 0], 2: [1, 0, 1], 3: [1, 1, 1], 4: [2, 1, 1], 5: [2, 2, 1], 6: [2, 2, 2], 7: [3, 2, 2], 8: [3, 3, 2], 9: [4, 3, 2], 10: [4, 4, 2] };
+  function lijnen(n) { return LIJNEN[Math.max(0, Math.min(10, n - 1))].slice(); }
+  // Zet het team in volgorde: keeper eerst, daarna de zwakste veldspelers achterin en de sterkste voorin.
+  function ordenTeam(kaarten, keeperIndex) {
+    const keeper = kaarten[keeperIndex];
+    const rest = kaarten.filter((_, i) => i !== keeperIndex).sort((a, b) => sterkte(a) - sterkte(b));
+    return [keeper].concat(rest);
+  }
+  // Lijn van speler i (0 = keeper, 1 = achterhoede, 2 = middenveld, 3 = voorhoede).
+  function lijnVan(n, i) {
+    if (i === 0) return 0;
+    const l = lijnen(n);
+    let j = i - 1;
+    for (let r = 0; r < 3; r++) { if (j < l[r]) return r + 1; j -= l[r]; }
+    return 3;
+  }
+  // Plekken in het veld (x en y tussen 0 en 1). Kant A speelt onderin en valt omhoog aan; kant B is gespiegeld.
+  const LIJN_Y = [0.925, 0.79, 0.67, 0.555];
+  function posities(n, kant) {
+    const l = lijnen(n);
+    const uit = [{ x: 0.5, y: LIJN_Y[0] }];
+    for (let r = 0; r < 3; r++) {
+      for (let j = 0; j < l[r]; j++) uit.push({ x: (j + 1) / (l[r] + 1), y: LIJN_Y[r + 1] });
+    }
+    return kant === 'A' ? uit : uit.map((p) => ({ x: 1 - p.x, y: 1 - p.y }));
+  }
+
+  const ander = (z) => (z === 'A' ? 'B' : 'A');
+  const kies = (rng, lijst) => lijst[Math.floor(rng() * lijst.length) % lijst.length];
+
+  // De wedstrijd. teams = { A: [kaart...], B: [kaart...] } (al in volgorde: keeper eerst).
+  function maakSim(seed, teams) {
+    const rng = maakRng(seed);
+    const n = teams.A.length;
+    const pos = { A: posities(n, 'A'), B: posities(n, 'B') };
+    const s = {
+      n, teams, pos, minuut: 0, stand: { A: 0, B: 0 }, kansen: 0, sindsKans: 99, stap: 0,
+      houder: null, kans: null, klaar: false, aftrapDoor: null,
+    };
+    // De aftrap is voor kant A, in het midden van het veld (de middelste veldspeler, of de keeper bij n = 1).
+    function aftrapPlek(z) {
+      if (n === 1) return 0;
+      const mid = [];
+      for (let i = 1; i < n; i++) if (lijnVan(n, i) === 2) mid.push(i);
+      return mid.length ? mid[0] : Math.min(n - 1, 1 + Math.floor((n - 1) / 2));
+    }
+    s.houder = { z: 'A', i: aftrapPlek('A') };
+
+    function topLijn() { let m = 0; for (let i = 1; i < n; i++) m = Math.max(m, lijnVan(n, i)); return m; }
+    const top = topLijn();
+
+    // Een volgende gebeurtenis. Elke aanroep gebruikt de generator in dezelfde volgorde op beide computers.
+    s.volgende = function () {
+      if (s.klaar) return { t: 'eind' };
+      if (s.kans) throw new Error('Eerst het duel afhandelen.');
+      if (s.minuut >= MAX_MIN - 1e-9) { s.klaar = true; return { t: 'eind', stand: Object.assign({}, s.stand) }; }
+      const h = s.houder, z = h.z, o = ander(z);
+      s.stap++; s.sindsKans++;
+
+      // Een team met alleen een keeper: alleen schoten (keeper tegen keeper), om en om.
+      if (n === 1) {
+        s.minuut = Math.min(MAX_MIN, s.minuut + 15);
+        const aanval = rng() < 0.5 ? z : o;
+        return maakKans({ z: aanval, i: 0 }, { z: ander(aanval), i: 0 });
+      }
+
+      const lijn = lijnVan(n, h.i);
+      const min = s.minuut;
+      s.minuut = Math.min(MAX_MIN, s.minuut + MAX_MIN / STAPPEN);
+      // Kans op een schot: voorin vaak, op het middenveld heel soms, en te weinig duels? Dan sneller.
+      const nood = s.kansen < MIN_KANSEN && min > 68;
+      if (s.kansen < MAX_KANSEN && (s.sindsKans >= 3 || nood) && lijn > 0) {
+        let p = lijn === top ? 0.4 : (lijn === top - 1 && top >= 3 ? 0.06 : 0);
+        if (s.kansen < MIN_KANSEN) {
+          if (min > 55 && lijn === top) p = 0.85;
+          if (nood) p = 1;
+        }
+        if (rng() < p) return maakKans(h, { z: o, i: 0 });
+      }
+      // Pass: iemand van mijn team, het liefst vooruit.
+      const kandidaten = [];
+      for (let i = 0; i < n; i++) {
+        if (i === h.i) continue;
+        const l = lijnVan(n, i);
+        let w = l > lijn ? 3 : l === lijn ? 1.5 : 1;
+        if (i === 0) w = lijn === 1 ? 0.5 : 0.15;
+        if (lijn === 0) w = l === 1 ? 3 : 1;
+        kandidaten.push({ i, w });
+      }
+      let tot = 0; for (const k of kandidaten) tot += k.w;
+      let r = rng() * tot, naar = kandidaten[kandidaten.length - 1].i;
+      for (const k of kandidaten) { r -= k.w; if (r <= 0) { naar = k.i; break; } }
+      // Een tegenstander probeert de bal te onderscheppen (een veldspeler van de ander, bij n = 2 ook de keeper niet).
+      const tegen = [];
+      for (let i = 1; i < n; i++) tegen.push(i);
+      const d = tegen.length ? kies(rng, tegen) : 0;
+      const sPass = (sterkte(teams[z][h.i]) + sterkte(teams[z][naar])) / 2;
+      const sD = sterkte(teams[o][d]);
+      const pOk = Math.max(0.4, Math.min(0.93, 0.76 + 0.05 * (sPass - sD)));
+      const a = pos[z][h.i], b = pos[z][naar];
+      const dist = Math.hypot(a.x - b.x, a.y - b.y);
+      const dur = Math.round(550 + 700 * dist + rng() * 150);
+      const ok = rng() < pOk;
+      if (ok) {
+        s.houder = { z, i: naar };
+        return { t: 'pass', van: { z, i: h.i }, naar: { z, i: naar }, dur, min: s.minuut };
+      }
+      s.houder = { z: o, i: d };
+      return { t: 'onderschep', van: { z, i: h.i }, naar: { z, i: naar }, door: { z: o, i: d }, dur, min: s.minuut };
+    };
+
+    function maakKans(schutter, keeper) {
+      s.kansen++; s.sindsKans = 0;
+      s.kans = { k: s.kansen, schutter, keeper };
+      s.houder = schutter;
+      return { t: 'kans', k: s.kansen, schutter, keeper, min: s.minuut };
+    }
+
+    // Uitslag van het klikduel: aanvaller (ca kliks) tegen keeper (ck kliks). Wie relatief het meest klikt, wint.
+    s.duelUitslag = function (ca, ck) {
+      if (!s.kans) throw new Error('Er is geen duel.');
+      const { schutter, keeper } = s.kans;
+      const u = duelUitslag(teams[schutter.z][schutter.i], teams[keeper.z][keeper.i], ca, ck);
+      s.kans = null;
+      if (u.goal) {
+        s.stand[schutter.z]++;
+        const z = keeper.z;
+        s.houder = { z, i: aftrapPlek(z) };
+        s.aftrapDoor = z;
+      } else {
+        s.houder = { z: keeper.z, i: 0 };
+      }
+      return u;
+    };
+    return s;
+  }
+
+  function schoonKlik(c) { return Number.isFinite(c) ? Math.max(0, Math.min(KLIK_MAX, Math.round(c))) : 0; }
+  // Los van de wedstrijd, zodat het ook te testen is. De keeper houdt hem bij gelijke stand.
+  function duelUitslag(schutterKaart, keeperKaart, ca, ck) {
+    const sa = schoonKlik(ca) * klikFactor(schutterKaart);
+    const sk = schoonKlik(ck) * klikFactor(keeperKaart);
+    return { goal: sa > sk, sa, sk };
+  }
+
+  // De computer-tegenstander (oefenmodus): een team van dezelfde grootte, rond het niveau van jouw team.
+  const VAKKEN = ['Wiskunde', 'Nederlands', 'Engels', 'Biologie', 'Scheikunde', 'Natuurkunde', 'Geschiedenis', 'Aardrijkskunde', 'Frans', 'Duits', 'Economie', 'Muziek'];
+  function maakComputerTeam(seed, n, mijn) {
+    const rng = maakRng(seed ^ 0x9E3779B9);
+    let gem = 6.5;
+    if (mijn && mijn.length) gem = mijn.reduce((a, k) => a + k.cijfer, 0) / mijn.length;
+    const uit = [];
+    for (let i = 0; i < n; i++) {
+      const c = Math.max(3, Math.min(10, Math.round((gem + (rng() - 0.5) * 3) * 10) / 10));
+      const tier = c >= 9.95 ? 4 : c >= 9 ? 3 : c >= 7 ? 2 : c >= 5.5 ? 1 : 0;
+      uit.push({ vak: VAKKEN[Math.floor(rng() * VAKKEN.length)], cijfer: c, tier, z: rng() < 0.08 });
+    }
+    return uit;
+  }
+  // Hoe vaak de computer klikt in een duel van 3 seconde: een mens doet ongeveer 15 tot 25.
+  function computerKliks(rng, kaart) {
+    return Math.round(13 + kaart.cijfer * 0.9 + (rng() - 0.5) * 8);
+  }
+
+  const lib = {
+    MAX_MIN, STAPPEN, KLIK_MAX, maakRng, seedUitTekst, seedUitHash, sterkte, klikFactor, lijnen, lijnVan, posities, ordenTeam,
+    maakSim, duelUitslag, schoonKlik, maakComputerTeam, computerKliks,
+  };
+  globalThis.SPOGevecht = lib;
+  if (typeof module !== 'undefined' && module.exports) module.exports = lib;
+})();

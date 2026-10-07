@@ -26,3 +26,11 @@ CREATE TABLE IF NOT EXISTS ratelimit (
   aantal INT NOT NULL,
   PRIMARY KEY (k, venster)
 );
+CREATE TABLE IF NOT EXISTS berichten (
+  afz CHAR(32) NOT NULL,
+  ontv CHAR(32) NOT NULL,
+  seq BIGINT NOT NULL,
+  data VARCHAR(4096) NOT NULL,
+  created INT NOT NULL,
+  PRIMARY KEY (afz, ontv, seq)
+);

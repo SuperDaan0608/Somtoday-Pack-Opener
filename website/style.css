@@ -77,3 +77,12 @@ footer p{margin:6px 0}
 }
 @media (max-width:480px){.niveaus{grid-template-columns:repeat(2,1fr)}.top nav a:first-child{display:none}}
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+.browsers{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 26px}
+.browsers button{font:700 15px/1 'Inter',system-ui,sans-serif;padding:12px 18px;border-radius:999px;border:1px solid var(--lijn);background:var(--bg2);color:var(--zacht);cursor:pointer}
+.browsers button:hover{color:var(--tekst)}
+.browsers button[aria-selected=true]{background:var(--goud);border-color:var(--goud);color:#1a1300}
+.install+.install{margin-top:56px}
+.js .install+.install{margin-top:0}
+.paneelkop{grid-column:1/-1;font-size:30px;margin:0 0 -12px}
+.js .paneelkop{display:none}
+.install[hidden],.browsers[hidden]{display:none}

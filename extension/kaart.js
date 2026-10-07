@@ -5,8 +5,11 @@
   const SLEUTEL = 'spo_instellingen';
   const $ = (id) => document.getElementById(id);
   const NIVEAUS = [['Brons', 4.2], ['Zilver', 6.1], ['Goud', 8.4], ['Speciaal', 9.6], ['Icoon', 10]];
-  const STANDAARD = { kaartThema: 'auto', kaartRand: 'standaard' };
-  let keuze = { ...STANDAARD };
+  const STANDAARD = { thema: 'auto', rand: 'standaard' };
+  // ontwerp per niveau (0 t/m 4); keuze[niveau] = { thema, rand }
+  let keuze = {};
+  let begin = { ...STANDAARD }; // oude globale keuze: beginwaarde voor niveaus zonder eigen ontwerp
+  const nu_ = (i) => keuze[i] || begin;
   let niveau = 2;
   let teken = 0;
 
@@ -22,10 +25,16 @@
     },
   };
 
+  function ontwerp() {
+    const o = {};
+    NIVEAUS.forEach((_, i) => { o[i] = { ...nu_(i) }; });
+    return o;
+  }
+
   async function bewaar() {
     try {
       const nu = await opslag.lees();
-      await opslag.schrijf({ ...nu, kaartThema: keuze.kaartThema, kaartRand: keuze.kaartRand });
+      await opslag.schrijf({ ...nu, kaartOntwerp: ontwerp() });
       $('melding').textContent = 'Opgeslagen.';
     } catch (e) {
       $('melding').textContent = 'Opslaan lukte niet.';
@@ -38,7 +47,7 @@
     if (mijn !== teken) return;
     const [naam, cijfer] = NIVEAUS[niveau];
     // De naam hieronder is verzonnen en alleen voor het voorbeeld.
-    const d = SPO.maakData({ vak: 'Wiskunde', cijfer, onderwerp: 'Voorbeeld', weging: 2, persoon: 'Jouw Naam', kaartThema: keuze.kaartThema, kaartRand: keuze.kaartRand });
+    const d = SPO.maakData({ vak: 'Wiskunde', cijfer, onderwerp: 'Voorbeeld', weging: 2, persoon: 'Jouw Naam', kaartOntwerp: ontwerp() });
     const lagen = SPO.art.maakKaartLagen(d);
     const cv = SPO.art.maakAfbeelding(d, lagen);
     $('voor').src = cv.toDataURL('image/png');
@@ -54,6 +63,7 @@
       b.setAttribute('aria-pressed', i === niveau ? 'true' : 'false');
       b.addEventListener('click', () => {
         niveau = i;
+        vink();
         nv.querySelectorAll('button').forEach((x, j) => x.setAttribute('aria-pressed', j === i ? 'true' : 'false'));
         toon();
       });
@@ -73,7 +83,7 @@
       n.className = 'naam';
       n.textContent = t.naam;
       b.append(k, n);
-      b.addEventListener('click', () => { keuze.kaartThema = id; vink(); bewaar(); toon(); });
+      b.addEventListener('click', () => { keuze[niveau] = { ...nu_(niveau), thema: id }; vink(); bewaar(); toon(); });
       th.appendChild(b);
     }
     const ra = $('randen');
@@ -83,21 +93,26 @@
       b.setAttribute('role', 'radio');
       b.dataset.id = id;
       b.textContent = naam;
-      b.addEventListener('click', () => { keuze.kaartRand = id; vink(); bewaar(); toon(); });
+      b.addEventListener('click', () => { keuze[niveau] = { ...nu_(niveau), rand: id }; vink(); bewaar(); toon(); });
       ra.appendChild(b);
     }
-    $('herstel').addEventListener('click', () => { keuze = { ...STANDAARD }; vink(); bewaar(); toon(); });
+    $('herstel').addEventListener('click', () => { keuze[niveau] = { ...STANDAARD }; vink(); bewaar(); toon(); });
   }
 
   function vink() {
-    document.querySelectorAll('#themas .zwatch').forEach((b) => b.setAttribute('aria-checked', b.dataset.id === keuze.kaartThema ? 'true' : 'false'));
-    document.querySelectorAll('#randen button').forEach((b) => b.setAttribute('aria-checked', b.dataset.id === keuze.kaartRand ? 'true' : 'false'));
+    document.querySelectorAll('#themas .zwatch').forEach((b) => b.setAttribute('aria-checked', b.dataset.id === nu_(niveau).thema ? 'true' : 'false'));
+    document.querySelectorAll('#randen button').forEach((b) => b.setAttribute('aria-checked', b.dataset.id === nu_(niveau).rand ? 'true' : 'false'));
   }
 
   (async function start() {
     const nu = await opslag.lees();
-    if (SPO.KAART_THEMAS[nu.kaartThema]) keuze.kaartThema = nu.kaartThema;
-    if (SPO.KAART_RANDEN[nu.kaartRand]) keuze.kaartRand = nu.kaartRand;
+    if (SPO.KAART_THEMAS[nu.kaartThema]) begin.thema = nu.kaartThema;
+    if (SPO.KAART_RANDEN[nu.kaartRand]) begin.rand = nu.kaartRand;
+    const o = nu.kaartOntwerp && typeof nu.kaartOntwerp === 'object' ? nu.kaartOntwerp : {};
+    NIVEAUS.forEach((_, i) => {
+      const e = o[i] || {};
+      keuze[i] = { thema: SPO.KAART_THEMAS[e.thema] ? e.thema : begin.thema, rand: SPO.KAART_RANDEN[e.rand] ? e.rand : begin.rand };
+    });
     bouw();
     vink();
     toon();
