@@ -510,7 +510,7 @@
     const c = lijf.getContext('2d');
     // vinnen
     for (const s of [-1, 1]) {
-      vulSil(c, () => pad(c, [[450 + s * 150, 210], [450 + s * 300, 130], [450 + s * 380, 230], [450 + s * 330, 330], [450 + s * 160, 330]], true), { ...P, midden: P.donker2, licht: P.licht }, { gloed: 24 });
+      vulSil(c, () => pad(c, [[450 + s * 190, 330], [450 + s * 310, 270], [450 + s * 370, 360], [450 + s * 310, 440], [450 + s * 190, 420]], true), { ...P, midden: P.donker2, licht: P.licht }, { gloed: 24 });
     }
     // de mantel: een hoge koepel
     const mantel = () => pad(c, [[450, 30], [560, 60], [640, 150], [670, 270], [640, 390], [580, 480], [520, 520], [450, 528], [380, 520], [320, 480], [260, 390], [230, 270], [260, 150], [340, 60]], true);
@@ -654,8 +654,8 @@
         vulSil(w, () => veerPad(w, H[0], H[1], a, l, b, (q - 0.5) * 30), P2, { gloed: k, rx: 3, ry: 5 });
       }
     };
-    rij(12, -1.8, -0.1, 790, 560, 50, { ...P, midden: '#f0e8d0', licht: '#ffffff', donker: '#b0a070', donker2: '#e6d8b0' }, 22);
-    rij(9, -1.65, -0.2, 500, 360, 44, { ...P, midden: '#ffffff', licht: '#ffffff', donker: '#d8c890', donker2: '#f4ecd0' }, 12);
+    rij(12, -2.25, -0.75, 790, 560, 50, { ...P, midden: '#f0e8d0', licht: '#ffffff', donker: '#b0a070', donker2: '#e6d8b0' }, 22);
+    rij(9, -2.1, -0.85, 500, 360, 44, { ...P, midden: '#ffffff', licht: '#ffffff', donker: '#d8c890', donker2: '#f4ecd0' }, 12);
     // gouden punten
     w.save();
     w.globalCompositeOperation = 'source-atop';
@@ -665,7 +665,7 @@
     w.fillStyle = gg;
     w.fillRect(0, 0, 900, 700);
     w.restore();
-    return { lijf, vleugel, w: { lijf: [1100, 720], vleugel: [900, 700] }, scharnier: [600, 350], vscharnier: H, mond: [1060, 240], oog: [946, 196], kop: [930, 200] };
+    return { lijf, vleugel, w: { lijf: [1100, 720], vleugel: [900, 700] }, scharnier: [500, 330], vscharnier: H, mond: [1060, 240], oog: [946, 196], kop: [930, 200] };
   }
   const TEKEN_WEZEN = { draak: tekenDraak, feniks: tekenFeniks, kraken: tekenKraken, griffioen: tekenGriffioen };
 
@@ -930,11 +930,11 @@
     c.fillStyle = '#04010c';
     c.fillRect(0, 0, w, h);
     c.globalCompositeOperation = 'lighter';
-    for (let i = 0; i < 130; i++) {
+    for (let i = 0; i < 90; i++) {
       const x = rnd() * w, y = rnd() * h, r = 80 + rnd() * 240;
       const k = paletten[Math.floor(rnd() * paletten.length)];
       const g = c.createRadialGradient(x, y, 0, x, y, r);
-      g.addColorStop(0, `rgba(${k},${0.1 + rnd() * 0.13})`);
+      g.addColorStop(0, `rgba(${k},${0.035 + rnd() * 0.07})`);
       g.addColorStop(1, `rgba(${k},0)`);
       c.fillStyle = g;
       c.fillRect(x - r, y - r, r * 2, r * 2);
@@ -2514,7 +2514,7 @@
         SM.dive0 = U + 5.0 * f;
         SM.out = U + 6.9 * f;
       }
-      SM.hover = { x: 0, y: 0.34, s: 0.95 };
+      SM.hover = { x: 0, y: 0.16, s: 0.85 };
       const roar = SM.roar;
       // de brul: geluid, schokken, golven en de adem
       c.at(SM.in0 - 0.1, () => audio.speel('mythisch-vleugel', { gain: 0.8, rate: 0.9, galmen: 0.3 }));
@@ -2580,7 +2580,7 @@
     // De toestand van het wezen op tijd t: positie, schaal, richting, helling en de slag van de vleugels. null = niet in beeld.
     function wzPos(t, asp) {
       const A = 0.6 * hw(asp);
-      const circ = (tau) => ({ x: -A * Math.cos(0.85 * tau), y: 0.3 + 0.11 * Math.sin(1.7 * tau + 0.6), s: 0.62 + 0.2 * Math.sin(0.85 * tau + 1.2) });
+      const circ = (tau) => ({ x: -A * Math.cos(0.85 * tau), y: 0.1 + 0.1 * Math.sin(1.7 * tau + 0.6), s: 0.55 + 0.17 * Math.sin(0.85 * tau + 1.2) });
       const S = SM;
       if (t < S.circ0) {
         const p = ramp(t, S.in0, S.circ0);
