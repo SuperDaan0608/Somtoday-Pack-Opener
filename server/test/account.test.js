@@ -100,6 +100,21 @@ const fout = async (p) => { try { await p; return null; } catch (e) { return e; 
     controle('vrienden terug', JSON.parse(localStorage.getItem('spo_vrienden')).id === 'abc');
     controle('badges terug', JSON.parse(localStorage.getItem('spo_prestaties'))['eerste-kaart'] === 5);
 
+    // winkel: na een verse installatie met lege standaardwinkel blijven de gekochte spullen bewaard
+    controle('winkel samenvoegen', JSON.stringify(A.samenvoegen('spo_winkel', { gekocht: [], gebruik: { somtoday: 'standaard', titel: null, bg: 'standaard' } }, { gekocht: ['st-goud'], gebruik: { somtoday: 'st-goud', titel: null, bg: 'standaard' } }, true).gekocht) === '["st-goud"]');
+    controle('winkel: gebruik van server bij verse installatie', A.samenvoegen('spo_winkel', { gekocht: [], gebruik: { somtoday: 'standaard' } }, { gekocht: ['st-goud'], gebruik: { somtoday: 'st-goud' } }, true).gebruik.somtoday === 'st-goud');
+    controle('winkel: niets kwijt zonder vers', A.samenvoegen('spo_winkel', { gekocht: ['st-bos'], gebruik: {} }, { gekocht: ['st-goud'], gebruik: {} }, false).gekocht.length === 2);
+    // het echte scenario: winkel in back-up, verse installatie maakt een lege winkel, dan inloggen
+    localStorage.setItem('spo_winkel', JSON.stringify({ gekocht: ['st-goud', 'st-neon'], gebruik: { somtoday: 'st-goud', titel: null, bg: 'standaard' } }));
+    await A.bewaar();
+    mem.clear();
+    localStorage.setItem('spo_winkel', JSON.stringify({ gekocht: [], gebruik: { somtoday: 'standaard', titel: null, bg: 'standaard' } }));
+    localStorage.setItem('spo_instellingen', JSON.stringify({ opening: 'pak' }));
+    await A.login(email.toLowerCase(), ww);
+    const wk = JSON.parse(localStorage.getItem('spo_winkel'));
+    controle('na update: gekochte spullen terug', wk.gekocht.includes('st-goud') && wk.gekocht.includes('st-neon'), wk);
+    controle('na update: thema weer aan', wk.gebruik.somtoday === 'st-goud', wk);
+
     // samenvoegen: lokale kaart blijft, server-kaart komt erbij
     const sv = A.samenvoegen('spo_galerij', [{ id: 'k2', ts: 2 }], [{ id: 'k1', ts: 1 }, { id: 'k2', ts: 2, oud: true }]);
     controle('samenvoegen galerij', sv.length === 2 && sv[0].id === 'k2' && !sv[0].oud);
@@ -140,6 +155,15 @@ const fout = async (p) => { try { await p; return null; } catch (e) { return e; 
     controle('derde account', r5.s === 200 && r5.j.sessie);
     controle('te grote back-up geweigerd', (await roep({ a: 'accBackupBewaar', data: 'x'.repeat(700001) }, { 'X-Sessie': r5.j.sessie })).s >= 400);
     controle('rare tekens geweigerd', (await roep({ a: 'accBackupBewaar', data: 'v1.<script>' }, { 'X-Sessie': r5.j.sessie })).s === 400);
+    // economie: gekochte spullen terug uit de muntengeschiedenis
+    mem.clear();
+    require('../../extension/economie.js');
+    localStorage.setItem('spo_munten', JSON.stringify({ v: 1, saldo: 0, totaal: 500, init: true }));
+    localStorage.setItem('spo_winkel', JSON.stringify({ gekocht: [], gebruik: {} }));
+    localStorage.setItem('spo_munten_log', JSON.stringify([{ ts: 1, n: -160, r: 'Gekocht: Goud', id: 'k:st-goud' }, { ts: 2, n: -50, r: 'Pakje geopend', id: 'pak:klein:st-bos' }]));
+    await globalThis.SPOEco.koop('st-oceaan'); // te weinig munten, maar de winkel wordt wel nagekeken
+    const wk2 = JSON.parse(localStorage.getItem('spo_winkel'));
+    controle('economie: uit log hersteld', wk2.gekocht.includes('st-goud') && wk2.gekocht.includes('st-bos'), wk2);
     controle('status-pagina', (await (await fetch(URL + '?status=1')).json()).ok === true);
   } catch (e) {
     mis++;

@@ -1,5 +1,9 @@
 # Wijzigingen
 
+## v2.3.2
+
+- **Gekochte spullen terug:** na een update kon de winkel leeg raken. De nieuwe installatie maakte meteen een lege winkel aan, en die won bij het inloggen van de back-up. Nu worden gekochte spullen altijd samengevoegd, en na een verse installatie gaat de back-up voor. Spullen die weg waren, worden teruggezet uit de muntengeschiedenis (aankopen en dagelijkse beloningen). Pakjes onthouden voortaan ook welk item je kreeg.
+
 ## v2.3.1
 
 - De extensie kijkt nu elke minuut of er een nieuwe versie is (was 10 minuten).
