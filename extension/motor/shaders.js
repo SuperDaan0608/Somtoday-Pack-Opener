@@ -84,6 +84,8 @@ uniform vec2 uRes;
 uniform float uTime, uBloomAmt, uStreakAmt, uStreakTexel, uVig, uGrain, uFade, uBars, uCA, uZoom, uRoll, uSat, uShockW;
 // zeldzaam: uGl = glitch (scheve strepen, kleurverschuiving, regenboogstrepen), uDark = scherm donker maken, uShockRegen = regenboog-schokgolf
 uniform float uGl, uDark, uShockRegen;
+// ultiem: uInv = kleuren omkeren (0..1), uPinch = het beeld wordt naar het midden gezogen (0..1)
+uniform float uInv, uPinch;
 uniform vec3 uVigCol, uStreakCol, uFlash, uGrade, uShockCol;
 uniform vec2 uShake;
 uniform vec3 uRadial;
@@ -105,6 +107,16 @@ void main(){
   vec2 c0 = uv - .5;
   c0 = rot2(uRoll) * (c0 * asp) / asp;
   uv = .5 + c0 / uZoom + uShake;
+  float inP = 1.;
+  if (uPinch > .001) {
+    // implosie: het beeld krimpt naar het midden en draait mee, daarbuiten is het zwart
+    vec2 pq = (uv - .5) * asp;
+    float pr = length(pq);
+    float ps = 1. / max(1. - uPinch, .012);
+    pq = rot2(uPinch * uPinch * 4.5 * exp(-pr * 2.2)) * pq * ps;
+    uv = .5 + pq / asp;
+    inP = step(0., uv.x) * step(uv.x, 1.) * step(0., uv.y) * step(uv.y, 1.);
+  }
 
   // glitch: horizontale stroken die verschuiven en af en toe een groot blok
   if (uGl > .001) {
@@ -168,6 +180,8 @@ void main(){
     col += st * uStreakCol * uStreakAmt * .1;
   }
   col += ringCol * .35;
+  if (uInv > .001) col = mix(col, vec3(1.) - min(col, vec3(1.)), uInv);
+  col *= inP;
 
   // kleurcorrectie en vignet
   float l = dot(col, vec3(.299, .587, .114));

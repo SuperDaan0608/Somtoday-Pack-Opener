@@ -36,6 +36,22 @@
     zomer: ['zomer-golf', 'zomer-meeuw', 'zomer-plons', 'zomer-pan'],
     // de ZELDZAAM-reeks (zie motor/zeldzaam.js)
     zeldzaam: ['zeldzaam-tease', 'zeldzaam-koor', 'zeldzaam-boem', 'schiet-scherf', 'schiet-laatste'],
+    // de ladder boven zeldzaam (scripts/bouw-ladder.py): glim, kosmisch, mythisch en de ultieme reeks voor een 10
+    glim: ['glim-glinster', 'glim-shiny'],
+    kosmisch: ['kosmisch-bas', 'kosmisch-zwaai', 'kosmisch-gat'],
+    mythisch: ['mythisch-brul', 'mythisch-vleugel', 'mythisch-adem'],
+    ultiem: ['ultiem-akkoord', 'ultiem-barst', 'ultiem-bang'],
+  };
+  // Welke extra groepen horen bij de kaart die nu wordt voorbereid? data.js onthoudt de trede van de laatste maakData.
+  const treedeGroepen = (zeldzaam) => {
+    if (!zeldzaam) return [];
+    const n = SPO.laatsteTrede | 0;
+    const l = [].concat(GROEPEN.zeldzaam);
+    if (n >= 2) l.push(...GROEPEN.glim);
+    if (n >= 3) l.push(...GROEPEN.kosmisch);
+    if (n >= 4) l.push(...GROEPEN.mythisch);
+    if (SPO.laatsteUltiem) l.push(...GROEPEN.ultiem);
+    return l;
   };
   // Het volume van de nieuwe opnames is afgestemd op de oude (gemeten in het gedeelte boven 200 Hz, dat laptopspeakers wel weergeven).
   Object.assign(NIVEAU, {
@@ -51,6 +67,10 @@
     'kerst-bel': -8, 'kerst-wind': -9, 'kerst-ding': -8, 'kerst-klokje': -8,
     'zomer-golf': -8, 'zomer-meeuw': -15, 'zomer-plons': -4, 'zomer-pan': -8,
     'zeldzaam-tease': 0, 'zeldzaam-koor': -4, 'zeldzaam-boem': 1,
+    'glim-glinster': -6, 'glim-shiny': -4,
+    'kosmisch-bas': -1, 'kosmisch-zwaai': -4, 'kosmisch-gat': -2,
+    'mythisch-brul': 0, 'mythisch-vleugel': -4, 'mythisch-adem': -4,
+    'ultiem-akkoord': -2, 'ultiem-barst': -1, 'ultiem-bang': 1,
   });
 
 
@@ -81,7 +101,7 @@
     for (const naam of GELUIDEN) haal(naam);
     for (const naam of GROEPEN[opening] || []) haal(naam);
     for (const naam of GROEPEN[seizoen] || []) haal(naam);
-    if (zeldzaam) for (const naam of GROEPEN.zeldzaam) haal(naam);
+    for (const naam of treedeGroepen(zeldzaam)) haal(naam);
   }
 
   function init(stil) {
@@ -186,7 +206,7 @@
   // Maakt de geluiden voor één pakket. tier: 0 (brons) tot 4 (icoon).
   function maak({ tier, stil, opening, seizoen, zeldzaam }) {
     init(stil);
-    const eigen = (GROEPEN[opening] || []).concat(GROEPEN[seizoen] || [], zeldzaam ? GROEPEN.zeldzaam : []);
+    const eigen = (GROEPEN[opening] || []).concat(GROEPEN[seizoen] || [], treedeGroepen(zeldzaam));
     let eerste = Promise.resolve();
     let alles = Promise.resolve();
     return {

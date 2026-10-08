@@ -166,6 +166,37 @@
   // De teksten van de opening, met het seizoensthema erbij als dat meedoet.
   SPO.openingTekst = (d) => (d.seizoen && SEIZOENEN[d.seizoen] ? SEIZOENEN[d.seizoen] : OPENINGEN[d.opening]);
 
+  // De zeldzaamheidsladder: 0 gewoon, 1 zeldzaam, 2 glim, 3 kosmisch, 4 mythisch.
+  const TREDE_NAMEN = ['Gewoon', 'Zeldzaam', 'Glim', 'Kosmisch', 'Mythisch'];
+  // Een waarde uit een URL of een aanroep: true, false of null (= niet opgegeven).
+  const drieStand = (v) => (v === true || v === 'true' || v === 1 || v === '1' ? true : v === false || v === 'false' || v === 0 || v === '0' ? false : null);
+
+  // De vakgroep van een vak (zelfde indeling als groepVan in gevecht.js): exact, talen, mens, kunst of null (onbekend).
+  const GROEP_WOORDEN = {
+    exact: ['wiskunde', 'wisk', 'wis', 'wi', 'rekenen', 'statistiek', 'natuurkunde', 'natuurk', 'nat', 'na', 'scheikunde', 'scheik', 'sk', 'biologie', 'biol', 'bio', 'bi', 'informatica', 'inform', 'info', 'inf', 'in', 'nlt', 'techniek', 'technasium', 'ict'],
+    talen: ['nederlands', 'nederl', 'ned', 'nl', 'ne', 'engels', 'eng', 'en', 'frans', 'fra', 'fa', 'fr', 'duits', 'dui', 'du', 'dt', 'spaans', 'spa', 'sp', 'latijn', 'lat', 'la', 'grieks', 'gr', 'gri', 'taal', 'italiaans', 'russisch', 'chinees', 'turks', 'arabisch'],
+    mens: ['geschiedenis', 'gesch', 'gs', 'ges', 'aardrijkskunde', 'aardr', 'ak', 'aard', 'economie', 'econ', 'ec', 'eco', 'bedrijfseconomie', 'beco', 'maatschappijleer', 'maatschappij', 'maatsch', 'ml', 'maat', 'maw', 'maatschappijwetenschappen', 'filosofie', 'filos', 'fi', 'fil', 'levensbeschouwing', 'lev', 'lb', 'godsdienst', 'gods', 'kunstgeschiedenis'],
+    kunst: ['lichamelijke opvoeding', 'lichamelijke', 'lichamelijk', 'lo', 'gymnastiek', 'gym', 'sport', 'bewegen', 'bewegingsonderwijs', 'tekenen', 'teken', 'tekenen en handvaardigheid', 'handvaardigheid', 'handv', 'tehv', 'te', 'kunst', 'beeldende vorming', 'beeldende', 'ckv', 'culturele en kunstzinnige vorming', 'muziek', 'muz', 'mu', 'drama', 'dr', 'dans', 'theater', 'kunstvakken'],
+  };
+  const WOORD_NAAR_GROEP = new Map();
+  for (const g of Object.keys(GROEP_WOORDEN)) for (const w of GROEP_WOORDEN[g]) WOORD_NAAR_GROEP.set(w, g);
+  const TOEVOEGING = /^(a|b|c|d|i|ii|iii|iv|havo|vwo|mavo|vmbo|tl|gl|kb|bb|mondeling|schriftelijk|se|ce|pta|\d+)$/;
+  function vakGroep(vak) {
+    const t = String(vak || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!t) return null;
+    if (WOORD_NAAR_GROEP.has(t)) return WOORD_NAAR_GROEP.get(t);
+    const woorden = t.split(' ').filter((w) => !TOEVOEGING.test(w));
+    if (woorden.length && WOORD_NAAR_GROEP.has(woorden.join(' '))) return WOORD_NAAR_GROEP.get(woorden.join(' '));
+    for (const w of woorden) if (WOORD_NAAR_GROEP.has(w) && (w.length >= 3 || woorden.length === 1)) return WOORD_NAAR_GROEP.get(w);
+    for (const w of woorden) {
+      if (w.length < 5) continue;
+      for (const [x, id] of WOORD_NAAR_GROEP) if (x.length >= 5 && (w.startsWith(x) || x.startsWith(w))) return id;
+    }
+    return null;
+  }
+  SPO.vakGroep = vakGroep;
+  SPO.TREDE_NAMEN = TREDE_NAMEN;
+
   SPO.maakData = function (d) {
     const n = parseFloat(String(d.cijfer).replace(',', '.'));
     const g = Number.isFinite(n) ? Math.round(klem(n, 1, 10) * 10) / 10 : 1;
@@ -190,7 +221,14 @@
     for (const ch of vak) seed += ch.charCodeAt(0);
     const fmt = (v) => v.toFixed(1).replace('.', ',');
     const opening = kiesOpening(d.opening);
-    const zeldzaam = d.zeldzaam === true || d.zeldzaam === 'true' || d.zeldzaam === 1;
+    // de ladder: zonder trede-veld geldt alleen zeldzaam (true/false) zoals vroeger
+    const zeldzaamOud = d.zeldzaam === true || d.zeldzaam === 'true' || d.zeldzaam === 1;
+    const tredeIn = Math.max(0, Math.min(4, parseInt(d.trede, 10) || 0));
+    const trede = Math.max(tredeIn, zeldzaamOud ? 1 : 0);
+    const zeldzaam = trede >= 1;
+    // voor het geluid: welke trede wordt er nu voorbereid (audio.voorlaad kent alleen 'zeldzaam')
+    SPO.laatsteTrede = trede;
+    SPO.laatsteUltiem = trede >= 3 && g >= 9.95;
     return {
       g,
       I,
@@ -202,6 +240,14 @@
       seizoen: opening === 'pak' ? seizoenNu(d.seizoen) : null,
       // een zeldzame kaart: een extra spectaculaire onthulling, los van je cijfer (content.js dobbelt er één op de tien)
       zeldzaam,
+      trede,
+      // 10 en kosmisch of mythisch: de allergrootste reeks (zie zeldzaam.js)
+      ultiem: trede >= 3 && g >= 9.95,
+      // de vakgroep (exact, talen, mens, kunst of null): het wezen van een mythische kaart hangt hiervan af
+      groep: vakGroep(vak),
+      // vals alarm en upgrade: null = laat de kaart zelf dobbelen (vast per kaart), true/false = vastgezet (voor tests)
+      valsAlarm: drieStand(d.valsAlarm),
+      upgrade: drieStand(d.upgrade),
       // zeldzaam met een 9,5 of hoger: de legendarische reeks (zeldzaam.js), nog een flink stuk groter
       legendarisch: !!zeldzaam && g >= 9.5,
       vak,
