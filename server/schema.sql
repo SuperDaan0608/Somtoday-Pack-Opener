@@ -69,3 +69,8 @@ CREATE TABLE IF NOT EXISTS acc_backup (
   versie INT NOT NULL,
   bijgewerkt INT NOT NULL
 );
+-- Welke versie van de extensie iemand gebruikt (v2.3.4): vrienden moeten dezelfde versie hebben. Herhaalbaar.
+CREATE TABLE IF NOT EXISTS user_versie (
+  id CHAR(32) NOT NULL PRIMARY KEY,
+  versie VARCHAR(20) NOT NULL
+);

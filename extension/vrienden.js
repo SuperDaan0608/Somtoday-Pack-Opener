@@ -282,13 +282,16 @@
     wie.append(el('span', 'v-avatar', eersteLetter(naam)));
     const tekst = el('div', 'v-tekst');
     const h = el('h3', 'v-naam', naam);
-    h.append(el('span', 'badge' + (v.status === 'weggevallen' ? ' weg' : ''),
-      v.status === 'verzonden' ? 'Wacht op antwoord' : v.status === 'weggevallen' ? 'Weggevallen' : 'Vriend'));
+    h.append(el('span', 'badge' + (v.status === 'weggevallen' || v.andereVersie ? ' weg' : ''),
+      v.status === 'verzonden' ? 'Wacht op antwoord' : v.status === 'weggevallen' ? 'Weggevallen' : v.andereVersie ? 'Andere versie' : 'Vriend'));
     tekst.append(h);
     wie.append(tekst);
     kop.append(wie);
     li.append(kop);
 
+    if (v.status === 'vriend' && v.andereVersie) {
+      tekst.append(el('p', 'v-status', `Andere versie (${v.zijnVersie || 'oud'}). Jullie moeten allebei de nieuwste versie hebben; tot dan zie je elkaars kaarten niet en kun je niet battelen.`));
+    }
     if (v.status === 'weggevallen') {
       tekst.append(el('p', 'v-status', 'Geen vriend meer'));
       li.append(el('p', 'uitleg', 'Deze persoon is geen vriend meer (verwijderd of account gewist). Jullie delen niets meer.'));

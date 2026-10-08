@@ -1,5 +1,10 @@
 # Wijzigingen
 
+## v2.3.4
+
+- **Vrienden alleen met dezelfde versie:** je kunt alleen vrienden zijn, kaarten delen en battelen met iemand die dezelfde versie heeft. De server controleert dat. Oudere versies, die nog geen versienummer meesturen, krijgen de melding dat ze moeten updaten. Bij een vriend met een andere versie staat *Andere versie* in je lijst.
+- **Server:** `api.php` opnieuw uploaden en `schema.sql` opnieuw uitvoeren (nieuwe tabel `user_versie`).
+
 ## v2.3.3
 
 - **Uitval-feest werkt weer:** Somtoday laat een uitgevallen les meestal gewoon weg uit het rooster. De extensie onthoudt nu (alleen in je eigen browser) welke lessen er stonden. Verdwijnt er een, dan staat op die plek een doorgestreept blok met UITVAL en volgt het feest. Dat werkt voor lessen die je eerder in het rooster hebt gezien.

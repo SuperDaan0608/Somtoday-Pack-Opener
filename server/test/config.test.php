@@ -12,5 +12,6 @@ return [
   'mail_bestand' => getenv('SPO_MAILBESTAND') ?: (sys_get_temp_dir() . '/spo-mail.jsonl'),
   'limiet_mail_email_per_uur' => 50,
   'limiet_login_email_per_uur' => 200,
+  'vrienden_zelfde_versie' => getenv('SPO_VERSIECHECK') === '1',
   'limiet_beheer_per_min' => (int)(getenv('SPO_LIMIET_BEHEER') ?: 30),
 ];

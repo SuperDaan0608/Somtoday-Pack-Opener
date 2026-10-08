@@ -223,10 +223,17 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
     if (tot > 0) { try { wanneer = 'tot ' + new Date(tot * 1000).toLocaleString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }); } catch (e) { wanneer = 'tot ' + new Date(tot * 1000).toISOString(); } }
     return 'Je bent verbannen ' + wanneer + (reden ? ' (' + reden + ')' : '') + '.';
   }
+  function versieNu() {
+    try { if (globalThis.chrome && chrome.runtime && chrome.runtime.getManifest) return chrome.runtime.getManifest().version; } catch (e) { /* geen extensie */ }
+    return typeof globalThis.SPO_VERSIE === 'string' ? globalThis.SPO_VERSIE : '';
+  }
   function maakClient(server, id, token) {
     async function roep(a, body) {
       const headers = { 'Content-Type': 'application/json' };
       if (id) { headers['X-Id'] = id; headers['X-Token'] = token; }
+      // de server laat alleen vrienden met dezelfde versie met elkaar praten
+      const v = versieNu();
+      if (v) headers['X-Versie'] = v;
       let r;
       try { r = await fetch(server, { method: 'POST', headers, body: JSON.stringify(Object.assign({ a }, body || {})) }); }
       catch (e) { const f = new Error('Geen verbinding met de server.'); f.status = 0; throw f; }
@@ -420,6 +427,11 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
         v.status = 'vriend';
       }
       delete v.sleutelFout;
+      // andere versie: de server weigert dan alles tussen jullie tot jullie allebei de nieuwste versie hebben
+      const anders = f.andereVersie === true;
+      if (anders && !v.andereVersie) meldingen.push(`${naam(v)} heeft een andere versie van de Pack Opener. Jullie moeten allebei de nieuwste versie hebben.`);
+      v.andereVersie = anders;
+      v.zijnVersie = typeof f.versie === 'string' ? f.versie.slice(0, 20) : '';
     }
     for (const v of st.vrienden) {
       if (v.status === 'vriend' && !vrienden.some((f) => f.id === v.id)) {
@@ -439,8 +451,8 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
     ruimRondesOp(st);
 
     // Eigen gegevens versturen en die van vrienden ophalen.
-    for (const v of st.vrienden.filter((x) => x.status === 'vriend')) {
-      try { await zetBlob(st, v, galerij); } catch (e) { if (e.status === 403) v.status = 'weggevallen'; else throw e; }
+    for (const v of st.vrienden.filter((x) => x.status === 'vriend' && !x.andereVersie)) {
+      try { await zetBlob(st, v, galerij); } catch (e) { if (e.status === 403) v.status = 'weggevallen'; else if (e.status === 409) v.andereVersie = true; else throw e; }
     }
     const { kaarten, mislukt } = await haalOp(st, meldingen);
     // Mijn gokken op rondes die er niet meer zijn (de vriend stopte ze) hoeven niet te blijven staan.
