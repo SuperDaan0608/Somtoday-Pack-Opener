@@ -45,12 +45,22 @@
         <option value="vak">Vak A-Z</option>
       </select>
     </label>
+    <label class="veld"><span>Zeldzaamheid</span>
+      <select id="f-trede">
+        <option value="0">Alle kaarten</option>
+        <option value="1">Zeldzaam en hoger</option>
+        <option value="2">Glimverzameling (glim en hoger)</option>
+        <option value="3">Kosmisch en mythisch</option>
+        <option value="4">Alleen mythisch</option>
+      </select>
+    </label>
     <div class="veld chips-veld"><span id="niv-lbl">Niveau</span>
       <div class="chips" id="chips" role="group" aria-labelledby="niv-lbl"></div>
     </div>
   </section>
 
   <main>
+    <p class="ladder-tel" id="ladder-tel" hidden></p>
     <p class="geen" id="geen" hidden>Geen kaarten die aan deze filters voldoen.</p>
     <ul class="raster" id="raster"></ul>
     <section class="leeg" id="leeg" hidden>
@@ -83,6 +93,7 @@
           <div><dt>Geopend met</dt><dd id="d-opening"></dd></div>
         </dl>
         <div class="d-acties">
+          <button type="button" class="knop" id="d-replay">Animatie opnieuw</button>
           <a class="knop goud" id="d-dl" href="#" download>Downloaden</a>
           <button type="button" class="knop gevaar" id="d-weg">Verwijderen</button>
         </div>

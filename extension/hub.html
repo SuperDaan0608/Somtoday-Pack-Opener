@@ -164,7 +164,15 @@
               </div>
             </div>
             <div class="veld proef">
-              <label class="vink" title="Zeldzaam met een 9,5 of hoger: dan krijg je de legendarische animatie"><input type="checkbox" id="proef-zeldzaam" /> Als zeldzame kaart (met 9,5+ wordt hij legendarisch)</label>
+              <label class="vink" for="proef-trede" title="Zeldzaam met een 9,5 of hoger wordt legendarisch; een 10 op kosmisch of mythisch is het allerhoogste">Zeldzaamheid
+                <select id="proef-trede">
+                  <option value="0">Gewoon</option>
+                  <option value="1">Zeldzaam (1 op 10)</option>
+                  <option value="2">Glim (1 op 40)</option>
+                  <option value="3">Kosmisch (1 op 150)</option>
+                  <option value="4">Mythisch (1 op 1000)</option>
+                </select>
+              </label>
               <label class="vink">Thema
                 <select id="proef-seizoen">
                   <option value="auto">Automatisch (volgens de datum)</option>

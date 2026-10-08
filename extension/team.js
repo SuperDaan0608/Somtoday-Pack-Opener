@@ -55,12 +55,13 @@
       const img = new Image(); img.src = k.kaart; img.alt = ''; img.draggable = false; d.append(img); d.classList.add('met-plaatje');
     } else {
       d.append(el('span', 'mk-cj', fmt(k.cijfer)), el('span', 'mk-vk', k.vak || ''));
-      if (k.z) d.append(el('i', 'mk-z', 'Z'));
+      const tr = Number.isInteger(k.t) ? k.t : k.z ? 1 : 0;
+      if (tr) { const b = el('i', 'mk-z mk-t' + tr, ['', 'Z', 'GLIM', 'KOSM', 'MYTH'][tr]); b.title = ['', 'Zeldzaam', 'Glim', 'Kosmisch', 'Mythisch'][tr]; d.append(b); }
     }
     if (naam) d.setAttribute('aria-label', naam);
     return d;
   }
-  const mijnKaart = (e) => ({ vak: e.vak, cijfer: e.cijfer, tier: e.tier | 0, z: e.zeldzaam === true, kaart: e.kaart, id: e.id });
+  const mijnKaart = (e) => ({ vak: e.vak, cijfer: e.cijfer, tier: e.tier | 0, z: e.zeldzaam === true || (e.trede | 0) >= 1, t: Math.max(0, Math.min(4, e.trede | 0)) || (e.zeldzaam === true ? 1 : 0), kaart: e.kaart, id: e.id });
 
   // ---- prestaties: reddingen onthouden en een melding bij een nieuwe badge ----
   async function nieuweBadges(reddingen) {
@@ -679,7 +680,7 @@
       $('duel-keeper').replaceChildren(kaartEl(ev.keeper.z === ik ? keeperKaart : Object.assign({}, keeperKaart, { kaart: null })));
       $('duel-schutter').className = 'duel-kaart schutter'; $('duel-keeper').className = 'duel-kaart keeper';
       $('duel-rol').textContent = ikSchiet ? 'Jij schiet! Klik zo snel als je kunt.' : 'Jij verdedigt! Klik zo snel als je kunt.';
-      const mf = G.klikFactor(mijnKaartD, mijnChem), hf = G.klikFactor(hunKaartD, hunChem);
+      const mf = G.klikFactor(mijnKaartD, mijnChem, G.auraVan ? G.auraVan(teams[ik]) : 0), hf = G.klikFactor(hunKaartD, hunChem, G.auraVan ? G.auraVan(teams[ik === 'A' ? 'B' : 'A']) : 0);
       $('duel-bonus').textContent = `Jouw ${ikSchiet ? 'schutter' : 'keeper'} (${fmt(mijnKaartD.cijfer)}): elke klik telt ×${fmtFlex(mf)}${mijnChem ? ` (chemie ${mijnChem})` : ''}. Bij ${o.hunNaam} ×${fmtFlex(hf)}${hunChem ? ` (chemie ${hunChem})` : ''}.`;
       $('kl-mijn').textContent = '0'; $('kl-hun').textContent = '0';
       $('meter-mijn').style.width = '50%'; $('meter-hun').style.width = '50%';
@@ -711,11 +712,33 @@
       const eerder = kn.heeft('kl:' + k); // de ander kan al zijn begonnen
       if (eerder) verwerkHun(eerder);
       let open = true;
-      const tik = () => {
-        if (!open) return;
+      // Anti-autoclicker: alleen echte klikken (isTrusted), hoogstens ~15 per seconde, en een autoclicker klikt veel te
+      // regelmatig (een mens wisselt altijd een beetje). Zien we dat, dan tellen je kliks in dit duel niet.
+      const momenten = [];
+      let autoclicker = false;
+      const teRegelmatig = () => {
+        if (momenten.length < 12) return false;
+        const d = [];
+        for (let i = 1; i < momenten.length; i++) d.push(momenten[i] - momenten[i - 1]);
+        const gem = d.reduce((a, x) => a + x, 0) / d.length;
+        const sd = Math.sqrt(d.reduce((a, x) => a + (x - gem) * (x - gem), 0) / d.length);
+        return gem > 0 && sd / gem < 0.1; // mensen zitten ruim boven de 0,15
+      };
+      const tik = (e) => {
+        if (!open || autoclicker) return;
+        if (e && e.isTrusted === false) return;
         const nu = performance.now();
-        if (nu - vorige < 30) return; // sneller dan ~30 per seconde is geen hand meer
+        if (nu - vorige < 65) return; // sneller dan ~15 per seconde is geen hand meer
         vorige = nu;
+        momenten.push(nu);
+        if (teRegelmatig()) {
+          autoclicker = true;
+          mijn = 0;
+          $('kl-mijn').textContent = '0';
+          $('duel-rol').textContent = 'Autoclicker gezien: je kliks tellen in dit duel niet.';
+          meter();
+          return;
+        }
         if (mijn >= G.KLIK_MAX) return;
         mijn++;
         $('kl-mijn').textContent = mijn;
@@ -725,8 +748,8 @@
         trilVoor(12);
         if (mijn % 3 === 0) speel('klik', 0.3);
       };
-      const onKey = (e) => { if ((e.code === 'Space' || e.key === ' ') && !e.repeat) { e.preventDefault(); tik(); } };
-      const onPtr = (e) => { e.preventDefault(); tik(); };
+      const onKey = (e) => { if ((e.code === 'Space' || e.key === ' ') && !e.repeat) { e.preventDefault(); tik(e); } };
+      const onPtr = (e) => { e.preventDefault(); tik(e); };
       $('klik').disabled = false; $('klik').textContent = 'KLIK!';
       $('klik').addEventListener('pointerdown', onPtr);
       document.addEventListener('keydown', onKey, true);
@@ -741,6 +764,7 @@
         $('duel-teller').textContent = ((KLIK_MS - (performance.now() - t0)) / 1000).toFixed(1).replace('.', ',');
       }
       open = false;
+      if (!autoclicker && teRegelmatig()) { autoclicker = true; mijn = 0; }
       $('klik').removeEventListener('pointerdown', onPtr);
       document.removeEventListener('keydown', onKey, true);
       $('klik').disabled = true;

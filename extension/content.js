@@ -379,7 +379,7 @@
         if (!e || typeof e.kaart === 'string' || !Number.isFinite(e.cijfer)) continue;
         await new Promise((r) => (window.requestIdleCallback ? requestIdleCallback(r, { timeout: 500 }) : setTimeout(r, 30)));
         try {
-          const d = SPO.maakData({ vak: e.vak, cijfer: e.cijfer, onderwerp: e.onderwerp, weging: e.weging, opening: e.opening || 'pak', zeldzaam: e.zeldzaam === true, kaartThema: instellingen.kaartThema, kaartRand: instellingen.kaartRand, kaartOntwerp: instellingen.kaartOntwerp });
+          const d = SPO.maakData({ vak: e.vak, cijfer: e.cijfer, onderwerp: e.onderwerp, weging: e.weging, opening: e.opening || 'pak', zeldzaam: e.zeldzaam === true, trede: e.trede | 0, kaartThema: instellingen.kaartThema, kaartRand: instellingen.kaartRand, kaartOntwerp: instellingen.kaartOntwerp });
           nieuw[e.id] = SPO.art.maakMiniatuur(d, SPO.art.maakKaartLagen(d));
         } catch (x) { /* dit plaatje dan niet */ }
       }
@@ -402,6 +402,12 @@
       if (wijzigingen[SLEUTEL_DICHT]) dicht = schoonDicht(wijzigingen[SLEUTEL_DICHT].newValue);
       if (wijzigingen[SLEUTEL_INSTELLINGEN]) instellingen = { ...STANDAARD, ...(wijzigingen[SLEUTEL_INSTELLINGEN].newValue || {}) };
       if (wijzigingen.spo_update) verouderd = isVerouderd(wijzigingen.spo_update.newValue);
+      // Galerij: 'Animatie opnieuw' (v2.4). Alleen een verse vraag, en alleen als het paneel hier open is of Somtoday zichtbaar is.
+      const rp = wijzigingen.spo_replay && wijzigingen.spo_replay.newValue;
+      if (rp && Date.now() - (rp.ts || 0) < 8000 && document.visibilityState === 'visible' && ingelogd && !verouderd) {
+        if (paneel) sluitPaneel(false);
+        setTimeout(() => startProef(rp), 150);
+      }
       if (wijzigingen[SLEUTEL_ACCOUNT]) {
         ingelogd = isIngelogd(wijzigingen[SLEUTEL_ACCOUNT].newValue);
         accountId = ingelogd ? String(wijzigingen[SLEUTEL_ACCOUNT].newValue.account || '') : '';
@@ -454,10 +460,15 @@
   // Eén op de tien kaarten is zeldzaam (instelling 'zeldzaam'). De uitkomst ligt vast per cijfer en per account: hij volgt uit
   // een hash van het cijfer (sig) en je account-id. Opnieuw openen, de pagina verversen of afdekken en nog eens openen geeft dus
   // altijd dezelfde uitkomst: herkansen tot je een zeldzame kaart hebt kan niet.
-  function zeldzaamVoor(rij) {
-    if (instellingen.zeldzaam === false) return false;
-    return vastGetal(rij.sig + '|' + accountId + '|zeldzaam') < 0.1;
+  // De ladder (v2.4): binnen die één op de tien bepaalt dezelfde vaste waarde hoe zeldzaam:
+  //   < 0,001 MYTHISCH (1 op 1000) · < 0,001 + 1/150 KOSMISCH · < … + 1/40 GLIM · < 0,1 ZELDZAAM · anders gewoon
+  const LADDER = [0.001, 0.001 + 1 / 150, 0.001 + 1 / 150 + 1 / 40, 0.1];
+  function tredeVoor(rij) {
+    if (instellingen.zeldzaam === false) return 0;
+    const v = vastGetal(rij.sig + '|' + accountId + '|zeldzaam');
+    return v < LADDER[0] ? 4 : v < LADDER[1] ? 3 : v < LADDER[2] ? 2 : v < LADDER[3] ? 1 : 0;
   }
+  const zeldzaamVoor = (rij) => tredeVoor(rij) >= 1;
   // cyrb53: een snelle, vaste hash naar een getal tussen 0 en 1
   function vastGetal(t) {
     let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
@@ -659,13 +670,14 @@
       stil: !instellingen.geluid,
       opening: openingVoor(rij),
       zeldzaam: zeldzaamVoor(rij),
+      trede: tredeVoor(rij),
       seizoen: seizoenKeuze(),
       direct,
       opOnthuld() {
         if (gemarkeerd) return;
         gemarkeerd = true;
         markeer(rij.sig);
-        try { if (window.SPOEco) window.SPOEco.verdienCijfer(rij.sig, d.cijfer, !!window.__somPack.zeldzaam); } catch (e) { /* geen munten */ }
+        try { if (window.SPOEco) window.SPOEco.verdienCijfer(rij.sig, d.cijfer, tredeVoor(rij)); } catch (e) { /* geen munten */ }
       },
       // de miniatuur van de kaart, kort na de onthulling: bewaren voor de galerij (alleen in deze browser)
       opKaartKlaar(k) {
@@ -675,7 +687,7 @@
         try {
           chrome.storage.local.get(SLEUTEL_GALERIJ).then((r) => {
             const lijst = Array.isArray(r[SLEUTEL_GALERIJ]) ? r[SLEUTEL_GALERIJ].filter((x) => x && x.id !== rij.sig) : [];
-            lijst.unshift({ id: rij.sig, ts: Date.now(), vak: String(k.vak).slice(0, 60), cijfer: k.cijfer, onderwerp: String(k.onderwerp).slice(0, 120), weging: k.weging, opening: k.opening, tier: k.tier, zeldzaam: !!k.zeldzaam, kaart: k.kaart });
+            lijst.unshift({ id: rij.sig, ts: Date.now(), vak: String(k.vak).slice(0, 60), cijfer: k.cijfer, onderwerp: String(k.onderwerp).slice(0, 120), weging: k.weging, opening: k.opening, tier: k.tier, zeldzaam: !!k.zeldzaam, trede: tredeVoor(rij), kaart: k.kaart });
             return chrome.storage.local.set({ [SLEUTEL_GALERIJ]: lijst.slice(0, 150) });
           }).then(() => controleerPrestaties(), () => {});
         } catch (e) {
@@ -727,7 +739,7 @@
       const rij = rijen.find((r) => r.host === host);
       // dezelfde gegevens als bij open(): zo herkent de animatie dat de afbeeldingen al klaarstaan
       if (typeof window.__somPackWarm === 'function') {
-        window.__somPackWarm(rij && { vak: rij.d.vak, cijfer: rij.d.cijfer, onderwerp: rij.d.onderwerp || 'Nieuw cijfer', weging: rij.d.weging, snel: !!instellingen.snel, laag: !!instellingen.laag, persoon: leesNaam(), kaartThema: instellingen.kaartThema, kaartRand: instellingen.kaartRand, kaartOntwerp: instellingen.kaartOntwerp, opening: openingVoor(rij), zeldzaam: zeldzaamVoor(rij), seizoen: seizoenKeuze() });
+        window.__somPackWarm(rij && { vak: rij.d.vak, cijfer: rij.d.cijfer, onderwerp: rij.d.onderwerp || 'Nieuw cijfer', weging: rij.d.weging, snel: !!instellingen.snel, laag: !!instellingen.laag, persoon: leesNaam(), kaartThema: instellingen.kaartThema, kaartRand: instellingen.kaartRand, kaartOntwerp: instellingen.kaartOntwerp, opening: openingVoor(rij), zeldzaam: zeldzaamVoor(rij), trede: tredeVoor(rij), seizoen: seizoenKeuze() });
       }
     } catch (x) {
       /* opwarmen is een extraatje */
@@ -1072,7 +1084,8 @@
       kaartThema: instellingen.kaartThema,
       kaartRand: instellingen.kaartRand, kaartOntwerp: instellingen.kaartOntwerp,
       opening: instellingen.opening,
-      zeldzaam: d.zeldzaam === true,
+      zeldzaam: d.zeldzaam === true || (d.trede | 0) >= 1,
+      trede: Math.max(0, Math.min(4, d.trede | 0)) || (d.zeldzaam === true ? 1 : 0),
       seizoen: ['auto', 'halloween', 'kerst', 'zomer', 'geen'].includes(d.seizoen) ? d.seizoen : 'auto',
       direct: true, // de klik in het paneel is er al geweest
       opGesloten() {

@@ -12,7 +12,10 @@
   const datumTijd = (ts) => new Date(ts).toLocaleString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
   let alle = [];
-  const filter = { vak: '', niv: new Set(), sort: 'nieuw' };
+  const filter = { vak: '', niv: new Set(), sort: 'nieuw', trede: 0 };
+  // v2.4: de ladder. Oude kaarten hebben alleen 'zeldzaam'.
+  const TREDE_NAAM = ['', 'Zeldzaam', 'Glim', 'Kosmisch', 'Mythisch'];
+  const tredeVan = (e) => Math.max(0, Math.min(4, e.trede | 0)) || (e.zeldzaam ? 1 : 0);
   let zichtbaar = [];
   let open = -1;
   let openId = null;
@@ -20,7 +23,7 @@
 
   function schoon(a) {
     return (Array.isArray(a) ? a : []).filter((e) => e && typeof e.id === 'string' && typeof e.kaart === 'string' && Number.isFinite(e.cijfer))
-      .map((e) => Object.assign({}, e, { tier: Math.max(0, Math.min(4, e.tier | 0)), zeldzaam: e.zeldzaam === true }));
+      .map((e) => Object.assign({}, e, { tier: Math.max(0, Math.min(4, e.tier | 0)), zeldzaam: e.zeldzaam === true || (e.trede | 0) >= 1, trede: Math.max(0, Math.min(4, e.trede | 0)) || (e.zeldzaam === true ? 1 : 0) }));
   }
 
   // Tweestaps knop: eerste klik vraagt om bevestiging, tweede voert uit.
@@ -98,7 +101,15 @@
   }
 
   function raster() {
-    let l = alle.filter((e) => (!filter.vak || e.vak === filter.vak) && (!filter.niv.size || filter.niv.has(e.tier)));
+    let l = alle.filter((e) => (!filter.vak || e.vak === filter.vak) && (!filter.niv.size || filter.niv.has(e.tier)) && tredeVan(e) >= filter.trede);
+    // teller van de ladder
+    const tel = [0, 0, 0, 0, 0];
+    for (const e of alle) tel[tredeVan(e)]++;
+    const lt = $('ladder-tel');
+    if (lt) {
+      lt.hidden = !alle.length;
+      lt.textContent = `Zeldzaam ${tel[1]} · Glim ${tel[2]} · Kosmisch ${tel[3]} · Mythisch ${tel[4]}`;
+    }
     const s = { nieuw: (a, b) => b.ts - a.ts, hoog: (a, b) => b.cijfer - a.cijfer || b.ts - a.ts, laag: (a, b) => a.cijfer - b.cijfer || b.ts - a.ts, vak: (a, b) => a.vak.localeCompare(b.vak, 'nl') || b.ts - a.ts }[filter.sort];
     zichtbaar = l.sort(s);
     const ul = $('raster');
@@ -108,7 +119,9 @@
       const li = document.createElement('li');
       const b = document.createElement('button');
       b.type = 'button'; b.className = 'item'; b.dataset.i = i;
-      b.setAttribute('aria-label', `${e.vak}, ${fmt(e.cijfer)}, ${NIVEAUS[e.tier]}${e.zeldzaam ? ', zeldzaam' : ''}, ${datum(e.ts)}`);
+      const tr = tredeVan(e);
+      b.setAttribute('aria-label', `${e.vak}, ${fmt(e.cijfer)}, ${NIVEAUS[e.tier]}${tr ? ', ' + TREDE_NAAM[tr].toLowerCase() : ''}, ${datum(e.ts)}`);
+      if (tr) b.classList.add('trede-' + tr);
       b.style.setProperty('--gl', GLOED[e.tier]);
       const vak = document.createElement('span'); vak.className = 'kaartvak';
       const k = document.createElement('span'); k.className = 'kaart';
@@ -119,7 +132,9 @@
       const v = document.createElement('span'); v.className = 'vak'; v.textContent = e.vak;
       const c = document.createElement('span'); c.className = 'cj'; c.textContent = fmt(e.cijfer);
       const d = document.createElement('span'); d.className = 'dt'; d.textContent = datum(e.ts);
-      m.append(v, c, d); b.append(vak, m); li.append(b); frag.append(li);
+      m.append(v, c, d);
+      if (tr) { const tb = document.createElement('span'); tb.className = 'trede-label t' + tr; tb.textContent = TREDE_NAAM[tr]; vak.append(tb); }
+      b.append(vak, m); li.append(b); frag.append(li);
     });
     ul.append(frag);
     $('geen').hidden = alle.length === 0 || zichtbaar.length > 0;
@@ -132,7 +147,7 @@
     const dlg = $('detail');
     dlg.style.setProperty('--gl', GLOED[e.tier]);
     $('d-img').src = e.kaart; $('d-img').alt = `Kaart ${e.vak} ${fmt(e.cijfer)}`;
-    $('d-niveau').textContent = NIVEAUS[e.tier] + (e.zeldzaam ? ' · Zeldzaam' : '');
+    $('d-niveau').textContent = NIVEAUS[e.tier] + (tredeVan(e) ? ' · ' + TREDE_NAAM[tredeVan(e)] : '');
     $('d-vak').textContent = e.vak;
     $('d-cijfer').textContent = fmt(e.cijfer);
     $('d-onderwerp').textContent = e.onderwerp || '-';
@@ -213,6 +228,16 @@
 
   // Events
   $('f-vak').addEventListener('change', (e) => { filter.vak = e.target.value; raster(); });
+  $('f-trede').addEventListener('change', (ev) => { filter.trede = Number(ev.target.value) || 0; raster(); });
+  // Animatie opnieuw: het paneel sluit en de opening speelt op Somtoday nog een keer (er wordt niets opgeslagen of verdiend).
+  $('d-replay').addEventListener('click', async () => {
+    const e = zichtbaar[open];
+    if (!e || demo) return;
+    try {
+      await chrome.storage.local.set({ spo_replay: { ts: Date.now(), vak: e.vak, cijfer: e.cijfer, onderwerp: e.onderwerp || 'Toets', weging: e.weging || 1, trede: tredeVan(e), zeldzaam: tredeVan(e) >= 1 } });
+      $('d-replay').textContent = 'Ga naar Somtoday...';
+    } catch (x) { /* geen opslag */ }
+  });
   $('f-sort').addEventListener('change', (e) => { filter.sort = e.target.value; raster(); });
   $('chips').addEventListener('click', (ev) => {
     const b = ev.target.closest('.chip'); if (!b) return;

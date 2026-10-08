@@ -142,7 +142,8 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
       if (!k || typeof k !== 'object') return null;
       const vak = tekstVeld(k.vak, GRENS.vak, 0);
       if (vak === null || !getal(k.cijfer, 1, 10) || !Number.isInteger(k.tier)) return null;
-      kaarten.push({ vak, cijfer: rond2(k.cijfer), tier: Math.max(0, Math.min(4, k.tier)), z: k.z === true });
+      const t = Number.isInteger(k.t) ? Math.max(0, Math.min(4, k.t)) : k.z === true ? 1 : 0;
+      kaarten.push({ vak, cijfer: rond2(k.cijfer), tier: Math.max(0, Math.min(4, k.tier)), z: t >= 1, t });
     }
     if (!kaarten.length) return null;
     const uit = { kaarten };
@@ -153,7 +154,20 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
   // Een ontsleutelde blob van een vriend, schoongemaakt. Ontbrekende velden zijn gewoon leeg (oudere versies sturen ze niet).
   function schoonBlob(p) {
     if (!p || typeof p !== 'object' || Array.isArray(p) || p.v !== 1) return null;
-    return { ts: getal(p.ts, 0, 4.1e12) ? p.ts : 0, kaarten: schoonKaarten(p.kaarten), reacties: schoonReacties(p.reacties), raden: schoonRonden(p.raden), gokken: schoonGokken(p.gokken), team: schoonTeam(p.team), profiel: globalThis.SPOEco ? globalThis.SPOEco.schoonProfiel(p.profiel) : null };
+    return { ts: getal(p.ts, 0, 4.1e12) ? p.ts : 0, kaarten: schoonKaarten(p.kaarten), reacties: schoonReacties(p.reacties), raden: schoonRonden(p.raden), gokken: schoonGokken(p.gokken), team: schoonTeam(p.team), profiel: globalThis.SPOEco ? globalThis.SPOEco.schoonProfiel(p.profiel) : null, top: schoonTop(p.top) };
+  }
+  // Kosmische en mythische kaarten van een vriend: [{ t: 3|4, vak, ts }], hoogstens 20.
+  function schoonTop(a) {
+    const uit = [];
+    if (!Array.isArray(a)) return uit;
+    for (const x of a) {
+      if (uit.length >= 20) break;
+      if (!x || typeof x !== 'object' || (x.t !== 3 && x.t !== 4) || !getal(x.ts, 0, 4.1e12)) continue;
+      const vak = tekstVeld(x.vak, GRENS.vak, 0);
+      if (vak === null) continue;
+      uit.push({ t: x.t, vak, ts: x.ts });
+    }
+    return uit;
   }
 
   // ---- base64url ----
@@ -337,7 +351,10 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
     if (tm) inhoud.team = tm;
     const pf = globalThis.SPOEco ? globalThis.SPOEco.schoonProfiel(profiel) : null; // mijn profielkaart (bijnaam, stats): zonder echte naam
     if (pf) inhoud.profiel = pf;
-    return inhoud.kaarten.length || inhoud.reacties || inhoud.raden || inhoud.gokken || inhoud.team || inhoud.profiel ? inhoud : null;
+    // v2.4: mijn kosmische en mythische kaarten (alleen vak, trede en tijd, geen cijfer), voor de melding bij vrienden
+    const top = schoonTop((Array.isArray(galerij) ? galerij : []).map((e) => ({ t: Math.max(0, Math.min(4, (e && e.trede) | 0)), vak: e && e.vak, ts: e && e.ts })).filter((x) => x.t >= 3));
+    if (top.length) inhoud.top = top;
+    return inhoud.kaarten.length || inhoud.reacties || inhoud.raden || inhoud.gokken || inhoud.team || inhoud.profiel || inhoud.top ? inhoud : null;
   }
   // Stuurt (of verwijdert) de blob voor één vriend.
   async function zetBlob(st, vriend, galerij) {
@@ -477,6 +494,14 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
         const sl = await deelSleutel(st.privJwk, v.pub, st.id, v.id);
         const p = schoonBlob(await ontsleutel(sl, b.data));
         if (p) kaarten[v.id] = p; else mislukt.add(v.id); // onbekende versie: niets overnemen en niets opruimen
+        // nieuwe kosmische of mythische kaart van deze vriend? Dan een melding (één keer per kaart; de eerste keer alleen onthouden).
+        if (p && meldingen) {
+          st.topGezien = st.topGezien && typeof st.topGezien === 'object' ? st.topGezien : {};
+          const eerder = st.topGezien[v.id];
+          const nu = p.top.map((x) => x.ts);
+          if (Array.isArray(eerder)) for (const x of p.top) if (!eerder.includes(x.ts) && Date.now() - x.ts < 7 * 864e5) meldingen.push(x.t === 4 ? `🐉 ${naam(v)} trok een MYTHISCHE kaart (${x.vak})!` : `🌌 ${naam(v)} trok een KOSMISCHE kaart (${x.vak})!`);
+          st.topGezien[v.id] = nu.slice(0, 40);
+        }
       } catch (e) { mislukt.add(v.id); if (meldingen) meldingen.push(`De cijfers van ${naam(v)} konden niet worden ontsleuteld.`); }
     }
     return { kaarten, mislukt };
@@ -493,7 +518,7 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
   }
   // Wat vrienden van mijn team zien: vak, cijfer, niveau en zeldzaam. Geen id's, geen namen.
   function teamMomentopname(kaarten) {
-    const uit = { kaarten: kaarten.map((e) => ({ vak: String(e.vak || '').slice(0, 24), cijfer: Math.round(e.cijfer * 100) / 100, tier: Math.max(0, Math.min(4, e.tier | 0)), z: e.zeldzaam === true })) };
+    const uit = { kaarten: kaarten.map((e) => ({ vak: String(e.vak || '').slice(0, 24), cijfer: Math.round(e.cijfer * 100) / 100, tier: Math.max(0, Math.min(4, e.tier | 0)), z: e.zeldzaam === true || (e.trede | 0) >= 1, t: Math.max(0, Math.min(4, e.trede | 0)) || (e.zeldzaam === true ? 1 : 0) })) };
     const G = globalThis.SPOGevecht;
     if (G && G.chemie && uit.kaarten.length) uit.ch = G.chemie(G.ordenTeam(uit.kaarten.map((k) => ({ vak: k.vak, cijfer: k.cijfer, tier: k.tier, z: k.z })), 0)).score;
     return uit;

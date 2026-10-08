@@ -133,3 +133,13 @@ dialog::backdrop { background: rgba(4,5,12,.78); backdrop-filter: blur(6px); }
   .d-cijfer { font-size: 44px; }
 }
 @media (prefers-reduced-motion: reduce) { .kaart, .glans, .knop, .balk i { transition: none; } }
+
+/* v2.4: ladder */
+.ladder-tel { margin: 0 0 10px; color: #a5aec4; font-size: 13.5px; }
+.kaartvak { position: relative; }
+.trede-label { position: absolute; left: 50%; bottom: 4px; transform: translateX(-50%); padding: 2px 8px; border-radius: 999px; font: 800 10.5px/1.4 system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: #120a1e; white-space: nowrap; pointer-events: none; }
+.trede-label.t1 { background: linear-gradient(90deg, #ff4d6d, #ffb02e, #4dff9a, #3bd8ff, #8a6bff); }
+.trede-label.t2 { background: linear-gradient(90deg, #ffc9f3, #9ff3ff, #fff3a8); box-shadow: 0 0 12px rgba(255, 200, 255, .8); }
+.trede-label.t3 { background: linear-gradient(90deg, #6b4bff, #2a1a6e, #3bd8ff); color: #fff; box-shadow: 0 0 14px rgba(110, 90, 255, .9); }
+.trede-label.t4 { background: linear-gradient(90deg, #ff3d2e, #ffb02e, #ff3d2e); color: #2a0600; box-shadow: 0 0 16px rgba(255, 90, 30, .95); }
+.item.trede-3 .kaart, .item.trede-4 .kaart { filter: drop-shadow(0 0 10px var(--gl)); }

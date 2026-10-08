@@ -36,12 +36,20 @@
   }
 
   // Sterkte van een kaart in het veld: het cijfer, met een beetje extra voor een hoog niveau en voor zeldzame kaarten.
-  function sterkte(k) { return k.cijfer + 0.4 * (k.tier | 0) + (k.z ? 0.3 : 0); }
+  // v2.4: de ladder. k.t = trede 0..4 (gewoon, zeldzaam, glim, kosmisch, mythisch); oude kaarten hebben alleen k.z (zeldzaam).
+  // Elke trede is sterker; mythisch is bijna niet te verslaan. Een team krijgt bovendien een aura van zijn hoogste trede.
+  const TREDE_STERKTE = [0, 0.3, 1.2, 2.6, 6];
+  const TREDE_KLIK = [1, 1.03, 1.15, 1.4, 1.75];
+  const AURA_STERKTE = [0, 0, 0.3, 0.8, 1.8];
+  const AURA_KLIK = [1, 1, 1.05, 1.15, 1.35];
+  const tredeVan = (k) => (k && Number.isInteger(k.t) ? Math.max(0, Math.min(4, k.t)) : k && k.z ? 1 : 0);
+  const auraVan = (team) => (Array.isArray(team) ? team.reduce((m, k) => Math.max(m, tredeVan(k)), 0) : 0);
+  function sterkte(k) { return k.cijfer + 0.4 * (k.tier | 0) + TREDE_STERKTE[tredeVan(k)]; }
   // Bonus voor de klik-duels: hoe hoger het cijfer, hoe sterker je kliks tellen (0,85 bij een 1, 1,3 bij een 10).
   // `ch` is de teamchemie (0 tot 100) en geeft hooguit +8% extra.
   const CHEMIE_MAX_BONUS = 0.08;
   const chemieBonus = (ch) => CHEMIE_MAX_BONUS * Math.max(0, Math.min(100, ch | 0)) / 100;
-  function klikFactor(k, ch) { return (0.8 + 0.05 * k.cijfer) * (1 + chemieBonus(ch)); }
+  function klikFactor(k, ch, aura) { return (0.8 + 0.05 * k.cijfer) * (1 + chemieBonus(ch)) * TREDE_KLIK[tredeVan(k)] * AURA_KLIK[aura | 0]; }
 
   // ---- Teamchemie ----
   // Vakken die bij elkaar horen vormen een groep. Hoe meer kaarten uit dezelfde groep, en hoe vaker ze naast elkaar staan, hoe hoger de chemie.
@@ -140,6 +148,8 @@
     const ch = { A: 0, B: 0 };
     if (opties && opties.chemie) { ch.A = Math.max(0, Math.min(100, Math.round(Number(opties.chemie.A)) || 0)); ch.B = Math.max(0, Math.min(100, Math.round(Number(opties.chemie.B)) || 0)); }
     const pos = { A: posities(n, 'A'), B: posities(n, 'B') };
+    const aura = { A: auraVan(teams.A), B: auraVan(teams.B) };
+    const sterkteIn = (z, i) => sterkte(teams[z][i]) + AURA_STERKTE[aura[z]];
     const s = {
       n, teams, pos, chemie: ch, minuut: 0, stand: { A: 0, B: 0 }, kansen: 0, sindsKans: 99, stap: 0,
       houder: null, kans: null, klaar: false, aftrapDoor: null,
@@ -201,9 +211,9 @@
       const tegen = [];
       for (let i = 1; i < n; i++) tegen.push(i);
       const d = tegen.length ? kies(rng, tegen) : 0;
-      const sPass = (sterkte(teams[z][h.i]) + sterkte(teams[z][naar])) / 2;
-      const sD = sterkte(teams[o][d]);
-      const pOk = Math.max(0.4, Math.min(0.93, 0.76 + 0.05 * (sPass - sD) + chemieBonus(ch[z])));
+      const sPass = (sterkteIn(z, h.i) + sterkteIn(z, naar)) / 2;
+      const sD = sterkteIn(o, d);
+      const pOk = Math.max(0.25, Math.min(aura[z] === 4 ? 0.98 : 0.93, 0.76 + 0.05 * (sPass - sD) + chemieBonus(ch[z])));
       const a = pos[z][h.i], b = pos[z][naar];
       const dist = Math.hypot(a.x - b.x, a.y - b.y);
       const dur = Math.round(550 + 700 * dist + rng() * 150);
@@ -227,7 +237,7 @@
     s.duelUitslag = function (ca, ck) {
       if (!s.kans) throw new Error('Er is geen duel.');
       const { schutter, keeper } = s.kans;
-      const u = duelUitslag(teams[schutter.z][schutter.i], teams[keeper.z][keeper.i], ca, ck, ch[schutter.z], ch[keeper.z]);
+      const u = duelUitslag(teams[schutter.z][schutter.i], teams[keeper.z][keeper.i], ca, ck, ch[schutter.z], ch[keeper.z], aura[schutter.z], aura[keeper.z]);
       s.kans = null;
       if (u.goal) {
         s.stand[schutter.z]++;
@@ -244,9 +254,9 @@
 
   function schoonKlik(c) { return Number.isFinite(c) ? Math.max(0, Math.min(KLIK_MAX, Math.round(c))) : 0; }
   // Los van de wedstrijd, zodat het ook te testen is. De keeper houdt hem bij gelijke stand.
-  function duelUitslag(schutterKaart, keeperKaart, ca, ck, chA, chK) {
-    const sa = schoonKlik(ca) * klikFactor(schutterKaart, chA);
-    const sk = schoonKlik(ck) * klikFactor(keeperKaart, chK);
+  function duelUitslag(schutterKaart, keeperKaart, ca, ck, chA, chK, auraA, auraK) {
+    const sa = schoonKlik(ca) * klikFactor(schutterKaart, chA, auraA);
+    const sk = schoonKlik(ck) * klikFactor(keeperKaart, chK, auraK);
     return { goal: sa > sk, sa, sk };
   }
 
@@ -260,7 +270,8 @@
     for (let i = 0; i < n; i++) {
       const c = Math.max(3, Math.min(10, Math.round((gem + (rng() - 0.5) * 3) * 10) / 10));
       const tier = c >= 9.95 ? 4 : c >= 9 ? 3 : c >= 7 ? 2 : c >= 5.5 ? 1 : 0;
-      uit.push({ vak: VAKKEN[Math.floor(rng() * VAKKEN.length)], cijfer: c, tier, z: rng() < 0.08 });
+      const z = rng() < 0.08;
+      uit.push({ vak: VAKKEN[Math.floor(rng() * VAKKEN.length)], cijfer: c, tier, z, t: z ? 1 : 0 });
     }
     return uit;
   }
@@ -271,7 +282,7 @@
 
   const lib = {
     MAX_MIN, STAPPEN, KLIK_MAX, maakRng, seedUitTekst, seedUitHash, sterkte, klikFactor, GROEPEN, groepVan, chemie, chemieBonus, CHEMIE_MAX_BONUS, lijnen, lijnVan, posities, ordenTeam,
-    maakSim, duelUitslag, schoonKlik, maakComputerTeam, computerKliks,
+    maakSim, duelUitslag, schoonKlik, maakComputerTeam, computerKliks, TREDE_STERKTE, TREDE_KLIK, AURA_KLIK, tredeVan, auraVan,
   };
   globalThis.SPOGevecht = lib;
   if (typeof module !== 'undefined' && module.exports) module.exports = lib;

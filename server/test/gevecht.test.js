@@ -170,7 +170,12 @@ function galerijVan(lijst, basis) {
     controle('even grote teams: uitdagen aan', true);
 
     // --- Gevecht A tegen B ---
-    const klikker = (p, ms) => p.evaluate((ms) => { setInterval(() => { const b = document.getElementById('klik'); if (b && !b.disabled && !document.getElementById('duel').hidden) b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true })); }, ms); }, ms);
+    // Echte muisklikken met een wisselend ritme, zoals een mens (een vast ritme of nep-events ziet het spel als autoclicker).
+    const klikker = (p, ms) => { (async () => { for (;;) { try {
+      const box = await p.evaluate(() => { const b = document.getElementById('klik'); if (!b || b.disabled || document.getElementById('duel').hidden) return null; const r = b.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
+      if (box) await p.mouse.click(box.x + (Math.random() - 0.5) * 20, box.y + (Math.random() - 0.5) * 10);
+      await new Promise((r) => setTimeout(r, ms * (0.6 + Math.random() * 0.8)));
+    } catch (e) { return; } } })(); };
     await klikker(PA.p, 90); await klikker(PB.p, 140);
     await PA.p.click('#gv-vrienden button');
     await PB.p.waitForSelector('#uitnodigingen .uitnodiging', { timeout: 20000 });
