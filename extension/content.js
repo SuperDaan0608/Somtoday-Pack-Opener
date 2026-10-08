@@ -469,10 +469,10 @@
     return v < LADDER[0] ? 4 : v < LADDER[1] ? 3 : v < LADDER[2] ? 2 : v < LADDER[3] ? 1 : 0;
   }
   const zeldzaamVoor = (rij) => tredeVoor(rij) >= 1;
-  // v2.4: vervloekte kaart. Een zeldzame (of zeldzamere) kaart met een onvoldoende (onder de 5,5) is in 1 van de 15 gevallen vervloekt.
+  // v2.4: vervloekte kaart. Een onvoldoende (onder de 5,5) is in 1 van de 15 gevallen vervloekt.
   // Net als de trede ligt dit vast per cijfer en per account: opnieuw openen verandert er niets aan.
   const VLOEK_KANS = 1 / 15;
-  const vloekVoor = (rij) => tredeVoor(rij) >= 1 && rij.d.cijfer < 5.5 && vastGetal(rij.sig + '|' + accountId + '|vloek') < VLOEK_KANS;
+  const vloekVoor = (rij) => rij.d.cijfer < 5.5 && vastGetal(rij.sig + '|' + accountId + '|vloek') < VLOEK_KANS;
   // Korte paarse glitch over het scherm met een eng geluid, direct na de onthulling van een vervloekte kaart.
   function toonVloek() {
     try {
