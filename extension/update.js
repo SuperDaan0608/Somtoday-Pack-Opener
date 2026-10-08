@@ -55,3 +55,27 @@
   if (chrome.runtime.onStartup) chrome.runtime.onStartup.addListener(() => controleer(false));
   if (chrome.runtime.onInstalled) chrome.runtime.onInstalled.addListener(() => controleer(false));
 })();
+
+/*
+ * v2.2: automatische back-up van je voortgang naar je account (zie account.js).
+ * Zodra er iets verandert dat in de back-up hoort, sturen we na 4 seconden rust de nieuwe (versleutelde) stand.
+ * In Chrome is dit een service worker (account.js via importScripts); in Firefox staat account.js al in de lijst met achtergrondscripts.
+ */
+(function () {
+  'use strict';
+  const chrome = typeof browser !== 'undefined' && browser.runtime ? browser : globalThis.chrome;
+  try {
+    if (!globalThis.SPOAccount && typeof importScripts === 'function') importScripts('account.js');
+  } catch (e) { /* zonder account geen back-up */ }
+  const A = globalThis.SPOAccount;
+  if (!A || !chrome.storage || !chrome.storage.onChanged) return;
+  let timer = 0;
+  chrome.storage.onChanged.addListener((wijz, gebied) => {
+    if (gebied !== 'local' || A.bezigMetHerstel) return;
+    if (!Object.keys(wijz).some((k) => A.BACKUP_SLEUTELS.includes(k))) return;
+    clearTimeout(timer);
+    timer = setTimeout(() => A.bewaar().catch(() => { /* offline: de volgende wijziging probeert het opnieuw */ }), 4000);
+  });
+  // Bij het opstarten van de browser: de back-up van een ander apparaat erbij halen.
+  if (chrome.runtime.onStartup) chrome.runtime.onStartup.addListener(() => A.herstel().catch(() => {}));
+})();

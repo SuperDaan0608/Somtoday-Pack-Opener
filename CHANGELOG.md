@@ -1,5 +1,12 @@
 # Wijzigingen
 
+## v2.2.0
+
+- **Inloggen met een account:** je moet eerst inloggen voordat je de Pack Opener kunt gebruiken. Je maakt een account met je e-mailadres en een wachtwoord, en bevestigt het met een code van 6 cijfers die je per mail krijgt. *Wachtwoord vergeten* werkt ook met een code.
+- **Nooit meer alles kwijt bij een update:** je voortgang (kaarten, geopende cijfers, munten, winkel, badges, team, gevechten, vrienden, profiel en instellingen) wordt automatisch opgeslagen in je account. Na een update log je in en komt alles terug. De kaartplaatjes worden daarna op Somtoday opnieuw getekend.
+- **Privacy:** de back-up wordt op je eigen computer versleuteld met je wachtwoord, dus de server (en de beheerder) kan hem niet lezen. Van je e-mailadres bewaart de server alleen een onleesbare hash. Bij *Instellingen* staat een blokje *Account* met *Nu opslaan*, *Uitloggen* en *Account verwijderen*.
+- **Server:** `api.php` en `schema.sql` opnieuw uploaden/uitvoeren, en `mail_van` in `config.php` zetten (zie `server/LEESMIJ.md`).
+
 ## v2.1.0
 
 - **Legendarisch:** trek je een zeldzame kaart met een 9,5 of hoger, dan krijg je een nog veel grotere animatie dan bij zeldzaam. Eerst wordt het stil en zwart, met twee zware hartslagen. Bij elke slag barst het scherm verder in gouden barsten en verschijnt "DIT IS GEEN GEWONE KAART". Dan volgt de gewone zeldzaam-tease, het glas spat in 3D-scherven uit elkaar en de kaart komt door een gouden tunnel. De onthulling gaat in nog tragere slow-motion, met een gouden **LEGENDARISCH!**-logo met regenboogrand en een kroon die erop valt. Na een paar seconden wordt het nog één keer donker, laadt de kaart op en volgt een supernova: een gouden ster, schokgolven, de kaart draait nog twee keer rond, vuurwerk door het hele beeld en een regen van gouden munten en confetti. Uitproberen: *Proberen*, cijfer 9,5 of hoger, *Als zeldzame kaart*.

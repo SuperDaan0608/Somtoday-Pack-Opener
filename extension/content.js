@@ -333,7 +333,8 @@
 
   async function laad() {
     try {
-      const r = await chrome.storage.local.get([SLEUTEL_GEOPEND, SLEUTEL_INSTELLINGEN, SLEUTEL_DICHT]);
+      const r = await chrome.storage.local.get([SLEUTEL_GEOPEND, SLEUTEL_INSTELLINGEN, SLEUTEL_DICHT, SLEUTEL_ACCOUNT]);
+      ingelogd = isIngelogd(r[SLEUTEL_ACCOUNT]);
       geopend = schoonGeopend(r[SLEUTEL_GEOPEND]);
       dicht = schoonDicht(r[SLEUTEL_DICHT]);
       instellingen = { ...STANDAARD, ...(r[SLEUTEL_INSTELLINGEN] || {}) };
@@ -343,6 +344,43 @@
     geladen = true;
     scan();
     wachtendPaneel();
+    if (ingelogd) tekenOntbrekendeKaarten();
+  }
+
+  // ───────────────────────── Account (v2.2) ─────────────────────────
+  // Zonder account kun je niets openen: een klik op een afgedekt cijfer opent het paneel met het inlogscherm (poort.js).
+  // Na het terugzetten van een back-up missen de kaartplaatjes (die gaan niet mee): die tekenen we hier opnieuw.
+  const SLEUTEL_ACCOUNT = 'spo_account';
+  let ingelogd = false;
+  const isIngelogd = (a) => !!(a && typeof a === 'object' && typeof a.sessie === 'string' && typeof a.sleutel === 'string');
+  let tekenBezig = false;
+  async function tekenOntbrekendeKaarten() {
+    const SPO = window.__SPO;
+    if (tekenBezig || !SPO || !SPO.art || !SPO.maakData) return;
+    tekenBezig = true;
+    try {
+      const lijst = (await chrome.storage.local.get(SLEUTEL_GALERIJ))[SLEUTEL_GALERIJ];
+      if (!Array.isArray(lijst) || !lijst.some((e) => e && typeof e.kaart !== 'string')) return;
+      await SPO.art.laadLettertypes();
+      const nieuw = {};
+      for (const e of lijst) {
+        if (!e || typeof e.kaart === 'string' || !Number.isFinite(e.cijfer)) continue;
+        await new Promise((r) => (window.requestIdleCallback ? requestIdleCallback(r, { timeout: 500 }) : setTimeout(r, 30)));
+        try {
+          const d = SPO.maakData({ vak: e.vak, cijfer: e.cijfer, onderwerp: e.onderwerp, weging: e.weging, opening: e.opening || 'pak', zeldzaam: e.zeldzaam === true, kaartThema: instellingen.kaartThema, kaartRand: instellingen.kaartRand, kaartOntwerp: instellingen.kaartOntwerp });
+          nieuw[e.id] = SPO.art.maakMiniatuur(d, SPO.art.maakKaartLagen(d));
+        } catch (x) { /* dit plaatje dan niet */ }
+      }
+      if (!Object.keys(nieuw).length) return;
+      // opnieuw lezen: intussen kan er een kaart bij zijn gekomen
+      const vers = (await chrome.storage.local.get(SLEUTEL_GALERIJ))[SLEUTEL_GALERIJ];
+      if (!Array.isArray(vers)) return;
+      await chrome.storage.local.set({ [SLEUTEL_GALERIJ]: vers.map((e) => (e && typeof e.kaart !== 'string' && nieuw[e.id] ? Object.assign({}, e, { kaart: nieuw[e.id] }) : e)) });
+    } catch (x) {
+      /* de plaatjes zijn een extraatje */
+    } finally {
+      tekenBezig = false;
+    }
   }
 
   try {
@@ -351,6 +389,8 @@
       if (wijzigingen[SLEUTEL_GEOPEND]) geopend = schoonGeopend(wijzigingen[SLEUTEL_GEOPEND].newValue);
       if (wijzigingen[SLEUTEL_DICHT]) dicht = schoonDicht(wijzigingen[SLEUTEL_DICHT].newValue);
       if (wijzigingen[SLEUTEL_INSTELLINGEN]) instellingen = { ...STANDAARD, ...(wijzigingen[SLEUTEL_INSTELLINGEN].newValue || {}) };
+      if (wijzigingen[SLEUTEL_ACCOUNT]) ingelogd = isIngelogd(wijzigingen[SLEUTEL_ACCOUNT].newValue);
+      if (wijzigingen[SLEUTEL_GALERIJ] && ingelogd) setTimeout(tekenOntbrekendeKaarten, 1500);
       scan();
     });
   } catch (e) {
@@ -576,6 +616,10 @@
   }
 
   function open(rij, { direct }) {
+    if (!ingelogd) {
+      openPaneel('overzicht'); // het paneel laat eerst het inlogscherm zien
+      return true;
+    }
     if (bezig || typeof window.__somPackRun !== 'function') return false;
     bezig = true;
     let gemarkeerd = false;

@@ -41,3 +41,31 @@ CREATE TABLE IF NOT EXISTS bans (
   reden VARCHAR(200) NOT NULL,
   gemaakt INT NOT NULL
 );
+-- Accounts (v2.2). Alleen een hash van het e-mailadres; de back-up is in de browser versleuteld. Herhaalbaar, dus ook de migratie.
+CREATE TABLE IF NOT EXISTS accounts (
+  id CHAR(32) NOT NULL PRIMARY KEY,
+  email_hash CHAR(64) NOT NULL UNIQUE,
+  ww_hash VARCHAR(255) NOT NULL,
+  geverifieerd INT NOT NULL,
+  gemaakt INT NOT NULL,
+  laatst INT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS acc_codes (
+  email_hash CHAR(64) NOT NULL,
+  soort VARCHAR(10) NOT NULL,
+  code_hash CHAR(64) NOT NULL,
+  verloopt INT NOT NULL,
+  pogingen INT NOT NULL,
+  PRIMARY KEY (email_hash, soort)
+);
+CREATE TABLE IF NOT EXISTS acc_sessies (
+  token_hash CHAR(64) NOT NULL PRIMARY KEY,
+  account CHAR(32) NOT NULL,
+  verloopt INT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS acc_backup (
+  account CHAR(32) NOT NULL PRIMARY KEY,
+  data MEDIUMTEXT NOT NULL,
+  versie INT NOT NULL,
+  bijgewerkt INT NOT NULL
+);

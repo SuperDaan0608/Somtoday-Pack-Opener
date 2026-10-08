@@ -15,6 +15,15 @@ versleutelde blobs. Geen namen, geen cijfers, geen ruwe IP-adressen (alleen een 
 
 HTTPS moet aan staan (de extensie stuurt een token mee).
 
+## Bijwerken naar v2.2 (accounts)
+
+1. Upload de nieuwe `api.php`.
+2. Voer `schema.sql` nog een keer uit in phpMyAdmin. Dat kan veilig: hij maakt alleen de nieuwe tabellen `accounts`, `acc_codes`, `acc_sessies` en `acc_backup` erbij.
+3. Afzender: of een adres op je eigen domein (`'mail_van' => 'noreply@jummysnacks.nl',`), of Gmail met een app-wachtwoord (`mail_van`, `smtp_gebruiker` en `smtp_wachtwoord`, zie `config.example.php`).
+4. Controleer met `api.php?status=1`.
+
+Accounts: e-mail + wachtwoord, met een code van 6 cijfers per mail (15 minuten geldig, hoogstens 5 pogingen). De server bewaart alleen een hash van het e-mailadres en een wachtwoord-hash (`password_hash`). De back-up van de voortgang wordt in de browser versleuteld (AES-GCM, sleutel uit wachtwoord + e-mailadres via PBKDF2) en is voor de server en de beheerder onleesbaar. Acties: `accRegistreer`, `accVerifieer`, `accCodeOpnieuw`, `accLogin`, `accVergeten`, `accReset`, en met de header `X-Sessie`: `accBackupLaad`, `accBackupBewaar`, `accUitloggen`, `accVerwijder`.
+
 ## API (alle verzoeken: POST, JSON, actie in `a`)
 
 Auth voor alles behalve `register`: headers `X-Id` en `X-Token`.
