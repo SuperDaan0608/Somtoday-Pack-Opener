@@ -1,5 +1,9 @@
 # Wijzigingen
 
+## v2.3.3
+
+- **Uitval-feest werkt weer:** Somtoday laat een uitgevallen les meestal gewoon weg uit het rooster. De extensie onthoudt nu (alleen in je eigen browser) welke lessen er stonden. Verdwijnt er een, dan staat op die plek een doorgestreept blok met UITVAL en volgt het feest. Dat werkt voor lessen die je eerder in het rooster hebt gezien.
+
 ## v2.3.2
 
 - **Gekochte spullen terug:** na een update kon de winkel leeg raken. De nieuwe installatie maakte meteen een lege winkel aan, en die won bij het inloggen van de back-up. Nu worden gekochte spullen altijd samengevoegd, en na een verse installatie gaat de back-up voor. Spullen die weg waren, worden teruggezet uit de muntengeschiedenis (aankopen en dagelijkse beloningen). Pakjes onthouden voortaan ook welk item je kreeg.

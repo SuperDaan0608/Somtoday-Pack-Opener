@@ -1,7 +1,10 @@
 /*
  * Somtoday Pack Opener: uitval-feest op het rooster.
- * Een uitgevallen les krijgt een label. Is er nieuwe uitval, dan volgt eenmalig een korte
- * viering met confetti. We onthouden alleen een hash van week, dag, tijd en vak; geen namen.
+ * Somtoday laat een uitgevallen les meestal gewoon weg. Daarom onthouden we (alleen in deze browser, niet in de back-up)
+ * welke lessen er per dag stonden. Verdwijnt er een les, dan tekenen we op die plek een doorgestreept blok "UITVAL" en volgt
+ * eenmalig een korte viering met confetti. Staat er wel een label 'vervallen' bij een les, dan telt dat ook.
+ *   spo_uitval_gezien   { hash: tijdstip }                       welke uitval al gevierd is
+ *   spo_rooster_vorig   { "week|dag": { ts, lessen: [{ vak, tijd, stijl }] } }   wat er stond (hoogstens 40 dagen)
  */
 (function () {
   'use strict';
@@ -11,6 +14,9 @@
 
   const SLEUTEL = 'spo_uitval_gezien';
   const SLEUTEL_INSTELLINGEN = 'spo_instellingen';
+  const SLEUTEL_VORIG = 'spo_rooster_vorig';
+  let vorig = null; // zie boven
+  let vermoed = new Map(); // dagsleutel → tijdstip waarop we een les voor het eerst misten (pas na 2 s zeker)
   let aan = true;
   let geluid = true;
   let gezien = null; // { hash: tijdstip }, null = nog niet geladen
@@ -137,11 +143,82 @@
     })();
   }
 
+  // ───────────── Verdwenen lessen ─────────────
+  const weekTekstNu = () => {
+    const kop = document.querySelector('sl-rooster-week-header');
+    return kop ? tekst(kop.querySelector('h1')) + ' ' + tekst(kop.querySelector('.weeknummer')) : '';
+  };
+  const lesSleutel = (l) => l.tijd + '|' + l.vak.toLowerCase();
+  function tekenSpook(dag, l) {
+    const ouder = dag.querySelector('sl-rooster-item') ? dag.querySelector('sl-rooster-item').parentElement : dag;
+    if ([...ouder.querySelectorAll(':scope > .spo-spook')].some((x) => x.dataset.les === lesSleutel(l))) return;
+    const d = document.createElement('div');
+    d.className = 'spo-spook';
+    d.dataset.les = lesSleutel(l);
+    d.setAttribute('role', 'note');
+    d.setAttribute('aria-label', `Uitval: ${l.vak}, ${l.tijd}`);
+    d.style.cssText = l.stijl + ';position:absolute;box-sizing:border-box;';
+    const t = document.createElement('span');
+    t.className = 'spo-spook-vak';
+    t.textContent = l.vak;
+    const b = document.createElement('span');
+    b.className = 'spo-spook-label';
+    b.textContent = 'UITVAL';
+    d.append(t, b);
+    if (getComputedStyle(ouder).position === 'static') ouder.style.position = 'relative';
+    ouder.appendChild(d);
+  }
+  function verdwenen() {
+    if (vorig === null) return [];
+    const week = weekTekstNu();
+    if (!week) return [];
+    const nieuw = [];
+    let veranderd = false;
+    const nu = Date.now();
+    for (const dag of document.querySelectorAll('sl-rooster-dag')) {
+      const w = dag.closest('sl-rooster-week');
+      if (w && (w.hasAttribute('inert') || w.getAttribute('aria-hidden') === 'true')) continue;
+      const dagNr = dag.parentElement ? [...dag.parentElement.children].filter((c) => c.localName === 'sl-rooster-dag').indexOf(dag) : 0;
+      const sl = week + '|' + dagNr;
+      const items = [...dag.querySelectorAll('sl-rooster-item')];
+      const nuLessen = items.map((it) => {
+        const i = lesInfo(it);
+        return i && { vak: i.vak, tijd: i.tijd, stijl: ['top', 'left', 'width', 'height'].map((k) => it.style[k] ? `${k}:${it.style[k]}` : '').filter(Boolean).join(';'), uit: isUitgevallen(it) };
+      }).filter(Boolean);
+      const oud = vorig[sl];
+      const weg = oud ? oud.lessen.filter((l) => !nuLessen.some((n) => lesSleutel(n) === lesSleutel(l))) : [];
+      // Een les die net weg is, kan ook nog aan het laden zijn: pas na 2 seconden en met de rest van de dag zichtbaar is het uitval.
+      if (weg.length && !weg.every((l) => l.weg)) {
+        if (!nuLessen.length) continue;
+        const sinds = vermoed.get(sl);
+        if (!sinds) { vermoed.set(sl, nu); setTimeout(plan, 2200); continue; }
+        if (nu - sinds < 2000) continue;
+      }
+      vermoed.delete(sl);
+      for (const l of weg) {
+        tekenSpook(dag, l);
+        nieuw.push({ vak: l.vak, tijd: l.tijd, sleutel: hash([week, dagNr, l.tijd, l.vak.toLowerCase()].join('|')) });
+      }
+      // onthouden: wat er nu staat, plus wat al weg was (zodat het spookblok blijft staan)
+      const lessen = nuLessen.filter((n) => !n.uit).map(({ vak, tijd, stijl }) => ({ vak, tijd, stijl })).concat(weg.map((l) => Object.assign({}, l, { weg: true })));
+      if (!oud || JSON.stringify(oud.lessen) !== JSON.stringify(lessen)) {
+        vorig[sl] = { ts: nu, lessen };
+        veranderd = true;
+      }
+    }
+    if (veranderd) {
+      const sl = Object.keys(vorig);
+      if (sl.length > 40) sl.sort((a, b) => vorig[a].ts - vorig[b].ts).slice(0, sl.length - 40).forEach((k) => delete vorig[k]);
+      chrome.storage.local.set({ [SLEUTEL_VORIG]: vorig }).catch(() => {});
+    }
+    return nieuw;
+  }
+
   // ───────────── Scannen ─────────────
   function scan() {
     gepland = false;
     if (!aan || gezien === null) return;
-    const nieuw = [];
+    const nieuw = verdwenen().filter((n) => !gezien[n.sleutel]);
     for (const item of document.querySelectorAll('sl-rooster-item')) {
       const uit = isUitgevallen(item);
       item.classList.toggle('spo-uitval', uit);
@@ -175,15 +252,16 @@
 
   async function start() {
     try {
-      const r = await chrome.storage.local.get([SLEUTEL, SLEUTEL_INSTELLINGEN]);
+      const r = await chrome.storage.local.get([SLEUTEL, SLEUTEL_INSTELLINGEN, SLEUTEL_VORIG]);
       gezien = r[SLEUTEL] && typeof r[SLEUTEL] === 'object' ? r[SLEUTEL] : {};
+      vorig = r[SLEUTEL_VORIG] && typeof r[SLEUTEL_VORIG] === 'object' ? r[SLEUTEL_VORIG] : {};
       pasInstellingenToe(r[SLEUTEL_INSTELLINGEN]);
     } catch (e) { return; }
     chrome.storage.onChanged.addListener((c, gebied) => {
       if (gebied === 'local' && c[SLEUTEL_INSTELLINGEN]) pasInstellingenToe(c[SLEUTEL_INSTELLINGEN].newValue);
     });
     new MutationObserver((lijst) => {
-      if (lijst.every((m) => m.target.localName === 'spo-uitval' || (m.target.getRootNode && m.target.getRootNode() instanceof ShadowRoot))) return;
+      if (lijst.every((m) => m.target.localName === 'spo-uitval' || (m.target.classList && m.target.classList.contains('spo-spook')) || [...m.addedNodes].every((x) => x.classList && x.classList.contains('spo-spook')) && m.addedNodes.length || (m.target.getRootNode && m.target.getRootNode() instanceof ShadowRoot))) return;
       plan();
     }).observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
     plan();
