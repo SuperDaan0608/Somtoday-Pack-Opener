@@ -46,7 +46,7 @@
     const r = (k) => hash(h * 0.01731 + k * 3.7);
     return {
       vals: d.valsAlarm != null ? !!d.valsAlarm && tr <= 1 : tr <= 1 && r(1) < 0.25,
-      upg: d.upgrade != null ? !!d.upgrade && tr >= 2 && !d.ultiem : tr >= 2 && !d.ultiem && r(2) < 0.33,
+      upg: d.upgrade != null ? !!d.upgrade && tr >= 2 && tr < 4 && !d.ultiem : tr >= 2 && tr < 4 && !d.ultiem && r(2) < 0.33, // mythisch heeft altijd de volledige reeks
       kleur: Math.floor(r(3) * 3) + 2, // de kleur van het teken bij een vals alarm: die van glim, kosmisch of mythisch
     };
   }
@@ -71,7 +71,7 @@
     const legT = leg && tr < 2;
     // bij een upgrade begint de reeks als een gewone zeldzame kaart (korte tease) en breekt hij later open
     const eigen = tr >= 2 && !upg;
-    const TEASE = legT ? (snel ? 2.0 : 4.4) : eigen ? [0, 0, snel ? 1.3 : 3.0, snel ? 2.6 : 5.6, snel ? 4.6 : 9.8][tr] : snel ? 1.15 : 2.5;
+    const TEASE = legT ? (snel ? 2.0 : 4.4) : eigen ? [0, 0, snel ? 1.3 : 3.0, snel ? 2.6 : 5.6, snel ? 9.2 : 20][tr] : snel ? 1.15 : 2.5;
     const t0 = o.K0 - 0.06;
     const z = Object.create(o);
     z.basis = o;
@@ -85,7 +85,10 @@
     z.EIND = z.RV + (snel ? 2.6 : 5.6);
     z.pre = (t) => (t < t0 ? t : t < t0 + TEASE ? t0 : t - TEASE);
     z.upg = upg;
-    if (tr >= 3 && eigen) z.klikSprong = z.K0 - 0.3;
+    if (tr >= 3 && eigen) {
+      z.klikSprong = z.K0 - 0.3;
+      z.klikVanaf = tr === 4 ? (snel ? 4 : 8) : 1.0; // mythisch: overslaan kan pas na een tijdje, niet per ongeluk
+    }
 
     // slow-motion: eerst een korte, trage stukje (snelheid v0), dan een vloeiend herstel naar normaal tempo
     const v0 = legT || tr >= 3 ? (snel ? 0.25 : 0.12) : snel ? 0.32 : 0.17;
@@ -1035,7 +1038,7 @@
     return cv;
   }
   // scheuren in de werkelijkheid: bijna wit, met een gekleurde (cyaan/roze) rand; drie stappen die verder lopen
-  function maakRissen() {
+  function maakRissen(k1 = '0,255,255', k2 = '255,60,200') {
     const BW = 1920, BH = 1080;
     const takken = [];
     const rnd = zaad(19);
@@ -1059,7 +1062,7 @@
       const cv = NW(BW, BH), c = cv.getContext('2d');
       c.lineCap = 'round';
       c.lineJoin = 'round';
-      for (const [breed, kleur, blur, schaduw] of [[4.2, 'rgba(0,255,255,.5)', 22, 'rgba(0,255,255,.9)'], [3, 'rgba(255,60,200,.5)', 22, 'rgba(255,60,200,.9)'], [1.2, 'rgba(255,255,255,.98)', 6, 'rgba(255,255,255,.9)'], [0.5, '#fff', 0, 'rgba(255,255,255,0)']]) {
+      for (const [breed, kleur, blur, schaduw] of [[4.2, `rgba(${k1},.5)`, 22, `rgba(${k1},.9)`], [3, `rgba(${k2},.5)`, 22, `rgba(${k2},.9)`], [1.2, 'rgba(255,255,255,.98)', 6, 'rgba(255,255,255,.9)'], [0.5, '#fff', 0, 'rgba(255,255,255,0)']]) {
         c.shadowColor = schaduw;
         c.shadowBlur = blur;
         c.strokeStyle = kleur;
@@ -1106,6 +1109,476 @@
     c.closePath();
     c.fill();
     return cv;
+  }
+
+
+  // ───── Mythisch: de wereld van het wezen, een oog, runen, een lichtkolom en de kiem van de kaart ─────
+  function gloedje(c, x, y, r, k, a) {
+    const g = c.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, `rgba(${k},${a})`);
+    g.addColorStop(1, `rgba(${k},0)`);
+    c.fillStyle = g;
+    c.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+  // Vier werelden (1600 bij 900): draak = vuurvulkaan, feniks = zonnetempel, kraken = diepzee, griffioen = bergtoppen.
+  // bg is de achtergrond, voor een laag silhouetten die dichterbij hangt (parallax).
+  function maakWereld(naam) {
+    const W = 1600, H = 900;
+    const bg = NW(W, H), c = bg.getContext('2d');
+    const voor = NW(W, H), v = voor.getContext('2d');
+    const rnd = zaad(63);
+    const hemel = (stops) => {
+      const g = c.createLinearGradient(0, 0, 0, H);
+      stops.forEach(([p, k]) => g.addColorStop(p, k));
+      c.fillStyle = g;
+      c.fillRect(0, 0, W, H);
+    };
+    if (naam === 'draak') {
+      hemel([[0, '#050000'], [0.32, '#2a0400'], [0.6, '#8a1604'], [0.8, '#ff6a14'], [1, '#2a0600']]);
+      c.globalCompositeOperation = 'lighter';
+      gloedje(c, W * 0.5, H * 0.76, 900, '255,110,30', 0.6);
+      c.globalCompositeOperation = 'source-over';
+      // asrook
+      for (let i = 0; i < 46; i++) {
+        const x = rnd() * W, y = rnd() * H * 0.55, r = 80 + rnd() * 200;
+        const g = c.createRadialGradient(x, y, 0, x, y, r);
+        g.addColorStop(0, 'rgba(24,6,4,.55)');
+        g.addColorStop(1, 'rgba(24,6,4,0)');
+        c.fillStyle = g;
+        c.fillRect(x - r, y - r, r * 2, r * 2);
+      }
+      // de vulkaan
+      const vg = c.createLinearGradient(0, H * 0.35, 0, H * 0.82);
+      vg.addColorStop(0, '#3a0c06');
+      vg.addColorStop(1, '#0a0202');
+      c.fillStyle = vg;
+      c.beginPath();
+      c.moveTo(W * 0.12, H * 0.84);
+      c.lineTo(W * 0.4, H * 0.42);
+      c.lineTo(W * 0.46, H * 0.37);
+      c.lineTo(W * 0.54, H * 0.37);
+      c.lineTo(W * 0.6, H * 0.42);
+      c.lineTo(W * 0.88, H * 0.84);
+      c.closePath();
+      c.fill();
+      c.globalCompositeOperation = 'lighter';
+      gloedje(c, W * 0.5, H * 0.37, 360, '255,150,40', 0.95);
+      c.strokeStyle = 'rgba(255,140,30,.9)';
+      c.shadowColor = 'rgba(255,120,20,1)';
+      c.shadowBlur = 18;
+      c.lineWidth = 5;
+      for (const [x0, x1, y1] of [[0.47, 0.34, 0.8], [0.5, 0.52, 0.84], [0.53, 0.7, 0.8], [0.49, 0.43, 0.82]]) {
+        c.beginPath();
+        c.moveTo(W * x0, H * 0.38);
+        c.bezierCurveTo(W * (x0 + x1) / 2 + 30, H * 0.5, W * x1 - 30, H * 0.62, W * x1, H * y1);
+        c.stroke();
+      }
+      c.shadowBlur = 0;
+      for (let i = 0; i < 160; i++) {
+        c.fillStyle = `rgba(255,${120 + Math.round(rnd() * 120)},40,${0.3 + rnd() * 0.7})`;
+        c.beginPath();
+        c.arc(W * (0.38 + rnd() * 0.24), H * (0.05 + rnd() * 0.33), 0.8 + rnd() * 2.2, 0, 6.2832);
+        c.fill();
+      }
+      c.globalCompositeOperation = 'source-over';
+      // het lavameer
+      const lg = c.createLinearGradient(0, H * 0.82, 0, H);
+      lg.addColorStop(0, '#ff7a1c');
+      lg.addColorStop(0.3, '#c82a06');
+      lg.addColorStop(1, '#2a0400');
+      c.fillStyle = lg;
+      c.fillRect(0, H * 0.82, W, H * 0.18);
+      c.strokeStyle = 'rgba(255,220,120,.55)';
+      c.lineWidth = 2;
+      for (let i = 0; i < 40; i++) {
+        const y = H * (0.84 + rnd() * 0.15), x = rnd() * W;
+        c.beginPath();
+        c.moveTo(x, y);
+        c.lineTo(x + 40 + rnd() * 120, y + (rnd() - 0.5) * 6);
+        c.stroke();
+      }
+      // voorgrond: gescheurde rotsen met een oranje rand
+      v.fillStyle = '#0a0302';
+      v.shadowColor = 'rgba(255,110,20,.9)';
+      v.shadowBlur = 16;
+      v.beginPath();
+      v.moveTo(0, H);
+      for (let x = 0; x <= W; x += 60) v.lineTo(x, H * (0.9 - 0.08 * rnd() - 0.1 * Math.max(0, Math.cos(x / W * 6.28))));
+      v.lineTo(W, H);
+      v.closePath();
+      v.fill();
+    } else if (naam === 'feniks') {
+      hemel([[0, '#3a0a00'], [0.35, '#c4420a'], [0.62, '#ffb640'], [0.8, '#fff0b0'], [1, '#6a2a06']]);
+      c.globalCompositeOperation = 'lighter';
+      gloedje(c, W * 0.5, H * 0.62, 760, '255,230,150', 0.9);
+      // stralen van de zon
+      for (let i = 0; i < 26; i++) {
+        const a = (i / 26) * 6.2832;
+        c.fillStyle = 'rgba(255,220,130,.14)';
+        c.beginPath();
+        c.moveTo(W * 0.5, H * 0.62);
+        c.lineTo(W * 0.5 + Math.cos(a - 0.03) * 1800, H * 0.62 + Math.sin(a - 0.03) * 1800);
+        c.lineTo(W * 0.5 + Math.cos(a + 0.03) * 1800, H * 0.62 + Math.sin(a + 0.03) * 1800);
+        c.fill();
+      }
+      const zg = c.createRadialGradient(W * 0.5, H * 0.62, 0, W * 0.5, H * 0.62, 200);
+      zg.addColorStop(0, 'rgba(255,255,255,1)');
+      zg.addColorStop(0.7, 'rgba(255,240,170,.95)');
+      zg.addColorStop(1, 'rgba(255,200,90,0)');
+      c.fillStyle = zg;
+      c.fillRect(W * 0.5 - 220, H * 0.62 - 220, 440, 440);
+      c.globalCompositeOperation = 'source-over';
+      for (let i = 0; i < 30; i++) {
+        const x = rnd() * W, y = H * (0.3 + rnd() * 0.45), r = 120 + rnd() * 240;
+        const g = c.createRadialGradient(x, y, 0, x, y, r);
+        g.addColorStop(0, 'rgba(255,120,60,.28)');
+        g.addColorStop(1, 'rgba(255,120,60,0)');
+        c.fillStyle = g;
+        c.fillRect(x - r, y - r, r * 2, r * 2);
+      }
+      // de tempel: een platform met zuilen en een fronton
+      c.fillStyle = '#2a0e04';
+      c.fillRect(W * 0.2, H * 0.74, W * 0.6, H * 0.26);
+      c.fillRect(W * 0.24, H * 0.7, W * 0.52, H * 0.04);
+      c.beginPath();
+      c.moveTo(W * 0.26, H * 0.4);
+      c.lineTo(W * 0.5, H * 0.28);
+      c.lineTo(W * 0.74, H * 0.4);
+      c.closePath();
+      c.fill();
+      c.fillRect(W * 0.26, H * 0.4, W * 0.48, H * 0.04);
+      for (let i = 0; i < 8; i++) c.fillRect(W * (0.28 + i * 0.062), H * 0.44, W * 0.022, H * 0.26);
+      c.strokeStyle = 'rgba(255,200,90,.7)';
+      c.lineWidth = 3;
+      c.beginPath();
+      c.moveTo(W * 0.26, H * 0.4);
+      c.lineTo(W * 0.5, H * 0.28);
+      c.lineTo(W * 0.74, H * 0.4);
+      c.stroke();
+      // voorgrond: twee grote zuilen links en rechts
+      v.fillStyle = '#1a0802';
+      v.shadowColor = 'rgba(255,190,80,.9)';
+      v.shadowBlur = 20;
+      for (const x of [W * 0.0, W * 0.9]) {
+        v.fillRect(x, 0, W * 0.1, H);
+        v.fillRect(x - W * 0.01, 0, W * 0.12, H * 0.06);
+        v.fillRect(x - W * 0.01, H * 0.94, W * 0.12, H * 0.06);
+      }
+    } else if (naam === 'kraken') {
+      hemel([[0, '#0a4a8a'], [0.18, '#04285a'], [0.55, '#02112e'], [1, '#00040e']]);
+      c.globalCompositeOperation = 'lighter';
+      // lichtbundels van boven
+      for (let i = 0; i < 9; i++) {
+        const x = W * (0.1 + i * 0.1) + (rnd() - 0.5) * 80;
+        const g = c.createLinearGradient(0, 0, 0, H * 0.9);
+        g.addColorStop(0, 'rgba(140,220,255,.38)');
+        g.addColorStop(1, 'rgba(60,120,255,0)');
+        c.fillStyle = g;
+        c.beginPath();
+        c.moveTo(x - 20, 0);
+        c.lineTo(x + 20, 0);
+        c.lineTo(x + 160 + rnd() * 120, H * 0.9);
+        c.lineTo(x - 100, H * 0.9);
+        c.fill();
+      }
+      for (let i = 0; i < 220; i++) {
+        c.fillStyle = `rgba(150,230,255,${0.15 + rnd() * 0.5})`;
+        c.beginPath();
+        c.arc(rnd() * W, rnd() * H, 0.8 + rnd() * 2.2, 0, 6.2832);
+        c.fill();
+      }
+      for (let i = 0; i < 6; i++) gloedje(c, rnd() * W, H * (0.3 + rnd() * 0.4), 70 + rnd() * 60, '80,255,230', 0.35);
+      c.globalCompositeOperation = 'source-over';
+      // de zeebodem met rotsen en een wrak
+      c.fillStyle = '#020914';
+      c.beginPath();
+      c.moveTo(0, H);
+      for (let x = 0; x <= W; x += 80) c.lineTo(x, H * (0.86 - 0.06 * Math.sin(x * 0.007) - 0.05 * rnd()));
+      c.lineTo(W, H);
+      c.fill();
+      c.strokeStyle = '#020914';
+      c.lineWidth = 14;
+      c.beginPath();
+      c.moveTo(W * 0.62, H * 0.84);
+      c.lineTo(W * 0.66, H * 0.62);
+      c.lineTo(W * 0.74, H * 0.7);
+      c.lineTo(W * 0.78, H * 0.84);
+      c.moveTo(W * 0.7, H * 0.64);
+      c.lineTo(W * 0.7, H * 0.5);
+      c.lineTo(W * 0.76, H * 0.56);
+      c.stroke();
+      // voorgrond: wier en bellen
+      v.strokeStyle = '#010610';
+      v.lineWidth = 22;
+      v.lineCap = 'round';
+      for (let i = 0; i < 16; i++) {
+        const x = (i < 8 ? i * 0.025 : 0.8 + (i - 8) * 0.03) * W;
+        v.beginPath();
+        v.moveTo(x, H);
+        v.bezierCurveTo(x + 60, H * 0.8, x - 60, H * 0.62, x + 30 + rnd() * 60, H * (0.4 + rnd() * 0.2));
+        v.stroke();
+      }
+      v.strokeStyle = 'rgba(160,230,255,.6)';
+      v.lineWidth = 2.5;
+      for (let i = 0; i < 40; i++) {
+        v.beginPath();
+        v.arc(rnd() * W, rnd() * H, 4 + rnd() * 16, 0, 6.2832);
+        v.stroke();
+      }
+    } else {
+      hemel([[0, '#1a2a6a'], [0.3, '#5a5ec0'], [0.55, '#ff9a7a'], [0.7, '#ffd890'], [1, '#2a2040']]);
+      c.globalCompositeOperation = 'lighter';
+      gloedje(c, W * 0.7, H * 0.58, 520, '255,230,160', 0.9);
+      c.globalCompositeOperation = 'source-over';
+      const zg = c.createRadialGradient(W * 0.7, H * 0.58, 0, W * 0.7, H * 0.58, 90);
+      zg.addColorStop(0, '#fff');
+      zg.addColorStop(1, 'rgba(255,240,190,0)');
+      c.fillStyle = zg;
+      c.fillRect(W * 0.7 - 100, H * 0.58 - 100, 200, 200);
+      // wolken en drie rijen bergen, steeds donkerder
+      for (let i = 0; i < 30; i++) {
+        const x = rnd() * W, y = H * (0.25 + rnd() * 0.4), r = 80 + rnd() * 160;
+        const g = c.createRadialGradient(x, y, 0, x, y, r);
+        g.addColorStop(0, 'rgba(255,200,190,.26)');
+        g.addColorStop(1, 'rgba(255,200,190,0)');
+        c.fillStyle = g;
+        c.fillRect(x - r, y - r, r * 2, r * 2);
+      }
+      const berg = (ctx, basis, hoogte, kleur, sneeuw, zaadw) => {
+        const r2 = zaad(zaadw);
+        ctx.fillStyle = kleur;
+        ctx.beginPath();
+        ctx.moveTo(0, H);
+        const pts = [];
+        for (let x = 0; x <= W + 100; x += 100) pts.push([x, H * basis - hoogte * H * (0.35 + 0.65 * r2()) * (0.6 + 0.4 * Math.sin(x * 0.004 + zaadw))]);
+        pts.forEach((p) => ctx.lineTo(p[0], p[1]));
+        ctx.lineTo(W, H);
+        ctx.fill();
+        if (sneeuw) {
+          ctx.fillStyle = 'rgba(255,235,220,.85)';
+          for (let i = 1; i < pts.length - 1; i++) if (pts[i][1] < pts[i - 1][1] && pts[i][1] < pts[i + 1][1]) {
+            ctx.beginPath();
+            ctx.moveTo(pts[i][0], pts[i][1]);
+            ctx.lineTo(pts[i][0] - 50, pts[i][1] + 60);
+            ctx.lineTo(pts[i][0] - 10, pts[i][1] + 48);
+            ctx.lineTo(pts[i][0] + 6, pts[i][1] + 70);
+            ctx.lineTo(pts[i][0] + 50, pts[i][1] + 60);
+            ctx.closePath();
+            ctx.fill();
+          }
+        }
+      };
+      berg(c, 0.78, 0.42, '#6a5a9a', true, 3);
+      berg(c, 0.86, 0.38, '#3a2e62', true, 5);
+      // voorgrond: een dichtbije top met wolkenranden
+      berg(v, 1.02, 0.5, '#120c24', false, 8);
+      for (let i = 0; i < 16; i++) gloedje(v, rnd() * W, H * (0.78 + rnd() * 0.2), 120 + rnd() * 120, '255,200,190', 0.35);
+    }
+    return { bg, voor };
+  }
+  // een groot oog met een spleet-pupil, voor het ontwaken
+  function maakOog(P) {
+    const cv = NW(1000, 560), c = cv.getContext('2d');
+    const amandel = () => {
+      c.moveTo(40, 280);
+      c.quadraticCurveTo(500, -60, 960, 280);
+      c.quadraticCurveTo(500, 620, 40, 280);
+      c.closePath();
+    };
+    c.save();
+    c.shadowColor = P.gloed;
+    c.shadowBlur = 50;
+    c.fillStyle = P.donker;
+    c.beginPath();
+    amandel();
+    c.fill();
+    c.restore();
+    c.save();
+    c.beginPath();
+    amandel();
+    c.clip();
+    c.fillStyle = '#080404';
+    c.fillRect(0, 0, 1000, 560);
+    const ig = c.createRadialGradient(500, 280, 10, 500, 280, 260);
+    ig.addColorStop(0, '#ffffff');
+    ig.addColorStop(0.18, P.oog);
+    ig.addColorStop(0.55, P.midden);
+    ig.addColorStop(1, '#050202');
+    c.fillStyle = ig;
+    c.beginPath();
+    c.arc(500, 280, 262, 0, 6.2832);
+    c.fill();
+    c.strokeStyle = 'rgba(255,255,255,.18)';
+    c.lineWidth = 2;
+    for (let i = 0; i < 70; i++) {
+      const a = (i / 70) * 6.2832;
+      c.beginPath();
+      c.moveTo(500 + Math.cos(a) * 60, 280 + Math.sin(a) * 60);
+      c.lineTo(500 + Math.cos(a) * 250, 280 + Math.sin(a) * 250);
+      c.stroke();
+    }
+    c.fillStyle = '#000';
+    c.beginPath();
+    c.ellipse(500, 280, 30, 190, 0, 0, 6.2832);
+    c.fill();
+    c.fillStyle = 'rgba(255,255,255,.85)';
+    c.beginPath();
+    c.ellipse(430, 190, 28, 16, -0.5, 0, 6.2832);
+    c.fill();
+    // schaduw van de oogleden
+    const lg = c.createLinearGradient(0, 0, 0, 560);
+    lg.addColorStop(0, 'rgba(0,0,0,.75)');
+    lg.addColorStop(0.3, 'rgba(0,0,0,0)');
+    lg.addColorStop(0.7, 'rgba(0,0,0,0)');
+    lg.addColorStop(1, 'rgba(0,0,0,.7)');
+    c.fillStyle = lg;
+    c.fillRect(0, 0, 1000, 560);
+    c.restore();
+    c.lineWidth = 16;
+    c.strokeStyle = P.donker2;
+    c.beginPath();
+    amandel();
+    c.stroke();
+    c.lineWidth = 3;
+    c.strokeStyle = P.licht;
+    c.beginPath();
+    amandel();
+    c.stroke();
+    return cv;
+  }
+  // een cirkel met runen en ringen (draait, additief)
+  function maakRunen(P) {
+    const S = 1024;
+    const cv = NW(S, S), c = cv.getContext('2d');
+    const m = S / 2;
+    c.translate(m, m);
+    c.globalCompositeOperation = 'lighter';
+    c.shadowColor = P.gloed;
+    c.shadowBlur = 22;
+    c.strokeStyle = P.goud;
+    for (const [r, w] of [[490, 5], [452, 2], [380, 4], [300, 3], [214, 2]]) {
+      c.lineWidth = w;
+      c.beginPath();
+      c.arc(0, 0, r, 0, 6.2832);
+      c.stroke();
+    }
+    const rnd = zaad(88);
+    c.lineWidth = 4;
+    c.lineCap = 'round';
+    for (let i = 0; i < 32; i++) {
+      c.save();
+      c.rotate((i / 32) * 6.2832);
+      c.translate(0, -416);
+      c.beginPath();
+      const n = 3 + Math.floor(rnd() * 3);
+      let x = -10 + rnd() * 4, y = -26;
+      c.moveTo(x, y);
+      for (let k = 0; k < n; k++) {
+        x = -14 + rnd() * 28;
+        y = -26 + ((k + 1) / n) * 52;
+        c.lineTo(x, y);
+      }
+      c.stroke();
+      c.restore();
+    }
+    // een zesster in het midden
+    c.lineWidth = 3;
+    for (let k = 0; k < 2; k++) {
+      c.beginPath();
+      for (let i = 0; i < 3; i++) {
+        const a = (i / 3) * 6.2832 + k * Math.PI - Math.PI / 2;
+        c.lineTo(Math.cos(a) * 214, Math.sin(a) * 214);
+      }
+      c.closePath();
+      c.stroke();
+    }
+    return cv;
+  }
+  function maakZuil(P) {
+    const cv = NW(256, 1024), c = cv.getContext('2d');
+    const g = c.createLinearGradient(0, 0, 256, 0);
+    g.addColorStop(0, 'rgba(255,255,255,0)');
+    g.addColorStop(0.35, P.gloed.replace(/[\d.]+\)$/, '.55)'));
+    g.addColorStop(0.5, 'rgba(255,255,255,.95)');
+    g.addColorStop(0.65, P.gloed.replace(/[\d.]+\)$/, '.55)'));
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    c.fillStyle = g;
+    c.fillRect(0, 0, 256, 1024);
+    c.globalCompositeOperation = 'destination-in';
+    const v = c.createLinearGradient(0, 0, 0, 1024);
+    v.addColorStop(0, 'rgba(0,0,0,0)');
+    v.addColorStop(0.15, 'rgba(0,0,0,1)');
+    v.addColorStop(0.85, 'rgba(0,0,0,1)');
+    v.addColorStop(1, 'rgba(0,0,0,0)');
+    c.fillStyle = v;
+    c.fillRect(0, 0, 256, 1024);
+    return cv;
+  }
+  // de kiem van de kaart: een gloeiende kaartvorm die uit het niets gesmeed wordt
+  function maakKiem(P) {
+    const cv = NW(360, 520), c = cv.getContext('2d');
+    c.shadowColor = P.gloed;
+    c.shadowBlur = 36;
+    const vorm = () => {
+      c.beginPath();
+      c.roundRect(30, 30, 300, 460, 34);
+    };
+    vorm();
+    const g = c.createLinearGradient(0, 30, 0, 490);
+    g.addColorStop(0, 'rgba(255,255,255,.95)');
+    g.addColorStop(0.5, P.goud);
+    g.addColorStop(1, P.midden);
+    c.fillStyle = g;
+    c.fill();
+    c.shadowBlur = 0;
+    c.globalCompositeOperation = 'source-atop';
+    c.strokeStyle = 'rgba(0,0,0,.25)';
+    c.lineWidth = 3;
+    for (let i = 0; i < 9; i++) {
+      c.beginPath();
+      c.moveTo(30, 90 + i * 46);
+      c.lineTo(330, 60 + i * 46);
+      c.stroke();
+    }
+    c.globalCompositeOperation = 'source-over';
+    vorm();
+    c.lineWidth = 8;
+    c.strokeStyle = '#fff';
+    c.stroke();
+    return cv;
+  }
+
+  // ───── de kans per trede: als een mooi pilletje op het logo ─────
+  const KANS = { 1: ['ZELDZAAM', '1 OP 10'], 2: ['GLIM', '1 OP 40'], 3: ['KOSMISCH', '1 OP 150'], 4: ['MYTHISCH', '1 OP 1000'] };
+  const KANS_KLEUR = { 1: ['#fff3b0', '#ffc93a', '#ff9a3a'], 2: ['#e6ffff', '#8af0ff', '#ff9ae8'], 3: ['#e8e0ff', '#a090ff', '#5ae8ff'], 4: ['#fff3b0', '#ffc93a', '#ff6a1a'] };
+  function kansPil(c, tr, cy, tekstOverride, sport) {
+    const [naam, kans] = KANS[tr];
+    const txt = tekstOverride || `${naam}  ·  ${kans}`;
+    c.save();
+    c.textAlign = 'center';
+    c.textBaseline = 'alphabetic';
+    c.font = `800 62px ${sport}`;
+    if ('letterSpacing' in c) c.letterSpacing = '7px';
+    const w = Math.min(1700, c.measureText(txt).width + 120);
+    const h = 96;
+    const x = 950 - 16 - w / 2;
+    const y = cy - h / 2;
+    c.beginPath();
+    c.roundRect(x, y, w, h, 48);
+    c.fillStyle = 'rgba(8,4,28,.78)';
+    c.shadowColor = KANS_KLEUR[tr][1];
+    c.shadowBlur = 24;
+    c.fill();
+    c.shadowBlur = 0;
+    const g = c.createLinearGradient(x, 0, x + w, 0);
+    KANS_KLEUR[tr].forEach((k, i, l) => g.addColorStop(i / (l.length - 1), k));
+    c.lineWidth = 5;
+    c.strokeStyle = g;
+    c.stroke();
+    c.fillStyle = g;
+    c.fillText(txt, 950 - 16, cy + 21);
+    if ('letterSpacing' in c) c.letterSpacing = '0px';
+    c.restore();
   }
 
   // ───── de logo's van de treden ─────
@@ -1273,6 +1746,7 @@
     c.fillStyle = zg;
     c.fillText(regel, 950, 515);
     if ('letterSpacing' in c) c.letterSpacing = '0px';
+    kansPil(c, tr, tr === 4 ? 432 : 410, null, sport);
     return cv;
   }
   // de titel van de ultieme kaart
@@ -1362,6 +1836,8 @@
     };
     ster(520, 190, 60);
     ster(1380, 230, 48);
+    const trU = d.trede | 0;
+    kansPil(c, trU, 638, `10  +  ${KANS[trU][0]}  ·  1 OP 10.000+`, sport);
     return cv;
   }
   // "SHINY!" voor het glim-moment
@@ -1505,8 +1981,18 @@
         if (wz.vleugel) wz.vleugelA = donkerder(A, wz.vleugel, 0.5);
         wz.gloed = maakGloed(WEZENS[o.wezenNaam].gloed.replace(/[\d.]+\)$/, 'ALPHA)'));
         o.wezen = wz;
+        if (!lt.upg) {
+          o.wereld = maakWereld(o.wezenNaam);
+          o.oog = maakOog(WEZENS[o.wezenNaam]);
+          o.runen = maakRunen(WEZENS[o.wezenNaam]);
+          o.zuil = maakZuil(WEZENS[o.wezenNaam]);
+          o.kiem = maakKiem(WEZENS[o.wezenNaam]);
+        }
       }
-      if (lt.upg || d.ultiem) o.rissen = maakRissen();
+      if (lt.upg || d.ultiem || tr === 4) {
+        const ks = (k) => k.map((x) => Math.round(x * 255)).join(',');
+        o.rissen = tr === 4 ? maakRissen(ks(WEZENS[wezenVan(d)].vuur1), ks(WEZENS[wezenVan(d)].vuur2)) : maakRissen();
+      }
       if (d.ultiem) {
         o.titelUlt = maakTitelUlt(A, d);
         o.stelsels = [maakStelsel(3, ['255,235,170', '255,170,90', '200,110,255'], 0.45), maakStelsel(4, ['230,245,255', '110,190,255', '120,90,255'], 0.7), maakStelsel(8, ['255,220,240', '255,120,200', '140,90,255'], 0.38)];
@@ -1616,6 +2102,8 @@
       c.fillText(regel, 950, 515);
       if ('letterSpacing' in c) c.letterSpacing = '0px';
     }
+
+    kansPil(logo.getContext('2d'), 1, 405, null, sport);
 
     // de tekst van de tease, met kleurverschuiving en afgesneden lijnen
     const tease = A.nieuw(1500, 210);
@@ -2476,9 +2964,16 @@
     }
     function kosmosTease(t, asp) {
       const u = ramp(t, t0, t1);
-      kosmosTekenen(t, asp, u);
       // een trage ademhaling van licht in het midden, steeds sterker
       c.licht(t, 0, 0, 0.3 * u * u, 0.03 + 0.05 * u, 0.2 * u, 0.5 * u * u * u, t * 0.4, k1);
+    }
+    // vanaf kosmisch niet te fel bij de onthulling: iets minder bloem en glitch
+    function rustigerOnthulling(p, t) {
+      if (t >= RV - 0.05 && t < RV + 2.5) {
+        const q = 1 - sm(t, RV + 0.5, RV + 2.5);
+        p.bloom *= 1 - 0.2 * q;
+        p.gl *= 1 - 0.5 * q;
+      }
     }
     function kosmosPost(p, t) {
       if (eigenT && t >= t0 && t < K0) {
@@ -2499,8 +2994,8 @@
     // het duikt naar je toe en de kaart komt. Bij een upgrade verschijnt het na de onthulling en vliegt na de brul weg.
     const u0 = 0.0021; // plaatjes-pixels naar wereld-eenheden
     const SM = {};
-    if (tr === 4) {
-      if (eigenT) {
+    if (tr === 4 && !eigenT) {
+      if (false) {
         SM.in0 = t0 + 0.07 * TEASE_T;
         SM.circ0 = t0 + 0.275 * TEASE_T;
         SM.roar = t0 + 0.65 * TEASE_T;
@@ -2569,7 +3064,7 @@
         em({ mode: 0, t0: roar + 0.1, delay: 0.9, life: 1.8, n: 1800, org: [0, 0], angle: 0, spread: c.TWEE_PI, spd: [0.4, 2.8], grav: [0, -0.1], drag: 1.1, size: [0.002, 0.008], col1: wk1, col2: wk2, alpha: 1, seed: 125 });
       }
       // de kaart wordt neergelegd: een uitbarsting in de kleuren van het wezen
-      if (eigenT) {
+      if (false) {
         c.flits(K0 - 0.03, 0.35, 0.08);
         c.golf(K0, 1.8, 1.0, 0);
         c.golf(K0 + 0.12, 1.3, 0.8, 0);
@@ -2692,7 +3187,7 @@
       c.licht(t, 0, 0.02, 0.12 + 0.35 * Math.exp(-(t - SM.in0) / 0.5) * (t > SM.in0 ? 1 : 0), 0.05, 0.1, 0.1, t * 0.2, wk1);
     }
     function wezenPost(p, t) {
-      if (eigenT && t >= t0 && t < K0) {
+      if (!eigenT && false) {
         const u = ramp(t, t0, t1);
         const rt = t - SM.roar;
         p.dark = 0;
@@ -2702,13 +3197,348 @@
         p.vig = 1.3 + 0.6 * u;
         p.sat = 1.1;
         p.bloom = 1.08;
-      } else if (!eigenT && t >= SM.roar && t < SM.roar + 2) {
+      } else if (!eigenT && SM.roar && t >= SM.roar && t < SM.roar + 2) {
         const rt = t - SM.roar;
         p.gl = Math.max(p.gl, 0.6 * Math.exp(-rt / 0.12) * rg);
         p.zoom *= 1 + 0.07 * Math.exp(-rt / 0.2);
         p.rad = Math.max(p.rad, 0.35 * Math.exp(-rt / 0.3));
       }
-      if (t >= t0) p.grade = WN === 'kraken' ? [0.92, 0.95, 1.12] : WN === 'draak' ? [0.96, 1.06, 0.94] : [1.1, 0.97, 0.9];
+      if (t >= t0 && !eigenT) p.grade = WN === 'kraken' ? [0.92, 0.95, 1.12] : WN === 'draak' ? [0.96, 1.06, 0.94] : [1.1, 0.97, 0.9];
+    }
+
+
+    // ═════════ MYTHISCH in vijf akten (bij een eigen tease, ruim 30 seconden met de onthulling) ═════════
+    //  1  stilte en zwart, een hartslag; het pakje trilt en barst open met lichtscheuren
+    //  2  de wereld valt weg: een reis door een storm naar het rijk van het wezen (vuurvulkaan, zonnetempel, diepzee, bergtoppen)
+    //  3  het wezen ontwaakt: een oog gaat open, een brul, vleugels of tentakels vullen het scherm, het vliegt langs de camera
+    //  4  het ritueel: runen, een lichtkolom, het wezen blaast zijn adem op de kiem van de kaart; een dreun, het wezen duikt naar je toe
+    //  5  de onthulling: de kaart komt, het logo slaat in, het wezen hangt levend achter de kaart en brult nog een keer
+    const MA = {};
+    const myth = tr === 4 && eigenT && !!art.wereld;
+    if (myth) {
+      const T = TEASE_T;
+      const f = (x) => t0 + x * T;
+      Object.assign(MA, { kraak: f(0.04), zwart: f(0.085), flits1: f(0.185), storm0: f(0.19), wereld0: f(0.285), wereld1: f(0.4), oog0: f(0.455), oogOpen: f(0.51), roar: f(0.555), pass0: f(0.625), pass1: f(0.69), circ0: f(0.7), rune0: f(0.72), zuil0: f(0.775), adem0: f(0.8), adem1: f(0.89), dive0: f(0.9), dive1: f(0.975) });
+      tex.wr = { bg: c.tekstuur(art.wereld.bg), voor: c.tekstuur(art.wereld.voor) };
+      tex.oog = c.tekstuur(art.oog);
+      tex.runen = c.tekstuur(art.runen);
+      tex.zuil = c.tekstuur(art.zuil);
+      tex.kiem = c.tekstuur(art.kiem);
+      // de hartslagen van akte 1: steeds sneller
+      MA.slagen = [0.03, 0.07, 0.1, 0.125, 0.147, 0.164, 0.178].map((x) => f(x));
+      MA.donder = [0.215, 0.255, 0.33, 0.375].map((x) => f(x));
+      const thumpM = (t) => {
+        let a = 0;
+        for (const b of MA.slagen) {
+          const dt = t - b;
+          if (dt >= 0 && dt < 0.8) a += Math.exp(-dt / 0.1);
+        }
+        return Math.min(1.4, a);
+      };
+      MA.thump = thumpM;
+      // ── geluid, laag voor laag ──
+      c.at(t0 + 0.05, () => audio.speel('kosmisch-bas', { gain: 0.9, galmen: 0.3 }));
+      MA.slagen.forEach((b, i) => c.at(b, () => audio.hartslag(0.7 + 0.04 * i)));
+      c.at(MA.kraak, () => audio.speel('schiet-scherf', { gain: 0.55, rate: 0.6, galmen: 0.4 }));
+      c.at(MA.flits1 - 1.4 * sf, () => audio.riser(1.4 * sf, 1.0));
+      c.at(MA.flits1 - 0.05, () => {
+        audio.speel('zeldzaam-boem', { gain: 0.9, rate: 0.9, galmen: 0.3 });
+        trillen([60, 30, 60, 30, 200]);
+      });
+      c.at(MA.storm0 + 0.3, () => audio.speel('kosmisch-zwaai', { gain: 0.85, rate: 0.7, pan: -0.4, galmen: 0.3 }));
+      c.at(MA.storm0 + 2.4 * sf, () => audio.speel('kosmisch-zwaai', { gain: 0.85, rate: 0.6, pan: 0.4, galmen: 0.3 }));
+      MA.donder.forEach((b, i) => c.at(b, () => audio.boem(0.45 + 0.1 * i, 0.9 - 0.1 * i)));
+      c.at(MA.wereld0, () => audio.speel('kosmisch-gat', { gain: 0.8, rate: 0.75, galmen: 0.3 }));
+      c.at(MA.oog0, () => audio.hartslag(1.0));
+      c.at(MA.oog0 + 0.4 * sf, () => audio.hartslag(1.0));
+      c.at(MA.roar - 0.12, () => {
+        audio.speel('mythisch-brul', { gain: 1.25, rate: PAL.brul, galmen: 0.35 });
+        audio.speel('zeldzaam-boem', { gain: 0.95, rate: 0.75, galmen: 0.3 });
+        trillen([80, 30, 120, 30, 300]);
+      });
+      c.at(MA.roar + 0.35, () => audio.speel('mythisch-vleugel', { gain: 1.0, rate: 0.7, galmen: 0.3 }));
+      c.at(MA.roar + 1.1 * sf, () => audio.speel('mythisch-vleugel', { gain: 1.0, rate: 0.65, galmen: 0.3 }));
+      c.at(MA.pass0 - 0.1, () => {
+        audio.speel('kosmisch-zwaai', { gain: 1.1, rate: 0.8, pan: 0.3, galmen: 0.3 });
+        audio.speel('mythisch-vleugel', { gain: 1.0, rate: 0.6, galmen: 0.3 });
+      });
+      c.at(MA.rune0, () => audio.speel('kosmisch-bas', { gain: 0.85, rate: 0.9, galmen: 0.3 }));
+      c.at(MA.zuil0 - 0.6 * sf, () => audio.riser(1.8 * sf, 1.0));
+      c.at(MA.adem0 - 0.15, () => audio.speel('mythisch-adem', { gain: 1.1, rate: WN === 'kraken' ? 0.7 : 1, galmen: 0.3 }));
+      c.at(MA.dive0 - 0.05, () => {
+        audio.speel('mythisch-brul', { gain: 0.9, rate: PAL.brul * 0.8, galmen: 0.35 });
+        audio.speel('mythisch-vleugel', { gain: 1.0, rate: 0.7, galmen: 0.3 });
+        trillen([40, 30, 40, 30, 40, 30, 300]);
+      });
+      c.at(K0 - 0.12, () => {
+        audio.boem(1, 0.55);
+        audio.speel('zeldzaam-boem', { gain: 1.15, rate: 0.65, galmen: 0.35 });
+      });
+      // ── flitsen, schokken en golven ──
+      MA.slagen.forEach((b, i) => c.schok(b, 0.008 + 0.004 * i, 0.12));
+      c.flits(MA.flits1, 0.8, 0.05);
+      c.schok(MA.flits1, 0.1, 0.4);
+      for (let i = 0; i < 4; i++) c.golf(MA.flits1 + 0.1 * i, 1.2 + 0.4 * i, 0.8 - 0.1 * i, 0);
+      MA.donder.forEach((b) => {
+        c.flits(b, 0.55, 0.06);
+        c.flits(b + 0.12, 0.3, 0.05);
+        c.schok(b, 0.05, 0.25);
+      });
+      c.flits(MA.oogOpen, 0.35, 0.1);
+      c.flits(MA.roar, 0.7, 0.05);
+      c.flits(MA.roar + 0.03, 0.25, 0.22);
+      c.schok(MA.roar, 0.18, 0.7);
+      for (let i = 0; i < 5; i++) c.golf(MA.roar + 0.12 * i, 1.1 + 0.4 * i, 0.9 - 0.1 * i, 0.04);
+      c.schok(MA.pass0 + 0.2, 0.06, 0.5);
+      c.schok(MA.pass1 - 0.1, 0.07, 0.5);
+      c.golf(MA.pass1 - 0.1, 1.5, 0.8, 0);
+      c.flits(MA.dive0, 0.55, 0.1);
+      c.schok(MA.dive0, 0.08, 0.4);
+      for (let i = 0; i < 4; i++) c.golf(MA.dive0 + 0.1 * i, 1.3 + 0.5 * i, 0.9 - 0.12 * i, 0);
+      c.flits(K0 - 0.03, 0.45, 0.08);
+      c.golf(K0, 1.8, 1.0, 0);
+      c.golf(K0 + 0.12, 1.3, 0.8, 0);
+      // ── deeltjes ──
+      w({ mode: 0, t0: MA.kraak, delay: MA.flits1 - MA.kraak - 0.3, life: 1.3, n: 900, org: [0, 0.02], angle: 0, spread: c.TWEE_PI, spd: [0.05, 0.9], grav: [0, 0], drag: 1.4, size: [0.002, 0.006], col1: wk1, col2: wk2, alpha: 1, seed: 201 });
+      w({ mode: 0, t0: MA.flits1, delay: 0.1, life: 1.8, n: 1800, org: [0, 0.02], angle: 0, spread: c.TWEE_PI, spd: [0.4, 3.4], grav: [0, 0], drag: 1.0, size: [0.002, 0.008], col1: wk1, col2: wk2, alpha: 1, seed: 202 });
+      // de sfeer van de wereld: vuur en as, goudstof, bellen of sneeuw
+      const op = WN === 'kraken' ? 0.7 : WN === 'griffioen' ? -0.5 : 1.2;
+      w({ mode: 8, t0: MA.wereld0 - 1, delay: 0, life: 80, n: 260, size: [0.004, 0.014], grav: [0, op], spd: [0.5, 1.5], col1: wk1, col2: wk2, alpha: 0.9, seed: 203 });
+      w({ mode: 1, t0: MA.wereld0 - 1, delay: 0, life: 40, n: 70, size: [0.006, 0.03], col1: wk1, col2: wk2, alpha: 0.45, seed: 204 });
+      // de brul: de adem van het wezen, vanuit de mond
+      MA.stBrul = () => actToestand(MA.roar + 0.3, 1.78);
+      const mondM = (x, asp) => {
+        const st = actToestand(MA.roar + 0.3, asp);
+        const m = wzOmzet(st, art.wezen).naarWereld(art.wezen.mond[0], art.wezen.mond[1]);
+        x.org[0] = m[0] / c.H_ZICHT;
+        x.org[1] = m[1] / c.H_ZICHT;
+      };
+      const emM = (o, bij) => {
+        const e1 = w(o);
+        e1.bij = bij;
+        return e1;
+      };
+      if (WN === 'draak' || WN === 'feniks') {
+        emM({ mode: 0, t0: MA.roar + 0.2, delay: 1.1, life: 1.8, n: 3600, org: [0, 0], angle: 0, spread: 0.7, spd: [0.8, 3.4], grav: [0.05, 0.3], drag: 0.6, size: [0.003, 0.018], col1: wk1, col2: wk2, alpha: 1, seed: 205 }, mondM);
+      } else if (WN === 'kraken') {
+        emM({ mode: 6, t0: MA.roar + 0.1, delay: 1.2, life: 2.8, n: 40, org: [0, 0], size: [0.22, 0.5], col1: [0.2, 0.1, 0.7], col2: [0.1, 0.45, 0.9], alpha: 0.75, seed: 205, lod: false }, mondM);
+        emM({ mode: 0, t0: MA.roar + 0.1, delay: 1.2, life: 2.2, n: 2600, org: [0, 0], angle: 0, spread: c.TWEE_PI, spd: [0.2, 2.0], grav: [0, 0.08], drag: 0.8, size: [0.003, 0.013], col1: wk1, col2: wk2, alpha: 1, seed: 206 }, mondM);
+      } else {
+        emM({ mode: 5, t0: MA.roar, delay: 1.6, life: 3.6, n: 520, org: [0, 0], angle: 0, spread: c.TWEE_PI, spd: [0.2, 1.8], grav: [0, -0.2], drag: 0.9, size: [0.01, 0.036], col1: [1, 0.97, 0.88], col2: [1, 0.8, 0.3], alpha: 1, blend: 'alpha', seed: 205 }, mondM);
+        emM({ mode: 0, t0: MA.roar + 0.1, delay: 0.9, life: 1.8, n: 2200, org: [0, 0], angle: 0, spread: c.TWEE_PI, spd: [0.4, 3.0], grav: [0, -0.1], drag: 1.1, size: [0.002, 0.009], col1: wk1, col2: wk2, alpha: 1, seed: 206 }, mondM);
+      }
+      // het ritueel: de adem naar het midden, vonken die samenkomen, een uitbarsting en een regen van vonken
+      const mondH = (x, asp) => {
+        const st = actToestand(MA.adem0 + 0.3, asp);
+        const m = wzOmzet(st, art.wezen).naarWereld(art.wezen.mond[0], art.wezen.mond[1]);
+        x.org[0] = m[0] / c.H_ZICHT;
+        x.org[1] = m[1] / c.H_ZICHT;
+        x.angle = Math.atan2(-0.02 - m[1], 0 - m[0]);
+      };
+      emM({ mode: 0, t0: MA.adem0, delay: MA.adem1 - MA.adem0, life: 0.9, n: 3200, org: [0, 0], angle: 0, spread: 0.18, spd: [1.6, 3.4], grav: [0, 0], drag: 0.5, size: [0.003, 0.014], col1: wk1, col2: wk2, alpha: 1, seed: 207 }, mondH);
+      w({ mode: 0, t0: MA.adem0 + 0.3, delay: MA.adem1 - MA.adem0, life: 1.2, n: 2400, org: [0, -0.01], angle: 0, spread: c.TWEE_PI, spd: [0.1, 1.0], grav: [0, 0.1], drag: 1.2, size: [0.002, 0.007], col1: wk2, col2: [1, 1, 1], alpha: 1, seed: 208 });
+      w({ mode: 0, t0: MA.dive0, delay: 0.12, life: 2.4, n: 2400, org: [0, -0.01], angle: 0, spread: c.TWEE_PI, spd: [0.4, 4.0], grav: [0, -0.2], drag: 1.0, size: [0.002, 0.008], col1: wk1, col2: wk2, alpha: 1, seed: 209 });
+      w({ mode: 0, t0: MA.dive0, delay: 3.6 * sf, life: 2.6, n: 2200, org: [0, 0.62], angle: -Math.PI / 2, spread: 2.6, spd: [0.1, 0.9], grav: [0, -0.3], drag: 0.8, size: [0.002, 0.007], col1: wk1, col2: wk2, alpha: 0.95, seed: 210 });
+      // na de kaart: een laatste brul van het wezen
+      MA.slot = RV + (snel ? 1.6 : 2.8);
+      c.at(MA.slot - 0.1, () => {
+        audio.speel('mythisch-brul', { gain: 1.2, rate: PAL.brul * 0.85, galmen: 0.4 });
+        audio.boem(1, 0.6);
+        trillen([60, 30, 60, 30, 240]);
+      });
+      c.flits(MA.slot, 0.4, 0.06);
+      c.schok(MA.slot, 0.1, 0.5);
+      for (let i = 0; i < 3; i++) c.golf(MA.slot + 0.12 * i, 1.2 + 0.4 * i, 0.8 - 0.12 * i, 0.04);
+      w({ mode: 0, t0: MA.slot, delay: 0.3, life: 2.8, n: 1600, org: [0, 0.2], angle: 0, spread: c.TWEE_PI, spd: [0.3, 3.0], grav: [0, -0.2], drag: 1.0, size: [0.002, 0.008], col1: wk1, col2: wk2, alpha: 1, seed: 211 });
+    }
+    // de toestand van het wezen in de akten 3 en 4 (nul als het niet in beeld is), en daarna de achtergrondversie
+    function actToestand(t, asp) {
+      const hwv = hw(asp);
+      const e = (x) => glad(klem(x, 0, 1));
+      let x = 0, y = 0.05, s = 1, sx = 1, bank = 0, flap = 0, alpha = 0, wf = 6;
+      if (t >= MA.roar - 0.3 && t < MA.pass0) {
+        // het wezen is vlak voor je neus: de vleugels vullen het scherm
+        const q = ramp(t, MA.roar - 0.3, MA.pass0);
+        s = 2.0 + 0.9 * q;
+        y = 0.0 + 0.06 * Math.sin(t * 2.2);
+        bank = 0.08 * Math.sin(t * 1.5) + (t > MA.roar - 0.1 && t < MA.roar + 1.0 ? 0.28 * Math.sin(Math.min(1, (t - MA.roar + 0.1) / 0.3) * 1.57) * (1 - sm(t, MA.roar + 0.7, MA.roar + 1.1)) : 0);
+        alpha = sm(t, MA.roar - 0.3, MA.roar + 0.05);
+        wf = 5.2;
+      } else if (t >= MA.pass0 && t < MA.pass1) {
+        // het vliegt rakelings langs de camera, naar links
+        const q = ramp(t, MA.pass0, MA.pass1);
+        s = mix(2.9, 9, q * q * (0.5 + 0.5 * q));
+        x = -1.5 * hwv * q * q;
+        y = mix(0.0, 0.5, q);
+        bank = -0.3 * q;
+        alpha = 1 - sm(q, 0.85, 1);
+        wf = 9;
+      } else if (t >= MA.pass1 && t < MA.dive0) {
+        const A = 0.55 * hwv;
+        const cir = (tau) => ({ x: A * Math.cos(0.8 * tau + 2.4), y: 0.12 + 0.12 * Math.sin(1.6 * tau + 0.5), s: 0.62 + 0.18 * Math.sin(0.8 * tau + 1.0) });
+        const H = { x: -0.62 * hwv, y: 0.3, s: 0.82 };
+        const tau = t - MA.circ0;
+        if (t < MA.adem0 - 0.7) {
+          const c0 = cir(tau);
+          const intro = e(ramp(t, MA.pass1, MA.circ0 + 0.6)); // het komt van achteren terug in beeld
+          x = mix(0.9 * hwv, c0.x, intro);
+          y = mix(0.45, c0.y, intro);
+          s = mix(0.3, c0.s, intro);
+          alpha = sm(t, MA.pass1 + 0.02, MA.pass1 + 0.3);
+          const vx = -A * 0.8 * Math.sin(0.8 * tau + 2.4);
+          sx = Math.tanh(vx * 3.5) || 1;
+          bank = 0.1 * Math.sin(t * 1.3);
+        } else {
+          const q = e(ramp(t, MA.adem0 - 0.7, MA.adem0));
+          const c1 = cir(MA.adem0 - 0.7 - MA.circ0);
+          x = mix(c1.x, H.x, q);
+          y = mix(c1.y, H.y, q) + 0.015 * Math.sin(t * 2.4);
+          s = mix(c1.s, H.s, q);
+          sx = mix(Math.tanh(-A * 0.8 * Math.sin(0.8 * (MA.adem0 - 0.7 - MA.circ0) + 2.4) * 3.5) || 1, 1, q);
+          bank = 0.14 * q;
+          alpha = 1;
+        }
+        wf = t >= MA.adem0 - 0.7 && t < MA.adem1 ? 3.4 : 5.8;
+      } else if (t >= MA.dive0 && t < MA.dive1 + 0.1) {
+        const q = ramp(t, MA.dive0, MA.dive1);
+        const H = { x: -0.62 * hwv, y: 0.3, s: 0.82 };
+        s = mix(H.s, 6.5, q * q * (0.6 + 0.4 * q));
+        x = mix(H.x, 0.15 * hwv, e(q));
+        y = mix(H.y, -0.1, e(q));
+        bank = -0.3 * q;
+        alpha = 1 - sm(q, 0.82, 1);
+        wf = 8.5;
+      } else return null;
+      flap = -0.25 + 0.7 * Math.sin(wf * t);
+      if (t >= MA.roar - 0.1 && t < MA.roar + 1.1) flap = mix(flap, 0.5, sm(t, MA.roar - 0.1, MA.roar + 0.2) * (1 - sm(t, MA.roar + 0.8, MA.roar + 1.1)));
+      return { x, y, s, sx, bank, flap, alpha, t };
+    }
+    // het wezen dat levend achter de kaart hangt, na de onthulling
+    function wezenAchterKaart(t, asp) {
+      if (t < K0 + 0.4) return;
+      const hwv = hw(asp);
+      const wa = 0.5 * sm(t, K0 + 0.4, K0 + 2.4) * (1 - sm(t, MA.slot + 3.5, MA.slot + 5.5));
+      if (wa < 0.01) return;
+      const bump = t >= MA.slot ? 1 + 0.25 * Math.exp(-(t - MA.slot) / 0.35) : 1;
+      const st = { x: 0.5 * hwv + 0.06 * Math.sin(t * 0.4), y: 0.34 + 0.04 * Math.sin(t * 0.8), s: 1.35 * bump, sx: -1, bank: 0.1 + 0.05 * Math.sin(t * 0.7), flap: -0.3 + 0.5 * Math.sin(t * 3.0), alpha: 1, t };
+      wezenTekenen(t, asp, st, wa);
+    }
+    function mythActs(t, asp) {
+      const hwv = hw(asp);
+      const visB = c.H_ZICHT * asp;
+      const U1 = ramp(t, t0, t1);
+      // akte 1: lichtscheuren en hartslagen
+      if (t < MA.flits1 + 0.5) {
+        const th = MA.thump(t);
+        const stap = t >= MA.kraak + 0.55 * (MA.zwart - MA.kraak + 2.2) ? 2 : t >= MA.zwart ? 1 : 0;
+        const aan = sm(t, MA.kraak, MA.kraak + 0.15) * (1 - sm(t, MA.flits1, MA.flits1 + 0.5));
+        if (aan > 0.01) rissen(t, stap, aan * (0.7 + 0.8 * Math.min(1, th)), asp, visB);
+        const al = sm(t, MA.kraak, MA.flits1) * (1 - sm(t, MA.flits1, MA.flits1 + 0.3));
+        c.licht(t, 0, 0.02, 0.1 + 0.55 * Math.min(1, th) * al, 0.02 + 0.03 * al, 0.2 * al * th, 0.5 * al * th, t * 0.3, wk1);
+      }
+      // akte 2: de storm en de wereld
+      const stormA = sm(t, MA.storm0, MA.storm0 + 0.5) * (1 - sm(t, MA.oog0 - 0.3, MA.oog0 + 0.3));
+      const wA = sm(t, MA.wereld0, MA.wereld1) * (1 - sm(t, MA.dive1, MA.dive1 + (t1 - MA.dive1))) ;
+      if (wA > 0.003 || t >= K0) {
+        const q = ramp(t, MA.wereld0, t1);
+        const m = 0.88 + 0.4 * q;
+        const hz = c.H_ZICHT * 4.6 / 3;
+        const wB = Math.max(hz * asp, hz * (16 / 9)) * 1.1 * m;
+        const hz2 = c.H_ZICHT * 3.4 / 3;
+        const wV = Math.max(hz2 * asp, hz2 * (16 / 9)) * 1.1 * (1.0 + 0.9 * q);
+        const naK = t >= K0 ? 0.42 * (1 - sm(t, RV + 0.5, RV + 3.5)) * sm(t, K0, K0 + 0.5) : 0;
+        const a = t >= K0 ? naK : wA;
+        if (a > 0.003) {
+          c.vlak(t, tex.wr.bg, Math.sin(t * 0.13) * 0.04, 0.0, -1.6, 0, 0, 0.01 * Math.sin(t * 0.17), wB, wB * 0.5625, a, 2, 0, 0, k1, 0, 0);
+          if (t < K0) c.vlak(t, tex.wr.voor, 0, -0.1 * q, -0.4, 0, 0, 0, wV, wV * 0.5625, a * (1 - 0.6 * sm(t, MA.adem0, MA.adem1)), 2, 0, 0, k1, 0, 0);
+        }
+      }
+      if (stormA > 0.004) {
+        const a = [0, 0, 0], b = [0, 0, 0];
+        for (let i = 0; i < 3; i++) {
+          a[i] = wk1[i] * 0.55;
+          b[i] = wk2[i] * 0.5;
+        }
+        c.warp(t, 0.55 * stormA, 2.4 + 2.6 * sm(t, MA.storm0, MA.wereld1), 0.25, a, b);
+      }
+      // akte 3: het oog
+      const oA = sm(t, MA.oog0 - 0.15, MA.oog0 + 0.25) * (1 - sm(t, MA.roar - 0.1, MA.roar + 0.5));
+      if (oA > 0.004) {
+        const open = glad(ramp(t, MA.oog0, MA.oogOpen));
+        const wO = 2.5 + 1.1 * ramp(t, MA.oog0, MA.roar);
+        const tril = 0.006 * Math.sin(t * 61) * ramp(t, MA.oogOpen, MA.roar);
+        c.vlak(t, tex.oog, tril, 0.03, 0.15, 0, 0, 0, wO, Math.max(0.005, wO * 0.56 * open), oA, 2, 0, 0, k1, 0, 0);
+        c.licht(t, 0, 0.03, 0.15 * oA * open, 0.05, 0.1, 0.2 * oA * open, t * 0.2, wk1);
+      }
+      // het wezen zelf (akte 3 en 4)
+      const st = actToestand(t, asp);
+      if (st) {
+        const roarT = t - MA.roar;
+        const fel = (roarT > 0 && roarT < 2 ? 0.5 + 0.9 * Math.exp(-roarT * 1.2) : 0.15) * st.alpha;
+        if (fel > 0.01 && c.kw < 3) c.stralen(t, fel * 0.5, 0.6, 0.12, 0.1, st.x / c.H_ZICHT, st.y / c.H_ZICHT, t * 0.3, 1, wk1, wk2, 14);
+        wezenTekenen(t, asp, st);
+      }
+      // akte 4: runen, lichtkolom en de kiem van de kaart
+      const rA = sm(t, MA.rune0, MA.rune0 + 1.2) * (1 - sm(t, MA.dive0, MA.dive0 + 0.4));
+      if (rA > 0.004) {
+        const D = 3.1 * (0.85 + 0.15 * veer(ramp(t, MA.rune0, MA.rune0 + 1.4)));
+        const pulse = 1 + 0.04 * Math.sin(t * 5);
+        c.vlak(t, tex.runen, 0, -0.1, 0.05, 0, 0, t * 0.35, D * pulse, D * pulse, rA * 0.9, 2, 1, 0, k1, 0, 0);
+        c.vlak(t, tex.runen, 0, -0.1, 0.05, 0, 0, -t * 0.6, D * 0.62, D * 0.62, rA * 0.6, 2, 1, 0, k1, 0, 0);
+      }
+      const zA = sm(t, MA.zuil0, MA.zuil0 + 0.8) * (1 - sm(t, MA.dive0, MA.dive0 + 0.35));
+      if (zA > 0.004) {
+        const bw = 0.55 + 0.12 * Math.sin(t * 7) + 0.4 * sm(t, MA.adem0, MA.adem1);
+        c.vlak(t, tex.zuil, 0, 0.9, 0.04, 0, 0, 0, bw, 3.8, zA * 0.85, 2, 1, 0, k1, 0, 0);
+      }
+      const kA = sm(t, MA.adem0 - 0.2, MA.adem1) * (1 - sm(t, MA.dive1 - 0.1, t1 + 0.02));
+      if (kA > 0.004) {
+        const bs = 0.5 + 0.55 * ramp(t, MA.adem0 - 0.2, MA.dive0) + 0.03 * Math.sin(t * 9);
+        c.vlak(t, tex.kiem, 0, -0.05, 0.06, 0, 0, 0.02 * Math.sin(t * 2), bs * 0.69, bs, kA * (0.5 + 0.5 * sm(t, MA.adem0, MA.adem1)), 2, 0, 0, k1, 0, 0);
+      }
+      const hl = sm(t, MA.adem0, MA.adem1) * (1 - sm(t, MA.dive1, t1));
+      if (hl > 0.01) c.licht(t, 0, -0.02, 0.2 * hl, 0.05, 0.5 * hl, 0.5 * hl * hl, t * 0.5, wk2);
+    }
+    function mythPost(p, t) {
+      if (t >= t0 && t < K0) {
+        p.dark = 0;
+        p.sat = 1.1;
+        p.bloom = 1.05;
+        const th = MA.thump(t);
+        const rt = t - MA.roar;
+        let gl = 0;
+        if (t < MA.flits1) {
+          gl = (0.2 + 0.45 * Math.min(1, th)) * ramp(t, MA.kraak, MA.flits1) * 0.5;
+          p.vig = 1.6 + 0.8 * ramp(t, t0, MA.flits1);
+          p.zoom = 1 + 0.03 * Math.min(1, th) * ramp(t, MA.kraak, MA.flits1);
+        } else {
+          p.vig = 1.35;
+        }
+        for (const b of MA.donder) if (t >= b && t < b + 0.4) gl = Math.max(gl, 0.5 * Math.exp(-(t - b) / 0.1));
+        if (rt > -0.02 && rt < 0.5) gl = Math.max(gl, 0.7 * Math.exp(-Math.max(rt, 0) / 0.12));
+        if (t >= MA.flits1 && t < MA.flits1 + 0.5) gl = Math.max(gl, 0.8 * Math.exp(-(t - MA.flits1) / 0.1));
+        p.gl = gl * rg;
+        if (rt > 0 && rt < 1.5) {
+          p.zoom *= 1 + 0.08 * Math.exp(-rt / 0.2);
+          p.rad = Math.max(p.rad, 0.4 * Math.exp(-rt / 0.35));
+        }
+        if (t >= MA.pass0 && t < MA.pass1) p.rad = Math.max(p.rad, 0.35 * Math.sin(ramp(t, MA.pass0, MA.pass1) * 3.14));
+        if (t >= MA.dive0 && t < MA.dive1) p.rad = Math.max(p.rad, 0.3 * ramp(t, MA.dive0, MA.dive1));
+        if (t >= MA.adem0 && t < MA.adem1) p.bloom = 1.12 + 0.2 * ramp(t, MA.adem0, MA.adem1);
+        p.grade = [1 + 0.1 * (wk1[0] - 0.6), 1 + 0.1 * (wk1[1] - 0.6), 1 + 0.1 * (wk1[2] - 0.6)];
+      }
+    }
+    function mythSchud(t) {
+      if (!myth) return 0;
+      const R = reduceer ? 0.15 : 1;
+      let a = 0;
+      if (t >= t0 && t < MA.flits1) a += (0.002 + 0.012 * Math.pow(ramp(t, t0, MA.flits1), 2) * (0.5 + 0.5 * Math.min(1, MA.thump(t)))) * R;
+      if (t >= MA.storm0 && t < MA.oog0) a += 0.004 * R;
+      if (t >= MA.roar && t < MA.roar + 1.6) a += 0.014 * Math.exp(-(t - MA.roar) / 0.6) * R;
+      if (t >= MA.pass0 && t < MA.pass1) a += 0.01 * R;
+      if (t >= MA.adem0 && t < MA.adem1) a += (0.003 + 0.004 * ramp(t, MA.adem0, MA.adem1)) * R;
+      if (t >= MA.dive0 && t < K0) a += 0.012 * ramp(t, MA.dive0, MA.dive1) * R;
+      return a;
     }
 
     // ───────────────── de upgrade: de reeks lijkt op ZELDZAAM! uit te komen en breekt dan nog eens open ─────────────────
@@ -2963,7 +3793,7 @@
     }
 
     // ═════════════════════════ samenstellen ═════════════════════════
-    const plaatNu = (t) => plaat(t, sm(t, t0, t0 + 0.35 * sf) * (1 - sm(t, K0 + 0.2, K0 + 1.4)));
+    const plaatNu = (t) => plaat(t, (myth ? sm(t, t0 + TEASE_T * 0.015, t0 + TEASE_T * 0.08) : sm(t, t0, t0 + 0.35 * sf)) * (1 - sm(t, K0 + 0.2, K0 + 1.4)));
     const logoNu = (t) => (tr >= 2 ? (LS > 0 && t < LS ? tex.logoZ : tex.logoT) : tex.logo);
     const logoR = (t) => (LS > 0 && t >= LS ? t - LS : t - RV - 0.12);
 
@@ -2971,6 +3801,7 @@
       if (eigenT) {
         plaatNu(t);
         if (tr === 3) kosmosTease(t, asp);
+        else if (myth) mythActs(t, asp);
         else wezenTease(t, asp);
         return;
       }
@@ -2981,7 +3812,10 @@
       if (tr >= 3 && t >= t0 && (!ult || t < UL.f2)) {
         if (eigenT && t >= t1) plaatNu(t);
         if (tr === 3) kosmosTekenen(t, asp, 0);
-        else wezenAchter(t, asp);
+        else if (myth) {
+          if (t >= t1) mythActs(t, asp);
+          if (!ult || t < UL.f2) wezenAchterKaart(t, asp);
+        } else wezenAchter(t, asp);
       }
       achter0(t, asp);
       if (ult) {
@@ -3016,18 +3850,26 @@
       p.grade = null;
       post0(t);
       if (tr === 2) glimPost(p, t);
-      else if (tr === 3) kosmosPost(p, t);
-      else if (tr === 4) wezenPost(p, t);
+      else if (tr === 3) {
+        kosmosPost(p, t);
+        rustigerOnthulling(p, t);
+      }
+      else if (tr === 4) {
+        wezenPost(p, t);
+        if (myth) mythPost(p, t);
+        rustigerOnthulling(p, t);
+      }
       if (ult) ultPost(p, t);
       return p;
     }
     function schud(t) {
-      let a = schud0(t);
+      let a = myth && t >= t0 && t < t1 ? 0 : schud0(t);
       if (eigenT && tr >= 3 && t >= t0 && t < t1) {
         const u = ramp(t, t0, t1);
         a += (0.0012 + 0.006 * u * u) * (reduceer ? 0.15 : 1);
       }
       if (ult) a += ultSchud(t);
+      a += mythSchud(t);
       return a;
     }
 

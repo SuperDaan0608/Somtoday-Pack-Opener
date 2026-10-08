@@ -1131,7 +1131,7 @@
         if (t < Zt.t0 - 0.05 && !(opInst && opInst.sprong)) { /* gewone regels hieronder */ }
         else if (t >= Zt.t0 - 0.05 && t < K0) {
           // de lange reeksen (kosmisch en mythisch) mag je overslaan: dan springen we naar vlak voor de kaart
-          if (tl.klikSprong && t >= Zt.t0 + 1.0 && t < tl.klikSprong - 0.3) return { doel: tl.klikSprong };
+          if (tl.klikSprong && t >= Zt.t0 + (tl.klikVanaf || 1.0) && t < tl.klikSprong - 0.3) return { doel: tl.klikSprong };
           return null; // de tease laten we even gebeuren
         }
         if (t >= tl.vier && t < tl.EIND - 0.3) return { doel: tl.EIND + 0.05 };
