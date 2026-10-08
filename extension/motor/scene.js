@@ -109,7 +109,7 @@
           sat: Math.max(LOOK[tier].sat, 1.08),
           holo: Math.max(LOOK[tier].holo, 1.25),
           glit: Math.max(LOOK[tier].glit, 1.7),
-        }, trede >= 2 ? { holo: 1.45, glit: 2.0, bloom: Math.max(LOOK[tier].bloom, 0.84), stralen: LOOK[tier].stralen + 10 } : null)
+        }, trede >= 2 ? { holo: 1.45, glit: 2.0, bloom: Math.max(LOOK[tier].bloom, 0.8), stralen: LOOK[tier].stralen + 4 } : null)
       : LOOK[tier];
     const op = d.opening !== 'pak' && SPO.openingen ? SPO.openingen[d.opening] : null;
     const tl = maakTijdlijnZ(d);

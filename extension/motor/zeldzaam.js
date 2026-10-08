@@ -645,7 +645,7 @@
 
     const vleugel = NW(900, 700);
     const w = vleugel.getContext('2d');
-    const H = [80, 620];
+    const H = [280, 620];
     const rij = (n, a0, a1, l0, l1, b, P2, k) => {
       for (let i = 0; i < n; i++) {
         const q = i / (n - 1);
@@ -654,8 +654,8 @@
         vulSil(w, () => veerPad(w, H[0], H[1], a, l, b, (q - 0.5) * 30), P2, { gloed: k, rx: 3, ry: 5 });
       }
     };
-    rij(12, -2.25, -0.75, 790, 560, 50, { ...P, midden: '#f0e8d0', licht: '#ffffff', donker: '#b0a070', donker2: '#e6d8b0' }, 22);
-    rij(9, -2.1, -0.85, 500, 360, 44, { ...P, midden: '#ffffff', licht: '#ffffff', donker: '#d8c890', donker2: '#f4ecd0' }, 12);
+    rij(12, -2.0, -0.4, 790, 560, 50, { ...P, midden: '#f0e8d0', licht: '#ffffff', donker: '#b0a070', donker2: '#e6d8b0' }, 22);
+    rij(9, -1.9, -0.55, 500, 360, 44, { ...P, midden: '#ffffff', licht: '#ffffff', donker: '#d8c890', donker2: '#f4ecd0' }, 12);
     // gouden punten
     w.save();
     w.globalCompositeOperation = 'source-atop';
@@ -2570,7 +2570,7 @@
       }
       // de kaart wordt neergelegd: een uitbarsting in de kleuren van het wezen
       if (eigenT) {
-        c.flits(K0 - 0.03, 0.9, 0.1);
+        c.flits(K0 - 0.03, 0.35, 0.08);
         c.golf(K0, 1.8, 1.0, 0);
         c.golf(K0 + 0.12, 1.3, 0.8, 0);
         w({ mode: 0, t0: K0, delay: 0.2, life: 2.2, n: 1400, org: [0, 0.01], angle: 0, spread: c.TWEE_PI, spd: [0.4, 2.8], grav: [0, -0.2], drag: 1.1, size: [0.002, 0.007], col1: wk1, col2: wk2, alpha: 1, seed: 128 });
