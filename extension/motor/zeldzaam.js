@@ -2441,12 +2441,12 @@
         c.vlak(t, tex.nevel, Math.sin(t * 0.05) * 0.1, Math.cos(t * 0.04) * 0.06, -1.6, 0, 0, 0.03 * Math.sin(t * 0.07), wN, wN * (720 / 1280), na, 2, 1, 0, k1, 0, 0);
       }
       // de nevel-warp
-      const wa = 0.6 * sm(t, tw, tw + 1.2) * fade;
+      const wa = 0.26 * sm(t, tw, tw + 1.2) * fade;
       if (wa > 0.004) {
         const snelh = eigenT ? 0.3 + 3.0 * Math.pow(ramp(t, tw, K0), 2) : 1.0 + 1.2 * Math.exp(-(t - tw) / 1.2);
         const a = [0, 0, 0], b = [0, 0, 0];
-        a[0] = 0.55 + 0.15 * Math.sin(t * 0.7); a[1] = 0.35; a[2] = 1;
-        b[0] = 0.15; b[1] = 0.45 + 0.15 * Math.sin(t * 0.5); b[2] = 1;
+        a[0] = 0.4 + 0.12 * Math.sin(t * 0.7); a[1] = 0.2; a[2] = 0.95;
+        b[0] = 0.1; b[1] = 0.3 + 0.12 * Math.sin(t * 0.5); b[2] = 0.95;
         c.warp(t, wa, snelh * (t > K0 ? 1 - 0.6 * ramp(t, K0, K0 + tl.spin) : 1), 0.2 + 0.2 * ramp(t, tw, K0), a, b);
       }
       // het zwarte gat
