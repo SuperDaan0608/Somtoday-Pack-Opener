@@ -143,7 +143,7 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
       const vak = tekstVeld(k.vak, GRENS.vak, 0);
       if (vak === null || !getal(k.cijfer, 1, 10) || !Number.isInteger(k.tier)) return null;
       const t = Number.isInteger(k.t) ? Math.max(0, Math.min(4, k.t)) : k.z === true ? 1 : 0;
-      kaarten.push({ vak, cijfer: rond2(k.cijfer), tier: Math.max(0, Math.min(4, k.tier)), z: t >= 1, t });
+      kaarten.push({ vak, cijfer: rond2(k.cijfer), tier: Math.max(0, Math.min(4, k.tier)), z: t >= 1, t, v: k.v === true });
     }
     if (!kaarten.length) return null;
     const uit = { kaarten };
@@ -518,9 +518,9 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
   }
   // Wat vrienden van mijn team zien: vak, cijfer, niveau en zeldzaam. Geen id's, geen namen.
   function teamMomentopname(kaarten) {
-    const uit = { kaarten: kaarten.map((e) => ({ vak: String(e.vak || '').slice(0, 24), cijfer: Math.round(e.cijfer * 100) / 100, tier: Math.max(0, Math.min(4, e.tier | 0)), z: e.zeldzaam === true || (e.trede | 0) >= 1, t: Math.max(0, Math.min(4, e.trede | 0)) || (e.zeldzaam === true ? 1 : 0) })) };
+    const uit = { kaarten: kaarten.map((e) => ({ vak: String(e.vak || '').slice(0, 24), cijfer: Math.round(e.cijfer * 100) / 100, tier: Math.max(0, Math.min(4, e.tier | 0)), z: e.zeldzaam === true || (e.trede | 0) >= 1, t: Math.max(0, Math.min(4, e.trede | 0)) || (e.zeldzaam === true ? 1 : 0), v: e.vloek === true })) };
     const G = globalThis.SPOGevecht;
-    if (G && G.chemie && uit.kaarten.length) uit.ch = G.chemie(G.ordenTeam(uit.kaarten.map((k) => ({ vak: k.vak, cijfer: k.cijfer, tier: k.tier, z: k.z })), 0)).score;
+    if (G && G.chemie && uit.kaarten.length) uit.ch = G.chemie(G.ordenTeam(uit.kaarten.map((k) => ({ vak: k.vak, cijfer: k.cijfer, tier: k.tier, z: k.z, v: k.v })), 0)).score;
     return uit;
   }
   async function mijnTeamDeelbaar(galerij) {
@@ -563,6 +563,82 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
       try { const m = await ontsleutel(await sleutelVoor(st, v), b.data); if (m && typeof m === 'object' && !Array.isArray(m)) uit.push({ seq: b.seq, leeftijd: b.leeftijd | 0, m }); } catch (e) { /* niet van deze vriend */ }
     }
     return uit;
+  }
+
+  // ---- v2.4: GG sturen en live meekijken ----
+  // Alles gaat als gewoon versleuteld bericht tussen twee vrienden (de server ziet nooit wat erin staat):
+  //   { t: 'gg', k }                                          'GG' op een kosmische of mythische kaart van die vriend (k = het tijdstip van de kaart, uit zijn `top`)
+  //   { t: 'kijk', mid, vak, cijfer, trede, opening, seizoen, ts }   'ik open nu een kaart': de kijker speelt dezelfde animatie af (geen video)
+  //   { t: 'emoji', e }                                       een emoji die over het scherm van de opener vliegt
+  // Wat binnenkomt gaat altijd door schoonGG / schoonKijk / schoonKijkEmoji.
+  const KIJK_EMOJI = ['\u{1F525}', '\u{1F62E}', '\u{1F44F}', '\u{1F602}']; // vuur, verbazing, applaus, lachen
+  const KIJK_MAX_LEEFTIJD = 60; // seconden: een uitnodiging om mee te kijken is daarna te oud
+  const OPENINGEN_LIJST = ['pak', 'kluis', 'plinko', 'ster', 'raket', 'schiet', 'dans'];
+  const SEIZOENEN_LIJST = ['auto', 'halloween', 'kerst', 'zomer', 'geen'];
+  const ggSleutel = (k) => (typeof k === 'number' && Number.isFinite(k) ? String(Math.round(k)) : typeof k === 'string' && /^\d{10,14}$/.test(k) ? k : null);
+  function schoonGG(m) {
+    if (!m || typeof m !== 'object' || m.t !== 'gg') return null;
+    const k = ggSleutel(m.k);
+    return k ? { k } : null;
+  }
+  function schoonKijk(m, leeftijd) {
+    if (!m || typeof m !== 'object' || m.t !== 'kijk' || !(leeftijd < KIJK_MAX_LEEFTIJD)) return null;
+    const vak = tekstVeld(m.vak, GRENS.vak, 1);
+    if (vak === null || !getal(m.cijfer, 1, 10) || !Number.isInteger(m.trede) || m.trede < 3 || m.trede > 4 || typeof m.mid !== 'string' || !/^[0-9a-f]{16,32}$/.test(m.mid)) return null;
+    return {
+      mid: m.mid, vak, cijfer: rond1(m.cijfer), trede: m.trede,
+      opening: OPENINGEN_LIJST.includes(m.opening) ? m.opening : 'pak',
+      seizoen: SEIZOENEN_LIJST.includes(m.seizoen) ? m.seizoen : 'auto',
+    };
+  }
+  function schoonKijkEmoji(m) {
+    if (!m || typeof m !== 'object' || m.t !== 'emoji' || typeof m.e !== 'string' || m.e.length > 4) return null;
+    const kaal = m.e.replace(/\uFE0F/g, '');
+    return KIJK_EMOJI.find((x) => x === kaal) || null;
+  }
+  // Mijn GG naar een vriend. Eén GG per vriend per kaart; wat ik al stuurde onthoud ik in st.ggGestuurd (bij de vriendengegevens).
+  async function stuurGG(st, vriend, topKaart) {
+    const k = ggSleutel(topKaart && topKaart.ts);
+    if (!k || !topKaart || (topKaart.t !== 3 && topKaart.t !== 4)) throw new Error('Dit is geen kosmische of mythische kaart.');
+    st.ggGestuurd = st.ggGestuurd && typeof st.ggGestuurd === 'object' && !Array.isArray(st.ggGestuurd) ? st.ggGestuurd : {};
+    const lijst = Array.isArray(st.ggGestuurd[vriend.id]) ? st.ggGestuurd[vriend.id] : (st.ggGestuurd[vriend.id] = []);
+    if (lijst.includes(k)) return false;
+    await stuurBericht(st, vriend, { t: 'gg', k });
+    lijst.push(k);
+    if (lijst.length > 60) lijst.splice(0, lijst.length - 60);
+    await bewaar(st);
+    return true;
+  }
+  const GG_OPSLAG = 'spo_gg'; // { [kaartTijd]: [vriendId, ...] }: wie mij GG stuurde op mijn kosmische of mythische kaarten (alleen in deze browser)
+  async function leesGG() { const g = await lees(GG_OPSLAG); return g && typeof g === 'object' && !Array.isArray(g) ? g : {}; }
+  // Onthoudt een binnengekomen GG. Geeft true terug als het nieuw was. Hoogstens 60 kaarten, 100 vrienden per kaart.
+  async function bewaarGG(vriendId, k) {
+    const g = await leesGG();
+    const lijst = Array.isArray(g[k]) ? g[k] : [];
+    if (lijst.includes(vriendId) || lijst.length >= 100) return false;
+    lijst.push(vriendId);
+    g[k] = lijst;
+    const sleutels = Object.keys(g);
+    if (sleutels.length > 60) for (const x of sleutels.sort((a, b) => Number(a) - Number(b)).slice(0, sleutels.length - 60)) delete g[x];
+    await schrijf(GG_OPSLAG, g);
+    return true;
+  }
+  // Wie krijgt een 'kijk mee'? Alleen vrienden aan wie je al al je kaarten laat zien (deelmodus 'alles'): zij zien het cijfer toch al.
+  // Bij 'selectie' of 'niets' zou het cijfer van een kaart die je niet deelt anders toch lekken.
+  const kijkOntvangers = (st) => st.vrienden.filter((v) => v.status === 'vriend' && !v.andereVersie && v.deel && v.deel.modus === 'alles');
+  async function stuurKijk(st, data) {
+    const mid = maakRid().slice(0, 16);
+    const m = { t: 'kijk', mid, vak: String(data.vak || '').slice(0, GRENS.vak), cijfer: rond1(Number(data.cijfer)), trede: data.trede | 0, opening: data.opening, seizoen: data.seizoen, ts: Date.now() };
+    if (!schoonKijk(m, 0)) throw new Error('Dit kan niet worden gedeeld.');
+    let n = 0;
+    for (const v of kijkOntvangers(st)) { try { await stuurBericht(st, v, m); n++; } catch (e) { /* die vriend slaan we over */ } }
+    return n;
+  }
+  async function stuurKijkEmoji(st, vriendId, emoji) {
+    const v = st.vrienden.find((x) => x.id === vriendId && x.status === 'vriend');
+    const e = KIJK_EMOJI.find((x) => x === String(emoji || '').replace(/\uFE0F/g, ''));
+    if (!v || !e) throw new Error('Deze emoji kan niet worden gestuurd.');
+    await stuurBericht(st, v, { t: 'emoji', e });
   }
 
   // ---- live synchroniseren ----
@@ -748,6 +824,7 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
     TEAM, GEVECHTEN, schoonTeam, leesTeam, bewaarTeam, teamKaarten, teamMomentopname, mijnTeamDeelbaar, leesGevechten, bewaarUitslag, stuurBericht, haalBerichten, maakLive, zichtbaar, lees, schrijf, wis, heeftOpslag,
     // reacties en 'voorspel mijn cijfer'
     REACTIES, GRENS, eigen, deelbareKaarten, schoonBlob, schoonKaarten, schoonReacties, schoonRonden, schoonGokken, maakInhoud, zetBlobs, haalOp, zetReactie,
+    KIJK_EMOJI, schoonGG, schoonKijk, schoonKijkEmoji, stuurGG, leesGG, bewaarGG, kijkOntvangers, stuurKijk, stuurKijkEmoji,
     reactiesOpMijnKaarten, maakRid, leesGok, startRonde, stopRonde, ranglijst, deelUitslag, slaGokOp, ruimOp, leesDicht, opOpslagWijziging,
   };
   globalThis.SPOVrienden = lib;

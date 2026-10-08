@@ -170,7 +170,7 @@
         return e + r;
       };
       z.EIND = z.echt(bang + (snel ? 6.0 : 12.5));
-      z.rust2 = (t) => sm(t, bang + (snel ? 3 : 7), bang + (snel ? 5 : 10));
+      z.rust2 = (t) => (t < bang ? 0 : 0.9 + 0.1 * sm(t, bang + 5, bang + 9)); // na de bang meteen rustiger licht, zodat de nieuwe wereld te zien is
     }
     return z;
   }
@@ -1117,7 +1117,7 @@
     c.textAlign = 'center';
     c.textBaseline = 'alphabetic';
     const txt = ['', '', 'GLIM!', 'KOSMISCH!', 'MYTHISCH!'][tr];
-    let fs = 340;
+    let fs = tr === 2 ? 270 : 300;
     c.font = `italic 900 ${fs}px ${sport}`;
     while (fs > 150 && c.measureText(txt).width > 1700) {
       fs -= 4;
@@ -2055,7 +2055,7 @@
       if (t > K0) {
         // legendarisch: vlak voor de supernova wordt het stil en donker, daarna komt alles terug
         const stilte = leg ? 1 - 0.9 * sm(t, N - 1.1, N - 0.2) * (1 - sm(t, N, N + 0.5)) : 1;
-        const rust = (1 - 0.35 * sm(r, leg ? N - RV + 2.5 : 3.5, leg ? N - RV + 5.5 : 6.5)) * stilte;
+        const rust = (1 - 0.35 * sm(r, leg ? N - RV + 2.5 : 3.5, leg ? N - RV + 5.5 : 6.5)) * stilte * (naBang(t) ? 0.4 : 1);
         const al = sm(t, K0 + tl.spin * 0.5, RV) * 0.25 + sm(r, 0, 0.5) * (0.35 + 0.4 * sm(r, 0.8, 2));
         regen(t, 0.14, 0.4);
         c.stralen(t, al * rust, 0.55 + 0.5 * Math.exp(-r / 1.2) * (r > 0 ? 1 : 0), 0.2, 0.2, 0, 0.02, t * 0.5, 1, k1, k2, 26);
@@ -2329,9 +2329,9 @@
       c.schok(S2 + 0.3, 0.04, 0.25);
       for (let i = 0; i < 3; i++) c.golf(S2 + 0.1 * i, 1.4 + 0.5 * i, 0.8 - 0.15 * i, -0.04);
       // de scherven: kristal (wit, cyaan, roze) vliegen naar buiten; later nog een kleine vlaag als de kaart terugkomt
-      w({ mode: 7, t0: S2, delay: 0.04, life: 2.8, n: 820, org: [0, -0.08], angle: 0, spread: c.TWEE_PI, spd: [0.5, 3.0], grav: [0, -0.9], drag: 0.9, size: [0.01, 0.038], col1: [0.75, 1, 1], col2: [1, 0.7, 0.95], alpha: 1, blend: 'alpha', regen: 0, seed: 101, per: 1 });
-      w({ mode: 7, t0: S2 + 0.3, delay: 0.05, life: 2.2, n: 360, org: [0, -0.08], angle: 0, spread: c.TWEE_PI, spd: [0.3, 1.6], grav: [0, -0.5], drag: 1.1, size: [0.008, 0.026], col1: [1, 1, 1], col2: [0.6, 0.95, 1], alpha: 1, blend: 'alpha', regen: 1, seed: 102, per: 1 });
-      w({ mode: 0, t0: S2 + 0.28, delay: 0.1, life: 2.2, n: 1200, org: [0, -0.08], angle: 0, spread: c.TWEE_PI, spd: [0.3, 2.6], grav: [0, -0.2], drag: 1.2, size: [0.002, 0.007], col1: k1, col2: k2, alpha: 0.95, regen: 1, seed: 103 });
+      w({ mode: 7, t0: S2, delay: 0.04, life: 2.8, n: 520, org: [0, -0.08], angle: 0, spread: c.TWEE_PI, spd: [0.5, 3.0], grav: [0, -0.9], drag: 0.9, size: [0.01, 0.038], col1: [0.75, 1, 1], col2: [1, 0.7, 0.95], alpha: 1, blend: 'alpha', regen: 0, seed: 101, per: 1 });
+      w({ mode: 7, t0: S2 + 0.3, delay: 0.05, life: 2.2, n: 200, org: [0, -0.08], angle: 0, spread: c.TWEE_PI, spd: [0.3, 1.6], grav: [0, -0.5], drag: 1.1, size: [0.008, 0.026], col1: [1, 1, 1], col2: [0.6, 0.95, 1], alpha: 1, blend: 'alpha', regen: 1, seed: 102, per: 1 });
+      w({ mode: 0, t0: S2 + 0.28, delay: 0.1, life: 2.2, n: 700, org: [0, -0.08], angle: 0, spread: c.TWEE_PI, spd: [0.3, 2.6], grav: [0, -0.2], drag: 1.2, size: [0.002, 0.007], col1: k1, col2: k2, alpha: 0.95, regen: 1, seed: 103 });
       // zwevende kristalstofjes in pastel: tijdens de hele viering
       w({ mode: 1, t0: K0, delay: 0, life: 16, n: 70, size: [0.008, 0.04], col1: k1, col2: k2, regen: 1, alpha: 0.5, seed: 104 });
       w({ mode: 8, t0: K0, delay: 0, life: 40, n: 150, size: [0.004, 0.012], grav: [0, 1], spd: [0.5, 1.2], col1: [0.8, 1, 1], col2: [1, 0.8, 1], alpha: 0.8, seed: 105 });
@@ -2339,14 +2339,14 @@
     function glimKaart(zk, t) {
       const S = S2;
       const tril = sm(t, S - 0.5, S) * (t < S ? 1 : 0);
-      zk.folie += 0.9 * tril + 0.4 * sm(t, K0 + 0.3, RV);
+      zk.folie += 0.5 * tril;
       zk.schaal *= 1 + 0.012 * tril * Math.sin(t * 95);
       if (t >= S && t < S + 0.3) zk.alpha = 0;
       else if (t >= S + 0.3) {
         // opnieuw pop-in: klein beginnen, doorschieten, landen; met een extra draai en een golf folie
         zk.schaal *= mix(0.15, 1, veer(ramp(t, S + 0.3, S + 1.0)));
         zk.rot += Math.PI * 2 * (1 - glad(ramp(t, S + 0.3, S + 1.35)));
-        zk.folie += 1.4 * Math.exp(-(t - S - 0.3) / 1.5);
+        zk.folie += 0.8 * Math.exp(-(t - S - 0.3) / 1.2);
       }
     }
     function glimVoor(t, layY, visB) {
@@ -2760,8 +2760,8 @@
       c.at(BANG + 2.6 * UK, () => audio.fanfare(1));
       c.at(BANG + 4.6 * UK, () => audio.publiek(6, 1));
       c.at(BANG + 4.8 * UK, () => audio.gejuich(5, 1));
-      c.flits(BANG, 1.5, 0.05);
-      c.flits(BANG + 0.04, 0.5, 0.35);
+      c.flits(BANG, 1.0, 0.04);
+      c.flits(BANG + 0.04, 0.22, 0.18);
       c.schok(BANG, 0.18, 0.7);
       for (let i = 0; i < 7; i++) c.golf(BANG + 0.1 * i, 1.0 + 0.45 * i, 1.0 - 0.1 * i, 0);
       c.flits(BANG + 1.4 * UK, 0.5, 0.2); // de relikwie verschijnt
@@ -2880,10 +2880,10 @@
       // de titel boven de relikwie
       const q = b - 4.4 * UK;
       if (q > 0) {
-        const wT = Math.min(1.95, visB * 0.82);
+        const wT = Math.min(1.65, visB * 0.7);
         const hT = wT * (700 / 1900);
         const pop = Math.max(0.001, veer(ramp(q, 0, 0.8)));
-        const yRust = 0.4 * fit + 0.5 * hT * 0.8;
+        const yRust = 0.5 * fit + 0.5 * hT - 0.04;
         const bob = 0.012 * Math.sin(t * 1.4);
         const gl = Math.exp(-q / 0.3);
         c.vlak(t, tex.titelUlt, 0, yRust + bob, 0.05, 0, 0, -0.02 * (1 - pop) + 0.006 * Math.sin(t * 1.9), wT * pop, hT * pop, sm(q, 0, 0.1), 2, 0, gl * 0.7, k1, gl * 0.5 + 0.08, Math.sin(t * 0.5) * 0.35);
@@ -2902,8 +2902,8 @@
       const ky = -0.17 + relikwieY(t);
       const ka = sm(b, 3.4 * UK, 4.6 * UK);
       if (ka > 0.01 && tex.kroon) {
-        const kw = 0.5 * (1 + 0.04 * Math.sin(t * 2));
-        c.vlak(t, tex.kroon, 0, ky + KAART_HALF * fit * 0.82 + 0.05 + 0.02 * Math.sin(t * 1.7), 0.04, 0, 0, Math.sin(t * 1.1) * 0.03, kw, kw * (360 / 520), ka, 2, 0, 0, k1, 0, 0);
+        const kw = 0.36 * (1 + 0.04 * Math.sin(t * 2));
+        c.vlak(t, tex.kroon, 0, ky + KAART_HALF * fit * 0.9 - 0.02 + 0.015 * Math.sin(t * 1.7), 0.04, 0, 0, Math.sin(t * 1.1) * 0.03, kw, kw * (360 / 520), ka, 2, 0, 0, k1, 0, 0);
       }
       // glinsters over de kaart
       const qq = Math.max(0, b - 4.8 * UK);
@@ -2945,10 +2945,10 @@
       } else if (fase === 4) {
         const b = t - BANG;
         p.dark = 1 - sm(b, 0, 0.03);
-        p.gl = Math.max(p.gl, 0.7 * Math.exp(-b / 0.15) * rg);
-        p.zoom *= 1 + 0.16 * Math.exp(-b / 0.28);
+        p.gl = Math.max(p.gl, 0.6 * Math.exp(-b / 0.12) * rg);
+        p.zoom *= 1 + 0.14 * Math.exp(-b / 0.28);
         p.rad = Math.max(p.rad, 0.55 * Math.exp(-b / 0.35));
-        p.bloom *= 1.1 + 0.3 * Math.exp(-b / 1.2);
+        p.bloom *= 1.0 + 0.15 * Math.exp(-b / 1.0);
         p.sat = Math.max(p.sat, 1.1);
         p.vig = Math.min(p.vig, 1.0);
       }
@@ -3092,10 +3092,10 @@
         const uit = vals ? 1 - sm(na, 0.0, 0.4) * (hash(Math.floor(t * 30)) > 0.35 ? 1 : 0.4) : 1 - sm(t, E2 + 0.1, W1);
         const a = (0.25 + 0.75 * sm(u, 0, 0.35)) * (0.6 + 0.4 * klop) * uit * (reduceer ? 0.6 : 1);
         if (a < 0.01) return;
-        const s = (0.12 + 0.34 * sm(u, 0, 0.8)) * (1 + 0.1 * klop);
+        const s = (0.2 + 0.4 * sm(u, 0, 0.8)) * (1 + 0.1 * klop);
         c.licht(t, 0, yP, 0.28 * u * uit, 0.03 + 0.03 * u, 0.4 * u * uit, 0.6 * u * u * uit, t * 0.8, tint);
-        c.vlak(t, teken, 0, yW, 0.1, 0, 0, t * 1.3, s, s, a, 2, 1, 0, tint, 0, 0);
-        c.vlak(t, teken, 0, yW, 0.1, 0, 0, -t * 0.7, s * 1.5, s * 1.5, a * 0.35, 2, 1, 0, tint, 0, 0);
+        c.vlak(t, teken, 0, yW, 0.1, 0, 0, t * 1.3, s, s, Math.min(1, a * 1.3), 2, 0, 0, tint, 0, 0);
+        c.vlak(t, teken, 0, yW, 0.1, 0, 0, -t * 0.7, s * 1.5, s * 1.5, a * 0.5, 2, 1, 0, tint, 0, 0);
       },
       schud(t) {
         if (t < W0 || t > E2 + 0.1) return 0;

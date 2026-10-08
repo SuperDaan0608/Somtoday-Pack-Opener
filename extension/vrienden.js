@@ -272,6 +272,33 @@
   }
 
   // Tab 1: één rij per vriend. Kaarten, gokken en gevechten staan op hun eigen tab.
+  // v2.4: kosmische en mythische kaarten van een vriend, met een knop om GG te sturen (één GG per vriend per kaart)
+  function ggBlok(v, naam, top) {
+    const blok = el('div', 'v-top');
+    blok.append(el('p', 'v-top-kop', `Zeldzame trekkingen van ${naam}`));
+    const gestuurd = new Set((st.ggGestuurd && Array.isArray(st.ggGestuurd[v.id]) ? st.ggGestuurd[v.id] : []));
+    const lijst = el('ul', 'v-top-lijst');
+    for (const x of top.slice().sort((a, b) => b.ts - a.ts).slice(0, 5)) {
+      const li = el('li', 'v-top-item t' + x.t);
+      li.append(el('span', 'v-top-icoon', x.t === 4 ? '\u{1F409}' : '\u{1F30C}'));
+      const t = el('span', 'v-top-tekst', `${x.t === 4 ? 'Mythisch' : 'Kosmisch'}: ${x.vak || 'kaart'}`);
+      t.append(el('small', '', datum(x.ts)));
+      li.append(t);
+      const b = el('button', 'knop klein gg-knop', gestuurd.has(String(x.ts)) ? 'GG gestuurd' : 'GG!');
+      b.type = 'button'; b.disabled = gestuurd.has(String(x.ts));
+      b.setAttribute('aria-label', `GG sturen naar ${naam} voor de ${x.t === 4 ? 'mythische' : 'kosmische'} kaart ${x.vak || ''}`);
+      b.addEventListener('click', async () => {
+        b.disabled = true;
+        try { await L.stuurGG(st, v, x); b.textContent = 'GG gestuurd'; melding(`GG gestuurd naar ${naam}.`); }
+        catch (e) { b.disabled = false; melding(foutTekst(e), true); }
+      });
+      li.append(b);
+      lijst.append(li);
+    }
+    blok.append(lijst);
+    return blok;
+  }
+
   function vriendItem(v) {
     const li = el('li', 'vriend');
     li.dataset.id = v.id;
@@ -317,6 +344,7 @@
     kop.append(acties);
     if (uitdagingen.has(v.id)) li.append(el('p', 'geverifieerd', `${naam} daagt je uit! Open Team om te accepteren.`));
 
+    if (gek && gek.top && gek.top.length) li.append(ggBlok(v, naam, gek.top));
     if (gek && gek.profiel) {
       const det = el('details', 'v-profiel'); det.id = 'prof-' + v.id;
       det.append(el('summary', '', `Profielkaart${gek.profiel.bn ? ' (' + gek.profiel.bn + ')' : ''}`));

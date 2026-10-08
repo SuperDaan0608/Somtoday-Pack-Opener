@@ -12,7 +12,8 @@
   const datumTijd = (ts) => new Date(ts).toLocaleString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
   let alle = [];
-  const filter = { vak: '', niv: new Set(), sort: 'nieuw', trede: 0 };
+  const filter = { vak: '', niv: new Set(), sort: 'nieuw', trede: 0, vloek: false };
+  let ggPerKaart = {}; // { [tijd van de kaart]: [vriendId, ...] }: vrienden die GG zeiden op mijn kosmische en mythische kaarten (v2.4)
   // v2.4: de ladder. Oude kaarten hebben alleen 'zeldzaam'.
   const TREDE_NAAM = ['', 'Zeldzaam', 'Glim', 'Kosmisch', 'Mythisch'];
   const tredeVan = (e) => Math.max(0, Math.min(4, e.trede | 0)) || (e.zeldzaam ? 1 : 0);
@@ -23,7 +24,7 @@
 
   function schoon(a) {
     return (Array.isArray(a) ? a : []).filter((e) => e && typeof e.id === 'string' && typeof e.kaart === 'string' && Number.isFinite(e.cijfer))
-      .map((e) => Object.assign({}, e, { tier: Math.max(0, Math.min(4, e.tier | 0)), zeldzaam: e.zeldzaam === true || (e.trede | 0) >= 1, trede: Math.max(0, Math.min(4, e.trede | 0)) || (e.zeldzaam === true ? 1 : 0) }));
+      .map((e) => Object.assign({}, e, { tier: Math.max(0, Math.min(4, e.tier | 0)), zeldzaam: e.zeldzaam === true || (e.trede | 0) >= 1, trede: Math.max(0, Math.min(4, e.trede | 0)) || (e.zeldzaam === true ? 1 : 0), vloek: e.vloek === true }));
   }
 
   // Tweestaps knop: eerste klik vraagt om bevestiging, tweede voert uit.
@@ -101,7 +102,7 @@
   }
 
   function raster() {
-    let l = alle.filter((e) => (!filter.vak || e.vak === filter.vak) && (!filter.niv.size || filter.niv.has(e.tier)) && tredeVan(e) >= filter.trede);
+    let l = alle.filter((e) => (!filter.vak || e.vak === filter.vak) && (!filter.niv.size || filter.niv.has(e.tier)) && tredeVan(e) >= filter.trede && (!filter.vloek || e.vloek));
     // teller van de ladder
     const tel = [0, 0, 0, 0, 0];
     for (const e of alle) tel[tredeVan(e)]++;
@@ -122,23 +123,31 @@
       const tr = tredeVan(e);
       b.setAttribute('aria-label', `${e.vak}, ${fmt(e.cijfer)}, ${NIVEAUS[e.tier]}${tr ? ', ' + TREDE_NAAM[tr].toLowerCase() : ''}, ${datum(e.ts)}`);
       if (tr) b.classList.add('trede-' + tr);
+      if (e.vloek) b.setAttribute('aria-label', b.getAttribute('aria-label') + ', vervloekt');
       b.style.setProperty('--gl', GLOED[e.tier]);
       const vak = document.createElement('span'); vak.className = 'kaartvak';
       const k = document.createElement('span'); k.className = 'kaart';
       const img = new Image(); img.src = e.kaart; img.alt = ''; img.loading = 'lazy'; img.decoding = 'async'; img.draggable = false;
       const g = document.createElement('i'); g.className = 'glans';
       k.append(img, g); vak.append(k); tilt(k);
+      if (e.vloek) { k.classList.add('vloek'); const vb = document.createElement('span'); vb.className = 'vloek-badge'; vb.textContent = 'VLOEK'; vak.append(vb); }
       const m = document.createElement('span'); m.className = 'meta';
       const v = document.createElement('span'); v.className = 'vak'; v.textContent = e.vak;
       const c = document.createElement('span'); c.className = 'cj'; c.textContent = fmt(e.cijfer);
       const d = document.createElement('span'); d.className = 'dt'; d.textContent = datum(e.ts);
       m.append(v, c, d);
       if (tr) { const tb = document.createElement('span'); tb.className = 'trede-label t' + tr; tb.textContent = TREDE_NAAM[tr]; vak.append(tb); }
+      const gg = aantalGG(e);
+      if (gg) { const gb = document.createElement('span'); gb.className = 'gg-label'; gb.textContent = '\u{1F64C} ' + gg; gb.title = ggTekst(gg); vak.append(gb); }
       b.append(vak, m); li.append(b); frag.append(li);
     });
     ul.append(frag);
     $('geen').hidden = alle.length === 0 || zichtbaar.length > 0;
   }
+
+  // GG van vrienden op een kosmische of mythische kaart (v2.4)
+  const aantalGG = (e) => (tredeVan(e) >= 3 && Array.isArray(ggPerKaart[String(e.ts)]) ? ggPerKaart[String(e.ts)].length : 0);
+  const ggTekst = (n) => (n === 1 ? '1 vriend zei GG' : n + ' vrienden zeiden GG');
 
   function toon(i) {
     const e = zichtbaar[i];
@@ -147,7 +156,11 @@
     const dlg = $('detail');
     dlg.style.setProperty('--gl', GLOED[e.tier]);
     $('d-img').src = e.kaart; $('d-img').alt = `Kaart ${e.vak} ${fmt(e.cijfer)}`;
-    $('d-niveau').textContent = NIVEAUS[e.tier] + (tredeVan(e) ? ' · ' + TREDE_NAAM[tredeVan(e)] : '');
+    $('d-niveau').textContent = NIVEAUS[e.tier] + (tredeVan(e) ? ' · ' + TREDE_NAAM[tredeVan(e)] : '') + (e.vloek ? ' · Vervloekt' : '');
+    $('d-kaart').classList.toggle('vloek', !!e.vloek);
+    const gg = aantalGG(e);
+    $('d-gg').hidden = !gg;
+    $('d-gg').textContent = gg ? '\u{1F64C} ' + ggTekst(gg) + '!' : '';
     $('d-vak').textContent = e.vak;
     $('d-cijfer').textContent = fmt(e.cijfer);
     $('d-onderwerp').textContent = e.onderwerp || '-';
@@ -228,7 +241,7 @@
 
   // Events
   $('f-vak').addEventListener('change', (e) => { filter.vak = e.target.value; raster(); });
-  $('f-trede').addEventListener('change', (ev) => { filter.trede = Number(ev.target.value) || 0; raster(); });
+  $('f-trede').addEventListener('change', (ev) => { filter.vloek = ev.target.value === 'vloek'; filter.trede = Number(ev.target.value) || 0; raster(); });
   // Animatie opnieuw: het paneel sluit en de opening speelt op Somtoday nog een keer (er wordt niets opgeslagen of verdiend).
   $('d-replay').addEventListener('click', async () => {
     const e = zichtbaar[open];
@@ -282,12 +295,15 @@
   async function start() {
     if (demo) { alle = await demoData(); render(); return; }
     try {
-      const r = await chrome.storage.local.get('spo_galerij');
+      const r = await chrome.storage.local.get(['spo_galerij', 'spo_gg']);
       alle = schoon(r.spo_galerij);
+      ggPerKaart = r.spo_gg && typeof r.spo_gg === 'object' && !Array.isArray(r.spo_gg) ? r.spo_gg : {};
     } catch (_) { alle = []; }
     render();
     chrome.storage.onChanged.addListener((c, gebied) => {
-      if (gebied === 'local' && c.spo_galerij) { alle = schoon(c.spo_galerij.newValue); render(); }
+      if (gebied !== 'local') return;
+      if (c.spo_gg) { const n = c.spo_gg.newValue; ggPerKaart = n && typeof n === 'object' && !Array.isArray(n) ? n : {}; if (!c.spo_galerij) render(); }
+      if (c.spo_galerij) { alle = schoon(c.spo_galerij.newValue); render(); }
     });
   }
   start();

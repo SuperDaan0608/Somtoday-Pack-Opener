@@ -24,7 +24,7 @@
   const SLEUTEL_GALERIJ = 'spo_galerij';
   const SLEUTEL_GEOPEND = 'spo_geopend';
   const SLEUTEL_PROEF = 'spo_proef';
-  const STANDAARD = { dagelijks: true, afdekking: true, geluid: true, snel: false, opening: 'pak', galerij: true, laag: false, zeldzaam: true, seizoen: true, gemiddelden: true, knop: true, uitval: true };
+  const STANDAARD = { dagelijks: true, afdekking: true, geluid: true, snel: false, opening: 'pak', galerij: true, laag: false, zeldzaam: true, seizoen: true, gemiddelden: true, knop: true, uitval: true, huisdier: true, meekijken: true };
   const OPENINGEN = ['pak', 'kluis', 'plinko', 'ster', 'raket', 'schiet', 'dans', 'willekeurig'];
   const OPENING_NAAM = { pak: 'Pakje', kluis: 'Kluis', plinko: 'Plinko', ster: 'Wensster', raket: 'Raket', schiet: 'Schieten', dans: 'Dansje', willekeurig: 'Verras me' };
   const TABS = ['overzicht', 'galerij', 'kaart', 'proberen', 'team', 'vrienden', 'prestaties', 'winkel', 'profiel', 'rekenen', 'instellingen', 'geluiden']; // zelfde volgorde als in de zijbalk (pijltjestoetsen)

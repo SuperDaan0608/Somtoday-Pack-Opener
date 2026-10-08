@@ -1889,6 +1889,339 @@
     c.restore();
   }
 
+
+  // ───────── de ladder boven zeldzaam: glim (2), kosmisch (3), mythisch (4) en de ultieme kaart (een 10 bij kosmisch/mythisch) ─────────
+  const TREDE_STIJL = {
+    2: { naam: 'GLIM', rand: ['#7ff3ff', '#ff8ae8', '#ffffff', '#9a8cff', '#8affc8', '#7ff3ff'], pil: ['#f0ffff', '#8af0ff', '#ff9ae8'], gloed: 'rgba(160,240,255,.8)' },
+    3: { naam: 'KOSMISCH', rand: ['#6a5cff', '#d06bff', '#34e0ff', '#6a5cff', '#ff6ad5', '#6a5cff'], pil: ['#ece6ff', '#a090ff', '#4ae0ff'], gloed: 'rgba(130,110,255,.85)' },
+    4: { naam: 'MYTHISCH', rand: ['#fff3b0', '#ffb02e', '#ff3a1a', '#ffcf5a', '#ff5a1a', '#fff3b0'], pil: ['#fff3b0', '#ffc93a', '#ff6a1a'], gloed: 'rgba(255,110,30,.9)' },
+  };
+  const treedeVan = (data) => Math.max(0, Math.min(4, data.trede | 0));
+  const zadenReeks = (z) => () => ((z = (z * 16807) % 2147483647) / 2147483647);
+  // een klein silhouet (in een vakje van 40 bij 40, kijkend naar rechts) van het wezen dat bij de vakgroep hoort
+  function wezenEmbleem(c, groep) {
+    const lijn = (pts, sluit = true) => {
+      c.beginPath();
+      c.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i < pts.length; i++) c.lineTo(pts[i][0], pts[i][1]);
+      if (sluit) c.closePath();
+    };
+    if (groep === 'talen') {
+      // feniks: vogel met een vlammende staart en een uitgespreide vleugel
+      lijn([[34, 17], [27, 15], [23, 11], [24, 17], [18, 21], [10, 26], [2, 36], [12, 29], [8, 38], [17, 29], [22, 27], [27, 24], [33, 20]]);
+      c.fill();
+      lijn([[17, 20], [12, 6], [20, 12], [22, 2], [26, 14], [28, 20]]);
+      c.fill();
+    } else if (groep === 'mens') {
+      // kraken: een koepel met vier tentakels
+      c.beginPath();
+      c.ellipse(20, 14, 11, 12, 0, 0, 6.2832);
+      c.fill();
+      for (const x of [9, 15, 21, 27]) {
+        c.beginPath();
+        c.moveTo(x, 20);
+        c.quadraticCurveTo(x - 5, 30, x + 1, 36);
+        c.quadraticCurveTo(x + 2, 30, x + 5, 20);
+        c.fill();
+      }
+    } else if (groep === 'kunst') {
+      // griffioen: adelaarskop met een haaksnavel en een vleugel
+      lijn([[8, 36], [10, 22], [16, 12], [24, 8], [30, 12], [37, 17], [30, 19], [31, 25], [25, 27], [24, 36]]);
+      c.fill();
+      lijn([[11, 24], [3, 10], [11, 15], [9, 5], [16, 13]]);
+      c.fill();
+    } else {
+      // draak: een kop met horens, tanden en een stekelige hals
+      lijn([[4, 36], [10, 26], [14, 16], [20, 10], [24, 3], [27, 11], [33, 13], [38, 17], [34, 20], [28, 20], [25, 25], [20, 34], [16, 30], [12, 38]]);
+      c.fill();
+      lijn([[13, 14], [9, 6], [16, 11]]);
+      c.fill();
+    }
+  }
+  // De laag op de achtergrond van de kaart (binnen de kaartvorm): per trede een eigen sfeer.
+  function tredeLaag(c, data) {
+    const tr = treedeVan(data);
+    if (tr < 2) return;
+    c.save();
+    const rnd = zadenReeks(41 + tr);
+    if (tr === 2) {
+      // holografische regenboogsheen in schuine banen, en glinsterstipjes over de hele kaart
+      c.globalCompositeOperation = 'lighter';
+      for (let b = 0; b < 2; b++) {
+        const g = c.createLinearGradient(b ? CW : 0, 0, b ? 0 : CW * 0.9, CH * 0.8);
+        ['rgba(255,90,170,.32)', 'rgba(255,230,90,.26)', 'rgba(90,255,170,.30)', 'rgba(90,200,255,.34)', 'rgba(170,110,255,.30)', 'rgba(255,90,170,.28)'].forEach((k, i, l) => g.addColorStop(i / (l.length - 1), k));
+        c.fillStyle = g;
+        c.globalAlpha = b ? 0.55 : 1;
+        c.fillRect(0, 0, CW, CH);
+      }
+      c.globalAlpha = 1;
+      for (let i = 0; i < 110; i++) {
+        const x = rnd() * CW, y = rnd() * CH, r = 0.6 + rnd() * 1.6;
+        c.fillStyle = `hsla(${Math.round(rnd() * 360)},100%,${75 + rnd() * 20}%,${0.5 + rnd() * 0.5})`;
+        if (rnd() < 0.3) {
+          c.beginPath();
+          c.moveTo(x, y - r * 3);
+          c.lineTo(x + r * 0.5, y - r * 0.5);
+          c.lineTo(x + r * 3, y);
+          c.lineTo(x + r * 0.5, y + r * 0.5);
+          c.lineTo(x, y + r * 3);
+          c.lineTo(x - r * 0.5, y + r * 0.5);
+          c.lineTo(x - r * 3, y);
+          c.lineTo(x - r * 0.5, y - r * 0.5);
+          c.closePath();
+        } else {
+          c.beginPath();
+          c.arc(x, y, r, 0, 6.2832);
+        }
+        c.fill();
+      }
+    } else if (tr === 3) {
+      // een nevel in paars en blauw met sterren, en een gloed achter het cijfer
+      c.globalCompositeOperation = 'source-over';
+      const dk = c.createLinearGradient(0, 0, 0, CH);
+      dk.addColorStop(0, 'rgba(10,6,40,.55)');
+      dk.addColorStop(1, 'rgba(4,2,24,.6)');
+      c.fillStyle = dk;
+      c.fillRect(0, 0, CW, CH);
+      c.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < 16; i++) {
+        const x = rnd() * CW, y = rnd() * CH, r = 60 + rnd() * 110;
+        const k = [[120, 70, 255], [60, 130, 255], [255, 80, 200], [60, 210, 255]][i % 4];
+        const g = c.createRadialGradient(x, y, 0, x, y, r);
+        g.addColorStop(0, `rgba(${k},.30)`);
+        g.addColorStop(1, `rgba(${k},0)`);
+        c.fillStyle = g;
+        c.fillRect(x - r, y - r, r * 2, r * 2);
+      }
+      for (let i = 0; i < 140; i++) {
+        const x = rnd() * CW, y = rnd() * CH, r = 0.4 + rnd() * rnd() * 1.8;
+        c.fillStyle = `rgba(255,255,255,${0.35 + rnd() * 0.65})`;
+        c.beginPath();
+        c.arc(x, y, r, 0, 6.2832);
+        c.fill();
+      }
+      const gl = c.createRadialGradient(66, 78, 0, 66, 78, 80);
+      gl.addColorStop(0, 'rgba(120,230,255,.45)');
+      gl.addColorStop(1, 'rgba(120,230,255,0)');
+      c.fillStyle = gl;
+      c.fillRect(0, 0, 160, 170);
+    } else {
+      // mythisch: warme gloed van onderen, as en vonken
+      c.globalCompositeOperation = 'source-over';
+      const dk = c.createLinearGradient(0, 0, 0, CH);
+      dk.addColorStop(0, 'rgba(30,0,0,.30)');
+      dk.addColorStop(1, 'rgba(60,6,0,.45)');
+      c.fillStyle = dk;
+      c.fillRect(0, 0, CW, CH);
+      c.globalCompositeOperation = 'lighter';
+      const g = c.createRadialGradient(CW / 2, CH + 20, 20, CW / 2, CH + 20, 300);
+      g.addColorStop(0, 'rgba(255,150,30,.5)');
+      g.addColorStop(0.5, 'rgba(255,60,10,.2)');
+      g.addColorStop(1, 'rgba(255,40,0,0)');
+      c.fillStyle = g;
+      c.fillRect(0, 0, CW, CH);
+      for (let i = 0; i < 70; i++) {
+        const x = rnd() * CW, y = CH * (0.25 + 0.75 * rnd() * rnd()) , r = 0.5 + rnd() * 1.4;
+        c.fillStyle = `rgba(255,${150 + Math.round(rnd() * 100)},60,${0.4 + rnd() * 0.6})`;
+        c.beginPath();
+        c.arc(x, y, r, 0, 6.2832);
+        c.fill();
+      }
+    }
+    c.restore();
+    // de ultieme kaart: witgoud licht uit het midden
+    if (data.ultiem) {
+      c.save();
+      c.globalCompositeOperation = 'lighter';
+      const g = c.createRadialGradient(CW / 2, CH * 0.38, 10, CW / 2, CH * 0.38, 260);
+      g.addColorStop(0, 'rgba(255,248,220,.45)');
+      g.addColorStop(0.5, 'rgba(255,215,120,.2)');
+      g.addColorStop(1, 'rgba(255,200,90,0)');
+      c.fillStyle = g;
+      c.fillRect(0, 0, CW, CH);
+      c.restore();
+    }
+  }
+  // De voorgrond: de rand, het label, het embleem en bij ultiem de kroon. f is de voorgrond (ontwerpmaat).
+  function tredeVoorgrond(f, data) {
+    const tr = treedeVan(data);
+    if (tr < 2) return;
+    const S = TREDE_STIJL[tr];
+    f.save();
+    // de rand
+    const pr = f.createLinearGradient(0, 0, CW, CH);
+    S.rand.forEach((k, i, l) => pr.addColorStop(i / (l.length - 1), k));
+    kaartPad(f, RIM / 2);
+    f.strokeStyle = pr;
+    f.lineWidth = data.ultiem ? 5.4 : 4.2;
+    f.shadowColor = S.gloed;
+    f.shadowBlur = 9 * BS;
+    f.stroke();
+    f.shadowBlur = 0;
+    kaartPad(f, RIM / 2 - 2.4);
+    f.lineWidth = 0.9;
+    f.strokeStyle = 'rgba(255,255,255,.8)';
+    f.stroke();
+    if (tr === 4) {
+      // vlammen langs de zijkanten en onderkant
+      const rnd = zadenReeks(77);
+      f.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < 36; i++) {
+        const kant = i % 3;
+        const q = rnd();
+        const x = kant === 0 ? 10 : kant === 1 ? CW - 10 : 20 + q * (CW - 40);
+        const y = kant === 2 ? CH - 10 : 40 + q * (CH - 100);
+        const h = 12 + rnd() * 18;
+        const dx = kant === 0 ? 1 : kant === 1 ? -1 : 0;
+        const dy = kant === 2 ? -1 : 0;
+        const g = f.createLinearGradient(x, y, x + dx * h * 1.2 + (kant === 2 ? 0 : 0), y + dy * h * 1.2 + (kant === 2 ? 0 : -h * 0.9));
+        g.addColorStop(0, 'rgba(255,200,60,.85)');
+        g.addColorStop(1, 'rgba(255,40,0,0)');
+        f.fillStyle = g;
+        f.beginPath();
+        f.moveTo(x - 3.6 * (dy ? 1 : 0.4), y - 3.6 * (dx ? 1 : 0.4));
+        f.quadraticCurveTo(x + dx * h * 0.4 - 1, y + dy * h * 0.4 - h * 0.5, x + dx * h * 0.8, y + dy * h * 0.8 - (dy ? 0 : h * 0.9));
+        f.quadraticCurveTo(x + dx * h * 0.5 + 2, y + dy * h * 0.5 - h * 0.2, x + 3.6 * (dy ? 1 : 0.4), y + 3.6 * (dx ? 1 : 0.4));
+        f.closePath();
+        f.fill();
+      }
+      f.globalCompositeOperation = 'source-over';
+    }
+    if (tr === 3) {
+      // het cijfer krijgt een gloeiend randje
+      f.strokeStyle = 'rgba(130,230,255,.95)';
+      f.shadowColor = 'rgba(100,200,255,1)';
+      f.shadowBlur = 8 * BS;
+      f.lineWidth = 1.8;
+      f.beginPath();
+      f.roundRect(13, 28, 112, 104, 16);
+      f.stroke();
+      f.strokeStyle = 'rgba(190,130,255,.85)';
+      f.lineWidth = 0.9;
+      f.beginPath();
+      f.roundRect(17, 32, 104, 96, 13);
+      f.stroke();
+      f.shadowBlur = 0;
+    }
+    if (tr === 2) {
+      // twee extra glinsters in de hoeken
+      f.fillStyle = '#fff';
+      for (const [x, y, r] of [[30, 410, 9], [276, 330, 7], [150, 22, 6]]) {
+        f.shadowColor = '#8af0ff';
+        f.shadowBlur = 8;
+        f.beginPath();
+        for (let i = 0; i < 8; i++) {
+          const rr = i % 2 ? r * 0.2 : r;
+          const a = (i / 8) * 6.2832 - Math.PI / 2;
+          f.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+        }
+        f.closePath();
+        f.fill();
+      }
+      f.shadowBlur = 0;
+    }
+    f.restore();
+    // het label rechtsboven: de naam van de trede in plaats van ZELDZAAM
+    f.save();
+    const lx = 192, ly = 24;
+    f.beginPath();
+    f.roundRect(lx, ly, 86, 20, 10);
+    const lg = f.createLinearGradient(lx, ly, lx + 86, ly + 20);
+    S.pil.forEach((k, i, l) => lg.addColorStop(i / (l.length - 1), k));
+    f.fillStyle = lg;
+    f.shadowColor = S.gloed;
+    f.shadowBlur = 7;
+    f.fill();
+    f.shadowBlur = 0;
+    f.lineWidth = 0.8;
+    f.strokeStyle = 'rgba(20,10,60,.6)';
+    f.stroke();
+    f.fillStyle = tr === 4 ? '#3a0800' : '#150a3a';
+    f.textAlign = 'center';
+    f.textBaseline = 'alphabetic';
+    f.font = `900 ${tr === 2 ? 11.5 : 10}px ${F_SPORT}`;
+    spatie(f, tr === 2 ? 2 : 1.1);
+    f.fillText(S.naam, lx + 43 + 0.6, ly + 14);
+    spatie(f, 0);
+    f.restore();
+    // mythisch: het embleem van het wezen rechtsboven (niet over het cijfer of de naamplaat)
+    if (tr === 4) {
+      f.save();
+      const ex = 252, ey = 74;
+      f.shadowColor = 'rgba(255,120,20,.9)';
+      f.shadowBlur = 8;
+      f.fillStyle = 'rgba(40,6,0,.82)';
+      f.beginPath();
+      f.arc(ex, ey, 18, 0, 6.2832);
+      f.fill();
+      f.shadowBlur = 0;
+      const rg = f.createLinearGradient(ex - 18, ey - 18, ex + 18, ey + 18);
+      ['#fff3b0', '#ff9a1a', '#ffd34a'].forEach((k, i, l) => rg.addColorStop(i / (l.length - 1), k));
+      f.strokeStyle = rg;
+      f.lineWidth = 1.8;
+      f.stroke();
+      f.translate(ex - 12.6, ey - 12.6);
+      f.scale(0.63, 0.63);
+      const wg = f.createLinearGradient(0, 0, 0, 40);
+      wg.addColorStop(0, '#fff3b0');
+      wg.addColorStop(1, '#ffa02a');
+      f.fillStyle = wg;
+      wezenEmbleem(f, data.groep);
+      f.restore();
+    }
+    // ultiem: een prismarand (regenboog) en een gouden kroon met halo bovenaan
+    if (data.ultiem) {
+      f.save();
+      const pg = f.createLinearGradient(0, 0, CW, CH);
+      ['#ff4d6d', '#ffb02e', '#fff04a', '#4dff9a', '#3bd8ff', '#8a6bff', '#ff5fd2', '#ff4d6d'].forEach((k, i, l) => pg.addColorStop(i / (l.length - 1), k));
+      kaartPad(f, RIM / 2 + 3.4);
+      f.strokeStyle = pg;
+      f.lineWidth = 2.2;
+      f.stroke();
+      kaartPad(f, 1.2);
+      f.strokeStyle = 'rgba(255,248,220,.9)';
+      f.lineWidth = 1.2;
+      f.shadowColor = 'rgba(255,220,120,1)';
+      f.shadowBlur = 8;
+      f.stroke();
+      f.shadowBlur = 0;
+      const hx = 150, hy = 17;
+      const hg = f.createRadialGradient(hx, hy + 4, 0, hx, hy + 4, 34);
+      hg.addColorStop(0, 'rgba(255,240,170,.7)');
+      hg.addColorStop(1, 'rgba(255,220,120,0)');
+      f.fillStyle = hg;
+      f.fillRect(hx - 36, hy - 24, 72, 56);
+      f.beginPath();
+      f.moveTo(hx - 15, hy + 12);
+      f.lineTo(hx - 17, hy - 2);
+      f.lineTo(hx - 8, hy + 4);
+      f.lineTo(hx, hy - 6);
+      f.lineTo(hx + 8, hy + 4);
+      f.lineTo(hx + 17, hy - 2);
+      f.lineTo(hx + 15, hy + 12);
+      f.closePath();
+      const kg = f.createLinearGradient(0, hy - 6, 0, hy + 12);
+      kg.addColorStop(0, '#fffbe2');
+      kg.addColorStop(0.5, '#ffd84a');
+      kg.addColorStop(1, '#d98200');
+      f.fillStyle = kg;
+      f.fill();
+      f.lineWidth = 1;
+      f.strokeStyle = '#5a2c00';
+      f.stroke();
+      f.fillStyle = '#ff3d7a';
+      f.beginPath();
+      f.arc(hx, hy - 6, 1.7, 0, 6.2832);
+      f.fill();
+      f.fillStyle = '#3bd8ff';
+      f.beginPath();
+      f.arc(hx - 17, hy - 2, 1.4, 0, 6.2832);
+      f.arc(hx + 17, hy - 2, 1.4, 0, 6.2832);
+      f.fill();
+      f.restore();
+    }
+  }
+
   function* kaartGen(data) {
     const T = data.T;
     const tier = data.tier;
@@ -1934,6 +2267,7 @@
     c.fillStyle = vg;
     c.fillRect(0, 0, CW, CH);
     seizoenLaag(c, data.seizoen);
+    tredeLaag(c, data);
     // de lijst werpt een zachte schaduw op het veld
     c.save();
     kaartPad(c, RIM);
@@ -2244,6 +2578,9 @@
       spatie(f, 0);
       f.restore();
     }
+
+    // glim, kosmisch, mythisch en ultiem: eigen rand, label en embleem bovenop de zeldzaam-rand
+    tredeVoorgrond(f, data);
 
     // De naam van de leerling staat op een eigen laag: de galerij gebruikt alleen de laag zonder naam.
     let fgNaam = null;

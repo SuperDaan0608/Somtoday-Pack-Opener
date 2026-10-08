@@ -105,6 +105,9 @@
   const cursor = {};
   const gezienVerzoek = new Set();
   const gezienUitdaging = new Set();
+  const KIJK_REST = 60; // seconden dat een uitnodiging om mee te kijken blijft staan
+  const gezienKijk = new Set();
+  const gezienEmoji = new Set();
 
   async function kijk() {
     const st = await L.laad();
@@ -129,15 +132,55 @@
       if (!v) continue;
       const lijst = await L.haalBerichten(st, v, cursor);
       for (const b of lijst) {
-        if (b.m.t !== 'uitnodiging' || b.leeftijd >= 300 || typeof b.m.mid !== 'string') continue;
-        if (gezienUitdaging.has(b.m.mid)) continue;
-        gezienUitdaging.add(b.m.mid);
-        uit.push({ soort: 'duel', tekst: `${L.naam(v)} daagt je uit voor een duel!` });
+        if (b.m.t === 'uitnodiging') {
+          if (b.leeftijd >= 300 || typeof b.m.mid !== 'string' || gezienUitdaging.has(b.m.mid)) continue;
+          gezienUitdaging.add(b.m.mid);
+          uit.push({ soort: 'duel', tekst: `${L.naam(v)} daagt je uit voor een duel!` });
+        } else if (b.m.t === 'gg') {
+          // GG van een vriend op een kosmische of mythische kaart van mij (alleen als die kaart echt in mijn galerij staat)
+          const g = L.schoonGG(b.m);
+          if (!g || b.leeftijd >= 600) continue;
+          const kaart = (await L.leesGalerij()).find((e) => String(e.ts) === g.k && (e.trede | 0) >= 3);
+          if (!kaart || !(await L.bewaarGG(v.id, g.k))) continue;
+          uit.push({ soort: 'gg', tekst: `${L.naam(v)} zegt GG op je ${kaart.trede === 4 ? 'MYTHISCHE' : 'KOSMISCHE'} kaart (${String(kaart.vak).slice(0, 40)})!` });
+        } else if (b.m.t === 'kijk') {
+          // Een vriend opent nu een kosmische of mythische kaart: meekijken kan 60 seconden lang
+          const k = L.schoonKijk(b.m, b.leeftijd);
+          if (!k || gezienKijk.has(k.mid)) continue;
+          gezienKijk.add(k.mid);
+          uit.push({ soort: 'kijk', van: v.id, naam: L.naam(v), kijk: k, rest: Math.max(5, KIJK_REST - b.leeftijd), tekst: `${L.naam(v)} opent nu iets ${k.trede === 4 ? 'MYTHISCHS' : 'KOSMISCHS'}: kijk mee!` });
+        } else if (b.m.t === 'emoji') {
+          const e = L.schoonKijkEmoji(b.m);
+          if (!e || b.leeftijd >= 30 || gezienEmoji.has(b.seq + ':' + v.id)) continue;
+          gezienEmoji.add(b.seq + ':' + v.id);
+          uit.push({ soort: 'emoji', emoji: e, naam: L.naam(v) });
+        }
       }
     }
     eerste = false;
     return uit;
   }
+
+  // Meekijken: de pagina vraagt om 'ik open nu een kaart' of een emoji naar de opener te sturen. De sleutels blijven hier in de achtergrond.
+  async function instelling(naam) {
+    const r = await chrome.storage.local.get('spo_instellingen');
+    const i = r.spo_instellingen && typeof r.spo_instellingen === 'object' ? r.spo_instellingen : {};
+    return i[naam] !== false;
+  }
+  chrome.runtime.onMessage.addListener((m, _afz, antwoord) => {
+    if (!m || (m.type !== 'spo-kijk-stuur' && m.type !== 'spo-emoji-stuur')) return;
+    (async () => {
+      const st = await L.laad();
+      if (!st) return { ok: false };
+      if (m.type === 'spo-kijk-stuur') {
+        if (!(await instelling('meekijken'))) return { ok: false };
+        return { ok: true, n: await L.stuurKijk(st, m.data || {}) };
+      }
+      await L.stuurKijkEmoji(st, String(m.naar || ''), m.emoji);
+      return { ok: true };
+    })().then(antwoord, () => antwoord({ ok: false }));
+    return true;
+  });
 
   chrome.runtime.onMessage.addListener((m, _afz, antwoord) => {
     if (!m || m.type !== 'spo-meldingen') return;

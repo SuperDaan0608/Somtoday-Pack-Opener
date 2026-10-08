@@ -44,12 +44,25 @@
   const AURA_KLIK = [1, 1, 1.05, 1.15, 1.35];
   const tredeVan = (k) => (k && Number.isInteger(k.t) ? Math.max(0, Math.min(4, k.t)) : k && k.z ? 1 : 0);
   const auraVan = (team) => (Array.isArray(team) ? team.reduce((m, k) => Math.max(m, tredeVan(k)), 0) : 0);
-  function sterkte(k) { return k.cijfer + 0.4 * (k.tier | 0) + TREDE_STERKTE[tredeVan(k)]; }
+  // v2.4: een vervloekte kaart (k.v) is sterker, maar keert zich soms tegen zijn eigen team (zie vloekKeert).
+  const VLOEK_STERKTE = 1.6;   // de sterkte van een vervloekte kaart telt zoveel keer mee
+  const VLOEK_KLIK = 1.3;      // en elke klik in een duel ook een beetje
+  const VLOEK_KANS = 0.2;      // kans per duel dat de vloek toeslaat
+  const isVloek = (k) => !!k && k.v === true;
+  function sterkte(k) { return (k.cijfer + 0.4 * (k.tier | 0) + TREDE_STERKTE[tredeVan(k)]) * (isVloek(k) ? VLOEK_STERKTE : 1); }
+  // Slaat de vloek toe in duel `nr` van deze wedstrijd? Hangt alleen af van de seed, het duelnummer en de plek van de kaart,
+  // dus beide spelers zien precies hetzelfde. Een kaart zonder vloek keert zich nooit.
+  function vloekKeert(seed, nr, kant, plek, kaart) {
+    if (!isVloek(kaart)) return false;
+    const r = maakRng((seed ^ Math.imul(nr + 1, 0x9E3779B1) ^ Math.imul(plek + 1, 0x85EBCA6B) ^ (kant === 'A' ? 0x1234567 : 0x7654321)) >>> 0);
+    r(); // de eerste waarde van mulberry32 is nog erg gelijk bij nabije seeds
+    return r() < VLOEK_KANS;
+  }
   // Bonus voor de klik-duels: hoe hoger het cijfer, hoe sterker je kliks tellen (0,85 bij een 1, 1,3 bij een 10).
   // `ch` is de teamchemie (0 tot 100) en geeft hooguit +8% extra.
   const CHEMIE_MAX_BONUS = 0.08;
   const chemieBonus = (ch) => CHEMIE_MAX_BONUS * Math.max(0, Math.min(100, ch | 0)) / 100;
-  function klikFactor(k, ch, aura) { return (0.8 + 0.05 * k.cijfer) * (1 + chemieBonus(ch)) * TREDE_KLIK[tredeVan(k)] * AURA_KLIK[aura | 0]; }
+  function klikFactor(k, ch, aura) { return (0.8 + 0.05 * k.cijfer) * (1 + chemieBonus(ch)) * TREDE_KLIK[tredeVan(k)] * AURA_KLIK[aura | 0] * (isVloek(k) ? VLOEK_KLIK : 1); }
 
   // ---- Teamchemie ----
   // Vakken die bij elkaar horen vormen een groep. Hoe meer kaarten uit dezelfde groep, en hoe vaker ze naast elkaar staan, hoe hoger de chemie.
@@ -238,6 +251,13 @@
       if (!s.kans) throw new Error('Er is geen duel.');
       const { schutter, keeper } = s.kans;
       const u = duelUitslag(teams[schutter.z][schutter.i], teams[keeper.z][keeper.i], ca, ck, ch[schutter.z], ch[keeper.z], aura[schutter.z], aura[keeper.z]);
+      // De vloek: een vervloekte schutter mist expres, een vervloekte keeper laat de bal erin. Dat is een minpunt voor zijn eigen team.
+      // (Keren beide zich om, dan telt de schutter: geen doelpunt.)
+      const keertS = vloekKeert(seed, s.kans.k, schutter.z, schutter.i, teams[schutter.z][schutter.i]);
+      const keertK = vloekKeert(seed, s.kans.k, keeper.z, keeper.i, teams[keeper.z][keeper.i]);
+      u.keert = null;
+      if (keertS) { u.goal = false; u.keert = { z: schutter.z, i: schutter.i, rol: 'schutter' }; }
+      else if (keertK) { u.goal = true; u.keert = { z: keeper.z, i: keeper.i, rol: 'keeper' }; }
       s.kans = null;
       if (u.goal) {
         s.stand[schutter.z]++;
@@ -282,7 +302,7 @@
 
   const lib = {
     MAX_MIN, STAPPEN, KLIK_MAX, maakRng, seedUitTekst, seedUitHash, sterkte, klikFactor, GROEPEN, groepVan, chemie, chemieBonus, CHEMIE_MAX_BONUS, lijnen, lijnVan, posities, ordenTeam,
-    maakSim, duelUitslag, schoonKlik, maakComputerTeam, computerKliks, TREDE_STERKTE, TREDE_KLIK, AURA_KLIK, tredeVan, auraVan,
+    maakSim, duelUitslag, vloekKeert, isVloek, VLOEK_STERKTE, VLOEK_KLIK, VLOEK_KANS, schoonKlik, maakComputerTeam, computerKliks, TREDE_STERKTE, TREDE_KLIK, AURA_KLIK, tredeVan, auraVan,
   };
   globalThis.SPOGevecht = lib;
   if (typeof module !== 'undefined' && module.exports) module.exports = lib;

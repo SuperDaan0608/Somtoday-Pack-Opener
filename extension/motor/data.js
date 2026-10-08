@@ -229,6 +229,17 @@
     // voor het geluid: welke trede wordt er nu voorbereid (audio.voorlaad kent alleen 'zeldzaam')
     SPO.laatsteTrede = trede;
     SPO.laatsteUltiem = trede >= 3 && g >= 9.95;
+    // kosmisch en mythisch hebben een eigen donkere kaart (ruimte, as en vuur), tenzij je zelf een thema koos of het een 10 is
+    const ultiemKaart = trede >= 3 && g >= 9.95;
+    if (!(thema && thema.pal) && !ultiemKaart) {
+      if (trede === 3) {
+        T.pal = ['#04021a', '#1c1470', '#6b5af0'];
+        T.tekst = '#eaf4ff';
+      } else if (trede === 4) {
+        T.pal = ['#1a0200', '#7a1604', '#f0701e'];
+        T.tekst = '#fff1d6';
+      }
+    }
     return {
       g,
       I,

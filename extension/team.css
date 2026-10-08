@@ -189,3 +189,11 @@ body.in-gevecht { overflow: hidden; }
 .chemie-vakken { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; }
 .chemie-vakken li { display: block; line-height: 1.35; }
 .chemie-vakken .groep-stip { margin-right: 6px; vertical-align: -1px; }
+
+/* v2.4: vervloekte kaarten */
+.mk .vloek-badge, .kies-kaart .vloek-badge { top: auto; bottom: 2px; left: 50%; transform: translateX(-50%); font-size: max(6px, calc(var(--kw, 56px) * .13)); padding: 1px 4px; border-radius: 4px; }
+.kies-kaart .vloek-badge { font-size: 8px; }
+.kies-kaart.vloek { position: relative; }
+.kies-kaart.vloek::after { border-radius: 8px; }
+.duel-kaart .vloek-badge { font-size: 11px; }
+.kies-kaart .vloek-badge { top: 3px; bottom: auto; }

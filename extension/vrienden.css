@@ -254,3 +254,14 @@ input[aria-invalid="true"] { border-color: #ff5b5b; }
 #kop-toevoegen.verberg { display: none; }
 #reacties-sectie { margin-top: 32px; padding-top: 22px; border-top: 1px solid var(--lijn); }
 .subtabs { position: relative; }
+
+/* v2.4: GG sturen op kosmische en mythische kaarten van een vriend */
+.v-top { margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: rgba(110, 90, 255, .1); border: 1px solid rgba(140, 120, 255, .3); }
+.v-top-kop { margin: 0 0 8px; font: 700 12px/1.3 system-ui, sans-serif; letter-spacing: .04em; text-transform: uppercase; color: #b9b0ff; }
+.v-top-lijst { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.v-top-item { display: flex; align-items: center; gap: 10px; }
+.v-top-icoon { font-size: 20px; }
+.v-top-tekst { flex: 1; font-weight: 600; min-width: 0; }
+.v-top-tekst small { display: block; font-weight: 400; opacity: .65; font-size: 12px; }
+.gg-knop { background: linear-gradient(90deg, #6b4bff, #3bd8ff); color: #fff; border: 0; font-weight: 800; }
+.gg-knop:disabled { background: rgba(255, 255, 255, .12); color: #cfd3e6; cursor: default; }

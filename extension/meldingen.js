@@ -1,6 +1,8 @@
 /*
  * Somtoday Pack Opener: meldingen rechtsboven bij een nieuw vriendverzoek of een uitdaging voor een duel (zie update.js).
  * Kijkt alleen als de pagina zichtbaar is. Klik op de melding om meteen Vrienden of Team te openen.
+ * v2.4: ook 'GG' van een vriend op je kosmische of mythische kaart, 'kijk mee' bij een vriend die nu zo'n kaart opent
+ * (klik = dezelfde animatie op jouw scherm; zie kijken.js) en emoji van kijkers (die vliegen over je scherm; zie kijken.js).
  */
 (function () {
   'use strict';
@@ -32,30 +34,42 @@
     (document.body || document.documentElement).appendChild(host);
   }
 
+  const ICOON = { duel: '⚔️', verzoek: '\u{1F91D}', gg: '\u{1F64C}', kijk: '\u{1F440}' };
+  const ONDER = {
+    duel: 'Klik om naar Team te gaan.',
+    verzoek: 'Klik om naar Vrienden te gaan.',
+    gg: 'Klik om je galerij te openen.',
+    kijk: 'Klik om dezelfde animatie op jouw scherm af te spelen (geen video).',
+  };
   function toon(x) {
+    if (x.soort === 'emoji') { document.dispatchEvent(new CustomEvent('spo-emoji-in', { detail: { emoji: x.emoji, naam: x.naam } })); return; }
     zorgHost();
     const m = document.createElement('div');
     m.className = 'm';
     m.setAttribute('role', 'status');
-    const i = document.createElement('span'); i.className = 'i'; i.textContent = x.soort === 'duel' ? '⚔️' : '\u{1F91D}';
+    const i = document.createElement('span'); i.className = 'i'; i.textContent = ICOON[x.soort] || '\u{1F91D}';
     const t = document.createElement('span'); t.className = 't'; t.textContent = x.tekst;
-    const s = document.createElement('span'); s.className = 's'; s.textContent = x.soort === 'duel' ? 'Klik om naar Team te gaan.' : 'Klik om naar Vrienden te gaan.';
+    const s = document.createElement('span'); s.className = 's'; s.textContent = ONDER[x.soort] || ONDER.verzoek;
     t.append(s);
     const x2 = document.createElement('button'); x2.type = 'button'; x2.setAttribute('aria-label', 'Sluiten'); x2.textContent = '×';
     m.append(i, t, x2);
     const weg = () => { m.classList.add('weg'); setTimeout(() => m.remove(), 300); };
     x2.addEventListener('click', (e) => { e.stopPropagation(); weg(); });
-    m.addEventListener('click', () => { document.dispatchEvent(new CustomEvent('spo-open-tab', { detail: x.soort === 'duel' ? 'team' : 'vrienden' })); weg(); });
+    m.addEventListener('click', () => {
+      if (x.soort === 'kijk') document.dispatchEvent(new CustomEvent('spo-kijk', { detail: { van: x.van, naam: x.naam, kijk: x.kijk } }));
+      else document.dispatchEvent(new CustomEvent('spo-open-tab', { detail: x.soort === 'duel' ? 'team' : x.soort === 'gg' ? 'galerij' : 'vrienden' }));
+      weg();
+    });
     wortel.append(m);
-    setTimeout(weg, x.soort === 'duel' ? 30000 : 12000);
-    try { new Audio(chrome.runtime.getURL('sounds/' + (x.soort === 'duel' ? 'plinko-bel.mp3' : 'icoon.mp3'))).play().catch(() => {}); } catch (e) { /* stil */ }
+    setTimeout(weg, x.soort === 'duel' ? 30000 : x.soort === 'kijk' ? Math.min(60, x.rest || 60) * 1000 : x.soort === 'gg' ? 15000 : 12000);
+    try { new Audio(chrome.runtime.getURL('sounds/' + (x.soort === 'duel' ? 'plinko-bel.mp3' : x.soort === 'kijk' ? 'hartslag.mp3' : 'icoon.mp3'))).play().catch(() => {}); } catch (e) { /* stil */ }
   }
 
   async function vraag() {
     if (document.visibilityState !== 'visible') return;
     try {
       const lijst = await chrome.runtime.sendMessage({ type: 'spo-meldingen' });
-      if (Array.isArray(lijst)) lijst.slice(0, 3).forEach(toon);
+      if (Array.isArray(lijst)) lijst.slice(0, 12).filter((x) => x && x.soort === 'emoji').concat(lijst.filter((x) => x && x.soort !== 'emoji').slice(0, 3)).forEach(toon);
     } catch (e) { /* extensie herladen of offline */ }
   }
   setTimeout(vraag, 1500);

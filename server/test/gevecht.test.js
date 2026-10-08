@@ -65,6 +65,70 @@ function galerijVan(lijst, basis) {
     controle('team delen: ch zit mee in het teamdeel', Number.isInteger(snap.ch) && snap.ch > 0 && L.schoonTeam(snap).ch === snap.ch);
     controle('oude versie zonder ch: team geldig, ch ontbreekt (dan chemie 0)', L.schoonTeam({ kaarten: snap.kaarten }) !== null && !('ch' in L.schoonTeam({ kaarten: snap.kaarten })) && !('ch' in L.schoonTeam(Object.assign({}, snap, { ch: 101 }))) && !('ch' in L.schoonTeam(Object.assign({}, snap, { ch: 'x' }))));
   }
+  // v2.4: vervloekte kaarten, GG, meekijken en huisdier (pure logica, zonder browser)
+  {
+    const kaart = (vak, c, v) => ({ vak, cijfer: c, tier: 1, z: true, t: 1, v: v === true });
+    controle('vloek: een vervloekte kaart is 1,6 keer zo sterk', Math.abs(G.sterkte(kaart('a', 4, true)) - 1.6 * G.sterkte(kaart('a', 4, false))) < 1e-9 && G.klikFactor(kaart('a', 4, true), 0, 0) > G.klikFactor(kaart('a', 4, false), 0, 0));
+    const wel = kaart('x', 4, true), niet = kaart('x', 4, false);
+    controle('vloek: een gewone kaart keert zich nooit', [1, 2, 3, 4, 5].every((sd) => [1, 2, 3, 4, 5, 6].every((nr) => G.vloekKeert(sd, nr, 'A', 2, niet) === false)));
+    controle('vloek: dezelfde seed geeft altijd dezelfde uitkomst', [7, 99, 123456].every((sd) => [1, 2, 3, 4, 5, 6].every((nr) => G.vloekKeert(sd, nr, 'B', 1, wel) === G.vloekKeert(sd, nr, 'B', 1, wel))));
+    let treffers = 0; const N = 4000;
+    for (let sd = 1; sd <= N; sd++) if (G.vloekKeert(sd * 7919, 1 + (sd % 6), sd % 2 ? 'A' : 'B', sd % 5, wel)) treffers++;
+    controle('vloek: ongeveer 20% van de duels', treffers / N > 0.16 && treffers / N < 0.24, treffers / N);
+    // Een volledige wedstrijd met vervloekte kaarten: beide kanten (zelfde teams, zelfde seed) zien dezelfde minpunten
+    const team = (v) => G.ordenTeam(['Wiskunde', 'Nederlands', 'Engels', 'Biologie', 'Frans', 'Duits'].map((vk, i) => kaart(vk, 3 + i / 2, v && i % 2 === 0)), 0);
+    const speelV = (seed) => {
+      const sim = G.maakSim(seed, { A: team(true), B: team(false) }, {}), uit = [];
+      for (let i = 0; i < 400 && !sim.klaar; i++) { const e = sim.volgende(); if (e.t === 'eind') break; if (e.t === 'kans') { const u = sim.duelUitslag(20, 20); uit.push((u.goal ? 'G' : 'N') + (u.keert ? u.keert.z + u.keert.i + u.keert.rol : '')); } }
+      return uit.join(',') + '|' + sim.stand.A + '-' + sim.stand.B;
+    };
+    controle('vloek: twee computers spelen exact dezelfde wedstrijd', [1, 2, 3, 42, 777].every((sd) => speelV(sd) === speelV(sd)));
+    controle('vloek: in sommige wedstrijden slaat de vloek echt toe', [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].some((sd) => /[AB][0-9]+(schutter|keeper)/.test(speelV(sd))));
+    // De vloek is een minpunt voor zijn eigen team: een vervloekte schutter scoort dan niet, een vervloekte keeper laat de bal erin
+    let schutterOk = false, keeperOk = false;
+    for (let sd = 1; sd < 3000 && !(schutterOk && keeperOk); sd++) {
+      const sim = G.maakSim(sd, { A: [kaart('k', 6, true), kaart('v', 6, true)], B: [kaart('k', 6, false), kaart('v', 6, false)] }, {});
+      for (let i = 0; i < 60 && !sim.klaar; i++) {
+        const e = sim.volgende(); if (e.t === 'eind') break;
+        if (e.t !== 'kans') continue;
+        const ASchiet = e.schutter.z === 'A';
+        const u = sim.duelUitslag(ASchiet ? 60 : 0, ASchiet ? 0 : 60); // de schutter wint het klikken ruim
+        if (u.keert && u.keert.rol === 'schutter') schutterOk = schutterOk || (u.goal === false && u.keert.z === e.schutter.z);
+        if (u.keert && u.keert.rol === 'keeper') keeperOk = keeperOk || (u.goal === true && u.keert.z === e.keeper.z);
+      }
+    }
+    controle('vloek: vervloekte schutter mist, vervloekte keeper laat de bal erin', schutterOk && keeperOk, { schutterOk, keeperOk });
+    // vloek in het gedeelde team (v blijft behouden, oudere teams zonder v zijn niet vervloekt)
+    const sn = L.teamMomentopname([{ vak: 'Wiskunde', cijfer: 4, tier: 0, zeldzaam: true, trede: 1, vloek: true }, { vak: 'Engels', cijfer: 7, tier: 2 }]);
+    const sc = L.schoonTeam(sn);
+    controle('vloek: v zit mee in het gedeelde team en oude teams hebben geen v', sc.kaarten[0].v === true && sc.kaarten[1].v === false && L.schoonTeam({ kaarten: [{ vak: 'a', cijfer: 5, tier: 0 }] }).kaarten[0].v === false);
+    // GG en meekijken: alleen wat klopt komt door
+    controle('GG: alleen een geldige kaarttijd', L.schoonGG({ t: 'gg', k: 1760000000000 }).k === '1760000000000' && L.schoonGG({ t: 'gg', k: '1760000000000' }) !== null && L.schoonGG({ t: 'gg', k: 'x' }) === null && L.schoonGG({ t: 'gg' }) === null && L.schoonGG({ t: 'kijk', k: 1 }) === null && L.schoonGG(null) === null);
+    const kijk = { t: 'kijk', mid: 'abcdef0123456789', vak: 'Wiskunde', cijfer: 9.7, trede: 3, opening: 'ster', seizoen: 'geen' };
+    controle('kijk: geldig bericht, maximaal 60 seconden oud', L.schoonKijk(kijk, 5).trede === 3 && L.schoonKijk(kijk, 59) !== null && L.schoonKijk(kijk, 61) === null && L.schoonKijk(kijk, 60) === null);
+    controle('kijk: onzin wordt geweigerd of opgeschoond', L.schoonKijk(Object.assign({}, kijk, { trede: 2 }), 1) === null && L.schoonKijk(Object.assign({}, kijk, { cijfer: 11 }), 1) === null && L.schoonKijk(Object.assign({}, kijk, { mid: '../x' }), 1) === null && L.schoonKijk(Object.assign({}, kijk, { vak: 'x'.repeat(200) }), 1) === null && L.schoonKijk(Object.assign({}, kijk, { opening: '<script>' }), 1).opening === 'pak' && L.schoonKijk(Object.assign({}, kijk, { seizoen: 'x' }), 1).seizoen === 'auto');
+    controle('emoji: alleen de vier om te gooien', L.schoonKijkEmoji({ t: 'emoji', e: '\u{1F525}' }) === '\u{1F525}' && L.schoonKijkEmoji({ t: 'emoji', e: '\u{1F602}' }) !== null && L.schoonKijkEmoji({ t: 'emoji', e: '\u{1F480}' }) === null && L.schoonKijkEmoji({ t: 'emoji', e: '<b>' }) === null && L.schoonKijkEmoji({ t: 'kijk', e: '\u{1F525}' }) === null);
+    const vr = (modus) => ({ id: modus, status: 'vriend', deel: { modus, ids: [] } });
+    controle('kijk: alleen naar vrienden aan wie je alles laat zien', L.kijkOntvangers({ vrienden: [vr('alles'), vr('selectie'), vr('niets'), Object.assign(vr('alles'), { id: 'x', status: 'verzonden' }), Object.assign(vr('alles'), { id: 'y', andereVersie: true })] }).map((v) => v.id).join() === 'alles');
+    // Huisdier
+    const H = require('../../extension/huisdier.js');
+    controle('huisdier: stadia op de drempels', H.stadiumVan(0) === 0 && H.stadiumVan(24) === 0 && H.stadiumVan(25) === 1 && H.stadiumVan(100) === 2 && H.stadiumVan(250) === 3 && H.stadiumVan(500) === 4 && H.stadiumVan(99999) === 4);
+    controle('huisdier: hoger cijfer en hogere trede geven meer xp', H.xpVoor(9, 0) > H.xpVoor(6, 0) && H.xpVoor(6, 3) > H.xpVoor(6, 1) && H.xpVoor(6, 1) > H.xpVoor(6, 0) && H.xpVoor(0, 0) === 0 && H.xpVoor(11, 0) === 0 && H.xpVoor(1, 0) >= 2);
+    const nu = 1760000000000;
+    controle('huisdier: humeur blij of verdrietig en na 6 uur weer rustig', H.humeurVan({ humeur: { s: 'blij', ts: nu - 1000 } }, nu) === 'blij' && H.humeurVan({ humeur: { s: 'verdrietig', ts: nu - 1000 } }, nu) === 'verdrietig' && H.humeurVan({ humeur: { s: 'blij', ts: nu - 7 * 3600e3 } }, nu) === 'rustig' && H.humeurVan(null, nu) === 'rustig' && H.humeurVan({ humeur: { s: 'boos', ts: nu } }, nu) === 'rustig');
+    controle('huisdier: slaapt van 22 tot 7 uur', H.slaapt(new Date(2026, 9, 8, 23, 0)) && H.slaapt(new Date(2026, 9, 8, 3, 0)) && !H.slaapt(new Date(2026, 9, 8, 7, 0)) && !H.slaapt(new Date(2026, 9, 8, 15, 0)) && !H.slaapt(new Date(2026, 9, 8, 21, 59)));
+    controle('huisdier: opslag wordt opgeschoond', H.schoon({ xp: -5, ids: [1, 'a'], humeur: { s: 'x' } }).xp === 0 && H.schoon({ xp: 'veel' }).xp === 0 && H.schoon({ xp: 12.9, ids: ['a', 3] }).ids.length === 1 && H.schoon('x').xp === 0);
+    controle('huisdier: elk stadium en elk humeur tekent een svg', [0, 1, 2, 3, 4].every((s) => ['blij', 'verdrietig', 'rustig'].every((h) => [false, true].every((z) => /^<svg[\s\S]*<\/svg>$/.test(H.teken(s, h, z, 0.3))))));
+    // Back-up: het huisdier komt mee en de hoogste xp wint
+    const A = require('../../extension/account.js');
+    controle('back-up: spo_huisdier zit in de back-up', A.BACKUP_SLEUTELS.includes('spo_huisdier'));
+    const mix = A.samenvoegen('spo_huisdier', { xp: 40, ids: ['a'] }, { xp: 90, ids: ['b'] }, false);
+    controle('back-up: het huisdier met de meeste xp wint en onthoudt alle kaarten', mix.xp === 90 && mix.ids.includes('a') && mix.ids.includes('b') && A.samenvoegen('spo_huisdier', { xp: 200 }, { xp: 90 }, false).xp === 200 && A.samenvoegen('spo_huisdier', undefined, { xp: 90 }, false).xp === 90);
+    // Prestatie 'Vervloekt'
+    const P = require('../../extension/prestatieslib.js');
+    const b = P.BADGES.find((x) => x.id === 'vervloekt');
+    controle('prestatie Vervloekt bestaat en telt vloek-kaarten', !!b && P.afgeleid({ gal: [{ id: 'a', vak: 'a', cijfer: 4, ts: 1, vloek: true, trede: 1 }], gev: {}, team: [], stats: {}, behaald: {} }).vloek === 1 && b.meet({ vloek: 1 }).nu >= b.meet({ vloek: 1 }).doel && b.meet({ vloek: 0 }).nu < b.meet({ vloek: 0 }).doel);
+  }
   const br = await chromium.launch({ channel: 'chromium', args: ['--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   try {
     for (let i = 0; i < 80; i++) { try { await fetch(API, { method: 'OPTIONS' }); await fetch(WEB + '/team.html'); break; } catch (e) { await slaap(100); } }
@@ -81,6 +145,33 @@ function galerijVan(lijst, basis) {
     A.vrienden[0].status = 'vriend';
     B.vrienden = [{ id: A.id, pub: A.pub, alias: 'Daan', status: 'vriend', deel: { modus: 'niets', ids: [] } }];
     A.vrienden[0].alias = 'Sanne';
+    // v2.4: GG en meekijken echt via de server (versleutelde berichten tussen A en B)
+    {
+      const cur = {}, cur2 = {};
+      const vA = A.vrienden[0], vB = B.vrienden[0];
+      const top = { t: 3, vak: 'Frans', ts: 1760000000123 };
+      controle('GG: eerste keer versturen lukt', (await L.stuurGG(A, vA, top)) === true);
+      controle('GG: een tweede GG op dezelfde kaart gaat niet door', (await L.stuurGG(A, vA, top)) === false);
+      controle('GG: geen GG op een gewone kaart', await L.stuurGG(A, vA, { t: 2, vak: 'x', ts: 1760000000999 }).then(() => false, () => true));
+      await L.stuurGG(A, vA, { t: 4, vak: 'Duits', ts: 1760000000456 });
+      await L.stuurKijkEmoji(A, 'onbekend', '\u{1F525}').then(() => controle('emoji naar een onbekende vriend wordt geweigerd', false), () => controle('emoji naar een onbekende vriend wordt geweigerd', true));
+      await L.stuurKijkEmoji(A, vA.id, '\u{1F480}').then(() => controle('emoji buiten de vier wordt geweigerd', false), () => controle('emoji buiten de vier wordt geweigerd', true));
+      const ggB = (await L.haalBerichten(B, vB, cur)).map((b) => L.schoonGG(b.m)).filter(Boolean).map((g) => g.k);
+      controle('GG: de vriend ontvangt precies twee verschillende GG\'s (versleuteld)', ggB.length === 2 && ggB.includes('1760000000123') && ggB.includes('1760000000456'), ggB);
+      controle('GG: bewaard per kaart, een vriend telt maar één keer', (await L.bewaarGG(A.id, '1760000000123')) === true && (await L.bewaarGG(A.id, '1760000000123')) === false && (await L.bewaarGG('ander', '1760000000123')) === true && (await L.leesGG())['1760000000123'].length === 2);
+      // meekijken: A staat bij B op 'alles'; bij 'niets' gaat er niets naar B
+      const kijkData = { vak: 'Wiskunde', cijfer: 9.7, trede: 3, opening: 'ster', seizoen: 'geen' };
+      controle('kijk: niets naar een vriend die je niets laat zien', (await L.stuurKijk(A, kijkData)) === 0);
+      vA.deel = { modus: 'alles', ids: [] };
+      controle('kijk: wel naar een vriend aan wie je alles laat zien', (await L.stuurKijk(A, kijkData)) === 1);
+      await L.stuurKijk(A, Object.assign({}, kijkData, { trede: 2 })).then(() => controle('kijk: een gewone kaart wordt niet gedeeld', false), () => controle('kijk: een gewone kaart wordt niet gedeeld', true));
+      const kB = (await L.haalBerichten(B, vB, cur)).map((b) => L.schoonKijk(b.m, b.leeftijd)).filter(Boolean);
+      controle('kijk: B ontvangt vak, cijfer, trede en opening', kB.length === 1 && kB[0].vak === 'Wiskunde' && kB[0].cijfer === 9.7 && kB[0].trede === 3 && kB[0].opening === 'ster', kB);
+      await L.stuurKijkEmoji(B, A.id, '\u{1F44F}');
+      const eA = (await L.haalBerichten(A, vA, cur2)).map((b) => L.schoonKijkEmoji(b.m)).filter(Boolean);
+      controle('emoji: de opener ontvangt de emoji van de kijker', eA.length === 1 && eA[0] === '\u{1F44F}', eA);
+      vA.deel = { modus: 'niets', ids: [] };
+    }
     const galA = galerijVan([['Wiskunde', 8.6], ['Engels', 9.1], ['Biologie', 6.2], ['Nederlands', 7.4], ['Frans', 5.0]], 0);
     const galB = galerijVan([['Geschiedenis', 7.9], ['Scheikunde', 6.8], ['Economie', 9.97], ['Duits', 5.8], ['Muziek', 8.2]], 10);
     const teamA = { v: 1, ids: [galA[0].id, galA[1].id, galA[2].id] };
