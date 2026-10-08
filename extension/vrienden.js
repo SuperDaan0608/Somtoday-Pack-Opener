@@ -281,7 +281,7 @@
     for (const x of top.slice().sort((a, b) => b.ts - a.ts).slice(0, 5)) {
       const li = el('li', 'v-top-item t' + x.t);
       li.append(el('span', 'v-top-icoon', x.t === 4 ? '\u{1F409}' : '\u{1F30C}'));
-      const t = el('span', 'v-top-tekst', `${x.t === 4 ? 'Mythisch' : 'Kosmisch'}: ${x.vak || 'kaart'}`);
+      const t = el('span', 'v-top-tekst', `${globalThis.SPOLadder.label(x.t)}: ${x.vak || 'kaart'}`);
       t.append(el('small', '', datum(x.ts)));
       li.append(t);
       const b = el('button', 'knop klein gg-knop', gestuurd.has(String(x.ts)) ? 'GG gestuurd' : 'GG!');

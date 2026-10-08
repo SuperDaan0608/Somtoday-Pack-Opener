@@ -142,13 +142,13 @@
           if (!g || b.leeftijd >= 600) continue;
           const kaart = (await L.leesGalerij()).find((e) => String(e.ts) === g.k && (e.trede | 0) >= 3);
           if (!kaart || !(await L.bewaarGG(v.id, g.k))) continue;
-          uit.push({ soort: 'gg', tekst: `${L.naam(v)} zegt GG op je ${kaart.trede === 4 ? 'MYTHISCHE' : 'KOSMISCHE'} kaart (${String(kaart.vak).slice(0, 40)})!` });
+          uit.push({ soort: 'gg', tekst: `${L.naam(v)} zegt GG op je ${kaart.trede === 4 ? 'MYTHISCHE (1/1000)' : 'KOSMISCHE (1/150)'} kaart (${String(kaart.vak).slice(0, 40)})!` });
         } else if (b.m.t === 'kijk') {
           // Een vriend opent nu een kosmische of mythische kaart: meekijken kan 60 seconden lang
           const k = L.schoonKijk(b.m, b.leeftijd);
           if (!k || gezienKijk.has(k.mid)) continue;
           gezienKijk.add(k.mid);
-          uit.push({ soort: 'kijk', van: v.id, naam: L.naam(v), kijk: k, rest: Math.max(5, KIJK_REST - b.leeftijd), tekst: `${L.naam(v)} opent nu iets ${k.trede === 4 ? 'MYTHISCHS' : 'KOSMISCHS'}: kijk mee!` });
+          uit.push({ soort: 'kijk', van: v.id, naam: L.naam(v), kijk: k, rest: Math.max(5, KIJK_REST - b.leeftijd), tekst: `${L.naam(v)} opent nu iets ${k.trede === 4 ? 'MYTHISCHS (kans 1/1000)' : 'KOSMISCHS (kans 1/150)'}: kijk mee!` });
         } else if (b.m.t === 'emoji') {
           const e = L.schoonKijkEmoji(b.m);
           if (!e || b.leeftijd >= 30 || gezienEmoji.has(b.seq + ':' + v.id)) continue;

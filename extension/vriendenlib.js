@@ -499,7 +499,7 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
           st.topGezien = st.topGezien && typeof st.topGezien === 'object' ? st.topGezien : {};
           const eerder = st.topGezien[v.id];
           const nu = p.top.map((x) => x.ts);
-          if (Array.isArray(eerder)) for (const x of p.top) if (!eerder.includes(x.ts) && Date.now() - x.ts < 7 * 864e5) meldingen.push(x.t === 4 ? `🐉 ${naam(v)} trok een MYTHISCHE kaart (${x.vak})!` : `🌌 ${naam(v)} trok een KOSMISCHE kaart (${x.vak})!`);
+          if (Array.isArray(eerder)) for (const x of p.top) if (!eerder.includes(x.ts) && Date.now() - x.ts < 7 * 864e5) meldingen.push(x.t === 4 ? `🐉 ${naam(v)} trok een MYTHISCHE kaart (kans 1/1000): ${x.vak}!` : `🌌 ${naam(v)} trok een KOSMISCHE kaart (kans 1/150): ${x.vak}!`);
           st.topGezien[v.id] = nu.slice(0, 40);
         }
       } catch (e) { mislukt.add(v.id); if (meldingen) meldingen.push(`De cijfers van ${naam(v)} konden niet worden ontsleuteld.`); }

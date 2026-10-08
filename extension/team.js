@@ -56,7 +56,7 @@
     } else {
       d.append(el('span', 'mk-cj', fmt(k.cijfer)), el('span', 'mk-vk', k.vak || ''));
       const tr = Number.isInteger(k.t) ? k.t : k.z ? 1 : 0;
-      if (tr) { const b = el('i', 'mk-z mk-t' + tr, ['', 'Z', 'GLIM', 'KOSM', 'MYTH'][tr]); b.title = ['', 'Zeldzaam', 'Glim', 'Kosmisch', 'Mythisch'][tr]; d.append(b); }
+      if (tr) { const b = el('i', 'mk-z mk-t' + tr, globalThis.SPOLadder.KORT[tr]); b.title = globalThis.SPOLadder.label(tr); d.append(b); }
     }
     if (k.v) { d.classList.add('vloek'); d.append(el('i', 'vloek-badge', 'VLOEK')); }
     if (naam) d.setAttribute('aria-label', naam);

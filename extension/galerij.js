@@ -15,7 +15,8 @@
   const filter = { vak: '', niv: new Set(), sort: 'nieuw', trede: 0, vloek: false };
   let ggPerKaart = {}; // { [tijd van de kaart]: [vriendId, ...] }: vrienden die GG zeiden op mijn kosmische en mythische kaarten (v2.4)
   // v2.4: de ladder. Oude kaarten hebben alleen 'zeldzaam'.
-  const TREDE_NAAM = ['', 'Zeldzaam', 'Glim', 'Kosmisch', 'Mythisch'];
+  const TREDE_NAAM = globalThis.SPOLadder.NAAM;
+  const TREDE_LABEL = (t) => globalThis.SPOLadder.label(t);
   const tredeVan = (e) => Math.max(0, Math.min(4, e.trede | 0)) || (e.zeldzaam ? 1 : 0);
   let zichtbaar = [];
   let open = -1;
@@ -109,7 +110,7 @@
     const lt = $('ladder-tel');
     if (lt) {
       lt.hidden = !alle.length;
-      lt.textContent = `Zeldzaam ${tel[1]} · Glim ${tel[2]} · Kosmisch ${tel[3]} · Mythisch ${tel[4]}`;
+      lt.textContent = [1, 2, 3, 4].map((t) => `${TREDE_NAAM[t]} ${tel[t]} (kans ${globalThis.SPOLadder.kans(t)})`).join(' · ');
     }
     const s = { nieuw: (a, b) => b.ts - a.ts, hoog: (a, b) => b.cijfer - a.cijfer || b.ts - a.ts, laag: (a, b) => a.cijfer - b.cijfer || b.ts - a.ts, vak: (a, b) => a.vak.localeCompare(b.vak, 'nl') || b.ts - a.ts }[filter.sort];
     zichtbaar = l.sort(s);
@@ -136,7 +137,7 @@
       const c = document.createElement('span'); c.className = 'cj'; c.textContent = fmt(e.cijfer);
       const d = document.createElement('span'); d.className = 'dt'; d.textContent = datum(e.ts);
       m.append(v, c, d);
-      if (tr) { const tb = document.createElement('span'); tb.className = 'trede-label t' + tr; tb.textContent = TREDE_NAAM[tr]; vak.append(tb); }
+      if (tr) { const tb = document.createElement('span'); tb.className = 'trede-label t' + tr; tb.textContent = TREDE_NAAM[tr]; tb.title = TREDE_LABEL(tr) + ': zo vaak komt deze trede voor'; vak.append(tb); }
       const gg = aantalGG(e);
       if (gg) { const gb = document.createElement('span'); gb.className = 'gg-label'; gb.textContent = '\u{1F64C} ' + gg; gb.title = ggTekst(gg); vak.append(gb); }
       b.append(vak, m); li.append(b); frag.append(li);
@@ -156,7 +157,7 @@
     const dlg = $('detail');
     dlg.style.setProperty('--gl', GLOED[e.tier]);
     $('d-img').src = e.kaart; $('d-img').alt = `Kaart ${e.vak} ${fmt(e.cijfer)}`;
-    $('d-niveau').textContent = NIVEAUS[e.tier] + (tredeVan(e) ? ' · ' + TREDE_NAAM[tredeVan(e)] : '') + (e.vloek ? ' · Vervloekt' : '');
+    $('d-niveau').textContent = NIVEAUS[e.tier] + (tredeVan(e) ? ' · ' + TREDE_LABEL(tredeVan(e)) : '') + (e.vloek ? ' · Vervloekt' : '');
     $('d-kaart').classList.toggle('vloek', !!e.vloek);
     const gg = aantalGG(e);
     $('d-gg').hidden = !gg;
