@@ -124,7 +124,11 @@
 
   async function dagelijks() {
     let inst = {};
-    try { inst = (await chrome.storage.local.get('spo_instellingen')).spo_instellingen || {}; } catch (e) { return; }
+    try {
+      const r = await chrome.storage.local.get(['spo_instellingen', 'spo_account']);
+      if (!r.spo_account || !r.spo_account.sessie) return; // pas na het inloggen (anders telt hij dubbel na het terugzetten)
+      inst = r.spo_instellingen || {};
+    } catch (e) { return; }
     if (inst.dagelijks === false) return;
     await E.sweep().catch(() => {}); // eerst de startgegevens, zodat een nieuwe gebruiker niet dubbel telt
     const st = await E.dagStatus();

@@ -3,14 +3,15 @@
 // De server bewaart alleen willekeurige id's, publieke sleutels en onleesbare (versleutelde) blobs.
 declare(strict_types=1);
 
-const MAX_BODY = 131072;  // 128 KB
+const MAX_BODY = 786432;  // 768 KB (alleen de back-up van een account is zo groot; de rest heeft eigen, kleinere grenzen)
+const MAX_BACKUP = 700000; // versleutelde back-up van een account (zonder kaartplaatjes)
 const MAX_BLOB = 98304;   // 96 KB
 const MAX_BERICHT = 2048; // een kanaalbericht (versleuteld) mag hoogstens 2 KB zijn
 const BERICHT_TTL = 600;  // berichten in een kanaal verdwijnen na 10 minuten
 const MAX_WACHTRIJ = 300; // hoogstens zoveel berichten tegelijk van één afzender naar één ontvanger
 
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Headers: Content-Type, X-Id, X-Token, X-Beheer');
+header('Access-Control-Allow-Headers: Content-Type, X-Id, X-Token, X-Beheer, X-Sessie');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
@@ -34,7 +35,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET' && isset($_GET['status'])) {
   try {
     $d = new PDO($c['db_dsn'], $c['db_user'] ?? null, $c['db_pass'] ?? null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
   } catch (Throwable $e) { fout(500, 'Database niet bereikbaar: controleer host, naam, gebruiker en wachtwoord in config.php.'); }
-  foreach (['users', 'friendships', 'blobs', 'ratelimit', 'berichten', 'bans'] as $t) {
+  foreach (['users', 'friendships', 'blobs', 'ratelimit', 'berichten', 'bans', 'accounts', 'acc_codes', 'acc_sessies', 'acc_backup'] as $t) {
     try { $d->query('SELECT 1 FROM ' . $t . ' LIMIT 1'); }
     catch (Throwable $e) { fout(500, 'Tabel ontbreekt: ' . $t . '. Voer schema.sql uit in phpMyAdmin.'); }
   }
@@ -100,6 +101,9 @@ if (random_int(1, 100) === 1) {
   q($db, 'DELETE FROM berichten WHERE created < ?', [$nu - BERICHT_TTL]);
   q($db, 'DELETE FROM ratelimit WHERE venster < 10000000 AND venster < ?', [intdiv($nu, 3600) - 3]);
   q($db, 'DELETE FROM bans WHERE tot > 0 AND tot <= ?', [$nu]);
+  q($db, 'DELETE FROM acc_codes WHERE verloopt < ?', [$nu]);
+  q($db, 'DELETE FROM acc_sessies WHERE verloopt < ?', [$nu]);
+  q($db, 'DELETE FROM accounts WHERE geverifieerd = 0 AND gemaakt < ?', [$nu - 7 * 86400]);
   $oud = q($db, 'SELECT id FROM users WHERE last_seen < ?', [$nu - 365 * 86400])->fetchAll(PDO::FETCH_COLUMN);
   foreach ($oud as $o) verwijderGebruiker($db, $o);
 }
@@ -179,6 +183,181 @@ if (strncmp($actie, 'beheer', 6) === 0) {
     case 'beheerWisAccount': {
       $db->beginTransaction();
       verwijderGebruiker($db, $bid);
+      $db->commit();
+      uit(200, ['ok' => true]);
+    }
+    default:
+      fout(400, 'Onbekende actie.');
+  }
+}
+
+// ---- Accounts (v2.2): e-mail + wachtwoord, met een code per e-mail ----
+// Het e-mailadres wordt niet bewaard: alleen een hash (met zout). Het adres staat alleen even in het verzoek om de mail te sturen.
+// De back-up is in de browser versleuteld met een sleutel uit het wachtwoord: de server (en de beheerder) kan hem niet lezen.
+// Grote verzoeken mogen alleen voor de back-up; de rest blijft onder de oude grens.
+if ($actie !== 'accBackupBewaar' && $lengte > 131072) fout(413, 'Verzoek te groot.');
+if (strncmp($actie, 'acc', 3) === 0) {
+  $emailHash = function ($e) use ($cfg): string { return hash('sha256', 'email:' . strtolower(trim((string)$e)) . ($cfg['zout'] ?? '')); };
+  $leesEmail = function () use ($in): string {
+    $e = $in['email'] ?? '';
+    if (!is_string($e) || strlen($e) > 200) fout(400, 'Vul een geldig e-mailadres in.');
+    $e = strtolower(trim($e));
+    if (!filter_var($e, FILTER_VALIDATE_EMAIL)) fout(400, 'Vul een geldig e-mailadres in.');
+    return $e;
+  };
+  $leesWw = function () use ($in): string {
+    $w = $in['ww'] ?? '';
+    if (!is_string($w) || strlen($w) < 8) fout(400, 'Je wachtwoord moet minstens 8 tekens hebben.');
+    if (strlen($w) > 200) fout(400, 'Je wachtwoord is te lang.');
+    return $w;
+  };
+  // Stuurt een code van 6 cijfers. In tests ('mail_bestand') komt de mail in een bestand in plaats van in de post.
+  $stuurCode = function (string $email, string $soort) use ($db, $cfg, $nu, $emailHash): void {
+    $code = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+    $eh = $emailHash($email);
+    q($db, 'DELETE FROM acc_codes WHERE email_hash = ? AND soort = ?', [$eh, $soort]);
+    q($db, 'INSERT INTO acc_codes (email_hash, soort, code_hash, verloopt, pogingen) VALUES (?, ?, ?, ?, 0)',
+      [$eh, $soort, hash('sha256', $code . ':' . $eh), $nu + 15 * 60]);
+    $onderwerp = $soort === 'reset' ? 'Je code om je wachtwoord te wijzigen' : 'Je code voor Somtoday Pack Opener';
+    $tekst = "Hoi!\n\nJe code is: $code\n\nVul deze code in de Pack Opener in. De code werkt 15 minuten.\n"
+      . ($soort === 'reset' ? "Heb jij niet gevraagd om je wachtwoord te wijzigen? Dan kun je deze mail negeren.\n" : "Heb jij geen account gemaakt? Dan kun je deze mail negeren.\n")
+      . "\nSomtoday Pack Opener";
+    $van = (string)($cfg['mail_van'] ?? '');
+    if (!empty($cfg['mail_bestand'])) {
+      file_put_contents((string)$cfg['mail_bestand'], json_encode(['aan' => $email, 'soort' => $soort, 'code' => $code]) . "\n", FILE_APPEND);
+      return;
+    }
+    if ($van === '' || !filter_var($van, FILTER_VALIDATE_EMAIL)) fout(500, 'De server kan nog geen mail sturen (mail_van ontbreekt in config.php).');
+    $kop = 'From: Somtoday Pack Opener <' . $van . ">\r\nContent-Type: text/plain; charset=utf-8\r\nX-Mailer: SPO";
+    if (!mail($email, '=?UTF-8?B?' . base64_encode($onderwerp) . '?=', $tekst, $kop, '-f' . $van)) fout(500, 'De mail kon niet worden verstuurd. Probeer het later opnieuw.');
+  };
+  // Controleert een code; na 5 foute pogingen moet je een nieuwe vragen.
+  $controleerCode = function (string $email, string $soort) use ($db, $in, $nu, $emailHash): void {
+    $code = $in['code'] ?? '';
+    if (!is_string($code) || !preg_match('/^[0-9]{6}$/', trim($code))) fout(400, 'Vul de code van 6 cijfers in.');
+    $eh = $emailHash($email);
+    $r = q($db, 'SELECT code_hash, verloopt, pogingen FROM acc_codes WHERE email_hash = ? AND soort = ?', [$eh, $soort])->fetch();
+    if (!$r || (int)$r['verloopt'] < $nu) fout(400, 'Deze code is verlopen. Vraag een nieuwe code aan.');
+    if ((int)$r['pogingen'] >= 5) fout(429, 'Te vaak een verkeerde code. Vraag een nieuwe code aan.');
+    if (!hash_equals((string)$r['code_hash'], hash('sha256', trim($code) . ':' . $eh))) {
+      q($db, 'UPDATE acc_codes SET pogingen = pogingen + 1 WHERE email_hash = ? AND soort = ?', [$eh, $soort]);
+      fout(400, 'Deze code klopt niet.');
+    }
+    q($db, 'DELETE FROM acc_codes WHERE email_hash = ? AND soort = ?', [$eh, $soort]);
+  };
+  $nieuweSessie = function (string $acc) use ($db, $nu): string {
+    $t = bin2hex(random_bytes(32));
+    q($db, 'INSERT INTO acc_sessies (token_hash, account, verloopt) VALUES (?, ?, ?)', [hash('sha256', $t), $acc, $nu + 365 * 86400]);
+    q($db, 'UPDATE accounts SET laatst = ? WHERE id = ?', [$nu, $acc]);
+    return $t;
+  };
+  // Mails en inlogpogingen zijn beperkt per ip-adres en per e-mailadres.
+  $limietMail = function (string $email) use ($ipHash, $db, $nu, $cfg, $emailHash): void {
+    tel($db, hash('sha256', $ipHash . ':mail'), intdiv($nu, 3600), (int)($cfg['limiet_mail_per_uur'] ?? 20));
+    tel($db, hash('sha256', $emailHash($email) . ':mail'), intdiv($nu, 3600), (int)($cfg['limiet_mail_email_per_uur'] ?? 5));
+  };
+  $limietLogin = function (string $email) use ($ipHash, $db, $nu, $cfg, $emailHash): void {
+    tel($db, hash('sha256', $ipHash . ':login'), intdiv($nu, 60), (int)($cfg['limiet_login_per_min'] ?? 30));
+    tel($db, hash('sha256', $emailHash($email) . ':login'), intdiv($nu, 3600), (int)($cfg['limiet_login_email_per_uur'] ?? 30));
+  };
+
+  switch ($actie) {
+    case 'accRegistreer': {
+      $email = $leesEmail();
+      $ww = $leesWw();
+      $limietMail($email);
+      $eh = $emailHash($email);
+      $r = q($db, 'SELECT id, geverifieerd FROM accounts WHERE email_hash = ?', [$eh])->fetch();
+      if ($r && (int)$r['geverifieerd'] === 1) fout(409, 'Er bestaat al een account met dit e-mailadres. Log in.');
+      $hash = password_hash($ww, PASSWORD_DEFAULT);
+      if ($r) q($db, 'UPDATE accounts SET ww_hash = ? WHERE id = ?', [$hash, $r['id']]);
+      else q($db, 'INSERT INTO accounts (id, email_hash, ww_hash, geverifieerd, gemaakt, laatst) VALUES (?, ?, ?, 0, ?, ?)', [bin2hex(random_bytes(16)), $eh, $hash, $nu, $nu]);
+      $stuurCode($email, 'verifieer');
+      uit(200, ['ok' => true]);
+    }
+    case 'accVerifieer': {
+      $email = $leesEmail();
+      $limietLogin($email);
+      $r = q($db, 'SELECT id FROM accounts WHERE email_hash = ?', [$emailHash($email)])->fetch();
+      if (!$r) fout(404, 'Er is geen account met dit e-mailadres.');
+      $controleerCode($email, 'verifieer');
+      q($db, 'UPDATE accounts SET geverifieerd = 1 WHERE id = ?', [$r['id']]);
+      uit(200, ['sessie' => $nieuweSessie($r['id']), 'account' => $r['id'], 'nieuw' => true]);
+    }
+    case 'accCodeOpnieuw': {
+      $email = $leesEmail();
+      $limietMail($email);
+      $r = q($db, 'SELECT geverifieerd FROM accounts WHERE email_hash = ?', [$emailHash($email)])->fetch();
+      if ($r && (int)$r['geverifieerd'] === 0) $stuurCode($email, 'verifieer');
+      uit(200, ['ok' => true]); // altijd ok: zo verraad je niet of een adres een account heeft
+    }
+    case 'accLogin': {
+      $email = $leesEmail();
+      $ww = $in['ww'] ?? '';
+      if (!is_string($ww) || $ww === '' || strlen($ww) > 200) fout(400, 'Vul je wachtwoord in.');
+      $limietLogin($email);
+      $r = q($db, 'SELECT id, ww_hash, geverifieerd FROM accounts WHERE email_hash = ?', [$emailHash($email)])->fetch();
+      // ook zonder account een hash controleren, zodat de tijd niets verraadt
+      $ok = password_verify($ww, $r ? (string)$r['ww_hash'] : '$2y$10$abcdefghijklmnopqrstuuJ0bJHn7ZLqvSMxKjXv5lQ4p1JhPpE1i');
+      if (!$r || !$ok) fout(401, 'E-mailadres of wachtwoord klopt niet.');
+      if ((int)$r['geverifieerd'] !== 1) {
+        $limietMail($email);
+        $stuurCode($email, 'verifieer');
+        uit(403, ['fout' => 'Je e-mailadres is nog niet bevestigd. We hebben een nieuwe code gestuurd.', 'nietBevestigd' => true]);
+      }
+      uit(200, ['sessie' => $nieuweSessie($r['id']), 'account' => $r['id']]);
+    }
+    case 'accVergeten': {
+      $email = $leesEmail();
+      $limietMail($email);
+      $r = q($db, 'SELECT geverifieerd FROM accounts WHERE email_hash = ?', [$emailHash($email)])->fetch();
+      if ($r && (int)$r['geverifieerd'] === 1) $stuurCode($email, 'reset');
+      uit(200, ['ok' => true]);
+    }
+    case 'accReset': {
+      $email = $leesEmail();
+      $ww = $leesWw();
+      $limietLogin($email);
+      $r = q($db, 'SELECT id FROM accounts WHERE email_hash = ? AND geverifieerd = 1', [$emailHash($email)])->fetch();
+      if (!$r) fout(404, 'Er is geen account met dit e-mailadres.');
+      $controleerCode($email, 'reset');
+      // Nieuw wachtwoord = nieuwe sleutel: de oude back-up is daarmee niet meer te lezen en gaat weg. De browser zet hem opnieuw neer.
+      $db->beginTransaction();
+      q($db, 'UPDATE accounts SET ww_hash = ? WHERE id = ?', [password_hash($ww, PASSWORD_DEFAULT), $r['id']]);
+      q($db, 'DELETE FROM acc_sessies WHERE account = ?', [$r['id']]);
+      q($db, 'DELETE FROM acc_backup WHERE account = ?', [$r['id']]);
+      $db->commit();
+      uit(200, ['sessie' => $nieuweSessie($r['id']), 'account' => $r['id']]);
+    }
+  }
+  // Vanaf hier: ingelogd met een sessie.
+  $st = $_SERVER['HTTP_X_SESSIE'] ?? ($in['sessie'] ?? '');
+  if (!is_string($st) || !preg_match('/^[0-9a-f]{64}$/', $st)) fout(401, 'Niet ingelogd.');
+  $ses = q($db, 'SELECT account, verloopt FROM acc_sessies WHERE token_hash = ?', [hash('sha256', $st)])->fetch();
+  if (!$ses || (int)$ses['verloopt'] < $nu) fout(401, 'Je bent uitgelogd. Log opnieuw in.');
+  $acc = (string)$ses['account'];
+  tel($db, hash('sha256', $acc . ':acc'), intdiv($nu, 60), (int)($cfg['limiet_acc_per_min'] ?? 60));
+  switch ($actie) {
+    case 'accBackupLaad': {
+      $b = q($db, 'SELECT data, versie, bijgewerkt FROM acc_backup WHERE account = ?', [$acc])->fetch();
+      uit(200, $b ? ['data' => (string)$b['data'], 'versie' => (int)$b['versie'], 'bijgewerkt' => (int)$b['bijgewerkt']] : ['data' => null, 'versie' => 0]);
+    }
+    case 'accBackupBewaar': {
+      $data = $in['data'] ?? null;
+      if (!is_string($data) || $data === '' || strlen($data) > MAX_BACKUP || !preg_match('/^[A-Za-z0-9_.-]+$/', $data)) fout(400, 'Ongeldige back-up (te groot of verkeerde vorm).');
+      $n = q($db, 'UPDATE acc_backup SET data = ?, versie = versie + 1, bijgewerkt = ? WHERE account = ?', [$data, $nu, $acc])->rowCount();
+      if ($n === 0) q($db, 'INSERT INTO acc_backup (account, data, versie, bijgewerkt) VALUES (?, ?, 1, ?)', [$acc, $data, $nu]);
+      uit(200, ['ok' => true, 'versie' => (int)q($db, 'SELECT versie FROM acc_backup WHERE account = ?', [$acc])->fetchColumn()]);
+    }
+    case 'accUitloggen': {
+      q($db, 'DELETE FROM acc_sessies WHERE token_hash = ?', [hash('sha256', $st)]);
+      uit(200, ['ok' => true]);
+    }
+    case 'accVerwijder': {
+      $db->beginTransaction();
+      q($db, 'DELETE FROM acc_backup WHERE account = ?', [$acc]);
+      q($db, 'DELETE FROM acc_sessies WHERE account = ?', [$acc]);
+      q($db, 'DELETE FROM accounts WHERE id = ?', [$acc]);
       $db->commit();
       uit(200, ['ok' => true]);
     }
