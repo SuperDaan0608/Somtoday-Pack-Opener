@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "Somtoday Pack Opener",
   "short_name": "Pack Opener",
-  "version": "2.2.1",
-  "version_name": "2.2.1",
+  "version": "2.2.2",
+  "version_name": "2.2.2",
   "description": "Open je Somtoday-cijfers als een FIFA-pakket: tunnel, walkout en een eigen kaart voor elk vak.",
   "permissions": ["activeTab", "scripting", "storage", "unlimitedStorage"],
   "content_scripts": [
