@@ -335,6 +335,7 @@
     try {
       const r = await chrome.storage.local.get([SLEUTEL_GEOPEND, SLEUTEL_INSTELLINGEN, SLEUTEL_DICHT, SLEUTEL_ACCOUNT]);
       ingelogd = isIngelogd(r[SLEUTEL_ACCOUNT]);
+      verouderd = isVerouderd((await chrome.storage.local.get('spo_update')).spo_update);
       accountId = ingelogd ? String(r[SLEUTEL_ACCOUNT].account || '') : '';
       geopend = schoonGeopend(r[SLEUTEL_GEOPEND]);
       dicht = schoonDicht(r[SLEUTEL_DICHT]);
@@ -354,6 +355,15 @@
   const SLEUTEL_ACCOUNT = 'spo_account';
   let ingelogd = false;
   let accountId = '';
+  // Is er een nieuwere versie? Dan werkt deze niet meer tot je hebt geüpdatet (updatemelding.js laat de melding zien).
+  let verouderd = false;
+  const versieDelen = (v) => String(v || '').replace(/^v/i, '').split('-')[0].split('.').map((n) => parseInt(n, 10) || 0);
+  function isVerouderd(u) {
+    if (!u || !u.versie) return false;
+    const x = versieDelen(u.versie), y = versieDelen(chrome.runtime.getManifest().version);
+    for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d > 0; }
+    return false;
+  }
   const isIngelogd = (a) => !!(a && typeof a === 'object' && typeof a.sessie === 'string' && typeof a.sleutel === 'string');
   let tekenBezig = false;
   async function tekenOntbrekendeKaarten() {
@@ -391,6 +401,7 @@
       if (wijzigingen[SLEUTEL_GEOPEND]) geopend = schoonGeopend(wijzigingen[SLEUTEL_GEOPEND].newValue);
       if (wijzigingen[SLEUTEL_DICHT]) dicht = schoonDicht(wijzigingen[SLEUTEL_DICHT].newValue);
       if (wijzigingen[SLEUTEL_INSTELLINGEN]) instellingen = { ...STANDAARD, ...(wijzigingen[SLEUTEL_INSTELLINGEN].newValue || {}) };
+      if (wijzigingen.spo_update) verouderd = isVerouderd(wijzigingen.spo_update.newValue);
       if (wijzigingen[SLEUTEL_ACCOUNT]) {
         ingelogd = isIngelogd(wijzigingen[SLEUTEL_ACCOUNT].newValue);
         accountId = ingelogd ? String(wijzigingen[SLEUTEL_ACCOUNT].newValue.account || '') : '';
@@ -627,8 +638,8 @@
   }
 
   function open(rij, { direct }) {
-    if (!ingelogd) {
-      openPaneel('overzicht'); // het paneel laat eerst het inlogscherm zien
+    if (!ingelogd || verouderd) {
+      openPaneel('overzicht'); // het paneel laat eerst het inlogscherm of de updatemelding zien
       return true;
     }
     if (bezig || typeof window.__somPackRun !== 'function') return false;

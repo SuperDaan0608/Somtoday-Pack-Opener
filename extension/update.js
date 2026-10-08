@@ -8,7 +8,9 @@
   const chrome = typeof browser !== 'undefined' && browser.runtime ? browser : globalThis.chrome;
   const URL_LAATSTE = 'https://api.github.com/repos/SuperDaan0608/Somtoday-Pack-Opener/releases/latest';
   const SLEUTEL = 'spo_update';
-  const INTERVAL = 6 * 60 * 60 * 1000;
+  // Elke 10 minuten (alleen als er een Somtoday-pagina of het paneel open is). Met een ETag: een antwoord 'niets veranderd' (304)
+  // telt niet mee voor de limiet van GitHub, zodat een hele klas op één schoolnetwerk niet tegen die limiet aanloopt.
+  const INTERVAL = 10 * 60 * 1000;
 
   const delen = (v) => String(v || '').replace(/^v/i, '').split('-')[0].split('.').map((n) => parseInt(n, 10) || 0);
   function nieuwer(a, b) {
@@ -26,8 +28,11 @@
     if (!forceer && oud.ts && Date.now() - oud.ts < INTERVAL) return oud;
     let nieuw = { ...oud, ts: Date.now() };
     try {
-      const res = await fetch(URL_LAATSTE, { headers: { Accept: 'application/vnd.github+json' }, credentials: 'omit', cache: 'no-store' });
-      if (res.ok) {
+      const kop = { Accept: 'application/vnd.github+json' };
+      if (oud.etag && oud.versie) kop['If-None-Match'] = oud.etag;
+      const res = await fetch(URL_LAATSTE, { headers: kop, credentials: 'omit', cache: 'no-store' });
+      if (res.status === 304) nieuw = { ...oud, ts: Date.now() };
+      else if (res.ok) {
         const j = await res.json();
         const versie = String(j.tag_name || '').replace(/^v/i, '');
         const zips = (Array.isArray(j.assets) ? j.assets : []).filter((a) => a && /\.zip$/i.test(a.name || '') && /^https:\/\//.test(a.browser_download_url || ''));
@@ -40,6 +45,7 @@
           zipChrome: chromeZip ? chromeZip.browser_download_url : '',
           zipFirefox: firefox ? firefox.browser_download_url : '',
           later: oud.later || '',
+          etag: res.headers.get('ETag') || '',
         };
       }
     } catch (e) { /* offline of geblokkeerd: probeer over 6 uur opnieuw */ }
@@ -53,6 +59,7 @@
     return true;
   });
   if (chrome.runtime.onStartup) chrome.runtime.onStartup.addListener(() => controleer(false));
+  controleer(false).catch(() => {});
   if (chrome.runtime.onInstalled) chrome.runtime.onInstalled.addListener(() => controleer(false));
 })();
 
