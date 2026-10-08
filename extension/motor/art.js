@@ -1794,6 +1794,101 @@
   }
 
   // De kaart wordt in stukjes gemaakt (een generator): na elk stuk kan de browser even iets anders doen.
+  // Een vleugje van het seizoensthema van het pakje op de kaart: alleen in de randen en de rechterbovenhoek, nooit over het
+  // cijfer (linksboven) of de naamplaat. Halloween: paarse gloed, een spinnenweb en vleermuisjes. Kerst: rijp in de hoeken en
+  // sneeuwvlokjes. Zomer: warm zonlicht van rechtsboven met een paar stralen.
+  function seizoenLaag(c, seizoen) {
+    if (!seizoen) return;
+    c.save();
+    if (seizoen === 'halloween') {
+      const g = c.createLinearGradient(0, CH, 0, CH * 0.55);
+      g.addColorStop(0, 'rgba(120,40,170,.42)');
+      g.addColorStop(1, 'rgba(120,40,170,0)');
+      c.fillStyle = g;
+      c.fillRect(0, 0, CW, CH);
+      const o = c.createRadialGradient(CW, 0, 0, CW, 0, 150);
+      o.addColorStop(0, 'rgba(255,120,10,.4)');
+      o.addColorStop(1, 'rgba(255,130,20,0)');
+      c.fillStyle = o;
+      c.fillRect(0, 0, CW, CH);
+      // spinnenweb in de hoek rechtsboven
+      c.strokeStyle = 'rgba(40,20,50,.5)';
+      c.lineWidth = 1.2;
+      const hx = CW - RIM, hy = RIM;
+      for (let i = 0; i <= 5; i++) {
+        const a = Math.PI / 2 + (i / 5) * (Math.PI / 2);
+        c.beginPath(); c.moveTo(hx, hy); c.lineTo(hx + Math.cos(a) * 78, hy + Math.sin(a) * 78); c.stroke();
+      }
+      for (const r of [22, 42, 62]) {
+        c.beginPath();
+        for (let i = 0; i <= 5; i++) {
+          const a = Math.PI / 2 + (i / 5) * (Math.PI / 2);
+          const x = hx + Math.cos(a) * r, y = hy + Math.sin(a) * r;
+          if (i === 0) c.moveTo(x, y); else c.quadraticCurveTo(hx + Math.cos(a - 0.16) * r * 0.86, hy + Math.sin(a - 0.16) * r * 0.86, x, y);
+        }
+        c.stroke();
+      }
+      // vleermuisjes
+      c.fillStyle = 'rgba(25,8,35,.8)';
+      for (const [x, y, s] of [[226, 96, 1.4], [258, 132, 1], [198, 138, 0.8]]) {
+        c.save(); c.translate(x, y); c.scale(s, s);
+        c.beginPath();
+        c.moveTo(0, 0); c.quadraticCurveTo(-8, -9, -18, -4); c.quadraticCurveTo(-13, -2, -12, 3); c.quadraticCurveTo(-7, 0, -4, 4);
+        c.lineTo(0, 2); c.lineTo(4, 4); c.quadraticCurveTo(7, 0, 12, 3); c.quadraticCurveTo(13, -2, 18, -4); c.quadraticCurveTo(8, -9, 0, 0);
+        c.fill(); c.restore();
+      }
+    } else if (seizoen === 'kerst') {
+      for (const [x, y] of [[0, 0], [CW, 0], [0, CH], [CW, CH]]) {
+        const g = c.createRadialGradient(x, y, 0, x, y, 120);
+        g.addColorStop(0, 'rgba(235,248,255,.62)');
+        g.addColorStop(1, 'rgba(230,245,255,0)');
+        c.fillStyle = g;
+        c.fillRect(0, 0, CW, CH);
+      }
+      const r = c.createLinearGradient(0, 0, 0, 60);
+      r.addColorStop(0, 'rgba(200,30,40,.38)');
+      r.addColorStop(1, 'rgba(200,30,40,0)');
+      c.fillStyle = r;
+      c.fillRect(0, 0, CW, 60);
+      // sneeuwvlokjes (niet linksboven, daar staat het cijfer)
+      c.strokeStyle = 'rgba(255,255,255,.95)';
+      c.shadowColor = 'rgba(80,140,220,.9)';
+      c.shadowBlur = 3;
+      c.lineWidth = 1.6;
+      let z = 11;
+      const rnd = () => ((z = (z * 16807) % 2147483647) / 2147483647);
+      for (let i = 0; i < 22; i++) {
+        const x = 20 + rnd() * (CW - 40), y = 20 + rnd() * (PLAAT_Y - 30);
+        if (x < 150 && y < 175) continue;
+        const k = 4 + rnd() * 4.5;
+        for (let j = 0; j < 3; j++) {
+          const a = (j / 3) * Math.PI;
+          c.beginPath(); c.moveTo(x - Math.cos(a) * k, y - Math.sin(a) * k); c.lineTo(x + Math.cos(a) * k, y + Math.sin(a) * k); c.stroke();
+        }
+      }
+    } else if (seizoen === 'zomer') {
+      const g = c.createRadialGradient(CW, 0, 0, CW, 0, 260);
+      g.addColorStop(0, 'rgba(255,215,100,.6)');
+      g.addColorStop(0.5, 'rgba(255,180,70,.12)');
+      g.addColorStop(1, 'rgba(255,180,70,0)');
+      c.fillStyle = g;
+      c.fillRect(0, 0, CW, CH);
+      c.globalCompositeOperation = 'lighter';
+      c.fillStyle = 'rgba(255,230,150,.12)';
+      for (let i = 0; i < 6; i++) {
+        const a = Math.PI * 0.55 + (i / 6) * Math.PI * 0.42;
+        c.beginPath(); c.moveTo(CW, 0); c.lineTo(CW + Math.cos(a - 0.05) * 420, Math.sin(a - 0.05) * 420); c.lineTo(CW + Math.cos(a + 0.05) * 420, Math.sin(a + 0.05) * 420); c.fill();
+      }
+      c.globalCompositeOperation = 'source-over';
+      const t = c.createLinearGradient(0, CH, 0, CH * 0.7);
+      t.addColorStop(0, 'rgba(30,200,210,.32)');
+      t.addColorStop(1, 'rgba(30,200,210,0)');
+      c.fillStyle = t;
+      c.fillRect(0, 0, CW, CH);
+    }
+    c.restore();
+  }
+
   function* kaartGen(data) {
     const T = data.T;
     const tier = data.tier;
@@ -1838,6 +1933,7 @@
     vg.addColorStop(1, tier === 3 ? 'rgba(0,0,12,.5)' : tier === 4 ? 'rgba(110,80,30,.22)' : 'rgba(0,0,0,.34)');
     c.fillStyle = vg;
     c.fillRect(0, 0, CW, CH);
+    seizoenLaag(c, data.seizoen);
     // de lijst werpt een zachte schaduw op het veld
     c.save();
     kaartPad(c, RIM);

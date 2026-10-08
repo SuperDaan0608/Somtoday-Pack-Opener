@@ -1,5 +1,11 @@
 # Wijzigingen
 
+## v2.3.0
+
+- **Update verplicht:** is er een nieuwe versie, dan werkt de Pack Opener niet meer tot je hebt geüpdatet. Het paneel wordt geblokkeerd met een melding en een downloadknop, en een klik op een cijfer laat die melding zien. Dat gebeurt ook als je al bezig bent.
+- **Updatemelding komt nu echt:** de extensie kijkt elke 10 minuten (zolang Somtoday of het paneel open is) of er een nieuwe versie is, in plaats van één keer per 6 uur. Met een ETag telt dat niet mee voor de limiet van GitHub, ook niet met een hele klas op één schoolnetwerk. Na een mislukte controle wordt het na 10 minuten opnieuw geprobeerd.
+- **Kaart in het seizoensthema:** bij het Halloween-, Kerst- of Zomerpakje krijgt de kaart een vleugje van dat thema. Halloween krijgt een paarse gloed, een spinnenweb en vleermuisjes, Kerst rijp en sneeuwvlokjes, en Zomer warm zonlicht. Het cijfer en de naamplaat blijven vrij.
+
 ## v2.2.2
 
 - **Geen herkansing meer voor zeldzaam:** of een kaart zeldzaam is, ligt nu vast per cijfer en per account. Opnieuw openen, de pagina verversen of een cijfer weer afdekken en nog een keer openen geeft altijd dezelfde uitkomst. Het blijft één op de tien.
