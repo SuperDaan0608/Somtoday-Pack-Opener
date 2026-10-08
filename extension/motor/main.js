@@ -24,7 +24,7 @@
   let warmStaat = null; // een alvast klaargezette motor (zie warm)
   let artCache = null; // { sleutel, belofte }: de afbeeldingen van het cijfer waar je het laatst boven hing
 
-  const sleutelVan = (d) => [d.vak, d.cijferTekst, d.onder, d.weging, d.snel ? 1 : 0, d.opening, d.persoon, d.T.pal.join(), d.rand, d.zeldzaam ? 'z' : '', d.seizoen || ''].join('|');
+  const sleutelVan = (d) => [d.vak, d.cijferTekst, d.onder, d.weging, d.snel ? 1 : 0, d.opening, d.persoon, d.T.pal.join(), d.rand, d.zeldzaam ? 'z' + (d.trede || '') : '', d.seizoen || ''].join('|');
   const pauzeRustig = () => new Promise((r) => (window.requestIdleCallback ? requestIdleCallback(() => r(), { timeout: 150 }) : setTimeout(r, 12)));
   const pauzeSnel = () => new Promise((r) => setTimeout(r, 0));
 
