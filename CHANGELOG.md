@@ -1,5 +1,9 @@
 # Wijzigingen
 
+## v2.3.1
+
+- De extensie kijkt nu elke minuut of er een nieuwe versie is (was 10 minuten).
+
 ## v2.3.0
 
 - **Update verplicht:** is er een nieuwe versie, dan werkt de Pack Opener niet meer tot je hebt geüpdatet. Het paneel wordt geblokkeerd met een melding en een downloadknop, en een klik op een cijfer laat die melding zien. Dat gebeurt ook als je al bezig bent.

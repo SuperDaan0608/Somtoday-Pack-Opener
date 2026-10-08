@@ -59,7 +59,7 @@
       chrome.storage.onChanged.addListener((c, g) => { if (g === 'local' && c[SLEUTEL]) toon(c[SLEUTEL].newValue); });
       const vraag = () => chrome.runtime.sendMessage({ type: 'spo-update-check' }).catch(() => {});
       vraag();
-      setInterval(vraag, 10 * 60 * 1000); // ook als je lang bezig bent
+      setInterval(vraag, 60 * 1000); // ook als je lang bezig bent
     } catch (e) { /* geen melding */ }
   }
   start();
