@@ -1,6 +1,8 @@
 # Wijzigingen
 
-## v2.3.4
+## v2.4.0
+
+- **Uitval: geen nep-uitval meer:** komt er op hetzelfde tijdstip een andere les of afspraak bij (zoals een inzagemoment), dan zag de extensie de oude plek ten onrechte als uitval. Nu telt een les alleen als uitval als er op dat tijdstip niets meer staat, en spookblokken over een bestaande les verdwijnen.
 
 - **Vrienden alleen met dezelfde versie:** je kunt alleen vrienden zijn, kaarten delen en battelen met iemand die dezelfde versie heeft. De server controleert dat. Oudere versies, die nog geen versienummer meesturen, krijgen de melding dat ze moeten updaten. Bij een vriend met een andere versie staat *Andere versie* in je lijst.
 - **Server:** `api.php` opnieuw uploaden en `schema.sql` opnieuw uitvoeren (nieuwe tabel `user_versie`).
