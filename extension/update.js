@@ -8,9 +8,9 @@
   const chrome = typeof browser !== 'undefined' && browser.runtime ? browser : globalThis.chrome;
   const URL_LAATSTE = 'https://api.github.com/repos/SuperDaan0608/Somtoday-Pack-Opener/releases/latest';
   const SLEUTEL = 'spo_update';
-  // Elke 10 minuten (alleen als er een Somtoday-pagina of het paneel open is). Met een ETag: een antwoord 'niets veranderd' (304)
+  // Elke minuut (alleen als er een Somtoday-pagina of het paneel open is). Met een ETag: een antwoord 'niets veranderd' (304)
   // telt niet mee voor de limiet van GitHub, zodat een hele klas op één schoolnetwerk niet tegen die limiet aanloopt.
-  const INTERVAL = 10 * 60 * 1000;
+  const INTERVAL = 60 * 1000;
 
   const delen = (v) => String(v || '').replace(/^v/i, '').split('-')[0].split('.').map((n) => parseInt(n, 10) || 0);
   function nieuwer(a, b) {
