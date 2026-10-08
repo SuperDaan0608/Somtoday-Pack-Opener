@@ -959,6 +959,9 @@
     }
   }
 
+  // Klik op een melding rechtsboven (meldingen.js): meteen het goede tabblad openen.
+  document.addEventListener('spo-open-tab', (e) => { if (e.detail === 'team' || e.detail === 'vrienden') openPaneel(e.detail); });
+
   function openPaneel(tab) {
     if (!document.body || bezig || !window.__SPO) return false;
     if (paneel) {

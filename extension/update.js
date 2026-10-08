@@ -86,3 +86,65 @@
   // Bij het opstarten van de browser: de back-up van een ander apparaat erbij halen.
   if (chrome.runtime.onStartup) chrome.runtime.onStartup.addListener(() => A.herstel().catch(() => {}));
 })();
+
+/*
+ * v2.4: meldingen rechtsboven op Somtoday bij een nieuw vriendverzoek of een uitdaging voor een duel.
+ * De Somtoday-pagina (meldingen.js) vraagt elke paar seconden 'iets nieuws?'. Wij doen dan één goedkope 'puls' bij de server
+ * en halen alleen meer op als daar iets veranderd is. Berichten worden hier alleen gelezen (eigen cursor), niet weggehaald:
+ * de Team-pagina ziet ze daarna gewoon nog.
+ */
+(function () {
+  'use strict';
+  const chrome = typeof browser !== 'undefined' && browser.runtime ? browser : globalThis.chrome;
+  try {
+    if (!globalThis.SPOVrienden && typeof importScripts === 'function') importScripts('vriendenlib.js');
+  } catch (e) { /* zonder vriendenlib geen meldingen */ }
+  const L = globalThis.SPOVrienden;
+  if (!L) return;
+  let bezig = null, laatst = 0, vh = null, eerste = true;
+  const cursor = {};
+  const gezienVerzoek = new Set();
+  const gezienUitdaging = new Set();
+
+  async function kijk() {
+    const st = await L.laad();
+    if (!st) return [];
+    const cl = L.clientVan(st);
+    const p = await cl.roep('puls');
+    const uit = [];
+    if (vh === null || p.vh !== vh) {
+      vh = p.vh;
+      const inb = await cl.roep('inbox');
+      for (const r of inb.verzoeken || []) {
+        if (gezienVerzoek.has(r.id)) continue;
+        gezienVerzoek.add(r.id);
+        const bekend = st.vrienden.find((v) => v.id === r.id && v.status === 'vriend');
+        // Bij de eerste keer niet alle oude verzoeken melden die je al gezien had (die staan al als 'ontvangen' in je lijst).
+        if (!bekend && !(eerste && st.vrienden.some((v) => v.id === r.id && v.status === 'ontvangen'))) uit.push({ soort: 'verzoek', tekst: 'Je hebt een nieuw vriendverzoek.' });
+      }
+    }
+    for (const x of p.post || []) {
+      if (x.seq <= (cursor[x.van] || 0)) continue;
+      const v = st.vrienden.find((y) => y.id === x.van && y.status === 'vriend');
+      if (!v) continue;
+      const lijst = await L.haalBerichten(st, v, cursor);
+      for (const b of lijst) {
+        if (b.m.t !== 'uitnodiging' || b.leeftijd >= 300 || typeof b.m.mid !== 'string') continue;
+        if (gezienUitdaging.has(b.m.mid)) continue;
+        gezienUitdaging.add(b.m.mid);
+        uit.push({ soort: 'duel', tekst: `${L.naam(v)} daagt je uit voor een duel!` });
+      }
+    }
+    eerste = false;
+    return uit;
+  }
+
+  chrome.runtime.onMessage.addListener((m, _afz, antwoord) => {
+    if (!m || m.type !== 'spo-meldingen') return;
+    // Meerdere tabbladen tegelijk: hoogstens één keer per 4 seconden echt bij de server kijken.
+    if (bezig || Date.now() - laatst < 4000) { antwoord([]); return; }
+    laatst = Date.now();
+    bezig = kijk().catch(() => []).then((r) => { bezig = null; antwoord(r); });
+    return true;
+  });
+})();

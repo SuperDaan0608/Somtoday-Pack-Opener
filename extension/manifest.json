@@ -15,7 +15,7 @@
     },
     {
       "matches": ["https://leerling.somtoday.nl/*"],
-      "js": ["motor/data.js", "motor/audio.js", "motor/shaders.js", "motor/gl.js", "motor/art.js", "motor/openingen/kluis.js", "motor/openingen/plinko.js", "motor/openingen/ster.js", "motor/openingen/raket.js", "motor/openingen/schiet.js", "motor/openingen/dans.js", "motor/zeldzaam.js", "motor/scene.js", "motor/main.js", "gevecht.js", "prestatieslib.js", "economie.js", "content.js", "dagelijks.js", "rooster.js", "updatemelding.js"],
+      "js": ["motor/data.js", "motor/audio.js", "motor/shaders.js", "motor/gl.js", "motor/art.js", "motor/openingen/kluis.js", "motor/openingen/plinko.js", "motor/openingen/ster.js", "motor/openingen/raket.js", "motor/openingen/schiet.js", "motor/openingen/dans.js", "motor/zeldzaam.js", "motor/scene.js", "motor/main.js", "gevecht.js", "prestatieslib.js", "economie.js", "content.js", "dagelijks.js", "rooster.js", "updatemelding.js", "meldingen.js"],
       "run_at": "document_idle"
     }
   ],
