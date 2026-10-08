@@ -18,3 +18,10 @@ sl-rooster-item.spo-uitval::after {
   letter-spacing: 0.04em;
   pointer-events: none;
 }
+
+/* Een les die uit het rooster verdween (uitval): doorgestreept spookblok op de plek waar hij stond */
+.spo-spook { z-index: 2; display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 4px 10px; border-radius: 8px;
+  border: 2px dashed #e0a800; background: repeating-linear-gradient(135deg, rgba(255, 210, 74, .22) 0 8px, rgba(255, 210, 74, .1) 8px 16px);
+  color: #6b4b00; font: 600 13px/1.2 system-ui, sans-serif; overflow: hidden; pointer-events: none; }
+.spo-spook-vak { text-decoration: line-through; text-decoration-thickness: 2px; opacity: .8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.spo-spook-label { font-weight: 900; letter-spacing: .08em; color: #b36b00; font-size: 12px; }
