@@ -134,10 +134,19 @@
     return data;
   }
   // Voegt de back-up samen met wat er al in deze browser staat. Niets wat hier staat gaat verloren.
-  function samenvoegen(k, hier, daar) {
+  // vers: deze browser is net (opnieuw) geïnstalleerd: wat hier staat zijn alleen standaardwaarden, dus de back-up gaat voor.
+  function samenvoegen(k, hier, daar, vers) {
     if (leeg(hier)) return daar;
     if (leeg(daar)) return hier;
     switch (k) {
+      case 'spo_winkel': {
+        // gekochte spullen gaan nooit verloren: van allebei samen
+        const h = obj(hier), d = obj(daar);
+        const gekocht = Array.from(new Set([].concat(Array.isArray(d.gekocht) ? d.gekocht : [], Array.isArray(h.gekocht) ? h.gekocht : [])));
+        const hg = obj(h.gebruik), dg = obj(d.gebruik);
+        const kies = (x, y, std) => (x && x !== std ? x : y || x || std);
+        return Object.assign({}, d, h, { gekocht, gebruik: vers ? Object.assign({}, hg, dg) : { somtoday: kies(hg.somtoday, dg.somtoday, 'standaard'), titel: kies(hg.titel, dg.titel, null), bg: kies(hg.bg, dg.bg, 'standaard') } });
+      }
       case 'spo_galerij': {
         if (!Array.isArray(hier) || !Array.isArray(daar)) return hier;
         const ids = new Set(hier.map((e) => e && e.id));
@@ -157,7 +166,7 @@
       case 'spo_uitval_gezien':
         return Object.assign({}, obj(daar), obj(hier));
       case 'spo_munten':
-        return (obj(daar).totaal || 0) > (obj(hier).totaal || 0) ? daar : hier;
+        return vers || (obj(daar).totaal || 0) > (obj(hier).totaal || 0) ? daar : hier;
       case 'spo_munten_log':
         return (Array.isArray(hier) ? hier.length : 0) >= (Array.isArray(daar) ? daar.length : 0) ? hier : daar;
       case 'spo_stats': {
@@ -170,11 +179,11 @@
         return u;
       }
       default:
-        return hier; // de rest (instellingen, team, vrienden, ...): deze browser gaat voor
+        return vers ? daar : hier; // de rest (instellingen, team, vrienden, ...): deze browser gaat voor, behalve na een nieuwe installatie
     }
   }
   // Haalt de back-up op en zet hem terug (samengevoegd). Daarna gaat de nieuwe stand weer naar de server.
-  async function herstel() {
+  async function herstel(vers) {
     const a = await account();
     if (!a) return { ok: false };
     const r = await roep('accBackupLaad', {}, a.sessie);
@@ -192,7 +201,7 @@
       const nieuw = {};
       for (const k of BACKUP_SLEUTELS) {
         if (data[k] === undefined) continue;
-        const w = samenvoegen(k, hier[k], data[k]);
+        const w = samenvoegen(k, hier[k], data[k], vers === true);
         if (JSON.stringify(w) !== JSON.stringify(hier[k])) { nieuw[k] = w; teruggezet++; }
       }
       if (teruggezet) {
@@ -224,9 +233,12 @@
 
   // ---- inloggen en zo ----
   async function ingelogd(email, ww, r) {
+    // Geen kaarten en geen geopende cijfers in deze browser? Dan is hij net geïnstalleerd en gaat de back-up voor.
+    const hier = await lees(['spo_galerij', 'spo_geopend']);
+    const vers = leeg(hier.spo_galerij) && leeg(hier.spo_geopend);
     const sleutel = await maakSleutel(email, ww);
     await schrijf({ [SLEUTEL]: { email: schoonEmail(email), sessie: r.sessie, account: r.account, sleutel, sinds: Date.now() } });
-    return herstel();
+    return herstel(vers);
   }
   const SPOAccount = {
     SLEUTEL, BACKUP_SLEUTELS,

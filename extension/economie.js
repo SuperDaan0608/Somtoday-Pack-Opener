@@ -111,6 +111,7 @@
         dag: schoonDag(r[K.dag]),
         nieuw: obj(r[K.munten]).init !== true,
       };
+      herstelUitLog(staat);
       const uit = await fn(staat);
       staat.munten.ts = Date.now();
       const sleutels = Object.keys(staat.ids);
@@ -185,6 +186,19 @@
   }
 
   // ───────── Winkel ─────────
+  // Wat je ooit kocht of won staat ook in de geschiedenis (spo_munten_log). Ontbreekt iets in de winkel (bijv. na een update
+  // waarbij de winkel leeg was geraakt), dan zetten we het hier terug.
+  function herstelUitLog(s) {
+    const naarId = new Map(ITEMS.map((i) => [i.naam, i.id]));
+    for (const e of s.log) {
+      const id = String(e && e.id || ''), r = String(e && e.r || '');
+      let item = null;
+      if (id.startsWith('k:')) item = id.slice(2);
+      else if (/^pak:[^:]+:/.test(id)) item = id.split(':')[2];
+      else if (r.startsWith('Dagelijkse beloning: ')) item = naarId.get(r.slice(21)) || null;
+      if (item && PER_ID.has(item) && !s.winkel.gekocht.includes(item)) s.winkel.gekocht.push(item);
+    }
+  }
   function koop(itemId) {
     return werk((s) => {
       const it = PER_ID.get(itemId);
@@ -213,7 +227,7 @@
       let z = kiesKans(pak.kans);
       while (z > 0 && !ITEMS.some((i) => i.zeld === z)) z--;
       const it = lootUit(ITEMS.filter((i) => i.zeld === z));
-      boek(s, -pak.prijs, pak.naam + ' geopend', 'pak:' + pak.id);
+      boek(s, -pak.prijs, pak.naam + ' geopend', 'pak:' + pak.id + ':' + it.id); // met het item erbij, zodat het terug te vinden is
       const dubbel = s.winkel.gekocht.includes(it.id);
       let terug = 0;
       if (dubbel) { terug = Math.max(1, Math.round(waarde(it) * TERUG)); boek(s, terug, 'Dubbel: ' + it.naam, 'dubbel:' + it.id); }
