@@ -1,5 +1,9 @@
 # Wijzigingen
 
+## v2.2.1
+
+- Bij *Account maken* staat een tip om je eigen e-mail (bijv. Gmail) te gebruiken: schoolmail blokkeert vaak mail van buiten de school, waardoor de code niet aankomt. Bij een adres dat op schoolmail lijkt, verschijnt een waarschuwing.
+
 ## v2.2.0
 
 - **Inloggen met een account:** je moet eerst inloggen voordat je de Pack Opener kunt gebruiken. Je maakt een account met je e-mailadres en een wachtwoord, en bevestigt het met een code van 6 cijfers die je per mail krijgt. *Wachtwoord vergeten* werkt ook met een code.

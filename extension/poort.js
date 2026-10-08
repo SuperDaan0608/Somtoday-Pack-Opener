@@ -25,8 +25,15 @@
     .spo-poort .link { background: none; border: 0; padding: 0; color: #ffd24a; font: inherit; font-size: 13.5px; cursor: pointer; text-decoration: underline; }
     .spo-poort .fout { color: #ff9a9a; font-size: 13.5px; margin-top: 12px; min-height: 1em; }
     .spo-poort .info { color: #9fe3b0; font-size: 13.5px; margin-top: 12px; }
+    .spo-poort .tip, .spo-poort .waarschuwing { font-size: 13px; color: #ffe2a0; background: rgba(255,210,74,.08); border: 1px solid rgba(255,210,74,.3); border-radius: 10px; padding: 8px 10px; margin: 0 0 4px; }
+    .spo-poort .waarschuwing { margin-top: 8px; color: #ffc9a0; border-color: rgba(255,140,60,.45); }
     .spo-poort .klein { font-size: 12.5px; color: #8a93aa; margin-top: 16px; }
   `;
+  // Een adres van school: alleen cijfers voor de @, of een domein met school, college, lyceum enz.
+  const lijktSchool = (e) => {
+    const m = /^([^@]+)@(.+)$/.exec(String(e || '').trim().toLowerCase());
+    return !!m && (/^[0-9]{4,}$/.test(m[1]) || /(college|school|scholen|lyceum|gymnasium|atheneum|scholengemeenschap|onderwijs|\.edu)/.test(m[2]));
+  };
   const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
   function toonPoort() {
@@ -56,8 +63,10 @@
       maken: () => `
         <h1>Account maken</h1>
         <p>Je krijgt een code per e-mail om je adres te bevestigen. Je e-mailadres wordt niet bewaard, alleen een onleesbare versie ervan.</p>
+        <p class="tip"><b>Tip:</b> gebruik je eigen e-mail (bijv. Gmail). Schoolmail blokkeert vaak mail van buiten de school, dan komt de code niet aan.</p>
         <form>
           <label for="p-email">E-mailadres</label><input id="p-email" type="email" autocomplete="email" required value="${esc(geheugen.email)}">
+          <div class="waarschuwing" hidden>Dit lijkt een schoolmail. De code komt daar vaak niet aan. Gebruik liever je eigen e-mail.</div>
           <label for="p-ww">Wachtwoord (minstens 8 tekens)</label><input id="p-ww" type="password" autocomplete="new-password" minlength="8" required>
           <label for="p-ww2">Wachtwoord nog een keer</label><input id="p-ww2" type="password" autocomplete="new-password" minlength="8" required>
           <button class="knop" type="submit">Account maken</button>
@@ -68,6 +77,7 @@
       code: () => `
         <h1>Check je mail</h1>
         <p>We hebben een code van 6 cijfers gestuurd naar <b>${esc(geheugen.email)}</b>. Kijk ook in je spam.</p>
+        ${lijktSchool(geheugen.email) ? '<p class="tip">Geen code na een paar minuten? Schoolmail blokkeert vaak mail van buiten. Ga terug en maak een account met je eigen e-mail (bijv. Gmail).</p>' : ''}
         <form>
           <label for="p-code">Code</label><input id="p-code" class="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required>
           <button class="knop" type="submit">Bevestigen</button>
@@ -107,6 +117,8 @@
       const f = p.querySelector('form');
       if (f) f.addEventListener('submit', (e) => { e.preventDefault(); verstuur(); });
       for (const b of p.querySelectorAll('[data-naar]')) b.addEventListener('click', () => teken(b.dataset.naar));
+      const em = p.querySelector('#p-email'), wa = p.querySelector('.waarschuwing');
+      if (em && wa) { const k = () => (wa.hidden = !lijktSchool(em.value)); em.addEventListener('input', k); k(); }
       const op = p.querySelector('[data-actie="opnieuw"]');
       if (op) op.addEventListener('click', () => doe(() => A.codeOpnieuw(geheugen.email).then(() => melding('Er is een nieuwe code onderweg.'))));
     }
