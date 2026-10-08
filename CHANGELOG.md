@@ -1,5 +1,9 @@
 # Wijzigingen
 
+## v2.2.2
+
+- **Geen herkansing meer voor zeldzaam:** of een kaart zeldzaam is, ligt nu vast per cijfer en per account. Opnieuw openen, de pagina verversen of een cijfer weer afdekken en nog een keer openen geeft altijd dezelfde uitkomst. Het blijft één op de tien.
+
 ## v2.2.1
 
 - Bij *Account maken* staat een tip om je eigen e-mail (bijv. Gmail) te gebruiken: schoolmail blokkeert vaak mail van buiten de school, waardoor de code niet aankomt. Bij een adres dat op schoolmail lijkt, verschijnt een waarschuwing.

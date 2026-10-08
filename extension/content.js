@@ -335,6 +335,7 @@
     try {
       const r = await chrome.storage.local.get([SLEUTEL_GEOPEND, SLEUTEL_INSTELLINGEN, SLEUTEL_DICHT, SLEUTEL_ACCOUNT]);
       ingelogd = isIngelogd(r[SLEUTEL_ACCOUNT]);
+      accountId = ingelogd ? String(r[SLEUTEL_ACCOUNT].account || '') : '';
       geopend = schoonGeopend(r[SLEUTEL_GEOPEND]);
       dicht = schoonDicht(r[SLEUTEL_DICHT]);
       instellingen = { ...STANDAARD, ...(r[SLEUTEL_INSTELLINGEN] || {}) };
@@ -352,6 +353,7 @@
   // Na het terugzetten van een back-up missen de kaartplaatjes (die gaan niet mee): die tekenen we hier opnieuw.
   const SLEUTEL_ACCOUNT = 'spo_account';
   let ingelogd = false;
+  let accountId = '';
   const isIngelogd = (a) => !!(a && typeof a === 'object' && typeof a.sessie === 'string' && typeof a.sleutel === 'string');
   let tekenBezig = false;
   async function tekenOntbrekendeKaarten() {
@@ -389,7 +391,10 @@
       if (wijzigingen[SLEUTEL_GEOPEND]) geopend = schoonGeopend(wijzigingen[SLEUTEL_GEOPEND].newValue);
       if (wijzigingen[SLEUTEL_DICHT]) dicht = schoonDicht(wijzigingen[SLEUTEL_DICHT].newValue);
       if (wijzigingen[SLEUTEL_INSTELLINGEN]) instellingen = { ...STANDAARD, ...(wijzigingen[SLEUTEL_INSTELLINGEN].newValue || {}) };
-      if (wijzigingen[SLEUTEL_ACCOUNT]) ingelogd = isIngelogd(wijzigingen[SLEUTEL_ACCOUNT].newValue);
+      if (wijzigingen[SLEUTEL_ACCOUNT]) {
+        ingelogd = isIngelogd(wijzigingen[SLEUTEL_ACCOUNT].newValue);
+        accountId = ingelogd ? String(wijzigingen[SLEUTEL_ACCOUNT].newValue.account || '') : '';
+      }
       if (wijzigingen[SLEUTEL_GALERIJ] && ingelogd) setTimeout(tekenOntbrekendeKaarten, 1500);
       scan();
     });
@@ -435,18 +440,24 @@
     return '';
   }
 
-  // Eén op de tien kaarten is zeldzaam (instelling 'zeldzaam'). Net als bij 'Verras me' dobbelen we één keer per cijfer en houden
-  // we de uitkomst vast tot het pakket dicht is: zo zijn het opwarmen (muis erboven) en het echte openen het eens.
+  // Eén op de tien kaarten is zeldzaam (instelling 'zeldzaam'). De uitkomst ligt vast per cijfer en per account: hij volgt uit
+  // een hash van het cijfer (sig) en je account-id. Opnieuw openen, de pagina verversen of afdekken en nog eens openen geeft dus
+  // altijd dezelfde uitkomst: herkansen tot je een zeldzame kaart hebt kan niet.
   function zeldzaamVoor(rij) {
     if (instellingen.zeldzaam === false) return false;
-    let st = staat.get(rij.host);
-    if (!st) staat.set(rij.host, (st = {}));
-    if (st.zeldzaam == null) {
-      const w = new Uint32Array(1);
-      crypto.getRandomValues(w);
-      st.zeldzaam = w[0] / 4294967296 < 0.1;
+    return vastGetal(rij.sig + '|' + accountId + '|zeldzaam') < 0.1;
+  }
+  // cyrb53: een snelle, vaste hash naar een getal tussen 0 en 1
+  function vastGetal(t) {
+    let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+    for (let i = 0; i < t.length; i++) {
+      const c = t.charCodeAt(i);
+      h1 = Math.imul(h1 ^ c, 2654435761);
+      h2 = Math.imul(h2 ^ c, 1597334677);
     }
-    return st.zeldzaam;
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+    return ((h2 >>> 0) * 2097152 + (h1 >>> 11)) / 9007199254740992;
   }
   const seizoenKeuze = () => (instellingen.seizoen === false ? 'geen' : 'auto');
 
@@ -665,7 +676,6 @@
         const st = staat.get(rij.host);
         if (st) {
           st.willekeur = null; // de volgende keer weer een nieuwe verrassing
-          st.zeldzaam = null;
         }
         scan();
       },
