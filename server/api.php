@@ -70,6 +70,37 @@ function q(PDO $db, string $sql, array $p = []): PDOStatement {
   $s->execute($p);
   return $s;
 }
+// Mail via SMTP (bijv. Gmail: smtp.gmail.com, poort 465, met een app-wachtwoord). Geeft true als de server de mail aannam.
+function smtpStuur(array $cfg, string $van, string $aan, string $onderwerp, string $tekst): bool {
+  $host = (string)($cfg['smtp_host'] ?? 'smtp.gmail.com');
+  $poort = (int)($cfg['smtp_poort'] ?? 465);
+  $schema = ($cfg['smtp_beveiliging'] ?? 'ssl') === 'geen' ? 'tcp' : 'ssl'; // 'geen' alleen voor tests
+  $s = @stream_socket_client($schema . '://' . $host . ':' . $poort, $en, $es, 15);
+  if (!$s) return false;
+  stream_set_timeout($s, 15);
+  $lees = function () use ($s): string {
+    $r = '';
+    while (($l = fgets($s, 1024)) !== false) { $r .= $l; if (strlen($l) < 4 || $l[3] === ' ') break; }
+    return $r;
+  };
+  $zeg = function (string $c, string $verwacht) use ($s, $lees): bool {
+    if ($c !== '') fwrite($s, $c . "\r\n");
+    return strncmp($lees(), $verwacht, 3) === 0;
+  };
+  $gebr = (string)($cfg['smtp_gebruiker'] ?? $van);
+  $ok = $zeg('', '220') && $zeg('EHLO pack-opener', '250')
+    && $zeg('AUTH LOGIN', '334') && $zeg(base64_encode($gebr), '334') && $zeg(base64_encode((string)$cfg['smtp_wachtwoord']), '235')
+    && $zeg('MAIL FROM:<' . $van . '>', '250') && $zeg('RCPT TO:<' . $aan . '>', '250') && $zeg('DATA', '354');
+  if ($ok) {
+    $bericht = 'From: Somtoday Pack Opener <' . $van . ">\r\nTo: <" . $aan . ">\r\nSubject: =?UTF-8?B?" . base64_encode($onderwerp) . "?=\r\n"
+      . "Date: " . date('r') . "\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\n"
+      . chunk_split(base64_encode($tekst));
+    $ok = $zeg($bericht . "\r\n.", '250');
+  }
+  @fwrite($s, "QUIT\r\n");
+  fclose($s);
+  return $ok;
+}
 function isId($v): bool { return is_string($v) && preg_match('/^[0-9a-f]{32}$/', $v) === 1; }
 
 // Rate limit: alleen een hash van ip + zout wordt bewaard, nooit het ruwe adres.
@@ -228,6 +259,10 @@ if (strncmp($actie, 'acc', 3) === 0) {
       return;
     }
     if ($van === '' || !filter_var($van, FILTER_VALIDATE_EMAIL)) fout(500, 'De server kan nog geen mail sturen (mail_van ontbreekt in config.php).');
+    if (!empty($cfg['smtp_wachtwoord'])) {
+      if (!smtpStuur($cfg, $van, $email, $onderwerp, $tekst)) fout(500, 'De mail kon niet worden verstuurd. Probeer het later opnieuw.');
+      return;
+    }
     $kop = 'From: Somtoday Pack Opener <' . $van . ">\r\nContent-Type: text/plain; charset=utf-8\r\nX-Mailer: SPO";
     if (!mail($email, '=?UTF-8?B?' . base64_encode($onderwerp) . '?=', $tekst, $kop, '-f' . $van)) fout(500, 'De mail kon niet worden verstuurd. Probeer het later opnieuw.');
   };

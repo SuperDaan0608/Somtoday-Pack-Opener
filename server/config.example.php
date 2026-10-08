@@ -12,6 +12,13 @@ return [
   // 'beheer_sleutel' => 'VERVANG-DIT-DOOR-EEN-LANGE-GEHEIME-TEKST',
   // Accounts (v2.2): het afzenderadres voor de mails met codes. Moet een adres van je eigen domein zijn (maak het aan in Strato).
   'mail_van' => 'noreply@JOUWDOMEIN.nl',
+  // Liever via Gmail? Zet dan mail_van op je Gmail-adres en vul hieronder een app-wachtwoord in
+  // (Google-account > Beveiliging > 2-stapsverificatie aan > App-wachtwoorden). Niet je gewone wachtwoord!
+  // 'mail_van' => 'jouwnaam@gmail.com',
+  // 'smtp_host' => 'smtp.gmail.com',
+  // 'smtp_poort' => 465,
+  // 'smtp_gebruiker' => 'jouwnaam@gmail.com',
+  // 'smtp_wachtwoord' => 'abcd efgh ijkl mnop',
   // Limieten (mogen weg; dit zijn de standaardwaarden).
   'limiet_per_min' => 6000,       // per ip-adres (een school deelt vaak één adres)
   'limiet_user_per_min' => 180,   // per gebruiker: 1 sync per seconde past ruim
