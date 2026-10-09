@@ -310,12 +310,9 @@ void main(){
 }`;
 
   // ───────────────────────── De walkout-arena ─────────────────────────
-  // Je staat op het veld en kijkt naar de spelerstunnel in de hoofdtribune. Uit de felle tunnel loopt de
-  // leerling door de rook naar je toe, in tegenlicht, terwijl schijnwerpers zwaaien en het publiek flitst.
-  // De camera rijdt langzaam naar de tunnel toe (uDolly). uDim dempt de wereld tijdens de grote plaatjes.
   const FS_ARENA = `${KOP}
 out vec4 o;
-uniform vec2 uRes, uShake; uniform float uTime, uZoom, uLicht, uStap, uAmp, uFlits, uBundel, uAlpha, uRegen, uDolly, uDim, uKw;
+uniform vec2 uRes, uShake; uniform float uTime, uZoom, uLicht, uStap, uAmp, uFlits, uBundel, uAlpha, uRegen;
 uniform vec3 uTint, uTint2;
 uniform vec4 uFig;   // x, voeten-y, hoogte, zichtbaar
 ${GEMEEN}
@@ -329,225 +326,128 @@ float figuur(vec2 q, float ph, float amp){
   q.y -= abs(s1) * .012 * amp;
   q.x -= s1 * .010 * amp;
   q = rot2(s1 * .018 * amp) * (q - vec2(0., .5)) + vec2(0., .5);
-  float d = ell(q, vec2(0., .915), vec2(.047, .058));
-  d = smin(d, cap(q, vec2(0., .865), vec2(0., .83), .021), .02);
-  float sch = min(cap(q, vec2(-.02, .825), vec2(-.122, .783), .032), cap(q, vec2(.02, .825), vec2(.122, .783), .032));
-  float borst = cap(q, vec2(-.068, .735), vec2(.068, .735), .078);
-  float taille = cap(q, vec2(-.05, .60), vec2(.05, .60), .066);
-  d = smin(d, smin(smin(sch, borst, .05), taille, .08), .025);
-  d = smin(d, cap(q, vec2(-.05, .54), vec2(.05, .54), .068), .04);
+  float d = ell(q, vec2(0., .915), vec2(.050, .060));
+  d = smin(d, cap(q, vec2(0., .865), vec2(0., .83), .022), .02);
+  d = smin(d, ell(q, vec2(0., .866), vec2(.068, .042)), .03);
+  float sch = cap(q, vec2(-.125, .795), vec2(.125, .795), .036);
+  float borst = cap(q, vec2(-.07, .735), vec2(.07, .735), .08);
+  float taille = cap(q, vec2(-.045, .60), vec2(.045, .60), .075);
+  d = smin(d, smin(smin(sch, borst, .05), taille, .08), .02);
+  d = smin(d, cap(q, vec2(-.045, .545), vec2(.045, .545), .07), .04);
   for (int s = 0; s < 2; s++) {
     float sg = s == 0 ? -1. : 1.;
     float lift = max(0., s == 0 ? s1 : s2) * amp;
-    vec2 hip = vec2(sg * .055, .52);
-    vec2 knee = vec2(sg * (.06 + .012 * lift), .29 + .065 * lift);
-    vec2 ank = vec2(sg * (.062 + .01 * lift), .045 + .12 * lift);
-    d = smin(d, cap(q, hip, knee, .052 - .012 * (q.y - .3)), .03);
-    d = smin(d, cap(q, knee, ank, .034), .025);
-    d = smin(d, ell(q, ank + vec2(sg * .01, -.02), vec2(.048, .026)), .02);
+    vec2 hip = vec2(sg * .052, .53);
+    vec2 knee = vec2(sg * (.062 + .012 * lift), .30 + .065 * lift);
+    vec2 ank = vec2(sg * (.066 + .01 * lift), .05 + .12 * lift);
+    d = smin(d, cap(q, hip, knee, .05), .03);
+    d = smin(d, cap(q, knee, ank, .036), .03);
+    d = smin(d, ell(q, ank + vec2(sg * .008, -.022), vec2(.05, .03)), .02);
     float sw = (s == 0 ? s2 : s1) * amp;
-    vec2 sh = vec2(sg * .15, .785);
-    vec2 el = vec2(sg * (.178 + .01 * sw), .645 + .03 * abs(sw));
-    vec2 ha = vec2(sg * (.172 + .02 * sw), .51 + .05 * abs(sw));
-    d = smin(d, cap(q, sh, el, .032), .025);
+    vec2 sh = vec2(sg * .158, .78);
+    vec2 el = vec2(sg * (.185 + .01 * sw), .64 + .035 * abs(sw));
+    vec2 ha = vec2(sg * (.18 + .015 * sw), .50 + .06 * abs(sw));
+    d = smin(d, cap(q, sh, el, .03), .02);
     d = smin(d, cap(q, el, ha, .026), .02);
-    d = smin(d, ell(q, ha + vec2(0., -.012), vec2(.024, .032)), .015);
+    d = smin(d, length(q - ha) - .03, .015);
   }
   return d;
 }
-// een volumetrische lichtbundel van o0 in richting ang (breedte w groeit met de afstand), met ruis
-float bundel(vec2 p, vec2 o0, float ang, float w, float t){
+float straal(vec2 p, vec2 o0, float ang, float w){
   vec2 dir = vec2(cos(ang), sin(ang));
   vec2 v = p - o0;
   float al = dot(v, dir);
-  float dl = dot(v, vec2(-dir.y, dir.x));
-  float ww = w * (.15 + al);
-  float kern = exp(-dl * dl / (ww * ww));
-  float stof = .55 + .45 * vn(vec2(dl / ww * 2. + t * .3, al * 3. - t * .5));
-  return kern * stof * smoothstep(0., .08, al) * exp(-al * .55);
+  float dl = abs(dot(v, vec2(-dir.y, dir.x)));
+  float ww = w * (1. + al * .9);
+  return exp(-dl * dl / (ww * ww)) * smoothstep(0., .25, al) * exp(-al * .9);
 }
 void main(){
-  vec2 p0 = (gl_FragCoord.xy - .5 * uRes) / uRes.y;
-  p0 = (p0 - uShake) / uZoom;
+  vec2 p = (gl_FragCoord.xy - .5 * uRes) / uRes.y;
+  p = (p - uShake) / uZoom;
   float asp = uRes.x / uRes.y;
-  // de camera rijdt naar de tunnel toe; de achtergrond beweegt minder mee dan de voorgrond (parallax)
-  vec2 p = p0 / uDolly;
-  vec2 pv = p0 / mix(1., uDolly, .55);
+  vec2 VP = vec2(0., .07);
+  vec3 wit = mix(uTint, vec3(1.), .6);
+
+  // lucht en tribune
+  vec3 col = mix(vec3(.005, .008, .02), vec3(.02, .03, .07), smoothstep(-.1, .55, p.y));
+  col += uTint2 * .03 * exp(-length(p - VP) * 1.5);
+
+  // publiek: lichtjes en camera-flitsen links, rechts en bovenin
+  vec2 cp = p * 58.;
+  vec2 ci = floor(cp);
+  float hh = h21(ci);
+  vec2 jit = h22(ci + 3.7);
+  float dd = length(fract(cp) - (.25 + .5 * jit));
+  float tribune = smoothstep(.1, .5, abs(p.x) / asp * 2. + max(p.y - .05, 0.) * .9) * smoothstep(-.12, .12, p.y - VP.y + .05);
+  float punt = smoothstep(.2, 0., dd) * step(.86, hh) * (.35 + .35 * sin(uTime * (2. + 5. * h11(ci.x * 3.1 + ci.y)) + hh * 60.));
+  float ft = uTime * 3. + hh * 11.;
+  float fon = step(1. - uFlits * .12, h21(ci + floor(ft) * 13.7 + 5.1));
+  float flits = fon * pow(1. - fract(ft), 5.) * exp(-dd * dd * 40.);
+  col += (vec3(.55, .6, .8) * punt * .5 + vec3(1., .97, .9) * flits * 3.2) * tribune;
+
+  // gloed van het tegenlicht aan het eind van de tunnel
+  vec2 e = (p - VP) * vec2(1., 1.2);
   float L = uLicht;
-  float t = uTime;
-  vec3 tint = uTint;
-  vec3 warm = mix(tint, vec3(1., .93, .8), .55);
-  vec3 koelLicht = vec3(.55, .68, 1.);
-  const float VLOER = -.06;  // horizon van het veld
-  const float MUUR = .075;   // bovenrand van de tunnelmuur
-  vec2 TM = vec2(.0, VLOER); // midden onder van de tunnelmond
-  vec2 TB = vec2(.095, .135); // halve breedte, hoogte
+  col += wit * L * .9 / (1. + 110. * dot(e, e));
+  col += uTint * L * .45 * exp(-length(e) * 2.3);
 
-  // lucht boven het stadion: diep nachtblauw met een warme gloed van de lampen
-  vec3 col = mix(vec3(.004, .006, .016), vec3(.012, .018, .045), smoothstep(.5, .1, pv.y));
-  col += mix(uTint2, koelLicht, .5) * .05 * exp(-abs(pv.y - .32) * 6.);
+  // lichtbundels van de schijnwerpers en vanuit de tunnel
+  float sw = sin(uTime * .6);
+  float beams = straal(p, vec2(-asp * .62, .6), -.62 + .22 * sw, .028) + straal(p, vec2(asp * .62, .6), 3.76 - .22 * sw, .028);
+  col += mix(uTint, vec3(1.), .25) * beams * (.28 + .35 * L) * uBundel;
+  float aV = atan(p.y - VP.y, p.x - VP.x + 1e-5);
+  float rv = length(p - VP);
+  float spaken = pow(max(sin(aV * 13. + uTime * .35) * .5 + .5, 0.), 6.) * (.5 + .7 * vn(vec2(aV * 4., uTime * .2)));
+  vec3 rc = uTint;
+  if (uRegen > .5) rc = hsv(vec3(aV / 6.2831853 + uTime * .06, .6, 1.));
+  col += rc * spaken * exp(-rv * 1.9) * L * .55 * uBundel;
 
-  // tribunes: rijen publiek in perspectief (de rijen lopen schuin naar het midden), met telefoons en flitsen
-  if (pv.y > MUUR * .9) {
-    float yy = pv.y - MUUR;
-    float rij = yy * 70. + abs(pv.x) * 9.;
-    vec2 cp = vec2(pv.x * 70. / (1. + yy * 1.5), rij);
-    vec2 ci = floor(cp);
-    float hh = h21(ci);
-    vec2 jit = h22(ci + 3.7);
-    float dd = length((fract(cp) - (.25 + .5 * jit)) * vec2(1., 1.4));
-    float dak = smoothstep(.43, .36, pv.y + abs(pv.x) * .08); // het dak van het stadion
-    float trib = smoothstep(0., .02, yy) * dak;
-    // de mensen zelf: een zacht flakkerende massa, rijen iets zichtbaar
-    float massa = (.5 + .5 * vn(cp * vec2(.7, .5) + t * .3)) * (.6 + .4 * sin(rij * 6.2832));
-    col += mix(uTint2, warm, .3) * massa * .035 * trib * (1. + 2. * L) * smoothstep(.45, .1, pv.y);
-    float punt = smoothstep(.2, 0., dd) * step(.62, hh) * (.5 + .5 * step(.85, hh)) * (.45 + .55 * sin(t * (1.5 + 4. * h11(ci.x * 3.1 + ci.y)) + hh * 60.));
-    float ft = t * 2.6 + hh * 11.;
-    float fon = step(1. - uFlits * .1, h21(ci + floor(ft) * 13.7 + 5.1));
-    float flits = fon * pow(1. - fract(ft), 6.) * exp(-dd * dd * 30.);
-    col += (mix(koelLicht, warm, hh) * punt * .45 + vec3(1., .97, .92) * flits * 2.4) * trib;
-    // dakrand met een rij lampen
-    float rand = exp(-pow((pv.y + abs(pv.x) * .08 - .395) * 90., 2.));
-    float lamp = pow(max(0., sin(pv.x * 60.)), 30.) * rand;
-    col += warm * (rand * .04 + lamp * .9) * (.6 + .4 * L);
+  // vloer met reflectie
+  if (p.y < VP.y) {
+    float dz = VP.y - p.y;
+    float depth = 1. / (dz + .02);
+    float gx = abs(fract(p.x * depth * .8) - .5);
+    float gz = abs(fract(depth * .45 - uTime * (.55 + .4 * uAmp)) - .5);
+    float lijn = smoothstep(.03, 0., gx - .46 + .02) * .0 + smoothstep(.035, .0, min(gx, gz) - .46 + .035) * 0.;
+    float vloer = exp(-dz * 1.7);
+    col += wit * L * exp(-abs(p.x) * 5.5) * exp(-dz * 1.9) * .55;
+    col += uTint * L * vloer * .08 * (.6 + .4 * sin(p.x * depth * 3.));
+    col *= mix(1., .65, smoothstep(0., .5, dz));
   }
 
-  // de tunnelmuur en de mond van de tunnel (fel tegenlicht van binnenuit)
-  vec2 tq = p - TM;
-  float inMuur = step(p.y, MUUR) * step(VLOER, p.y);
-  vec3 muur = mix(vec3(.006, .007, .014), vec3(.02, .022, .04), smoothstep(VLOER, MUUR, p.y));
-  muur += warm * .05 * exp(-abs(tq.x) * 9.) * L;
-  // reclameborden langs de muur: een smalle lichtband die langzaam loopt
-  float bord = smoothstep(.003, 0., abs(p.y - (VLOER + .022)) - .01) * step(.16, abs(p.x));
-  float led = step(.35, fract(p.x * 140.)) * step(.3, fract(p.y * 900.));
-  muur += mix(tint, uTint2, .5 + .5 * sin(p.x * 6. - t * 1.5)) * bord * (.05 + .07 * led) * (.5 + .5 * L);
-  col = mix(col, muur, inMuur);
-  // de opening: afgeronde boog
-  vec2 tb = vec2(abs(tq.x), tq.y);
-  float boog = max(tb.x - TB.x, tq.y - TB.y);
-  boog = min(boog, length(vec2(tb.x, tq.y - TB.y + .02)) - TB.x * .85);
-  boog = max(boog, -tq.y);
-  float mond = smoothstep(.0025, -.0025, boog);
-  // binnen in de tunnel: wit-heet licht met een kern, en wat licht dat langs de wanden kruipt
-  // de tunnel heeft diepte: wanden die naar een kleinere, witte uitgang achterin lopen
-  vec2 tk = vec2(tb.x / .42, tq.y / .42);
-  float kern = max(tk.x - TB.x, tk.y - TB.y);
-  kern = min(kern, length(vec2(tk.x, tk.y - TB.y + .02)) - TB.x * .85);
-  float kernM = smoothstep(.01, -.01, kern);
-  float wand = 1. - clamp(max(tb.x / TB.x, tq.y / TB.y), 0., 1.); // 0 bij de rand, 1 naar binnen
-  float ribbel = .75 + .25 * smoothstep(.2, .8, sin(log(max(.02, 1. - wand)) * 30.));
-  vec3 binnen = warm * (.12 + .5 * L) * pow(wand, 1.5) * ribbel + tint * .04 * L;
-  binnen = mix(binnen, mix(warm, vec3(1.), .5) * (.7 + 1.1 * L), kernM);
-  col = mix(col, binnen, mond);
-  // de rand van de boog gloeit (licht dat over de rand valt)
-  col += warm * L * .5 * exp(-max(boog, 0.) * 70.) * (1. - mond) * step(VLOER, p.y);
-  // een groot halo van het tegenlicht
-  col += warm * L * .22 / (1. + 500. * dot(tq - vec2(0., .05), tq - vec2(0., .05)));
-  col += tint * L * .12 * exp(-length(tq * vec2(.6, 1.)) * 3.);
-
-  // het veld: glanzend en donker, met maaistroken, de weerspiegeling van de tunnel en lichtvlekken
-  if (p.y < VLOER) {
-    float dz = VLOER - p.y;
-    float diep = 1. / (dz + .015);
-    float strook = step(.5, fract(diep * .18 + .0));
-    vec3 veld = mix(vec3(.006, .012, .01), vec3(.009, .018, .014), strook);
-    // weerspiegeling van de tunnelmond: een verticale streep die naar je toe loopt
-    float refl = exp(-pow(p.x / (.07 + dz * .5), 2.)) * exp(-dz * 2.8);
-    veld += warm * L * refl * .55;
-    // lijnen op het veld
-    float lijnX = abs(fract(p.x * diep * .25 + .5) - .5);
-    veld += vec3(.6, .65, .7) * smoothstep(.012, 0., lijnX - .0) * .015 * exp(-dz * 2.);
-    col = veld;
-  }
-
-  // schijnwerpers: vier bundels uit het dak die over het veld zwaaien, met een lichtplas op de grond
-  float zw = sin(t * .55);
-  float zw2 = sin(t * .43 + 1.7);
-  float B = uBundel;
-  vec3 bk = mix(tint, vec3(1.), .55);
-  if (uRegen > .5) bk = hsv(vec3(t * .08, .5, 1.));
-  float bs = bundel(pv, vec2(-asp * .42, .52), -1.2 + .22 * zw, .12, t)
-           + bundel(pv, vec2(asp * .42, .52), -1.94 - .22 * zw, .12, t + 3.)
-           + .7 * bundel(pv, vec2(-asp * .16, .56), -1.42 + .16 * zw2, .09, t + 7.)
-           + .7 * bundel(pv, vec2(asp * .16, .56), -1.72 - .16 * zw2, .09, t + 11.);
-  col += bk * bs * .16 * B * (.6 + .5 * L);
-  // lichtplassen op het veld onder de bundels
-  if (p.y < VLOER) {
-    for (int i = 0; i < 2; i++) {
-      float sg = i == 0 ? -1. : 1.;
-      vec2 c = vec2(sg * (.26 - .12 * zw * sg), -.32);
-      vec2 dq = (p - c) * vec2(1., 3.2);
-      col += bk * .1 * B * exp(-dot(dq, dq) * 18.);
-    }
-  }
-
-  // rook: laag over het veld en uit de tunnel, verlicht door het tegenlicht
-  float rookM = smoothstep(.22, -.05, p.y) * smoothstep(-.5, -.02, p.y);
-  vec2 rp = p * vec2(2.2, 4.) + vec2(t * .05, -t * .02);
-  float r1 = fbm(rp);
-  float r2 = uKw < 2. ? fbm(rp * 1.9 + vec2(-t * .09, t * .03) + r1) : r1;
-  float rook = smoothstep(.35, .9, r1 * .6 + r2 * .5) * rookM;
-  float lichtR = .25 + 1.2 * exp(-length((p - vec2(0., VLOER + .02)) * vec2(1.3, 2.4)) * 3.2) * L;
-  col += mix(vec3(.08, .09, .14), warm, .6) * rook * lichtR * .5;
+  // nevel
+  float hz = fbm(p * vec2(1.6, 2.4) + vec2(uTime * .04, -uTime * .02));
+  col += mix(uTint2, uTint, .5) * hz * (.04 + .1 * L) * exp(-length(p - VP) * .9);
 
   // de leerling
   if (uFig.w > 0.) {
     vec2 q = (p - vec2(uFig.x, uFig.y)) / uFig.z;
-    float px = 1.4 / (uRes.y * uFig.z * uDolly);
-    // schaduw op het veld: het tegenlicht werpt een lange schaduw naar je toe
-    if (q.y < .02) {
-      vec2 qs = vec2(q.x / (1. + max(-q.y, 0.) * .4), -q.y * .55);
-      float dsh = figuur(qs, uStap, uAmp);
-      float sch = smoothstep(.04, -.02, dsh) * exp(q.y * 1.5);
-      col *= 1. - .78 * sch * uFig.w;
-    }
+    float px = 1.4 / (uRes.y * uFig.z);
     if (abs(q.x) < .55 && q.y > -.3 && q.y < 1.12) {
       float d = figuur(q, uStap, uAmp);
       float sil = smoothstep(px, -px, d);
-      if (d < .05) {
-        // normaal uit het afstandsveld: zo valt het licht op de randen als op iets ronds
-        float e = .006;
-        vec2 nn = vec2(figuur(q + vec2(e, 0.), uStap, uAmp) - d, figuur(q + vec2(0., e), uStap, uAmp) - d);
-        nn = normalize(nn + 1e-6);
-        float diepte = clamp(-d * 70., 0., 1.); // 0 aan de rand, 1 diep binnen
-        // de stof: bijna zwart, met een koele vulling van voren en een warme glans van achteren
-        vec3 stof = vec3(.010, .011, .018);
-        stof += koelLicht * .02 * (.4 + .6 * smoothstep(.3, .9, q.y)) * (1. - .5 * diepte);
-        float rim = pow(1. - diepte, 3.);
-        // volume: een zachte koele vulling van linksboven, zodat het lichaam rond oogt en niet plat
-        float bol = clamp(-d * 9., 0., 1.);
-        stof += mix(koelLicht, tint, .3) * .05 * (1. - bol) * max(0., dot(nn, normalize(vec2(-.5, .85)))) * (.5 + .5 * B);
-        stof += warm * .012 * smoothstep(.55, .95, q.y) * (1. - bol * .5);
-        float rimL = rim * (.55 + .45 * max(0., nn.y)) * (1. + .5 * max(0., -nn.x * sign(uFig.x + .001)));
-        stof += warm * rimL * L * .9;
-        // de spots van boven raken de schouders en het hoofd
-        stof += bk * pow(max(0., nn.y), 3.) * clamp(1. + d * 25., 0., 1.) * .12 * B;
-        // een kleur-accent van het niveau op de zijkanten
-        stof += tint * pow(abs(nn.x), 4.) * rim * .6 * L;
-        col = mix(col, stof, sil * uFig.w);
-      }
-      // gloed rond het silhouet (licht dat om de leerling heen kruipt)
-      col += warm * L * exp(-max(d, 0.) * 120.) * (1. - sil) * .16 * uFig.w * smoothstep(-.05, .3, q.y);
+      float rand = smoothstep(.016, 0., abs(d + .004)) * (1. - sil * 0.);
+      vec3 fcol = vec3(.004, .005, .011);
+      col = mix(col, fcol, sil * uFig.w);
+      col += wit * L * (smoothstep(-.016, 0., d) * sil) * 1.6 * uFig.w;
+      // tegenlicht: de stof licht zacht op langs de randen en aan de kant van de bundel
+      float binnen = exp(d * 38.) * sil;
+      float kant = .5 + .5 * clamp(-q.x * 6., -1., 1.) * 0.;
+      col += mix(uTint, vec3(1.), .4) * L * binnen * .5 * uFig.w * (.6 + .8 * smoothstep(.2, .9, q.y));
+      col += uTint2 * L * sil * .035 * uFig.w * (1. - q.y);
+      col += uTint * L * exp(-max(d, 0.) * 30.) * (1. - sil) * .22 * uFig.w;
     }
-    // reflectie in het natte veld
-    vec2 qr = vec2(q.x, -q.y - .01);
-    if (q.y < 0. && q.y > -.6 && abs(qr.x) < .55) {
+    // reflectie in de vloer
+    vec2 qr = vec2(q.x, -q.y * 1.0 - .02);
+    if (q.y < 0. && q.y > -.55 && abs(qr.x) < .55) {
       float dr = figuur(qr, uStap, uAmp);
-      float silr = smoothstep(px * 4., -px * 4., dr);
-      col = mix(col, vec3(.003, .004, .008), silr * .45 * smoothstep(-.6, 0., q.y) * uFig.w);
-      col += warm * L * exp(-max(dr, 0.) * 40.) * (1. - silr) * .12 * smoothstep(-.5, 0., q.y) * uFig.w;
+      float silr = smoothstep(px * 3., -px * 3., dr);
+      col = mix(col, vec3(.004, .005, .011), silr * .38 * smoothstep(-.55, 0., q.y) * uFig.w);
     }
+    // schaduw onder de voeten
+    float sh = exp(-pow(length(vec2(q.x * .9, (q.y + .015) * 3.2)), 2.) * 14.);
+    col *= 1. - .7 * sh * uFig.w;
   }
-
-  // voorgrond-rook die langs de camera trekt (parallax) en zwevend stof
-  if (uKw < 3.) {
-    float vr = fbm(p0 * vec2(1.2, 2.) + vec2(t * .12, 0.));
-    col += mix(vec3(.05, .06, .1), warm, .3) * smoothstep(.55, .95, vr) * smoothstep(.1, -.5, p0.y) * .25 * (.4 + .6 * L);
-  }
-
-  // dempen voor de grote plaatjes, plus een zachte vignet naar het midden
-  col *= mix(1., .18, uDim);
-  col *= 1. - .35 * smoothstep(.35, .95, length(p0 * vec2(.8, 1.2)));
   o = vec4(col * uAlpha, 1.);
 }`;
 
