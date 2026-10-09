@@ -297,6 +297,7 @@
     let laatsteTeken = 0;
     let tHuidig = 0;
     let beeldTeller = 0;
+    let tekenFouten = 0;
     const inv = { tilt: [0, 0], afspelen: true };
     const tiltDoel = [0, 0];
     let laatsteBeweging = 0;
@@ -404,7 +405,15 @@
           }
         }
       }
-      scene.teken(t, dt, inv);
+      // Een fout in één beeld mag nooit elke frame opnieuw de hele videokaart belasten zonder dat de kwaliteit omlaag kan:
+      // we vangen hem, tellen hem en blijven de kwaliteit regelen. Na een paar fouten springen we naar de kaart.
+      try {
+        scene.teken(t, dt, inv);
+      } catch (x) {
+        tekenFouten++;
+        if (debug) console.error('[pakket] tekenfout', x);
+        if (tekenFouten > 3 && fase === 'reeks' && typeof overslaan === 'function') overslaan();
+      }
       if (wachtOpKlik) {
         // een opening met invoer mag de pauze zelf beëindigen (bv. na een gelukte stap): true, een tijd of 'over'
         const io = scene.opening && scene.opening.invoer;

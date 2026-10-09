@@ -1,5 +1,9 @@
 # Wijzigingen
 
+## v2.4.1
+
+- **Vastlopen opgelost:** bij een 10 met een mythische kaart liep na de Big Bang elk beeld vast op een fout. Daardoor kon de animatie de kwaliteit niet meer verlagen en kon je hele laptop bevriezen. De fout is weg, en een fout tijdens het tekenen kan de laptop niet meer zo zwaar belasten.
+
 ## v2.4.0
 
 - **De zeldzaamheidsladder:** naast Zeldzaam (1 op 10) zijn er nu **Glim** (1 op 40), **Kosmisch** (1 op 150) en **Mythisch** (1 op 1000). Vast per cijfer en per account: opnieuw openen verandert niets. Overal staat de kans erbij.
