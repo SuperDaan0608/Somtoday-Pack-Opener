@@ -36,8 +36,9 @@
     ['#ffe58a', '#d98a1c'], // goud
     ['#8bf3ff', '#2f82d6'], // speciaal
     ['#ffc9f3', '#a24fdb'], // icoon
+    ['#d6b8ff', '#12021f'], // ??? (glitch)
   ];
-  const TIER_NAMEN = ['Brons', 'Zilver', 'Goud', 'Speciaal', 'Icoon'];
+  const TIER_NAMEN = ['Brons', 'Zilver', 'Goud', 'Speciaal', 'Icoon', '▓̷̢░̴͓█̸̙⌁̶͙▒̵̦¿̷̣']; // de laatste rang is opzettelijk kapot
   // Lijntekeningen op 24 x 24 (stijl: Lucide, ISC, of zelf getekend).
   const GLYPHS = {
     kaart: 'M8 3h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z M12 8.5l1.1 2.4 2.6.3-1.9 1.8.5 2.6-2.3-1.3-2.3 1.3.5-2.6-1.9-1.8 2.6-.3z',
@@ -106,11 +107,12 @@
     { id: 'mythe', naam: 'Mythe', tekst: 'Trek een mythische kaart (kans 1/1000).', tier: 4, icoon: 'kroon', meet: (d) => vooruit(d.trede[4], 1) },
     { id: 'volle-ladder', naam: 'Volle ladder', tekst: 'Heb van elke trede een kaart: zeldzaam (1/10), glim (1/40), kosmisch (1/150) en mythisch (1/1000).', tier: 4, icoon: 'kroon', meet: (d) => vooruit(d.ladderVol, 4) },
     { id: 'perfecte-kaart', naam: 'De perfecte kaart', tekst: 'Haal een 10 op een kosmische of mythische kaart.', tier: 4, icoon: 'beker', meet: (d) => vooruit(d.perfect, 1) },
+    { id: 'fout-in-de-werkelijkheid', naam: 'Fout in de werkelijkheid', tekst: 'Haal een 10 op een mythische kaart (1 op 1000 én een 10).', tier: 5, icoon: 'kroon', meet: (d) => vooruit(d.perfectMythisch, 1) },
     { id: 'topcijfer', naam: 'Topcijfer', tekst: 'Haal een 9 of hoger.', tier: 2, icoon: 'ster', meet: (d) => vooruit(d.negenPlus, 1) },
     { id: 'icoon', naam: 'Icoonkaart', tekst: 'Haal een 10.', tier: 4, icoon: 'beker', meet: (d) => vooruit(d.tien, 1) },
     { id: 'vijf-vakken', naam: 'Veelzijdig', tekst: 'Heb kaarten van 5 verschillende vakken.', tier: 0, icoon: 'boeken', meet: (d) => vooruit(d.vakken, 5) },
     { id: 'vier-groepen', naam: 'Van alles wat', tekst: 'Heb een kaart uit elke vakgroep: Exact, Talen, Mens & maatschappij en Kunst & sport.', tier: 1, icoon: 'groepen', meet: (d) => vooruit(d.groepen, 4) },
-    { id: 'vervloekt', naam: 'Vervloekt', tekst: 'Trek een vervloekte kaart: een zeldzame kaart met een onvoldoende.', tier: 3, icoon: 'spook', meet: (d) => vooruit(d.vloek, 1) },
+    { id: 'vervloekt', naam: 'Vervloekt', tekst: 'Trek een vervloekte kaart: een onvoldoende waar een vloek op zit (1 op 15).', tier: 3, icoon: 'spook', meet: (d) => vooruit(d.vloek, 1) },
     { id: 'halloween', naam: 'Spookpakje', tekst: 'Open het Halloween-pakje (1 oktober tot en met 2 november).', tier: 3, icoon: 'spook', meet: (d) => vooruit(d.halloween ? 1 : 0, 1) },
     { id: 'alle-openingen', naam: 'Alles geprobeerd', tekst: 'Open een pakket met elk van de 7 openingen.', tier: 2, icoon: 'pakket', meet: (d) => vooruit(d.openingen, OPENINGEN.length) },
     { id: 'eerste-zege', naam: 'Eerste zege', tekst: 'Win je eerste gevecht tegen een vriend.', tier: 0, icoon: 'schild', meet: (d) => vooruit(d.zeges, 1) },
@@ -180,6 +182,7 @@
       trede: [0, 1, 2, 3, 4].map((t) => gal.filter((e) => tredeVan(e) >= t).length),
       ladderVol: [1, 2, 3, 4].filter((t) => gal.some((e) => tredeVan(e) === t)).length,
       perfect: gal.filter((e) => tredeVan(e) >= 3 && e.cijfer >= 9.95).length,
+      perfectMythisch: gal.filter((e) => tredeVan(e) >= 4 && e.cijfer >= 9.95).length,
       tien: gal.filter((e) => e.cijfer >= 9.95).length,
       groepen: groepen.size,
       vloek: gal.filter((e) => e.vloek === true).length,
