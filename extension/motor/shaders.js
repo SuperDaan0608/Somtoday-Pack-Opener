@@ -606,17 +606,30 @@ void main(){
   vec3 L = normalize(vec3(.45 + uKantel.x * .5, .7 - uKantel.y * .3, 1.));
   float luma = dot(t.rgb, vec3(.299, .587, .114));
   float metaal = smoothstep(.3, .75, luma);
-  float diff = .66 + .5 * max(dot(N, L), 0.);
+  // krimpseal boven en onder: fijne geperste ribbels die het licht in streepjes breken
+  float seal = smoothstep(.085, .065, vUv.y) + smoothstep(.915, .935, vUv.y);
+  float rib = sin(vUv.x * 230.);
+  N = normalize(N + vec3(rib * .45 * seal, 0., 0.));
+  // folie-reliëf: zachte kreukels in het materiaal (alleen in de normaal, het artwork blijft scherp)
+  vec2 kr = vec2(vn(vUv * vec2(9., 14.) + uSeed), vn(vUv * vec2(9., 14.) + uSeed + 7.)) - .5;
+  N = normalize(N + vec3(kr * .09 * (1. - seal), 0.));
+  float diff = .58 + .42 * max(dot(N, L), 0.);
   vec3 col = t.rgb * diff;
-  // folie: scherpe weerspiegeling en een regenboog-glans die met de hoek meebeweegt
-  float spec = pow(max(dot(reflect(-L, N), V), 0.), mix(30., 90., metaal)) * (.2 + .8 * metaal);
-  float band = dot(N.xy, vec2(.8, .6)) * 3.2 + vUv.y * 1.8 + uTime * .12 + uKantel.x * .6;
+  // folie: scherpe weerspiegeling en een regenboog-glans die met de hoek meebeweegt (subtiel en vlekkerig, zoals echte holofolie)
+  float spec = pow(max(dot(reflect(-L, N), V), 0.), mix(40., 120., metaal)) * (.15 + .7 * metaal);
+  float spec2 = pow(max(dot(reflect(-normalize(vec3(-.6, .2, 1.)), N), V), 0.), 18.) * .12; // zacht tegenlicht
+  float band = dot(N.xy, vec2(.8, .6)) * 3.2 + vUv.y * 1.8 + uTime * .12 + uKantel.x * .6 + fbm(vUv * 5.) * .8;
   vec3 regenboog = .5 + .5 * cos(6.2831853 * (band + vec3(0., .33, .67)));
-  col += regenboog * (.08 + .22 * metaal) * (.4 + 1.6 * length(N.xy));
-  col += vec3(1., .97, .92) * spec;
+  col += regenboog * (.05 + .16 * metaal) * (.4 + 1.6 * length(N.xy)) * (1. + seal);
+  col += vec3(1., .97, .92) * (spec + spec2) * (1. + .6 * seal);
+  // de ribbels van de seal vangen het licht in strepen
+  col += vec3(1.) * seal * pow(max(rib, 0.), 6.) * .08;
   // glanzende veeg die over het pakje trekt
   float veeg = exp(-pow((vUv.x * .7 + vUv.y * .5 - uGlans) * 7., 2.));
-  col += vec3(1.) * veeg * (.2 + .45 * metaal);
+  col += vec3(1.) * veeg * (.12 + .3 * metaal);
+  // de randen van het zakje lopen donkerder weg (volume), zodat het niet vlak oogt
+  float randD = smoothstep(0., .07, vUv.x) * smoothstep(1., .93, vUv.x);
+  col *= .72 + .28 * randD;
   // rand in de kleur van het niveau
   float fres = pow(1. - abs(dot(N, V)), 3.);
   col += uCol * fres * (.3 + 1.0 * uLaad) * uRand + vec3(.45, .6, 1.) * fres * .3;
@@ -872,7 +885,13 @@ void main(){
     off = rot2(rt) * q;
     alpha = smoothstep(1., .85, u) * smoothstep(0., .02, u);
     float sh = .65 + .35 * flip;
-    if (uMode == 2) { float pk = fract(r6 * 7.3); col = (uRegen > .5 ? hsv(vec3(r5, .7, 1.)) : pk < .45 ? mix(uCol1, uCol2, r5) * 1.15 : pk < .75 ? vec3(1., .96, .88) : hsv(vec3(fract(r5 + .55), .5, 1.))) * (.5 + .6 * sh); alpha *= .9; } else col = col * (.7 + .5 * abs(flip));
+    if (uMode == 2) {
+      // een beperkt palet in de kleuren van het niveau (geen kermis), met een metalen glinstering als het blaadje kantelt
+      float pk = fract(r6 * 7.3);
+      col = uRegen > .5 ? hsv(vec3(r5, .7, 1.)) : pk < .55 ? mix(uCol1, uCol2, r5) : pk < .8 ? mix(uCol1, vec3(1., .97, .9), .6) : uCol2 * .55;
+      col *= .35 + .55 * sh + .9 * pow(abs(flip), 14.);
+      alpha *= .92;
+    } else col = col * (.7 + .5 * abs(flip));
     vK = 2;
   } else if (uMode == 3) {
     // regen

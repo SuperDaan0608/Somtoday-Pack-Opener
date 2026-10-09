@@ -316,11 +316,12 @@
     }
     schok(K0, 0.02, 0.2);
     schok(RV, 0.03 + 0.06 * I, 0.3 + 0.3 * I);
-    flits(RV, myth4 ? 0.12 : kosm3 ? 0.1 : 0.35 * gw, 0.03);
-    if (!myth4 && !kosm3) flits(RV, (0.12 + 0.18 * I) * gw, zeldzaam ? 0.1 + 0.25 * I : 0.08 + 0.14 * I);
-    golf(RV, 1.2, myth4 ? 0.3 : 0.8, 0.03);
-    if (!myth4) golf(RV + 0.1, 1.6, 0.6, 0.03);
-    if ((tier >= 2 || zeldzaam) && !myth4 && !kosm3) golf(RV + 0.22, 2.0, 0.5, 0.03);
+    flits(RV, myth4 ? 0.12 : kosm3 ? 0.1 : (zeldzaam ? 0.35 : 0.2) * gw, 0.03);
+    if (!myth4 && !kosm3) flits(RV, (0.12 + 0.18 * I) * gw * (zeldzaam ? 1 : 0.6), zeldzaam ? 0.1 + 0.25 * I : 0.08 + 0.14 * I);
+    const gG = zeldzaam ? 1 : 0.4; // gewoon: zachtere schokgolven, de kaart blijft scherp
+    golf(RV, 1.2, myth4 ? 0.3 : 0.8 * gG, 0.03);
+    if (!myth4) golf(RV + 0.1, 1.6, 0.6 * gG, 0.03);
+    if ((tier >= 2 || zeldzaam) && !myth4 && !kosm3) golf(RV + 0.22, 2.0, 0.5 * gG, 0.03);
     if (zeldzaam) {
       // een glinstering als de kaart verschijnt, en daarna nog vier klappen na de onthulling
       flits(E + 0.05, 0.4, 0.15);
@@ -364,7 +365,7 @@
       // de scheur zelf
       const nBrand = Math.round(300 + 1300 * I);
       e({ mode: 0, t0: E, delay: 0.1, life: 1.6, n: nBrand, org: [0, lekY], angle: Math.PI / 2, spread: TWEE_PI, spd: [0.25, 1.9], grav: [0, -0.45], drag: 1.2, size: [0.002, 0.0065], col1: kl, col2: wit, seed: 5 });
-      e({ mode: 5, t0: E, life: 1.8, n: Math.round(70 + 190 * I), org: [0, lekY], angle: Math.PI / 2, spread: TWEE_PI, spd: [0.25, 1.1], grav: [0, -0.8], drag: 0.6, size: [0.012, 0.03], col1: [0.25, 0.3, 0.85], col2: [1, 0.8, 0.3], alpha: 1, blend: 'alpha', seed: 6 });
+      e({ mode: 5, t0: E, life: 1.3, n: Math.round(40 + 90 * I), org: [0, lekY], angle: Math.PI / 2, spread: TWEE_PI, spd: [0.25, 1.1], grav: [0, -0.9], drag: 0.7, size: [0.006, 0.016], col1: zeldzaam ? [0.25, 0.3, 0.85] : [0.75, 0.78, 0.86], col2: zeldzaam ? [1, 0.8, 0.3] : kl, alpha: 1, blend: 'alpha', seed: 6 });
     }
     // de onthulling
     const rvVonken = e({ mode: 0, t0: RV, delay: 0.14, life: 2.2, n: Math.round(300 + 1500 * I), org: [0, 0.02], angle: 0, spread: TWEE_PI, spd: [0.3, 2.3], grav: [0, -0.35], drag: 1.1, size: [0.002, 0.007], col1: kl, col2: kl2, alpha: 0.75, regen: regenboog || (zeldzaam && trede < 3) ? 1 : 0, seed: 8 });
@@ -380,7 +381,7 @@
       e({ mode: 3, t0: RV, life: 5, delay: 0.2, n: 160, alpha: 0.8, seed: 9, blend: 'alpha' });
       e({ mode: 6, t0: RV, life: 3.2, delay: 0.5, n: 14, org: [0, -0.2], size: [0.18, 0.4], col1: [0.16, 0.12, 0.1], col2: [0.3, 0.22, 0.16], blend: 'alpha', seed: 10, lod: false });
     } else if ((d.g >= 6 || zeldzaam) && !myth4 && !kosm3) {
-      e({ mode: 2, t0: RV + 0.1, life: 4.6, delay: 1.1, n: Math.max(zeldzaam ? 260 : 0, Math.round(50 + 330 * Math.max(0, I - 0.5) * 2 * (d.g >= 9 ? 1.4 : 1))), org: [0, 0.62], angle: -Math.PI / 2, spread: 0.7, spd: [0.1, 0.45], grav: [0, -0.09], drag: 0.45, size: [0.008, 0.017], alpha: 1, blend: 'alpha', seed: 12 });
+      e({ mode: 2, t0: RV + 0.1, life: 4.6, delay: 1.1, n: Math.max(zeldzaam ? 260 : 0, Math.round(40 + 200 * Math.max(0, I - 0.5) * 2 * (d.g >= 9 ? 1.4 : 1))), org: [0, 0.62], angle: -Math.PI / 2, spread: 0.7, spd: [0.1, 0.45], grav: [0, -0.09], drag: 0.45, size: zeldzaam ? [0.008, 0.017] : [0.006, 0.012], alpha: 1, blend: 'alpha', seed: 12 });
     }
     // een staart van vonken terwijl de kaart de lucht in draait
     e({ mode: 0, t0: K0, delay: tl.spin * 0.9, life: 0.9, n: Math.round(80 + 260 * I), org: [0, 0.01], angle: 0, spread: TWEE_PI, spd: [0.12, 0.7], grav: [0, 0], drag: 2.2, size: [0.0014, 0.0038], col1: kl, col2: wit, alpha: 0.7, seed: 15 });
@@ -887,7 +888,7 @@
       if (!op && t >= RV - 0.05 && aan('licht')) {
         const dt2 = t - RV;
         const b = Math.exp(-dt2 / (0.4 + 0.5 * I));
-        licht(t, 0, 0.02, (0.2 + 0.4 * I) * b * gw, 0.04 + 0.1 * Math.min(dt2, 0.7), (0.3 + 0.5 * I) * Math.exp(-dt2 / 0.9) * gw, (0.35 + 0.6 * I) * Math.exp(-dt2 / 1.2) * gw, t * 0.3);
+        licht(t, 0, 0.02, (0.2 + 0.4 * I) * b * gw * (zeldzaam ? 1 : 0.6), 0.04 + 0.1 * Math.min(dt2, 0.7), (0.3 + 0.5 * I) * Math.exp(-dt2 / 0.9) * gw, (0.35 + 0.6 * I) * Math.exp(-dt2 / 1.2) * gw, t * 0.3);
       }
       if (Zv) Zv.teken(t, asp, visB);
       if (Zm) {
@@ -958,7 +959,7 @@
         p.f1('uPop', pop);
         p.f1('uFolie', zk ? zk.folie : 0);
         p.f1('uTier', tier);
-        p.f1('uHelder', 1 + (t >= RV ? (kosm3 ? 0.08 : 0.35 * gw * gw) * Math.exp(-(t - RV) / 0.3) : 0));
+        p.f1('uHelder', 1 + (t >= RV ? (kosm3 ? 0.08 : (zeldzaam ? 0.35 : 0.16) * gw * gw) * Math.exp(-(t - RV) / 0.3) : 0));
         p.v3('uCol', kl);
         p.v3('uCol2', kl2);
         motor.mengen('alpha');
@@ -1093,7 +1094,7 @@
           if (t > tl.pakIn[0] && t < c1) rad = Math.max(rad, 0.4 * Math.pow(1 - ramp(t, tl.pakIn[0], c1), 2));
           if (t >= E) rad = Math.max(rad, 0.25 * Math.exp(-(t - E) / 0.25));
         }
-        if (t >= RV) rad = Math.max(rad, 0.22 * gw * Math.exp(-(t - RV) / 0.3));
+        if (t >= RV) rad = Math.max(rad, (zeldzaam ? 0.22 : 0.09) * gw * Math.exp(-(t - RV) / (zeldzaam ? 0.3 : 0.2))); // gewoon: de kaart blijft leesbaar
         if (zeldzaam && t >= RV + 0.35) rad = Math.max(rad, 0.16 * Math.exp(-((t - RV - 0.35) % 0.3) / 0.1) * (t < RV + 1.5 ? 1 : 0));
         if (t > K0 - 0.3 && t < K0) rad = Math.max(rad, 0.3 * ramp(t, K0 - 0.3, K0));
       }
