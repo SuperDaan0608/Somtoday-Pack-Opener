@@ -1,0 +1,68 @@
+/* Rondleiding voor nieuwe spelers (rondleiding.js). Gebruikt de kleuren en knoppen van hub.css. */
+.rl { position: fixed; inset: 0; z-index: 900; }
+.rl::before { content: ''; position: absolute; inset: 0; } /* vangt klikken op: de rest van het paneel is toch niet bruikbaar */
+.rl.rl-geen::before { background: rgba(4, 6, 14, 0.82); backdrop-filter: blur(2px); }
+.rl-licht, .rl-ring { position: absolute; border-radius: 14px; pointer-events: none; transition: left 0.3s ease, top 0.3s ease, width 0.3s ease, height 0.3s ease; }
+.rl-licht { box-shadow: 0 0 0 9999px rgba(4, 6, 14, 0.82), 0 0 0 2px var(--geel), 0 0 28px 4px rgba(255, 210, 74, 0.45); animation: rl-puls 2.2s ease-in-out infinite; }
+.rl-ring { border: 2px dashed var(--geel); box-shadow: 0 0 18px 2px rgba(255, 210, 74, 0.4); border-radius: 999px; }
+@keyframes rl-puls { 50% { box-shadow: 0 0 0 9999px rgba(4, 6, 14, 0.82), 0 0 0 2px var(--geel), 0 0 40px 8px rgba(255, 210, 74, 0.7); } }
+
+.rl-kaart {
+  position: absolute; width: min(390px, calc(100vw - 32px)); max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); overflow-y: auto;
+  padding: 20px 20px 16px; border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.2);
+  background: radial-gradient(120% 90% at 0% 0%, rgba(124, 131, 255, 0.28), transparent 60%), linear-gradient(160deg, #161c4a, #1f1446);
+  box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.75);
+  transition: left 0.3s ease, top 0.3s ease;
+}
+.rl-kaart:focus { outline: none; }
+.rl-kaart.rl-in { animation: rl-in 0.25s ease both; }
+@keyframes rl-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.rl-stap { margin-bottom: 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--geel); }
+.rl-kaart h2 { font: 700 21px/1.2 var(--display); letter-spacing: -0.015em; color: #fff; }
+.rl-tekst { margin-top: 8px; font-size: 14.5px; line-height: 1.5; color: rgba(255, 255, 255, 0.84); }
+.rl-extra { margin-top: 12px; }
+.rl-extra[hidden] { display: none; }
+
+.rl-chips, .rl-ladder { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.rl-chips { grid-template-columns: 1fr 1fr; }
+.rl-chips li { display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-items: center; padding: 7px 10px; border-radius: 10px; border: 1px solid var(--lijn); background: rgba(0, 0, 0, 0.22); line-height: 1.2; }
+.rl-chips i { grid-row: span 2; width: 14px; height: 14px; border-radius: 50%; box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.25); }
+.rl-chips b { font-size: 13px; }
+.rl-chips span { font-size: 12px; color: var(--tekst-2); }
+.rl-ladder { grid-template-columns: 1fr 1fr; }
+.rl-trede { display: flex; flex-direction: column; padding: 7px 10px; border-radius: 10px; border: 1px solid var(--lijn); background: rgba(0, 0, 0, 0.22); line-height: 1.25; }
+.rl-trede b { font-size: 13px; }
+.rl-trede span { font: 700 14px var(--display); }
+.rl-t1 b { color: #8fe3a0; } .rl-t2 b { color: #7fd3ff; } .rl-t3 b { color: #c8a2ff; } .rl-t4 b { color: #ff9bd2; }
+.rl-vloek { margin-top: 8px; padding: 9px 11px; border-radius: 10px; font-size: 13px; line-height: 1.45; color: #e6d2ff; border: 1px solid rgba(176, 96, 255, 0.5); background: rgba(120, 40, 200, 0.2); }
+.rl-vloek b { color: #d9b0ff; }
+
+.rl-voet { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; }
+.rl-bollen { display: flex; gap: 6px; align-items: center; }
+.rl-bollen i { width: 8px; height: 8px; border-radius: 99px; background: rgba(255, 255, 255, 0.22); transition: width 0.25s, background 0.25s; }
+.rl-bollen i.af { background: rgba(255, 210, 74, 0.55); }
+.rl-bollen i.nu { width: 22px; background: var(--geel); }
+.rl-knoppen { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.rl-knoppen .knop { min-height: 40px; padding: 0 16px; }
+.rl-over { padding: 8px 6px; border: 0; background: none; font-size: 13px; color: var(--tekst-2); text-decoration: underline; text-underline-offset: 2px; }
+.rl-over:hover { color: #fff; }
+.rl-live { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); }
+
+.rl-opnieuw { margin-top: 4px; }
+
+/* Smal scherm: het kaartje staat als een lade onderaan, het doel erboven */
+@media (max-width: 760px) {
+  .rl-kaart.rl-onder { left: 12px; right: 12px; top: auto; bottom: 12px; width: auto; max-height: 62vh; max-height: 62dvh; padding: 16px 16px 14px; }
+  .rl-kaart.rl-onder.rl-boven { top: 12px; bottom: auto; }
+  .rl-kaart h2 { font-size: 19px; }
+  .rl-tekst { font-size: 14px; }
+  .rl-voet { gap: 10px; }
+  .rl-bollen { flex: 1 0 100%; justify-content: center; }
+  .rl-knoppen { width: 100%; }
+  .rl-knoppen .knop.goud { flex: 1 1 auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rl-licht, .rl-ring, .rl-kaart, .rl-bollen i { transition: none !important; animation: none !important; }
+  .rl-kaart.rl-in { animation: none !important; }
+  .rl.rl-geen::before { backdrop-filter: none; }
+}

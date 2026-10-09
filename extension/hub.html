@@ -6,6 +6,7 @@
   <title>Pack Opener</title>
   <link rel="icon" href="icons/icon-32.png" />
   <link rel="stylesheet" href="hub.css" />
+  <link rel="stylesheet" href="rondleiding.css" />
 </head>
 <body>
   <!-- Pictogrammen (Lucide, ISC): één keer hier, overal met <use> -->
@@ -238,6 +239,9 @@
         <div class="schakels">
           <label class="schakel"><input type="checkbox" id="galerij" /><span class="knopje"></span><span class="schakel-tekst">Galerij bijhouden<small>Bewaart je geopende kaarten, alleen in deze browser.</small></span></label>
         </div>
+        <h3 class="sectie">Hulp</h3>
+        <p class="onder">Nieuw bij de Pack Opener? In een minuutje zie je wat alles is.</p>
+        <button type="button" class="knop rl-opnieuw" id="rondleiding-opnieuw">Rondleiding opnieuw</button>
         <p class="melding" id="inst-melding" role="status" aria-live="polite"></p>
       </section>
     </main>
@@ -247,7 +251,9 @@
   </div>
   <script src="account.js"></script>
   <script src="poort.js"></script>
+  <script src="ladder.js"></script>
   <script src="hub.js"></script>
+  <script src="rondleiding.js"></script>
   <script src="hub-munten.js"></script>
   <script src="updatemelding.js"></script>
 </body>

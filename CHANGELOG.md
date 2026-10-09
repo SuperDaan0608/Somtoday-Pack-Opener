@@ -2,6 +2,8 @@
 
 ## v2.4.0
 
+- **Rondleiding voor nieuwe spelers:** de eerste keer dat je bent ingelogd en het paneel opent, laat een korte rondleiding in negen stappen zien wat alles is: je cijfers en pakjes, de niveaus van een kaart (brons, zilver, goud, speciaal), de ladder met de kansen (Zeldzaam 1/10, Glim 1/40, Kosmisch 1/150, Mythisch 1/1000, vast per cijfer) en de vervloekte kaart, de Galerij, munten en Winkel, Team en duels, Vrienden, het huisdier en Prestaties. Elke stap licht het juiste tabblad of onderdeel op, met Volgende, Terug, Overslaan en voortgangsbolletjes. Werkt met het toetsenbord (Tab blijft in het kaartje, pijltjes bladeren, Esc slaat over), op smalle schermen en met *minder beweging*. Bij **Instellingen** staat de knop **Rondleiding opnieuw**. Dat je hem zag zit in de back-up van je account, dus na een update komt hij niet opnieuw.
+
 - Meldingen rechtsboven op Somtoday als je een vriendverzoek krijgt of een vriend je uitdaagt voor een duel. Klik erop om meteen naar Vrienden of Team te gaan.
 
 - **Uitval: geen nep-uitval meer:** komt er op hetzelfde tijdstip een andere les of afspraak bij (zoals een inzagemoment), dan zag de extensie de oude plek ten onrechte als uitval. Nu telt een les alleen als uitval als er op dat tijdstip niets meer staat, en spookblokken over een bestaande les verdwijnen.

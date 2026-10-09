@@ -195,6 +195,13 @@
     if (naam === 'overzicht' && ververs) verversStatus();
   }
 
+  // De rondleiding start pas als het paneel klaar is (bij een iframe: na 'init' van content.js, zodat die niet van tabblad wisselt).
+  function hubKlaar() {
+    window.SPOHub.klaar = true;
+    document.dispatchEvent(new Event('spo-hub-klaar'));
+  }
+  window.SPOHub = { kies: (naam) => kies(naam, { focus: false }), huidig: () => huidig }; // voor de rondleiding (rondleiding.js)
+
   $('tabs').addEventListener('click', (e) => {
     const k = e.target.closest('[role="tab"]');
     if (k) kies(k.dataset.tab);
@@ -665,6 +672,7 @@
           if (m.status) status = m.status;
           kies(TABS.includes(m.tab) ? m.tab : 'overzicht', { focus: true });
           tekenHero();
+          hubKlaar();
           break;
         case 'tab':
           kies(TABS.includes(m.tab) ? m.tab : 'overzicht', { focus: true });
@@ -723,6 +731,7 @@
     if (ingebed) {
       naarPagina('hub-klaar');
     } else {
+      hubKlaar();
       // los tabblad: opnieuw kijken zodra je terugkomt uit het Somtoday-tabblad
       document.addEventListener('visibilitychange', () => {
         if (!document.hidden && huidig === 'overzicht') verversStatus();
