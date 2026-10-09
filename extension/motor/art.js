@@ -3406,6 +3406,177 @@
     return cv;
   }
 
+  // ───────────────────────── De walkout-onthullingen (zoals bij FUT: vlag, positie, club) ─────────────────────────
+  // Drie grote, rustige plaatjes die één voor één midden in beeld komen: het vak (met icoon), de weging en het
+  // onderwerp (als clubembleem). Doorzichtige achtergrond: het stadion blijft erachter zichtbaar.
+  const EW = 1200;
+  const EH = 600;
+  function embleemTekst(c, label, hoofd, kleur, y, maxFs) {
+    c.textAlign = 'center';
+    c.textBaseline = 'alphabetic';
+    c.font = `800 46px ${F_SPORT}`;
+    spatie(c, 18);
+    c.fillStyle = rgba(kleur, 1);
+    c.fillText(label.toUpperCase(), EW / 2 + 8, y);
+    spatie(c, 0);
+    // dunne lijntjes links en rechts van het label
+    const lw = c.measureText(label.toUpperCase()).width / 2 + 40;
+    c.fillStyle = rgba(kleur, 0.55);
+    c.fillRect(EW / 2 - lw - 110, y - 12, 110, 2);
+    c.fillRect(EW / 2 + lw, y - 12, 110, 2);
+    const txt = hoofd.toUpperCase();
+    const fs = pasFont(c, txt, 'italic 900', F_SPORT, maxFs, 50, EW - 120);
+    c.font = `italic 900 ${fs}px ${F_SPORT}`;
+    c.save();
+    c.shadowColor = 'rgba(0,0,0,.65)';
+    c.shadowBlur = 24;
+    c.shadowOffsetY = 6;
+    const g = c.createLinearGradient(0, y + 20, 0, y + 20 + fs);
+    g.addColorStop(0, '#ffffff');
+    g.addColorStop(0.62, '#f2f4fa');
+    g.addColorStop(1, rgba(mixKleur(kleur, [1, 1, 1], 0.55), 1));
+    c.fillStyle = g;
+    c.fillText(pas(c, txt, EW - 120), EW / 2, y + 22 + fs * 0.84);
+    c.restore();
+  }
+  const mixKleur = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+  // een ring met een zachte metalen rand in de kleur van het niveau
+  function embleemRing(c, x, y, r, kleur) {
+    const g = c.createRadialGradient(x, y - r * 0.4, r * 0.1, x, y, r);
+    g.addColorStop(0, 'rgba(40,46,80,.96)');
+    g.addColorStop(1, 'rgba(6,8,20,.97)');
+    c.fillStyle = g;
+    c.beginPath();
+    c.arc(x, y, r, 0, Math.PI * 2);
+    c.fill();
+    const rg = c.createLinearGradient(x - r, y - r, x + r, y + r);
+    rg.addColorStop(0, rgba(mixKleur(kleur, [1, 1, 1], 0.6), 1));
+    rg.addColorStop(0.5, rgba(kleur, 1));
+    rg.addColorStop(1, rgba(mixKleur(kleur, [0, 0, 0], 0.45), 1));
+    c.strokeStyle = rg;
+    c.lineWidth = 9;
+    c.stroke();
+    c.strokeStyle = 'rgba(255,255,255,.18)';
+    c.lineWidth = 2;
+    c.beginPath();
+    c.arc(x, y, r - 14, 0, Math.PI * 2);
+    c.stroke();
+  }
+  function maakEmbleem(soort, d, kleur) {
+    const cv = nieuw(EW, EH);
+    const c = cv.getContext('2d');
+    if (soort === 'vak') {
+      embleemRing(c, EW / 2, 150, 118, kleur);
+      c.strokeStyle = '#ffffff';
+      c.fillStyle = '#ffffff';
+      icoon(c, icoonVoorVak(d.vak), EW / 2, 150, 120, 9);
+      embleemTekst(c, 'Vak', d.vak, kleur, 340, 210);
+    } else if (soort === 'weging') {
+      // de weging als het grote positie-getal van een speler
+      c.textAlign = 'center';
+      c.textBaseline = 'alphabetic';
+      const txt = `${d.weging}×`;
+      c.font = `italic 900 300px ${F_SPORT}`;
+      c.lineJoin = 'round';
+      c.lineWidth = 6;
+      c.strokeStyle = rgba(kleur, 1);
+      c.save();
+      c.shadowColor = rgba(kleur, 0.7);
+      c.shadowBlur = 30;
+      c.strokeText(txt, EW / 2, 300);
+      c.restore();
+      const g = c.createLinearGradient(0, 60, 0, 300);
+      g.addColorStop(0, 'rgba(255,255,255,.95)');
+      g.addColorStop(1, rgba(mixKleur(kleur, [1, 1, 1], 0.3), 0.9));
+      c.fillStyle = g;
+      c.fillText(txt, EW / 2, 300);
+      embleemTekst(c, 'Weging', d.weging === 1 ? 'Telt één keer' : `Telt ${d.weging} keer`, kleur, 380, 150);
+    } else {
+      // het onderwerp als clubembleem: een schild met de beginletters
+      const x = EW / 2;
+      const y0 = 30;
+      const w = 220;
+      const h = 250;
+      const schild = (ins) => {
+        c.beginPath();
+        c.moveTo(x - w / 2 + ins, y0 + ins + 20);
+        c.quadraticCurveTo(x, y0 + ins - 12, x + w / 2 - ins, y0 + ins + 20);
+        c.lineTo(x + w / 2 - ins, y0 + h * 0.52);
+        c.quadraticCurveTo(x + w / 2 - ins, y0 + h * 0.86, x, y0 + h - ins);
+        c.quadraticCurveTo(x - w / 2 + ins, y0 + h * 0.86, x - w / 2 + ins, y0 + h * 0.52);
+        c.closePath();
+      };
+      schild(0);
+      const rg = c.createLinearGradient(x - w / 2, y0, x + w / 2, y0 + h);
+      rg.addColorStop(0, rgba(mixKleur(kleur, [1, 1, 1], 0.6), 1));
+      rg.addColorStop(0.5, rgba(kleur, 1));
+      rg.addColorStop(1, rgba(mixKleur(kleur, [0, 0, 0], 0.5), 1));
+      c.fillStyle = rg;
+      c.fill();
+      schild(12);
+      const bg = c.createLinearGradient(0, y0, 0, y0 + h);
+      bg.addColorStop(0, 'rgba(34,40,74,1)');
+      bg.addColorStop(1, 'rgba(6,8,20,1)');
+      c.fillStyle = bg;
+      c.fill();
+      c.save();
+      c.clip();
+      c.fillStyle = rgba(kleur, 0.22);
+      c.fillRect(x - 26, y0, 52, h);
+      c.restore();
+      const ini = d.onder.replace(/[^A-Za-zÀ-ÿ0-9 ]/g, '').split(/\s+/).filter(Boolean).slice(0, 2).map((s) => s[0]).join('').toUpperCase() || 'T';
+      c.textAlign = 'center';
+      c.font = `italic 900 ${ini.length > 1 ? 110 : 140}px ${F_SPORT}`;
+      c.fillStyle = '#fff';
+      c.fillText(ini, x, y0 + h * 0.62);
+      embleemTekst(c, 'Onderwerp', d.onder, kleur, 340, 200);
+    }
+    return cv;
+  }
+
+  // De onderbalk tijdens het lopen: strak, zoals een tv-graphic. Vak | weging | onderwerp.
+  function maakWalkHud(d, kleur) {
+    const cv = nieuw(1600, 150);
+    const c = cv.getContext('2d');
+    const bg = c.createLinearGradient(0, 0, 1600, 0);
+    bg.addColorStop(0, 'rgba(6,8,18,0)');
+    bg.addColorStop(0.12, 'rgba(6,8,18,.82)');
+    bg.addColorStop(0.88, 'rgba(6,8,18,.82)');
+    bg.addColorStop(1, 'rgba(6,8,18,0)');
+    c.fillStyle = bg;
+    c.fillRect(0, 20, 1600, 110);
+    const lg = c.createLinearGradient(0, 0, 1600, 0);
+    lg.addColorStop(0, rgba(kleur, 0));
+    lg.addColorStop(0.5, rgba(kleur, 1));
+    lg.addColorStop(1, rgba(kleur, 0));
+    c.fillStyle = lg;
+    c.fillRect(0, 20, 1600, 3);
+    c.fillStyle = 'rgba(255,255,255,.15)';
+    c.fillRect(0, 127, 1600, 1);
+    const kol = [
+      ['Vak', d.vak],
+      ['Weging', `${d.weging}×`],
+      ['Onderwerp', d.onder],
+    ];
+    const xs = [400, 800, 1200];
+    kol.forEach(([l, v], i) => {
+      c.textAlign = 'center';
+      c.font = `800 22px ${F_SPORT}`;
+      spatie(c, 9);
+      c.fillStyle = rgba(kleur, 1);
+      c.fillText(l.toUpperCase(), xs[i] + 4, 58);
+      spatie(c, 0);
+      const fs = pasFont(c, v.toUpperCase(), 'italic 900', F_SPORT, 54, 26, 340);
+      c.fillStyle = '#fff';
+      c.fillText(pas(c, v.toUpperCase(), 340), xs[i], 62 + fs * 0.9);
+      if (i) {
+        c.fillStyle = 'rgba(255,255,255,.2)';
+        c.fillRect(xs[i] - 200, 44, 2, 66);
+      }
+    });
+    return cv;
+  }
+
   // De titel na de onthulling: een groot woord met een regel eronder.
   function maakTitel(data) {
     const cv = nieuw(1500, 360);
@@ -3626,7 +3797,7 @@
     const vakTekst = pakje && !d.snel ? maakVliegTekst('Vak', d.vak, koel) : null;
     const onderTekst = pakje && !d.snel ? maakVliegTekst('Onderwerp', d.onder, koel) : null;
     yield;
-    const platen = pakje && d.walkout ? [maakPlaat('Vak', d.vak, kleur), maakPlaat('Onderwerp', d.onder, kleur), maakPlaat('Weging', `${d.weging}×  ·  Cijfer ???`, kleur)] : null;
+    const platen = pakje && d.walkout ? [maakEmbleem('vak', d, kleur), maakEmbleem('weging', d, kleur), maakEmbleem('onder', d, kleur), maakWalkHud(d, kleur)] : null;
     let opening = null;
     const op = SPO.openingen && SPO.openingen[d.opening];
     if (op && op.art) {
@@ -3649,6 +3820,6 @@
   SPO.art = {
     maakAllesAsync,
     CW, CH, PW, PH, SCHEUR, CIJFER_RECT, F_SPORT, F_DISPLAY, F_TEKST,
-    laadLettertypes, maakKaartLagen, maakMiniatuur, maakPak, maakVliegTekst, maakPlaat, maakTitel, maakAfbeelding, maakDeelplaat, icoonVoorVak, icoon, nieuw,
+    laadLettertypes, maakKaartLagen, maakMiniatuur, maakPak, maakVliegTekst, maakPlaat, maakEmbleem, maakWalkHud, maakTitel, maakAfbeelding, maakDeelplaat, icoonVoorVak, icoon, nieuw,
   };
 })();

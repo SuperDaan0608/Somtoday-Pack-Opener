@@ -140,13 +140,10 @@
       onder: art.onderTekst ? motor.tekstuur(art.onderTekst) : null,
       plaat: art.platen ? art.platen.map((c) => motor.tekstuur(c)) : [],
     };
-    const platenInfo = art.platen
-      ? [
-          { x: -1, y: 0.7, t0: 0.12 },
-          { x: 1, y: 0.5, t0: 0.38 },
-          { x: -1, y: 0.3, t0: 0.62 },
-        ]
-      : [];
+    // De walkout zoals bij FUT: eerst het vak (de vlag), dan de weging (de positie), dan het onderwerp (de club),
+    // en pas dan loopt de leerling naar buiten. t0 en t1 zijn delen van de walkout-duur.
+    const platenInfo = art.platen ? [{ t0: 0.03, t1: 0.27 }, { t0: 0.24, t1: 0.47 }, { t0: 0.44, t1: 0.66 }] : [];
+    const LOOP0 = art.platen ? 0.62 : 0; // vanaf hier loopt de leerling de tunnel uit
 
     // Kleur van het licht: bij een Icoon wisselt die langzaam van tint.
     // Een zeldzame kaart krijgt vanaf het moment dat de kaart verschijnt ook het wisselende regenboog-licht.
@@ -213,7 +210,7 @@
         // De hartslag en de stappen vormen samen één ritme dat steeds luider wordt.
         const sp = Math.PI / 5.2; // één stap duurt zo lang (de stapfase loopt met 5,2 rad/s)
         for (let k = 0; ; k++) {
-          const ts = w0 + 0.25 + k * sp;
+          const ts = w0 + 0.25 + LOOP0 * WO + k * sp;
           if (ts > w1 - 0.45) break;
           const q = (ts - w0) / WO;
           stappen.push(ts);
@@ -222,6 +219,11 @@
             audio.hartslag((0.3 + 0.6 * q) * (0.6 + 0.4 * I));
           });
         }
+        // tijdens de plaatjes klopt het hart al zacht
+        for (let ts = w0 + 0.4; ts < w0 + LOOP0 * WO; ts += 0.75) {
+          const q = (ts - w0) / WO;
+          at(ts, () => audio.hartslag((0.2 + 0.4 * q) * (0.6 + 0.4 * I)));
+        }
         // fotografen: onregelmatig en steeds sneller naarmate de leerling dichterbij komt
         let ts = w0 + 0.9;
         while (ts < w1 - 0.3) {
@@ -229,7 +231,12 @@
           at(ts, () => audio.sluiter());
           ts += (0.22 + Math.random() * 0.3) * (1.5 - q);
         }
-        platenInfo.forEach((pl, i) => at(w0 + WO * pl.t0, () => audio.zwiep(0.45, 1.25 + i * 0.1)));
+        platenInfo.forEach((pl, i) =>
+          at(w0 + WO * pl.t0, () => {
+            audio.zwiep(0.5, 1.15 + i * 0.12);
+            audio.boem(0.16 + 0.06 * i, 1.4);
+          }),
+        );
         at(w1 - 0.2, () => audio.whoosh(0.6));
       }
     }
@@ -751,24 +758,34 @@
         motor.mengen('optel');
         kaartStralen(tStr, laad);
       } else {
-        // de walkout-arena
+        // de walkout-arena: stadion, tunnel, rook, schijnwerpers en de leerling
         if (walkoutBezig && aan('arena')) {
           const [w0, w1] = wo;
-          const q = klem((t - w0) / (w1 - w0), 0, 1);
+          const WO = w1 - w0;
+          const q = klem((t - w0) / WO, 0, 1);
+          const qw = ramp(q, LOOP0, 1); // het lopen
           const p = P.arena.gebruik();
           basis(p);
           p.f1('uTime', t);
-          // de leerling loopt door de lichtbundel naar je toe: eerst klein, aan het eind groter dan het beeld
-          const h = 0.1 * Math.pow(11, Math.pow(q, 0.9)) * (0.85 + 0.15 * fit);
-          const loopt = q < 0.93 ? 1 : Math.max(0.2, 1 - (q - 0.93) / 0.07);
-          p.f1('uStap', (t - w0) * 5.2 + 1.2);
-          p.f1('uAmp', loopt * (0.55 + 0.45 * q));
-          p.f1('uFlits', (0.25 + 0.75 * q) * (0.5 + I));
-          p.f1('uBundel', 0.55 + 0.6 * q);
-          p.f1('uAlpha', sm(t, w0 - 0.02, w0 + 0.25) * (1 - sm(t, K0 - 0.02, K0 + 0.1)));
+          // de leerling staat eerst klein in de tunnelmond en loopt dan naar je toe, tot hij het beeld vult
+          const h = 0.095 * Math.pow(9.5, Math.pow(qw, 1.3));
+          const loopt = qw <= 0 ? 0 : qw < 0.94 ? sm(qw, 0, 0.06) : Math.max(0.2, 1 - (qw - 0.94) / 0.06);
+          p.f1('uStap', Math.max(0, t - w0 - LOOP0 * WO) * 5.2 + 1.2);
+          p.f1('uAmp', loopt * (0.6 + 0.4 * qw));
+          p.f1('uFlits', (0.3 + 0.7 * q) * (0.5 + I));
+          p.f1('uBundel', (0.6 + 0.5 * q) * (0.75 + 0.35 * I));
+          p.f1('uAlpha', sm(t, w0 - 0.02, w0 + 0.3) * (1 - sm(t, K0 - 0.02, K0 + 0.1)));
           p.f1('uRegen', regenboog ? 1 : 0);
-          p.f1('uLicht', 0.35 + 0.35 * q + 1.6 * Math.pow(ramp(q, 0.9, 1), 2) + 0.9 * Math.exp(-(t - w0) / 0.4));
-          p.f4('uFig', 0, 0.07 - 0.55 * h, h, sm(q, 0, 0.08));
+          p.f1('uLicht', (0.55 + 0.35 * I) * (0.7 + 0.5 * q) + 0.9 * Math.pow(ramp(q, 0.92, 1), 2) + 0.8 * Math.exp(-(t - w0) / 0.35));
+          p.f1('uDolly', 1 + 0.32 * glad(q));
+          let dim = 0;
+          for (const pl of platenInfo) {
+            const u = ramp(q, pl.t0, pl.t1);
+            if (u > 0 && u < 1) dim = Math.max(dim, sm(u, 0, 0.12) * (1 - sm(u, 0.8, 1)));
+          }
+          p.f1('uDim', dim);
+          p.f1('uKw', motor.kwaliteit);
+          p.f4('uFig', 0, -0.06 - 0.45 * (h - 0.095), h, sm(q, 0, 0.1));
           p.v3('uTint', kl);
           p.v3('uTint2', kl2);
           motor.mengen('optel');
@@ -856,22 +873,34 @@
           licht(t, 0, lekP, (0.3 + 0.55 * I) * b * aan, 0.01 + 0.12 * Math.pow(Math.min(dt2, 0.6), 0.7) + 0.015, (0.35 + 0.55 * I) * Math.exp(-dt2 / 0.65) * aan, (0.3 + 0.4 * I) * Math.exp(-dt2 / 0.9), t * 0.35);
         }
 
-        // ── plaatjes tijdens de walkout ──
+        // ── de onthullingen tijdens de walkout: vak, weging, onderwerp; daarna een strakke onderbalk ──
         if (wo && tex.plaat.length && t >= wo[0] && t < K0 + 0.1) {
           const WO = wo[1] - wo[0];
-          const breed = Math.min(1.5, visB * 0.92);
-          const half = visB / 2;
-          const smal = asp < 1.15; // rechtop: de plaatjes staan boven elkaar in het midden
+          const w = Math.min(2.15, visB * 0.94);
           platenInfo.forEach((pl, i) => {
-            const tp = wo[0] + WO * pl.t0;
-            if (t < tp) return;
-            const kk = (t - tp) / 0.5;
-            const veeg = glad(klem(kk, 0, 1)) * 1.35 - 0.1;
-            const x = smal ? pl.x * 0.05 * visB + (1 - glad(klem(kk * 1.4, 0, 1))) * pl.x * 0.1 : pl.x * Math.max(0.3, half - breed * 0.55 - 0.1) + (1 - glad(klem(kk * 1.4, 0, 1))) * pl.x * 0.12;
-            const y = smal ? 0.66 - i * (breed * (250 / 1200) * 1.15) : pl.y * 0.9;
-            const alpha = 1 - sm(t, K0 - 0.28, K0 + 0.05);
-            vlak(t, tex.plaat[i], x, y + Math.sin(t * 1.1 + i * 2) * 0.01, 0, 0, smal ? -pl.x * 0.05 : -pl.x * 0.17, 0, breed, breed * (250 / 1200), alpha, veeg, 0, kk < 0.4 ? 1 - kk / 0.4 : 0);
+            const a0 = wo[0] + WO * pl.t0;
+            const a1 = wo[0] + WO * pl.t1;
+            if (t < a0 || t > a1) return;
+            const u = (t - a0) / (a1 - a0);
+            const D = a1 - a0;
+            const inK = klem((t - a0) / 0.45, 0, 1); // binnenkomen duurt 0,45 s
+            const uitK = sm(u, 0.84, 1);
+            const sch = (1 + 0.14 * Math.pow(1 - inK, 3)) * (1 + 0.012 * u * D) * (1 + 0.35 * uitK * uitK);
+            const veeg = glad(inK) * 1.4 - 0.1;
+            const alpha = sm(inK, 0, 0.25) * (1 - uitK);
+            vlak(t, tex.plaat[i], 0, 0.06 + 0.02 * (1 - inK), 0, 0, 0, 0, w * sch, w * 0.5 * sch, alpha, veeg, 0, inK < 0.18 ? 0.6 * (1 - inK / 0.18) : 0);
+            // een lensstreep op het moment dat het plaatje binnenkomt
+            if (aan('licht')) licht(t, 0, 0.1, 0, 0.02, (0.25 + 0.2 * I) * Math.exp(-(t - a0) / 0.28), 0.12 * Math.exp(-(t - a0) / 0.35), t * 0.2);
           });
+          if (tex.plaat[3]) {
+            const a0 = wo[0] + WO * (LOOP0 + 0.06);
+            if (t >= a0) {
+              const kk = ramp(t, a0, a0 + 0.55);
+              const hw = Math.min(2.9, visB * 0.98);
+              const alpha = sm(kk, 0, 0.3) * (1 - sm(t, K0 - 0.3, K0 - 0.05));
+              vlak(t, tex.plaat[3], 0, -H_ZICHT * 0.5 + H_ZICHT * 0.2, 0, 0, 0, 0, hw, hw * (150 / 1600), alpha, glad(kk) * 1.4 - 0.1, 0, 0);
+            }
+          }
         }
 
       }
