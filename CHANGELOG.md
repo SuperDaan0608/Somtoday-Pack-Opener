@@ -2,7 +2,7 @@
 
 ## v2.4.3
 
-- De prestatie voor een 10 op een mythische kaart heet nu **Onmogelijk**.
+- De prestatie voor een 10 op een mythische kaart heet nu **Pure Aura** en staat extra groot bovenaan.
 
 ## v2.4.2
 

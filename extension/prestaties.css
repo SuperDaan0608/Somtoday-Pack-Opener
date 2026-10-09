@@ -50,3 +50,10 @@
   59% { transform: none; opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) { .badge-kaart.glitch .b-niveau, .badge-kaart.glitch .b-naam { animation: none; } }
+/* Pure Aura: extra groot, over de hele breedte, altijd bovenaan */
+.badge-kaart.glitch { grid-column: 1 / -1; order: -1; padding: 22px 24px; align-items: center; gap: 22px; }
+.badge-kaart.glitch .b-icoon, .badge-kaart.glitch .b-icoon svg { width: 120px; height: 120px; }
+.badge-kaart.glitch .b-naam { font-size: clamp(26px, 5vw, 40px); line-height: 1.1; }
+.badge-kaart.glitch .b-niveau { font-size: 16px; margin-top: 6px; }
+.badge-kaart.glitch .b-uitleg { font-size: 15px; }
+.badge-kaart.glitch.behaald { box-shadow: 0 0 0 1px rgba(200,140,255,.6), 0 0 40px rgba(160,80,255,.35); }
