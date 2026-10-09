@@ -47,6 +47,14 @@ Blijvend installeren kan alleen met een door Mozilla ondertekende versie (addons
 Fanproject. Niet verbonden aan Somtoday of Topicus.
 TXT
 
+# Veiligheid: debugcode hoort nooit in een gewone release (alleen scripts/package-debug.sh mag die maken).
+if grep -rqE '__spoDebug|spo_debug|debug-somtoday|version_name": *"[^"]*debug' "$WERK"; then
+  echo "Er zit debugcode in deze build. Afgebroken." >&2; exit 1
+fi
+if find "$WERK" \( -name 'debug.html' -o -name 'debug.js' -o -name 'debug.css' -o -name 'debug-somtoday.js' \) | grep -q .; then
+  echo "Er zitten debugbestanden in deze build. Afgebroken." >&2; exit 1
+fi
+
 mkdir -p "$UIT"
 rm -f "$ZIP"
 (cd "$WERK" && zip -rqX "$ZIP" .)

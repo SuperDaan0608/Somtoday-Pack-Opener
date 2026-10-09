@@ -57,6 +57,14 @@ De beheersleutel (beheer_sleutel uit config.php op de server) zit er niet in; de
 Installeren: chrome://extensions, Ontwikkelaarsmodus aan, "Uitgepakte extensie laden" en kies deze map.
 TXT
 
+# Veiligheid: debugcode hoort nooit in een gewone release (alleen scripts/package-debug.sh mag die maken).
+if grep -rqE '__spoDebug|spo_debug|debug-somtoday|version_name": *"[^"]*debug' "$WERK"; then
+  echo "Er zit debugcode in deze build. Afgebroken." >&2; exit 1
+fi
+if find "$WERK" \( -name 'debug.html' -o -name 'debug.js' -o -name 'debug.css' -o -name 'debug-somtoday.js' \) | grep -q .; then
+  echo "Er zitten debugbestanden in deze build. Afgebroken." >&2; exit 1
+fi
+
 mkdir -p "$UIT"
 rm -f "$ZIP"
 (cd "$WERK" && zip -rqX "$ZIP" "$NAAM")

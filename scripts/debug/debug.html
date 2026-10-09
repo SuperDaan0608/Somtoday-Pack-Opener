@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Debug · Somtoday Pack Opener</title>
+  <link rel="icon" href="icons/icon-32.png" />
+  <link rel="stylesheet" href="debug.css" />
+  <script src="embed.js"></script>
+</head>
+<body>
+  <main>
+    <header class="kop">
+      <h1>Debug-menu</h1>
+      <p class="onder">Alleen in de debug-build (versie <b id="versie">?</b>). Nooit delen of uploaden. Animaties en meldingen verschijnen op het <b>zichtbare Somtoday-tabblad</b> (ingelogd).</p>
+      <div class="rij">
+        <a class="knop" href="https://leerling.somtoday.nl/" target="_blank" rel="noopener">Open Somtoday</a>
+        <button type="button" class="knop" id="los">Dit menu in een los tabblad</button>
+        <label class="vink"><input type="checkbox" id="niet-delen" checked /> Deel debugkaarten niet met vrienden</label>
+      </div>
+      <p class="melding" id="melding" role="status" aria-live="polite"></p>
+    </header>
+
+    <section class="blok" id="s-kaart">
+      <h2>Jezelf een kaart geven</h2>
+      <div class="vorm">
+        <label>Vak <input id="k-vak" list="vakken" value="Wiskunde" maxlength="40" /></label>
+        <datalist id="vakken"><option>Wiskunde</option><option>Nederlands</option><option>Engels</option><option>Natuurkunde</option><option>Scheikunde</option><option>Biologie</option><option>Geschiedenis</option><option>Aardrijkskunde</option><option>Frans</option><option>Duits</option><option>Informatica</option><option>Tekenen</option></datalist>
+        <label>Cijfer <input id="k-cijfer" type="number" min="1" max="10" step="0.1" value="8.4" /></label>
+        <label>Weging <input id="k-weging" type="number" min="1" max="4" step="1" value="1" /></label>
+        <label>Onderwerp <input id="k-onderwerp" value="Hoofdstuk 3 (debug)" maxlength="80" /></label>
+        <label>Trede <select id="k-trede"></select></label>
+        <label>Opening <select id="k-opening"></select></label>
+        <label>Seizoen <select id="k-seizoen"></select></label>
+      </div>
+      <div class="rij">
+        <label class="vink"><input type="checkbox" id="k-vloek" /> Vloek</label>
+        <label class="vink"><input type="checkbox" id="k-galerij" checked /> Bewaar in galerij</label>
+        <label class="vink"><input type="checkbox" id="k-munten" /> Betaal munten uit</label>
+        <label class="vink"><input type="checkbox" id="k-speel" /> Speel meteen de animatie</label>
+      </div>
+      <div class="rij">
+        <button type="button" class="knop goud" id="k-geef">Geef kaart</button>
+        <button type="button" class="knop" id="k-speel-nu">Alleen animatie</button>
+        <button type="button" class="knop gevaar" id="k-wis">Alle debugkaarten verwijderen</button>
+      </div>
+      <p class="klein">Nep-kaarten krijgen het id <code>debug:...</code>. Ze tellen mee voor prestaties en het huisdier niet; vrienden zien ze niet zolang het vinkje bovenaan aan staat. In een account-back-up komen ze wel mee: verwijder ze daarna.</p>
+    </section>
+
+    <section class="blok" id="s-anim">
+      <h2>Animaties afspelen</h2>
+      <p class="klein">Gebruikt cijfer, vak, opening en trede hierboven, tenzij de knop er zelf iets over zegt.</p>
+      <div class="vorm">
+        <label>Vals alarm <select id="a-vals"><option value="">Automatisch</option><option value="true">Aan</option><option value="false">Uit</option></select></label>
+        <label>Upgrade <select id="a-upg"><option value="">Automatisch</option><option value="true">Aan</option><option value="false">Uit</option></select></label>
+      </div>
+      <h3>Elke opening</h3><div class="rij" id="a-openingen"></div>
+      <h3>Elke trede</h3><div class="rij" id="a-treden"></div>
+      <h3>Bijzonder</h3>
+      <div class="rij">
+        <button type="button" class="knop" data-a="ultiem3">Ultiem: 10 + kosmisch</button>
+        <button type="button" class="knop" data-a="ultiem4">Ultiem: 10 + mythisch</button>
+        <button type="button" class="knop" data-a="vals">Vals alarm</button>
+        <button type="button" class="knop" data-a="upgrade">Upgrade</button>
+        <button type="button" class="knop" data-a="vloek">Onvoldoende met vloek</button>
+      </div>
+      <h3>Seizoensthema (pakje)</h3><div class="rij" id="a-seizoenen"></div>
+    </section>
+
+    <section class="blok" id="s-munten">
+      <h2>Munten, winkel en pakjes</h2>
+      <p>Saldo nu: <b id="m-saldo">0</b> munten</p>
+      <div class="rij">
+        <input id="m-getal" type="number" min="0" step="1" value="500" aria-label="Aantal munten" />
+        <button type="button" class="knop" id="m-zet">Zet saldo</button>
+        <button type="button" class="knop" id="m-plus">Geef erbij</button>
+        <button type="button" class="knop" id="m-nul">Saldo naar 0</button>
+      </div>
+      <h3>Winkelitems</h3>
+      <div class="rij">
+        <button type="button" class="knop" id="w-alles">Alles ontgrendelen</button>
+        <button type="button" class="knop" id="w-geen">Alles vergrendelen</button>
+        <select id="w-item" aria-label="Item"></select>
+        <button type="button" class="knop" id="w-een">Ontgrendel dit item</button>
+      </div>
+      <h3>Pakjes gratis openen</h3>
+      <div class="rij" id="p-pakjes"></div>
+      <p class="klein" id="p-uitslag"></p>
+      <h3>Dagelijkse beloning</h3>
+      <div class="rij">
+        <button type="button" class="knop" id="d-reset">Reset (vandaag weer ophalen)</button>
+        <label>Volgende wordt dag <select id="d-dag"></select></label>
+        <button type="button" class="knop" id="d-zet">Zet</button>
+      </div>
+    </section>
+
+    <section class="blok" id="s-dier">
+      <h2>Huisdier</h2>
+      <p>XP nu: <b id="h-xp">0</b> (<span id="h-stadium">Ei</span>)</p>
+      <div class="rij">
+        <input id="h-getal" type="number" min="0" step="1" value="0" aria-label="XP" />
+        <button type="button" class="knop" id="h-zet">Zet XP</button>
+        <select id="h-stad" aria-label="Stadium"></select>
+        <button type="button" class="knop" id="h-zet-stad">Zet stadium</button>
+      </div>
+      <h3>Humeur</h3>
+      <div class="rij">
+        <button type="button" class="knop" data-h="blij">Blij</button>
+        <button type="button" class="knop" data-h="verdrietig">Verdrietig</button>
+        <button type="button" class="knop" data-h="rustig">Rustig</button>
+        <button type="button" class="knop" data-s="true">Slaapt</button>
+        <button type="button" class="knop" data-s="false">Wakker (negeer klok)</button>
+        <button type="button" class="knop" data-s="">Volg de klok</button>
+      </div>
+      <h3>Evolutie-animatie</h3>
+      <div class="rij" id="h-evo"></div>
+      <p class="klein">Zet het huisdier eerst één XP onder het stadium en laat het daarna groeien. Je ziet het op dit scherm (linksonder) en op Somtoday.</p>
+    </section>
+
+    <section class="blok" id="s-meld">
+      <h2>Meldingen nabootsen</h2>
+      <div class="rij">
+        <button type="button" class="knop" data-t="verzoek">Vriendverzoek</button>
+        <button type="button" class="knop" data-t="duel">Duel-uitdaging</button>
+        <button type="button" class="knop" data-t="gg3">GG op kosmische kaart</button>
+        <button type="button" class="knop" data-t="gg4">GG op mythische kaart</button>
+        <button type="button" class="knop" data-t="kijk3">&#127756; Meekijken: kosmisch</button>
+        <button type="button" class="knop" data-t="kijk4">&#128009; Meekijken: mythisch</button>
+        <button type="button" class="knop" data-t="emoji">Emoji-regen</button>
+        <button type="button" class="knop" data-t="uitval">Uitval-feest (UITVAL!)</button>
+        <button type="button" class="knop" id="u-reset">Uitval-geschiedenis wissen</button>
+      </div>
+      <p class="klein">Een echt spookblok in het rooster vraagt een echte Somtoday-roosterpagina; dat testen we hier niet. Het feest zelf (confetti) wel.</p>
+    </section>
+
+    <section class="blok" id="s-prest">
+      <h2>Prestaties</h2>
+      <div class="rij">
+        <button type="button" class="knop" id="pr-alles">Alles ontgrendelen</button>
+        <button type="button" class="knop gevaar" id="pr-reset">Alles resetten</button>
+      </div>
+    </section>
+
+    <section class="blok" id="s-div">
+      <h2>Rondleiding, update en duel</h2>
+      <div class="rij">
+        <button type="button" class="knop" id="r-start">Rondleiding opnieuw starten</button>
+        <a class="knop" id="duel-link" href="hub.html#team" data-ga="team">Duel tegen de computer (Team &rarr; Oefenen)</a>
+      </div>
+      <h3>Update-blokkade</h3>
+      <div class="rij">
+        <label>Nepversie <input id="v-versie" value="99.0.0" size="8" /></label>
+        <button type="button" class="knop" id="v-aan">Verouderd nabootsen</button>
+        <button type="button" class="knop goud" id="v-uit">Blokkade opheffen</button>
+        <label class="vink"><input type="checkbox" id="v-auto" checked /> Automatisch opheffen na 2 min</label>
+      </div>
+      <p class="klein">De blokkade dekt in het hub-paneel alles af, dus ook dit menu. Heffen kan dan in een los tabblad (knop bovenaan) of de timer doet het. Het echte versiecontrole-resultaat (<code>spo_update</code>) wordt hierbij tijdelijk vervangen.</p>
+    </section>
+
+    <section class="blok" id="s-acc">
+      <h2>Account-back-up</h2>
+      <p id="b-status">Status laden...</p>
+      <div class="rij">
+        <button type="button" class="knop" id="b-nu">Back-up naar account nu</button>
+        <button type="button" class="knop" id="b-herstel">Herstel nu</button>
+      </div>
+    </section>
+
+    <section class="blok" id="s-opslag">
+      <h2>Opslag</h2>
+      <div class="rij">
+        <button type="button" class="knop" id="o-ververs">Vernieuw</button>
+        <button type="button" class="knop" id="o-export">Exporteer als JSON</button>
+        <label class="vink"><input type="checkbox" id="o-account" /> Wis ook account (uitloggen)</label>
+        <button type="button" class="knop gevaar" id="o-wis">Alles wissen...</button>
+      </div>
+      <div class="bevestig" id="o-bevestig" hidden>
+        <p>Alle <code>spo_*</code>-gegevens in deze browser worden gewist. Weet je het zeker?</p>
+        <button type="button" class="knop gevaar" id="o-ja">Ja, wis alles</button>
+        <button type="button" class="knop" id="o-nee">Annuleren</button>
+      </div>
+      <table class="tab" id="o-tabel"><thead><tr><th>Sleutel</th><th>Grootte</th></tr></thead><tbody></tbody></table>
+      <pre id="o-voorbeeld" hidden></pre>
+    </section>
+  </main>
+  <script src="account.js"></script>
+  <script src="economie.js"></script>
+  <script src="prestatieslib.js"></script>
+  <script src="huisdier.js"></script>
+  <script src="debug.js"></script>
+</body>
+</html>
