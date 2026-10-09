@@ -113,6 +113,9 @@
         }, trede >= 2 ? { holo: 1.45, glit: 2.0, bloom: Math.max(LOOK[tier].bloom, 0.8), stralen: LOOK[tier].stralen + 4 } : null)
       : LOOK[tier];
     const op = d.opening !== 'pak' && SPO.openingen ? SPO.openingen[d.opening] : null;
+    // De gewone reeks doseert het licht per niveau: brons blijft ingetogen, een Icoon mag knallen. Zo blijft de
+    // kaart leesbaar en voelt elk niveau anders. Bij zeldzaam (eigen regie) blijft alles zoals het was.
+    const gw = zeldzaam ? 1 : [0.42, 0.52, 0.64, 0.8, 0.95][tier];
     const tl = maakTijdlijnZ(d);
     const tlOp = tl.basis || tl; // wat de opening ziet: de gewone tijdlijn
     const kosm3 = zeldzaam && trede === 3 && !tl.upg; // kosmisch met eigen reeks (kosmisch.js): ook een strakke onthulling die als poster eindigt
@@ -301,8 +304,8 @@
       flits(c1, 0.2, 0.1);
       golf(c1, 0.9, 0.45, 0);
       schok(E, 0.05, 0.28);
-      flits(E, 0.5, 0.025); // een heel korte, felle pop
-      flits(E, 0.22 + 0.28 * I, 0.1 + 0.18 * I);
+      flits(E, 0.5 * gw, 0.025); // een heel korte, felle pop
+      flits(E, (0.22 + 0.28 * I) * gw * (zeldzaam ? 1 : 0.6), zeldzaam ? 0.1 + 0.18 * I : 0.08 + 0.1 * I);
       golf(E, 1.5, 1.0, lekP);
       golf(E + 0.09, 1.1, 0.7, lekP);
       if (tl.wo) {
@@ -311,7 +314,7 @@
           const q = (ts - tl.wo[0]) / (tl.wo[1] - tl.wo[0]);
           schok(ts, 0.0016 + 0.009 * q * q, 0.12);
         }
-        flits(K0 - 0.04, kosm3 ? 0.22 : 0.8, 0.3);
+        flits(K0 - 0.04, kosm3 ? 0.22 : 0.8 * gw, 0.3);
       }
       // oplaadgolven rond het pakje: steeds sneller
       for (let ts = c1 + 0.35, stap = 0.55; ts < E - 0.15; ts += stap, stap = Math.max(0.22, stap * 0.87)) golf(ts, 0.7, 0.16 + 0.2 * I, 0);
@@ -320,8 +323,8 @@
     }
     schok(K0, 0.02, 0.2);
     schok(RV, 0.03 + 0.06 * I, 0.3 + 0.3 * I);
-    flits(RV, myth4 ? 0.12 : kosm3 ? 0.1 : 0.35, 0.03);
-    if (!myth4 && !kosm3) flits(RV, 0.12 + 0.18 * I, 0.1 + 0.25 * I);
+    flits(RV, myth4 ? 0.12 : kosm3 ? 0.1 : 0.35 * gw, 0.03);
+    if (!myth4 && !kosm3) flits(RV, (0.12 + 0.18 * I) * gw, zeldzaam ? 0.1 + 0.25 * I : 0.08 + 0.14 * I);
     golf(RV, 1.2, myth4 ? 0.3 : 0.8, 0.03);
     if (!myth4) golf(RV + 0.1, 1.6, 0.6, 0.03);
     if ((tier >= 2 || zeldzaam) && !myth4 && !kosm3) golf(RV + 0.22, 2.0, 0.5, 0.03);
@@ -693,7 +696,7 @@
           }
           haze = 0.22;
         }
-        const dim = 1 - 0.62 * rustig2;
+        const dim = (1 - 0.62 * rustig2) * gw;
         stralen(t, stralenKans * (1 - 0.35 * rustig2) * ((myth4 || kosm3) && Zm && Zm.stralenMul ? Zm.stralenMul(t) : 1), pow * dim, core * dim, haze, 0, 0.02, t * (0.12 + 0.35 * laad + (t >= RV ? 0.2 : 0)), 1);
       }
     }
@@ -860,8 +863,9 @@
             const alpha = 1 - sm(k, 0.35, 1);
             kantel[0] = 0;
             kantel[1] = 0;
-            pakDeel(t, 1, alpha, -0.7 * e1, wy + 1.5 * e1 - 0.8 * e1 * e1, 0.5 * e1, -0.3 * e1, 0.4 * e1, 2.2 * e1 + 0.5 * e1 * e1, sch, 0.15 + 0.4 * e1, 1, 0.3, pivotY);
-            pakDeel(t, 2, alpha, 0.35 * e1, wy - 1.1 * e1 - 0.3 * e1 * e1, -0.2 * e1, 0.3 * e1, -0.2 * e1, -0.5 * e1, sch, 0.15, 1, 0.3, pivotY);
+            const laadH = zeldzaam ? 1 : 0.3 + 0.7 * Math.exp(-(t - E) / 0.12);
+            pakDeel(t, 1, alpha, -0.7 * e1, wy + 1.5 * e1 - 0.8 * e1 * e1, 0.5 * e1, -0.3 * e1, 0.4 * e1, 2.2 * e1 + 0.5 * e1 * e1, sch, 0.15 + 0.4 * e1, laadH, 0.3, pivotY);
+            pakDeel(t, 2, alpha, 0.35 * e1, wy - 1.1 * e1 - 0.3 * e1 * e1, -0.2 * e1, 0.3 * e1, -0.2 * e1, -0.5 * e1, sch, 0.15, laadH, 0.3, pivotY);
           }
         }
 
@@ -870,7 +874,7 @@
           const dt2 = t - E;
           const aan = sm(dt2, -0.05, 0.03);
           const b = Math.exp(-dt2 / (0.35 + 0.25 * I));
-          licht(t, 0, lekP, (0.3 + 0.55 * I) * b * aan, 0.01 + 0.12 * Math.pow(Math.min(dt2, 0.6), 0.7) + 0.015, (0.35 + 0.55 * I) * Math.exp(-dt2 / 0.65) * aan, (0.3 + 0.4 * I) * Math.exp(-dt2 / 0.9), t * 0.35);
+          licht(t, 0, lekP, (0.3 + 0.55 * I) * b * aan * gw, 0.01 + 0.12 * Math.pow(Math.min(dt2, 0.6), 0.7) + 0.015, (0.35 + 0.55 * I) * Math.exp(-dt2 / 0.65) * aan, (0.3 + 0.4 * I) * Math.exp(-dt2 / 0.9), t * 0.35);
         }
 
         // ── de onthullingen tijdens de walkout: vak, weging, onderwerp; daarna een strakke onderbalk ──
@@ -911,7 +915,7 @@
       if (!op && t >= RV - 0.05 && aan('licht')) {
         const dt2 = t - RV;
         const b = Math.exp(-dt2 / (0.4 + 0.5 * I));
-        licht(t, 0, 0.02, (0.2 + 0.4 * I) * b, 0.04 + 0.1 * Math.min(dt2, 0.7), (0.3 + 0.5 * I) * Math.exp(-dt2 / 0.9), (0.35 + 0.6 * I) * Math.exp(-dt2 / 1.2), t * 0.3);
+        licht(t, 0, 0.02, (0.2 + 0.4 * I) * b * gw, 0.04 + 0.1 * Math.min(dt2, 0.7), (0.3 + 0.5 * I) * Math.exp(-dt2 / 0.9) * gw, (0.35 + 0.6 * I) * Math.exp(-dt2 / 1.2) * gw, t * 0.3);
       }
       if (Zv) Zv.teken(t, asp, visB);
       if (Zm) {
@@ -982,7 +986,7 @@
         p.f1('uPop', pop);
         p.f1('uFolie', zk ? zk.folie : 0);
         p.f1('uTier', tier);
-        p.f1('uHelder', 1 + (t >= RV ? (kosm3 ? 0.08 : 0.35) * Math.exp(-(t - RV) / 0.3) : 0));
+        p.f1('uHelder', 1 + (t >= RV ? (kosm3 ? 0.08 : 0.35 * gw * gw) * Math.exp(-(t - RV) / 0.3) : 0));
         p.v3('uCol', kl);
         p.v3('uCol2', kl2);
         motor.mengen('alpha');
@@ -1117,7 +1121,7 @@
           if (t > tl.pakIn[0] && t < c1) rad = Math.max(rad, 0.4 * Math.pow(1 - ramp(t, tl.pakIn[0], c1), 2));
           if (t >= E) rad = Math.max(rad, 0.25 * Math.exp(-(t - E) / 0.25));
         }
-        if (t >= RV) rad = Math.max(rad, 0.22 * Math.exp(-(t - RV) / 0.3));
+        if (t >= RV) rad = Math.max(rad, 0.22 * gw * Math.exp(-(t - RV) / 0.3));
         if (zeldzaam && t >= RV + 0.35) rad = Math.max(rad, 0.16 * Math.exp(-((t - RV - 0.35) % 0.3) / 0.1) * (t < RV + 1.5 ? 1 : 0));
         if (t > K0 - 0.3 && t < K0) rad = Math.max(rad, 0.3 * ramp(t, K0 - 0.3, K0));
       }
