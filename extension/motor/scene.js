@@ -770,6 +770,7 @@
           p.f1('uBundel', 0.55 + 0.6 * q);
           p.f1('uAlpha', sm(t, w0 - 0.02, w0 + 0.25) * (1 - sm(t, K0 - 0.02, K0 + 0.1)));
           p.f1('uRegen', regenboog ? 1 : 0);
+          p.f1('uKw', motor.kwaliteit);
           p.f1('uLicht', 0.35 + 0.35 * q + 1.6 * Math.pow(ramp(q, 0.9, 1), 2) + 0.9 * Math.exp(-(t - w0) / 0.4));
           p.f4('uFig', 0, 0.07 - 0.55 * h, h, sm(q, 0, 0.08));
           p.v3('uTint', kl);

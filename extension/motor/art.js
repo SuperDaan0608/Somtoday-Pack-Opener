@@ -3347,62 +3347,124 @@
     const cv = nieuw(1200, 250);
     const c = cv.getContext('2d');
     const kl = rgba(kleur, 1);
-    c.beginPath();
-    c.moveTo(36, 10);
-    c.lineTo(1190, 10);
-    c.lineTo(1156, 240);
-    c.lineTo(2, 240);
-    c.closePath();
-    const bg = c.createLinearGradient(0, 10, 0, 240);
-    bg.addColorStop(0, 'rgba(26,32,66,.95)');
-    bg.addColorStop(1, 'rgba(5,7,18,.97)');
+    // de vorm: een schuin parallellogram met een afgesneden hoek rechtsonder (FUT-stijl)
+    const vorm = (inzet) => {
+      c.beginPath();
+      c.moveTo(40 + inzet, 14 + inzet);
+      c.lineTo(1188 - inzet, 14 + inzet);
+      c.lineTo(1166 - inzet, 160);
+      c.lineTo(1120 - inzet * 0.6, 236 - inzet);
+      c.lineTo(6 + inzet, 236 - inzet);
+      c.closePath();
+    };
+    // zachte schaduw onder het glas
+    c.save();
+    c.shadowColor = 'rgba(0,0,0,.6)';
+    c.shadowBlur = 18;
+    c.shadowOffsetY = 6;
+    vorm(0);
+    c.fillStyle = 'rgba(6,8,16,.9)';
+    c.fill();
+    c.restore();
+    // getint rookglas: donker met een vleugje van het niveau
+    vorm(0);
+    const bg = c.createLinearGradient(0, 14, 0, 236);
+    bg.addColorStop(0, 'rgba(34,40,70,.94)');
+    bg.addColorStop(0.5, 'rgba(14,17,34,.95)');
+    bg.addColorStop(1, 'rgba(6,7,15,.97)');
     c.fillStyle = bg;
     c.fill();
     c.save();
+    vorm(0);
     c.clip();
-    c.fillStyle = 'rgba(255,255,255,.05)';
-    for (let x = -300; x < 1300; x += 22) {
+    // gloed van het niveau van links, alsof het licht van de accentbalk in het glas valt
+    const gl0 = c.createLinearGradient(0, 0, 700, 0);
+    gl0.addColorStop(0, rgba(kleur, 0.28));
+    gl0.addColorStop(1, rgba(kleur, 0));
+    c.fillStyle = gl0;
+    c.fillRect(0, 0, 1200, 250);
+    // fijne schuine lijnen (geborsteld metaal onder het glas)
+    c.strokeStyle = 'rgba(255,255,255,.035)';
+    c.lineWidth = 2;
+    for (let x = -300; x < 1300; x += 9) {
       c.beginPath();
       c.moveTo(x, 240);
-      c.lineTo(x + 40, 240);
-      c.lineTo(x + 100, 10);
       c.lineTo(x + 60, 10);
-      c.fill();
+      c.stroke();
     }
-    const gl = c.createLinearGradient(0, 10, 0, 120);
-    gl.addColorStop(0, 'rgba(255,255,255,.14)');
+    // glasreflectie: een schuine lichtbaan en een harde glanslijn bovenin
+    const rf = c.createLinearGradient(300, 0, 700, 250);
+    rf.addColorStop(0, 'rgba(255,255,255,0)');
+    rf.addColorStop(0.45, 'rgba(255,255,255,.07)');
+    rf.addColorStop(0.55, 'rgba(255,255,255,.02)');
+    rf.addColorStop(1, 'rgba(255,255,255,0)');
+    c.fillStyle = rf;
+    c.fillRect(0, 0, 1200, 250);
+    const gl = c.createLinearGradient(0, 14, 0, 100);
+    gl.addColorStop(0, 'rgba(255,255,255,.16)');
     gl.addColorStop(1, 'rgba(255,255,255,0)');
     c.fillStyle = gl;
-    c.fillRect(0, 10, 1200, 110);
+    c.fillRect(0, 14, 1200, 90);
+    // schuine chevrons rechts, heel zacht
+    c.fillStyle = rgba(kleur, 0.08);
+    for (let i = 0; i < 4; i++) {
+      const x = 1000 + i * 34;
+      c.beginPath();
+      c.moveTo(x, 14);
+      c.lineTo(x + 16, 14);
+      c.lineTo(x - 18, 236);
+      c.lineTo(x - 34, 236);
+      c.fill();
+    }
     c.restore();
-    c.fillStyle = kl;
-    c.beginPath();
-    c.moveTo(36, 10);
-    c.lineTo(78, 10);
-    c.lineTo(44, 240);
-    c.lineTo(2, 240);
-    c.closePath();
-    c.fill();
-    c.strokeStyle = rgba(kleur, 0.8);
+    // metalen rand: licht aan de bovenkant, donker onder
+    vorm(1.5);
+    const rand = c.createLinearGradient(0, 14, 0, 236);
+    rand.addColorStop(0, 'rgba(255,255,255,.55)');
+    rand.addColorStop(0.3, rgba(kleur, 0.55));
+    rand.addColorStop(1, 'rgba(255,255,255,.08)');
+    c.strokeStyle = rand;
     c.lineWidth = 3;
-    c.beginPath();
-    c.moveTo(36, 10);
-    c.lineTo(1190, 10);
-    c.lineTo(1156, 240);
-    c.lineTo(2, 240);
-    c.closePath();
     c.stroke();
+    // de accentbalk links: metaal in de kleur van het niveau, met een glanslijn
+    const bx = (y) => 40 - (y - 14) * (34 / 222);
+    c.beginPath();
+    c.moveTo(bx(14), 14);
+    c.lineTo(bx(14) + 30, 14);
+    c.lineTo(bx(236) + 30, 236);
+    c.lineTo(bx(236), 236);
+    c.closePath();
+    const ab = c.createLinearGradient(0, 14, 0, 236);
+    ab.addColorStop(0, 'rgba(255,255,255,1)');
+    ab.addColorStop(0.18, kl);
+    ab.addColorStop(0.7, kl);
+    ab.addColorStop(1, rgba(kleur, 0.55));
+    c.fillStyle = ab;
+    c.fill();
+    // een dunne lijn onder het label
+    c.fillStyle = rgba(kleur, 0.9);
+    c.fillRect(112, 96, 64, 4);
     c.textAlign = 'left';
     c.textBaseline = 'alphabetic';
-    c.font = `800 42px ${F_SPORT}`;
-    spatie(c, 12);
+    c.font = `800 38px ${F_SPORT}`;
+    spatie(c, 14);
     c.fillStyle = kl;
-    c.fillText(label.toUpperCase(), 118, 80);
+    c.fillText(label.toUpperCase(), 112, 78);
     spatie(c, 0);
     const txt = waarde.toUpperCase();
-    const fs = pasFont(c, txt, 'italic 900', F_SPORT, 140, 56, 1000);
-    c.fillStyle = '#fff';
-    c.fillText(pas(c, txt, 1000), 112, 80 + fs * 0.86);
+    const fs = pasFont(c, txt, 'italic 900', F_SPORT, 124, 52, 960);
+    // de waarde: wit met een koele verloop en een harde schaduw, zodat hij in elke lichtbundel leesbaar blijft
+    c.save();
+    c.shadowColor = 'rgba(0,0,0,.7)';
+    c.shadowOffsetX = 4;
+    c.shadowOffsetY = 5;
+    c.shadowBlur = 6;
+    const wg = c.createLinearGradient(0, 120, 0, 120 + fs);
+    wg.addColorStop(0, '#ffffff');
+    wg.addColorStop(1, '#d7deef');
+    c.fillStyle = wg;
+    c.fillText(pas(c, txt, 960), 108, 112 + fs * 0.8);
+    c.restore();
     return cv;
   }
 
