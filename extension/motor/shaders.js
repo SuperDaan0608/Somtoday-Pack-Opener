@@ -245,8 +245,11 @@ void main(){
     float w = .16 + .22 * h11(id * 1.93);
     float across = smoothstep(w, w * .12, abs(lane));
     float br = (.3 + .7 * h11(id * 3.7 + fl)) * smoothstep(0., .1, z);
-    vec3 c = mix(uTint, vec3(1.), .2 + .55 * h11(id * 7.1));
-    col += c * across * along * br * (.5 + .55 * uSpeed);
+    // kleurgrading: de staart kleurt van de tweede tint naar de eerste, de kop is bijna wit
+    float kop = smoothstep(-tail * .25, 0., d);
+    vec3 c = mix(mix(uTint2, uTint, smoothstep(-tail, 0., d)), vec3(1., .98, .94), kop * (.35 + .5 * h11(id * 7.1)));
+    // dichtbij (z groot) dikker en feller, ver weg dun en gedempt: diepte
+    col += c * across * along * br * (.5 + .55 * uSpeed) * (.45 + .9 * z * z) * (1. - .6 * float(L) / 2. * (1. - z));
   }
   col += mix(uTint, vec3(1.), .5) * uGlow * .55 / (1. + 45. * r * r);
   o = vec4(col * uAlpha, 1.);
@@ -635,8 +638,8 @@ void main(){
   col += uCol * fres * (.3 + 1.0 * uLaad) * uRand + vec3(.45, .6, 1.) * fres * .3;
   // licht dat uit de naad lekt terwijl het pakje oplaadt
   float lek = exp(-abs(rand) * (95. - 30. * uLaad)) * uLaad;
-  col += mix(uCol, vec3(1.), .55) * lek * 1.5 + uCol * exp(-abs(rand) * 9.) * uLaad * uLaad * .35;
-  col += uCol * uLaad * uLaad * .12;
+  col += mix(uCol, vec3(1.), .45) * lek * .9 + uCol * exp(-abs(rand) * 9.) * uLaad * uLaad * .25;
+  col += uCol * uLaad * uLaad * .05;
   // gescheurde rand: witte folie-vezels
   if (uDeel > .5) {
     float ed = abs(rand);
