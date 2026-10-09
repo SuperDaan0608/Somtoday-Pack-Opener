@@ -36,3 +36,17 @@
 .b-nieuw { position: absolute; top: 10px; right: 10px; font: 800 10px/1 var(--display); letter-spacing: .08em; text-transform: uppercase; padding: 4px 7px; border-radius: 6px; background: var(--goud); color: #2b1d02; }
 @media (max-width: 520px) { .samen { flex-direction: column; align-items: stretch; } .samen-getal { text-align: left; } .badges { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .toast-plek > div { animation: none; } .balk span { transition: none; } }
+
+/* v2.4.2: de geheime rang. Naam en rang flikkeren en verschuiven als een kapot signaal. */
+.badge-kaart.glitch { border-color: rgba(190,120,255,.5); background: linear-gradient(160deg, rgba(120,40,200,.18), rgba(10,0,20,.4) 70%); }
+.badge-kaart.glitch .b-niveau { color: #c99bff; letter-spacing: .02em; text-transform: none; font-family: monospace; animation: spo-glitch 1.6s steps(1) infinite; }
+.badge-kaart.glitch.behaald .b-naam { animation: spo-glitch 2.3s steps(1) infinite; text-shadow: 2px 0 rgba(255,0,90,.7), -2px 0 rgba(0,240,255,.7); }
+@keyframes spo-glitch {
+  0%, 100% { transform: none; opacity: 1; clip-path: none; }
+  12% { transform: translate(-2px, 1px) skewX(-8deg); clip-path: inset(10% 0 55% 0); }
+  14% { transform: translate(3px, -1px); clip-path: inset(60% 0 5% 0); opacity: .7; }
+  16% { transform: none; clip-path: none; opacity: 1; }
+  57% { transform: translate(1px, 0) skewX(10deg); opacity: .5; }
+  59% { transform: none; opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .badge-kaart.glitch .b-niveau, .badge-kaart.glitch .b-naam { animation: none; } }

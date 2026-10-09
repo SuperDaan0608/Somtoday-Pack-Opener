@@ -1,5 +1,9 @@
 # Wijzigingen
 
+## v2.4.2
+
+- **Nieuwe prestatie: Fout in de werkelijkheid.** Haal een 10 op een mythische kaart. Het is de enige prestatie met de hoogste rang, en die rang bestaat alleen uit kapotte glitch-tekens die flikkeren.
+
 ## v2.4.1
 
 - **Vastlopen opgelost:** bij een 10 met een mythische kaart liep na de Big Bang elk beeld vast op een fout. Daardoor kon de animatie de kwaliteit niet meer verlagen en kon je hele laptop bevriezen. De fout is weg, en een fout tijdens het tekenen kan de laptop niet meer zo zwaar belasten.

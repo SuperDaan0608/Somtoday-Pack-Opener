@@ -26,7 +26,7 @@
     zichtbaar.sort((a, b) => (b.klaar - a.klaar) || (a.klaar ? b.ts - a.ts : (b.nu / b.doel) - (a.nu / a.doel)));
     $('geen').hidden = zichtbaar.length > 0;
     for (const b of zichtbaar) {
-      const li = el('li', 'badge-kaart ' + (b.klaar ? 'behaald' : 'vergrendeld'));
+      const li = el('li', 'badge-kaart ' + (b.klaar ? 'behaald' : 'vergrendeld') + (b.tier === 5 ? ' glitch' : ''));
       const nieuw = b.klaar && b.ts > gezien && gezien > 0;
       if (nieuw) li.classList.add('nieuw');
       const ic = el('div', 'b-icoon'); ic.append(P.icoon(document, b, !b.klaar));
