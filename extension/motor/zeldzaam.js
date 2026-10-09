@@ -1582,8 +1582,164 @@
   }
 
   // ───── de logo's van de treden ─────
+  // Het logo van de mythische kaart: strak en leesbaar, als de titel van een filmposter
+  function maakLogoMythisch(A, d) {
+    const sport = A.F_SPORT;
+    const cv = A.nieuw(1900, 540);
+    const c = cv.getContext('2d');
+    c.textAlign = 'center';
+    c.textBaseline = 'alphabetic';
+    const txt = 'MYTHISCH';
+    let fs = 250;
+    if ('letterSpacing' in c) c.letterSpacing = '22px';
+    c.font = `900 ${fs}px ${sport}`;
+    while (fs > 140 && c.measureText(txt).width > 1640) {
+      fs -= 4;
+      c.font = `900 ${fs}px ${sport}`;
+    }
+    const cx = 950 + 11, by = 70 + fs * 0.86;
+    c.lineJoin = 'round';
+    // zachte, warme gloed erachter
+    c.save();
+    c.shadowColor = 'rgba(255,120,30,.55)';
+    c.shadowBlur = 60;
+    c.fillStyle = 'rgba(60,14,0,.9)';
+    c.fillText(txt, cx, by);
+    c.restore();
+    // diepte en een donkere rand
+    for (let i = 10; i >= 1; i--) {
+      c.fillStyle = i > 5 ? '#1c0700' : '#3a1300';
+      c.fillText(txt, cx, by + i * 1.4);
+    }
+    c.lineWidth = 18;
+    c.strokeStyle = '#1a0600';
+    c.strokeText(txt, cx, by);
+    // goud als metaal: licht boven, een harde horizon, warm donker onder
+    const g = c.createLinearGradient(0, by - fs * 0.78, 0, by);
+    g.addColorStop(0, '#fffbe6');
+    g.addColorStop(0.32, '#ffe08a');
+    g.addColorStop(0.5, '#f0b030');
+    g.addColorStop(0.52, '#b86a10');
+    g.addColorStop(0.78, '#e89a2a');
+    g.addColorStop(1, '#ffd36a');
+    c.fillStyle = g;
+    c.fillText(txt, cx, by);
+    c.lineWidth = 3;
+    c.strokeStyle = 'rgba(255,246,210,.9)';
+    c.strokeText(txt, cx, by);
+    if ('letterSpacing' in c) c.letterSpacing = '0px';
+    // twee dunne lijnen met een ruit, links en rechts van de kans
+    const y2 = by + 98;
+    c.strokeStyle = 'rgba(255,214,120,.85)';
+    c.lineWidth = 3;
+    for (const z of [-1, 1]) {
+      c.beginPath();
+      c.moveTo(934 + z * 460, y2);
+      c.lineTo(934 + z * 770, y2);
+      c.stroke();
+      c.fillStyle = '#ffd878';
+      c.beginPath();
+      const rx = 934 + z * 782;
+      c.moveTo(rx - 12, y2); c.lineTo(rx, y2 - 12); c.lineTo(rx + 12, y2); c.lineTo(rx, y2 + 12);
+      c.fill();
+    }
+    kansPil(c, 4, y2, null, sport);
+    // het niveau eronder, klein
+    const regel = d.legendarisch ? `LEGENDARISCH  ·  ${d.T.naam.toUpperCase()}` : `${d.T.label.toUpperCase()}  ·  ${d.T.naam.toUpperCase()}`;
+    c.font = `800 52px ${sport}`;
+    if ('letterSpacing' in c) c.letterSpacing = '12px';
+    c.lineWidth = 10;
+    c.strokeStyle = 'rgba(20,4,0,.85)';
+    c.strokeText(regel, 950, 528);
+    c.fillStyle = '#ffe2a0';
+    c.fillText(regel, 950, 528);
+    if ('letterSpacing' in c) c.letterSpacing = '0px';
+    return cv;
+  }
+
+  // Het logo van de kosmische kaart: strak en leesbaar, chroom met een koele horizon, als een sciencefictionposter
+  function maakLogoKosmisch(A, d) {
+    const sport = A.F_SPORT;
+    const cv = A.nieuw(1900, 540);
+    const c = cv.getContext('2d');
+    c.textAlign = 'center';
+    c.textBaseline = 'alphabetic';
+    const txt = 'KOSMISCH';
+    let fs = 240;
+    if ('letterSpacing' in c) c.letterSpacing = '26px';
+    c.font = `900 ${fs}px ${sport}`;
+    while (fs > 140 && c.measureText(txt).width > 1640) {
+      fs -= 4;
+      c.font = `900 ${fs}px ${sport}`;
+    }
+    const cx = 950 + 13, by = 70 + fs * 0.86;
+    c.lineJoin = 'round';
+    // een koele gloed erachter
+    c.save();
+    c.shadowColor = 'rgba(140,110,255,.6)';
+    c.shadowBlur = 60;
+    c.fillStyle = 'rgba(10,6,40,.9)';
+    c.fillText(txt, cx, by);
+    c.restore();
+    // diepte en een donkere rand
+    for (let i = 10; i >= 1; i--) {
+      c.fillStyle = i > 5 ? '#07041c' : '#16104a';
+      c.fillText(txt, cx, by + i * 1.4);
+    }
+    c.lineWidth = 18;
+    c.strokeStyle = '#06031a';
+    c.strokeText(txt, cx, by);
+    // chroom: wit boven, een harde horizon, violet en cyaan eronder
+    const g = c.createLinearGradient(0, by - fs * 0.78, 0, by);
+    g.addColorStop(0, '#ffffff');
+    g.addColorStop(0.3, '#e6e2ff');
+    g.addColorStop(0.5, '#a89cff');
+    g.addColorStop(0.52, '#3a2a9a');
+    g.addColorStop(0.75, '#7a5cf0');
+    g.addColorStop(1, '#7ee6ff');
+    c.fillStyle = g;
+    c.fillText(txt, cx, by);
+    c.lineWidth = 3;
+    c.strokeStyle = 'rgba(235,230,255,.9)';
+    c.strokeText(txt, cx, by);
+    if ('letterSpacing' in c) c.letterSpacing = '0px';
+    // twee dunne lijnen met een kleine ster, links en rechts van de kans
+    const y2 = by + 98;
+    c.strokeStyle = 'rgba(170,160,255,.85)';
+    c.lineWidth = 3;
+    for (const z of [-1, 1]) {
+      c.beginPath();
+      c.moveTo(934 + z * 460, y2);
+      c.lineTo(934 + z * 770, y2);
+      c.stroke();
+      c.fillStyle = '#d8d0ff';
+      const rx = 934 + z * 784;
+      c.beginPath();
+      for (let k = 0; k < 8; k++) {
+        const r = k % 2 ? 4 : 15;
+        const a = (k / 8) * 6.2832;
+        c.lineTo(rx + Math.sin(a) * r, y2 - Math.cos(a) * r);
+      }
+      c.fill();
+    }
+    kansPil(c, 3, y2, null, sport);
+    // het niveau eronder, klein
+    const regel = d.legendarisch ? `LEGENDARISCH  ·  ${d.T.naam.toUpperCase()}` : `${d.T.label.toUpperCase()}  ·  ${d.T.naam.toUpperCase()}`;
+    c.font = `800 52px ${sport}`;
+    if ('letterSpacing' in c) c.letterSpacing = '12px';
+    c.lineWidth = 10;
+    c.strokeStyle = 'rgba(6,3,26,.85)';
+    c.strokeText(regel, 950, 528);
+    c.fillStyle = '#d8d2ff';
+    c.fillText(regel, 950, 528);
+    if ('letterSpacing' in c) c.letterSpacing = '0px';
+    return cv;
+  }
+
   function maakLogoT(A, d) {
     const tr = d.trede | 0;
+    if (tr === 4) return maakLogoMythisch(A, d);
+    if (tr === 3) return maakLogoKosmisch(A, d);
     const sport = A.F_SPORT;
     const cv = A.nieuw(1900, 540);
     const c = cv.getContext('2d');
@@ -1975,21 +2131,9 @@
         o.gat = maakGat();
         o.gatDraai = maakGatDraai();
       }
-      if (tr === 4) {
-        o.wezenNaam = wezenVan(d);
-        const wz = TEKEN_WEZEN[o.wezenNaam](WEZENS[o.wezenNaam]);
-        if (wz.vleugel) wz.vleugelA = donkerder(A, wz.vleugel, 0.5);
-        wz.gloed = maakGloed(WEZENS[o.wezenNaam].gloed.replace(/[\d.]+\)$/, 'ALPHA)'));
-        o.wezen = wz;
-        if (!lt.upg) {
-          o.wereld = maakWereld(o.wezenNaam);
-          o.oog = maakOog(WEZENS[o.wezenNaam]);
-          o.runen = maakRunen(WEZENS[o.wezenNaam]);
-          o.zuil = maakZuil(WEZENS[o.wezenNaam]);
-          o.kiem = maakKiem(WEZENS[o.wezenNaam]);
-        }
-      }
-      if (lt.upg || d.ultiem || tr === 4) {
+      // mythisch: het wezen en zijn wereld worden op de videokaart getekend (mythisch.js)
+      if (tr === 4) o.wezenNaam = wezenVan(d);
+      if (lt.upg || d.ultiem) {
         const ks = (k) => k.map((x) => Math.round(x * 255)).join(',');
         o.rissen = tr === 4 ? maakRissen(ks(WEZENS[wezenVan(d)].vuur1), ks(WEZENS[wezenVan(d)].vuur2)) : maakRissen();
       }
@@ -2276,6 +2420,7 @@
     const upg = !!tl.upg;
     const eigenT = tr >= 3 && !upg; // kosmisch en mythisch hebben een eigen, lange tease (tenzij het een upgrade is)
     const RGN = tr >= 3 ? 0 : 1; // vanaf kosmisch zijn de vonken niet regenboog maar in het thema van de trede
+    const KOS = tr === 3 && eigenT; // kosmisch met eigen tease (kosmisch.js): gedoseerd licht, geen confetti, eindigt als poster
     const U = tl.U;
     const UL = tl.ult;
     // tb: het begin van de gewone tease. Bij legendarisch komt daar eerst een stuk met barsten in het glas voor (t0 … tb).
@@ -2362,14 +2507,14 @@
     c.golf(K0 + 0.12, 1.2, 0.8, 0);
     c.golf(K0 + 0.26, 2.0, 0.6, 0);
     c.schok(K0, 0.05, 0.3);
-    c.flits(K0, 0.7, 0.12);
+    c.flits(K0, KOS ? 0.12 : 0.7, 0.12);
     // de onthulling: groter dan de gewone en in slow-motion; een regenboog-schokgolf over het hele scherm
-    c.flits(RV, 0.8, 0.05);
-    c.flits(RV + 0.04, 0.3, 0.2);
+    c.flits(RV, tr === 4 ? 0.1 : KOS ? 0.06 : 0.8, 0.05);
+    c.flits(RV + 0.04, tr === 4 || KOS ? 0.0 : 0.3, 0.2);
     c.schok(RV, 0.1, 0.5);
-    for (let i = 0; i < 6; i++) {
-      c.golf(RV + 0.18 * i, 1.0 + 0.25 * i, 1.0 - 0.07 * i, 0.03);
-      if (i % 2 === 0) c.flits(RV + 0.18 * i, 0.3, 0.1);
+    for (let i = 0; i < (tr === 4 || KOS ? 1 : 6); i++) {
+      c.golf(RV + 0.18 * i, 1.0 + 0.25 * i, tr === 4 ? 0.3 : 1.0 - 0.07 * i, 0.03);
+      if (i % 2 === 0 && tr !== 4 && !KOS) c.flits(RV + 0.18 * i, 0.3, 0.1);
       if (i % 2 === 1) c.schok(RV + 0.18 * i, 0.03, 0.2);
     }
     c.at(RV, () => trillen([80, 40, 80, 40, 80, 40, 400]));
@@ -2377,10 +2522,11 @@
     // ───── deeltjes ─────
     const w = (o) => c.e0(o);
     // de explosie van de kaart: regenboogvonken in een grote bol, plus een staart tijdens het draaien
-    w({ mode: 0, t0: K0, delay: 0.1, life: 2.4, n: 1800, org: [0, 0.01], angle: 0, spread: c.TWEE_PI, spd: [0.3, 3.2], grav: [0, -0.2], drag: 1.2, size: [0.002, 0.007], col1: k1, col2: k2, alpha: 0.9, regen: RGN, seed: 31 });
+    w({ mode: 0, t0: K0, delay: 0.1, life: 2.4, n: tr === 4 ? 500 : KOS ? 0 : 1800, org: [0, 0.01], angle: 0, spread: c.TWEE_PI, spd: [0.3, 3.2], grav: [0, -0.2], drag: 1.2, size: [0.002, 0.007], col1: k1, col2: k2, alpha: 0.9, regen: RGN, seed: 31 });
     w({ mode: 0, t0: K0, delay: tl.spin * 0.85, life: 1.2, n: 700, org: [0, 0.01], angle: 0, spread: c.TWEE_PI, spd: [0.15, 1.4], grav: [0, 0], drag: 2.0, size: [0.0016, 0.0045], col1: k1, col2: k2, alpha: 0.8, regen: RGN, seed: 32 });
-    // de confettistorm: 3D-stukjes, linten, kanonnen links en rechts
+    // de confettistorm: 3D-stukjes, linten, kanonnen links en rechts (niet bij mythisch: die eindigt als een poster)
     const vlak = (o) => Object.assign({ mode: 7, per: 1, alpha: 1, blend: 'alpha', drag: 0.55, regen: 0 }, o);
+    if (tr !== 4 && !KOS) {
     w(vlak({ t0: RV + 0.1, life: 5.4, delay: 3.0, n: 1700, org: [0, 0.66], angle: -Math.PI / 2, spread: 0.5, spd: [0.05, 0.45], grav: [0, -0.16], size: [0.006, 0.016], col1: [1, 0.85, 0.3], col2: [1, 0.35, 0.7], seed: 41, per: 2 }));
     const kanon = (zijde, seed) => {
       const o = w(vlak({ t0: RV + 0.25, life: 4.4, delay: 0.5, n: 900, org: [0, -0.52], angle: Math.PI / 2 - zijde * 0.62, spread: 0.7, spd: [0.7, 2.1], grav: [0, -0.5], drag: 1.15, size: [0.006, 0.016], col1: [0.4, 1, 0.6], col2: [0.4, 0.8, 1], regen: RGN, seed }));
@@ -2393,6 +2539,7 @@
     w(vlak({ t0: RV + 0.1, life: 5.0, delay: 2.0, n: 1100, org: [0, 0.66], angle: -Math.PI / 2, spread: 0.6, spd: [0.05, 0.4], grav: [0, -0.14], size: [0.006, 0.016], col1: [1, 0.5, 0.8], col2: [0.5, 0.9, 1], regen: RGN, seed: 44, per: 2 }));
     w(vlak({ t0: RV + 2.6, life: 6, delay: 3.0, n: 800, org: [0, 0.66], angle: -Math.PI / 2, spread: 0.5, spd: [0.05, 0.4], grav: [0, -0.13], size: [0.006, 0.015], col1: [1, 0.85, 0.3], col2: [0.7, 0.4, 1], seed: 45, per: 2 }));
     w(vlak({ t0: RV + 5.2, life: 8, delay: 6.0, n: 420, org: [0, 0.66], angle: -Math.PI / 2, spread: 0.5, spd: [0.05, 0.35], grav: [0, -0.12], size: [0.006, 0.015], col1: [1, 0.85, 0.3], col2: [1, 0.4, 0.7], regen: RGN, seed: 46, per: 2 }));
+    }
 
     // ───── LEGENDARISCH: barsten, glas, gouden tunnel, kroon en een supernova ─────
     if (legT) {
@@ -2546,9 +2693,10 @@
         const rust = (1 - 0.35 * sm(r, leg ? N - RV + 2.5 : 3.5, leg ? N - RV + 5.5 : 6.5)) * stilte * (naBang(t) ? 0.4 : 1);
         const al = sm(t, K0 + tl.spin * 0.5, RV) * 0.25 + sm(r, 0, 0.5) * (0.35 + 0.4 * sm(r, 0.8, 2));
         regen(t, 0.14, 0.4);
-        c.stralen(t, al * rust, 0.55 + 0.5 * Math.exp(-r / 1.2) * (r > 0 ? 1 : 0), 0.2, 0.2, 0, 0.02, t * 0.5, 1, k1, k2, 26);
-        if (c.kw < 3) c.stralen(t, al * 0.5 * rust, 0.4, 0.05, 0.1, 0, 0.02, -t * 0.33 + 1, 1, k2, k1, 11);
-        if (r > 0 && c.kw < 2) {
+        const sMul = tr === 4 ? 0.1 : KOS ? 0 : 1; // mythisch: alleen een zachte krans achter de kaart; kosmisch: het zwarte gat is het licht
+        c.stralen(t, al * rust * sMul, 0.55 + 0.5 * Math.exp(-r / 1.2) * (r > 0 ? 1 : 0), 0.2, 0.2, 0, 0.02, t * 0.5, 1, k1, k2, 26);
+        if (c.kw < 3 && tr !== 4 && !KOS) c.stralen(t, al * 0.5 * rust, 0.4, 0.05, 0.1, 0, 0.02, -t * 0.33 + 1, 1, k2, k1, 11);
+        if (r > 0 && c.kw < 2 && tr !== 4 && !KOS) {
           const zw = sm(r, 0.3, 0.9) * rust;
           const sw = Math.sin(t * 0.9) * 0.5;
           c.stralen(t, zw * 0.55, 0.5, 0.05, 0.05, -asp * 0.5, -0.62, 1.2 + sw, 1, k1, k2, 3);
@@ -2576,6 +2724,12 @@
       const hue = Math.sin(t * 0.7) * 0.55;
       const sc = Math.max(0.001, slag) * groot * (1 + 0.025 * Math.sin(t * 3));
       const al = sm(r, 0, 0.1);
+      if (tr === 4 || KOS) {
+        // mythisch en kosmisch: strak en leesbaar, zonder glitch of kleurverschuiving
+        const sc4 = Math.max(0.001, slag) * (1 + 0.35 * Math.pow(1 - ramp(r, 0, 0.5), 2));
+        c.vlak(t, logoNu(t), 0, y, 0.02, 0, 0, 0, wT * sc4, hT * sc4, al, 2, 0, 0, k1, 0, 0);
+        return;
+      }
       c.vlak(t, logoNu(t), (stoot ? (hash(Math.floor(t * 30)) - 0.5) * 0.05 : 0), y, 0.02, 0, 0, wob - 0.03 * (1 - slag), wT * sc, hT * sc, al, 2, 0, gl * 0.8, k1, gl * (0.5 + 0.5 * fl) + 0.12, hue);
       // legendarisch: een kroon die op het logo valt, en bij de supernova een felle gloed
       if (leg && r > 0.55) {
@@ -2785,7 +2939,7 @@
     function kleur(t, a, b) {
       if (tr < 2 || naBang(t)) return false;
       if (tr === 2) return t >= K0 - 0.05 ? tema(t, a, b) : false;
-      return t >= t0 - 0.05 ? tema(t, a, b) : false;
+      return t >= t0 - 0.05 + (tr === 4 ? 0.3 : 0) ? tema(t, a, b) : false;
     }
     const regenUit = (t) => tr >= 3 && t >= t0 - 0.05 && !naBang(t);
 
@@ -2873,7 +3027,9 @@
     // de kaart, na de onthulling.
     const TEASE_T = t1 - t0;
     const KS = {};
-    if (tr === 3) {
+    // met de eigen programma's (kosmisch.js): de ruimte, het zwarte gat en de planeten op de videokaart
+    const KO = tr === 3 && eigenT && !!SPO.kosmisch && !!c.motor ? SPO.kosmisch.maak(c, { t0, t1, K0, RV, snel, reduceer }) : null;
+    if (tr === 3 && !KO) {
       if (eigenT) {
         KS.neb = t0 + 0.3 * sf;
         KS.warp = t0 + 0.1;
@@ -2919,6 +3075,10 @@
       w({ mode: 1, t0: sb, delay: 0, life: 40, n: 90, size: [0.005, 0.03], col1: [0.6, 0.55, 1], col2: [0.5, 0.8, 1], alpha: 0.6, seed: 113 });
     }
     function kosmosTekenen(t, asp, uPre) {
+      if (KO) {
+        KO.teken(t, asp, 1);
+        return;
+      }
       const tw = KS.warp;
       const fade = 1 - sm(t, KS.dicht + 0.4, KS.dicht + 2.0);
       // de nevel
@@ -2963,6 +3123,7 @@
       }
     }
     function kosmosTease(t, asp) {
+      if (KO) return;
       const u = ramp(t, t0, t1);
       // een trage ademhaling van licht in het midden, steeds sterker
       c.licht(t, 0, 0, 0.3 * u * u, 0.03 + 0.05 * u, 0.2 * u, 0.5 * u * u * u, t * 0.4, k1);
@@ -2976,6 +3137,10 @@
       }
     }
     function kosmosPost(p, t) {
+      if (KO) {
+        KO.post(p, t);
+        return;
+      }
       if (eigenT && t >= t0 && t < K0) {
         const u = ramp(t, t0, t1);
         p.dark = 0;
@@ -2989,560 +3154,15 @@
       if (t >= t0 && t < KS.einde + 3) p.grade = [0.94, 0.92, 1.1];
     }
 
-    // ───────────────── MYTHISCH: een wezen uit het pakje ─────────────────
-    // Het wezen vliegt uit het pakje, cirkelt, brult (schokgolven, ademvuur/inkt/veren) en dient bij een eigen tease de kaart toe:
-    // het duikt naar je toe en de kaart komt. Bij een upgrade verschijnt het na de onthulling en vliegt na de brul weg.
-    const u0 = 0.0021; // plaatjes-pixels naar wereld-eenheden
-    const SM = {};
-    if (tr === 4 && !eigenT) {
-      if (false) {
-        SM.in0 = t0 + 0.07 * TEASE_T;
-        SM.circ0 = t0 + 0.275 * TEASE_T;
-        SM.roar = t0 + 0.65 * TEASE_T;
-        SM.dive0 = t0 + 0.81 * TEASE_T;
-        SM.out = t0 + 0.975 * TEASE_T;
-      } else {
-        const f = snel ? 0.4 : 1;
-        SM.in0 = U;
-        SM.circ0 = U + 1.3 * f;
-        SM.roar = U + 3.6 * f;
-        SM.dive0 = U + 5.0 * f;
-        SM.out = U + 6.9 * f;
-      }
-      SM.hover = { x: 0, y: 0.16, s: 0.85 };
-      const roar = SM.roar;
-      // de brul: geluid, schokken, golven en de adem
-      c.at(SM.in0 - 0.1, () => audio.speel('mythisch-vleugel', { gain: 0.8, rate: 0.9, galmen: 0.3 }));
-      for (let k = 0; SM.circ0 + k * 1.15 < roar - 1.0; k++) c.at(SM.circ0 + k * 1.15, () => audio.speel('mythisch-vleugel', { gain: 0.7, rate: 0.85 + 0.2 * hash(k * 1.3), pan: k % 2 ? 0.5 : -0.5, galmen: 0.3 }));
-      c.at(roar - 0.12, () => {
-        audio.speel('mythisch-brul', { gain: 1.1, rate: PAL.brul, galmen: 0.35 });
-        trillen([60, 30, 120, 30, 240]);
-      });
-      c.at(roar + 0.3, () => audio.speel('mythisch-adem', { gain: 0.9, rate: WN === 'kraken' ? 0.7 : 1, galmen: 0.3 }));
-      c.at(SM.dive0, () => audio.speel('mythisch-vleugel', { gain: 1.0, rate: 0.75, galmen: 0.3 }));
-      c.at(SM.dive0 + 0.5, () => audio.speel('mythisch-vleugel', { gain: 1.0, rate: 0.7, galmen: 0.3 }));
-      c.flits(roar, 0.55, 0.05);
-      c.schok(roar, 0.13, 0.55);
-      for (let i = 0; i < 4; i++) c.golf(roar + 0.12 * i, 1.2 + 0.4 * i, 0.8 - 0.1 * i, 0.05);
-      c.schok(roar + 0.6, 0.04, 0.3);
-      c.flits(roar + 0.6, 0.25, 0.1);
-      // het pakje barst open: licht en vonken in het midden bij de geboorte van het wezen
-      c.flits(SM.in0, 0.6, 0.08);
-      c.schok(SM.in0, 0.04, 0.3);
-      c.golf(SM.in0, 1.3, 0.8, 0);
-      c.golf(SM.in0 + 0.15, 1.8, 0.6, 0);
-      w({ mode: 0, t0: SM.in0, delay: 0.3, life: 1.6, n: 900, org: [0, 0.02], angle: 0, spread: c.TWEE_PI, spd: [0.3, 2.2], grav: [0, -0.2], drag: 1.2, size: [0.002, 0.007], col1: wk1, col2: wk2, alpha: 1, seed: 121 });
-      // sfeer: gloeiende stofjes (vuur en as) of drijvend licht
-      const op = WN === 'kraken' ? -0.6 : 1.1;
-      w({ mode: 8, t0: eigenT ? t0 : U, delay: 0, life: 70, n: 220, size: [0.004, 0.013], grav: [0, op], spd: [0.5, 1.4], col1: wk1, col2: wk2, alpha: 0.85, seed: 122 });
-      w({ mode: 1, t0: eigenT ? t0 : U, delay: 0, life: 40, n: 60, size: [0.006, 0.03], col1: wk1, col2: wk2, alpha: 0.45, seed: 123 });
-      // het kleurige gloeien van de adem, per wezen
-      const mond = (x, asp) => {
-        const m = wzMond(asp);
-        x.org[0] = m[0];
-        x.org[1] = m[1];
-      };
-      const em = (o) => {
-        const e1 = w(o);
-        e1.bij = mond;
-        return e1;
-      };
-      if (WN === 'draak' || WN === 'feniks') {
-        // ademvuur: een lange vlam naar rechts
-        em({ mode: 0, t0: roar + 0.2, delay: 1.1, life: 1.7, n: 3200, org: [0, 0], angle: -0.05, spread: 0.45, spd: [0.8, 3.0], grav: [0.05, 0.25], drag: 0.65, size: [0.003, 0.016], col1: wk1, col2: wk2, alpha: 1, seed: 124 });
-        em({ mode: 0, t0: roar + 0.2, delay: 1.1, life: 1.3, n: 1200, org: [0, 0], angle: -0.05, spread: 0.3, spd: [1.2, 3.4], grav: [0, 0.1], drag: 0.8, size: [0.002, 0.007], col1: [1, 1, 0.8], col2: wk2, alpha: 1, seed: 125 });
-        em({ mode: 6, t0: roar + 0.2, delay: 1.0, life: 1.6, n: 26, org: [0, 0], size: [0.18, 0.4], col1: wk1, col2: wk2, alpha: 0.6, seed: 126, lod: false });
-        if (WN === 'feniks') w({ mode: 5, t0: roar, delay: 1.6, life: 3.4, n: 160, org: [0, 0.3], angle: -Math.PI / 2, spread: 3.0, spd: [0.05, 0.5], grav: [0, -0.12], drag: 0.6, size: [0.01, 0.03], col1: wk1, col2: wk2, alpha: 1, blend: 'alpha', seed: 127 });
-      } else if (WN === 'kraken') {
-        // een inktwolk: violette gloed die uit de kop golft, bellen en lichtgevende druppels
-        em({ mode: 6, t0: roar + 0.1, delay: 1.2, life: 2.8, n: 34, org: [0, 0], size: [0.2, 0.46], col1: [0.2, 0.1, 0.7], col2: [0.1, 0.45, 0.9], alpha: 0.75, seed: 124, lod: false });
-        em({ mode: 0, t0: roar + 0.1, delay: 1.2, life: 2.2, n: 2200, org: [0, 0], angle: 0, spread: c.TWEE_PI, spd: [0.2, 1.8], grav: [0, 0.08], drag: 0.8, size: [0.003, 0.012], col1: wk1, col2: wk2, alpha: 1, seed: 125 });
-        em({ mode: 1, t0: roar + 0.1, delay: 1.2, life: 3.2, n: 70, org: [0, 0], size: [0.01, 0.04], col1: [0.4, 0.9, 1], col2: wk2, alpha: 0.8, seed: 126 });
-      } else {
-        // het griffioenengeluid: een regen van veren en een witgouden stralenkrans
-        em({ mode: 5, t0: roar, delay: 1.6, life: 3.6, n: 420, org: [0, 0], angle: 0, spread: c.TWEE_PI, spd: [0.2, 1.6], grav: [0, -0.2], drag: 0.9, size: [0.01, 0.034], col1: [1, 0.97, 0.88], col2: [1, 0.8, 0.3], alpha: 1, blend: 'alpha', seed: 124 });
-        em({ mode: 0, t0: roar + 0.1, delay: 0.9, life: 1.8, n: 1800, org: [0, 0], angle: 0, spread: c.TWEE_PI, spd: [0.4, 2.8], grav: [0, -0.1], drag: 1.1, size: [0.002, 0.008], col1: wk1, col2: wk2, alpha: 1, seed: 125 });
-      }
-      // de kaart wordt neergelegd: een uitbarsting in de kleuren van het wezen
-      if (false) {
-        c.flits(K0 - 0.03, 0.35, 0.08);
-        c.golf(K0, 1.8, 1.0, 0);
-        c.golf(K0 + 0.12, 1.3, 0.8, 0);
-        w({ mode: 0, t0: K0, delay: 0.2, life: 2.2, n: 1400, org: [0, 0.01], angle: 0, spread: c.TWEE_PI, spd: [0.4, 2.8], grav: [0, -0.2], drag: 1.1, size: [0.002, 0.007], col1: wk1, col2: wk2, alpha: 1, seed: 128 });
-        c.at(K0 - 0.12, () => audio.boem(0.95, 0.65));
-      }
-    }
-    // De toestand van het wezen op tijd t: positie, schaal, richting, helling en de slag van de vleugels. null = niet in beeld.
-    function wzPos(t, asp) {
-      const A = 0.6 * hw(asp);
-      const circ = (tau) => ({ x: -A * Math.cos(0.85 * tau), y: 0.1 + 0.1 * Math.sin(1.7 * tau + 0.6), s: 0.55 + 0.17 * Math.sin(0.85 * tau + 1.2) });
-      const S = SM;
-      if (t < S.circ0) {
-        const p = ramp(t, S.in0, S.circ0);
-        const e = glad(p);
-        const c0 = circ(0);
-        const sw = Math.sin(p * Math.PI);
-        return { x: mix(0, c0.x, e) + sw * 0.2 * hw(asp), y: mix(0.0, c0.y, e) + sw * 0.28, s: mix(0.1, c0.s, Math.pow(e, 0.8)) };
-      }
-      if (t < S.roar - 1.1) return circ(t - S.circ0);
-      if (t < S.roar) {
-        const q = glad(ramp(t, S.roar - 1.1, S.roar));
-        const cc = circ(S.roar - 1.1 - S.circ0);
-        return { x: mix(cc.x, S.hover.x, q), y: mix(cc.y, S.hover.y, q), s: mix(cc.s, S.hover.s, q) };
-      }
-      if (t < S.dive0) return { x: S.hover.x, y: S.hover.y, s: S.hover.s * (1 + 0.05 * Math.sin((t - S.roar) * 22) * Math.exp(-(t - S.roar) * 1.6)) };
-      const p = ramp(t, S.dive0, S.out);
-      const e = p * p * (0.6 + 0.4 * p);
-      return { x: mix(S.hover.x, 0.1, glad(p)), y: mix(S.hover.y, -0.1, glad(p)), s: mix(S.hover.s, 3.6, e) };
-    }
-    function wzToestand(t, asp) {
-      if (t < SM.in0 || t > SM.out + 0.05) return null;
-      const P = wzPos(t, asp);
-      const P1 = wzPos(t + 0.03, asp), P0 = wzPos(t - 0.03, asp);
-      const vx = (P1.x - P0.x) / 0.06, vy = (P1.y - P0.y) / 0.06;
-      const hov = sm(t, SM.roar - 1.1, SM.roar - 0.4);
-      const sx = mix(Math.tanh(vx * 3.5) || 1, 1, hov);
-      const roarT = t - SM.roar;
-      const kop = t >= SM.roar && t < SM.dive0 ? 0.32 * Math.sin(Math.min(1, roarT / 0.3) * Math.PI * 0.5) * (1 - sm(roarT, 1.0, 1.5)) : 0;
-      const bank = 0.22 * Math.atan(vy * 1.4) * (1 - hov) + kop + (t >= SM.dive0 ? -0.35 * ramp(t, SM.dive0, SM.out) : 0);
-      const dive = t >= SM.dive0 ? 1 : 0;
-      const wf = dive ? 8.5 : t >= SM.roar - 1.1 ? 4.6 : 5.6;
-      let flap = -0.25 + 0.7 * Math.sin(wf * t);
-      if (t >= SM.roar && t < SM.dive0) flap = mix(flap, 0.45, sm(roarT, 0, 0.3) * (1 - sm(roarT, 1.0, 1.4)));
-      const bob = 0.02 * Math.sin(2.1 * t);
-      const pas = SM.out + 0.05;
-      return { x: P.x, y: P.y + bob, s: P.s, sx, bank, flap, alpha: sm(t, SM.in0, SM.in0 + 0.25) * (1 - sm(t, SM.out - 0.25, SM.out + 0.02)), t };
-    }
-    function wzOmzet(st, G) {
-      const bw = G.w.lijf[0], bh = G.w.lijf[1];
-      const sg = st.sx >= 0 ? 1 : -1;
-      const th = st.bank * sg;
-      const cs = Math.cos(th), sn = Math.sin(th);
-      return {
-        sg,
-        th,
-        naarWereld(px, py) {
-          const lx = (px - bw / 2) * u0 * st.s * st.sx, ly = -(py - bh / 2) * u0 * st.s;
-          return [st.x + cs * lx - sn * ly, st.y + sn * lx + cs * ly];
-        },
-      };
-    }
-    // waar de mond is, in deeltjesruimte, tijdens de brul
-    function wzMond(asp) {
-      const G = art.wezen;
-      const st = { x: SM.hover.x, y: SM.hover.y, s: SM.hover.s, sx: 1, bank: 0.32 };
-      const m = wzOmzet(st, G).naarWereld(G.mond[0], G.mond[1]);
-      return [m[0] / c.H_ZICHT, m[1] / c.H_ZICHT];
-    }
-    // het wezen tekenen: gloed, verre vleugel, lijf, nabije vleugel (of tentakels)
-    function wezenTekenen(t, asp, st, alphaMul) {
-      const G = art.wezen, W = tex.wz;
-      if (!st || Math.abs(st.sx) < 0.04) return;
-      const om = wzOmzet(st, G);
-      const al = st.alpha * (alphaMul === undefined ? 1 : alphaMul);
-      if (al < 0.004) return;
-      const put = (tx, pxc, pyc, wpx, hpx, rot, alpha, optel) => {
-        const [X, Y] = om.naarWereld(pxc, pyc);
-        c.vlak(t, tx, X, Y, 0, 0, 0, om.th + rot * om.sg, wpx * u0 * st.s * st.sx, hpx * u0 * st.s, alpha, 2, optel || 0, 0, k1, 0, 0);
-      };
-      // gloed erachter
-      const gl = 0.45 + 0.15 * Math.sin(t * 3);
-      const kop = st.t >= SM.roar && st.t < SM.dive0 ? 1 + 0.6 * Math.exp(-(st.t - SM.roar) * 1.5) : 1;
-      put(W.gloed, G.w.lijf[0] / 2, G.w.lijf[1] / 2, 2000 * kop, 1500 * kop, 0, al * gl, 1);
-      if (G.tent) {
-        // tentakels: acht, golvend, aan de onderkant van de kop
-        const [tw, th] = G.w.tent;
-        G.tentWortels.forEach(([rx, ry], i) => {
-          const a = (i - 3.5) * 0.09 + 0.3 * Math.sin(2.4 * st.t + i * 0.85) + 0.1 * st.bank;
-          const sa = Math.sin(a), ca = Math.cos(a);
-          put(W.tent, rx + (th / 2 - 6) * sa, ry + (th / 2 - 6) * ca, tw, th, a, al, 0);
-        });
-        const pulse = 1 + 0.035 * Math.sin(3.1 * st.t);
-        put(W.lijf, G.w.lijf[0] / 2, G.w.lijf[1] / 2 - 18 * (pulse - 1), G.w.lijf[0], G.w.lijf[1] * pulse, 0, al, 0);
-        return;
-      }
-      const [vw, vh] = G.w.vleugel;
-      const wing = (tx, a, alpha, dx, dy) => {
-        const hx = G.scharnier[0] + dx, hy = G.scharnier[1] + dy;
-        const vx = vw / 2 - G.vscharnier[0], vy = -(vh / 2 - G.vscharnier[1]);
-        const ca = Math.cos(a), sa = Math.sin(a);
-        put(tx, hx + vx * ca - vy * sa, hy - (vx * sa + vy * ca), vw, vh, a, alpha, 0);
-      };
-      wing(W.vleugelA, st.flap * 0.85 + 0.1, al, -24, 8);
-      put(W.lijf, G.w.lijf[0] / 2, G.w.lijf[1] / 2, G.w.lijf[0], G.w.lijf[1], 0, al, 0);
-      wing(W.vleugel, st.flap, al, 0, 0);
-    }
-    function wezenAchter(t, asp) {
-      if (tr !== 4) return;
-      const st = wzToestand(t, asp);
-      if (!st) return;
-      // het licht van het wezen: stralen rond het lijf, feller tijdens de brul
-      const roarT = t - SM.roar;
-      const fel = (t >= SM.roar && t < SM.dive0 ? 0.5 + 0.9 * Math.exp(-roarT * 1.2) : 0.12) * st.alpha;
-      if (fel > 0.01 && c.kw < 3) c.stralen(t, fel * 0.6, 0.6, 0.12, 0.1, st.x / c.H_ZICHT, st.y / c.H_ZICHT, t * 0.3, 1, wk1, wk2, 14);
-      wezenTekenen(t, asp, st);
-    }
-    function wezenTease(t, asp) {
-      // het donkere, warme licht in de ruimte (de zwarte plaat over de opening staat in teaseTeken)
-      c.licht(t, 0, 0.02, 0.12 + 0.35 * Math.exp(-(t - SM.in0) / 0.5) * (t > SM.in0 ? 1 : 0), 0.05, 0.1, 0.1, t * 0.2, wk1);
-    }
-    function wezenPost(p, t) {
-      if (!eigenT && false) {
-        const u = ramp(t, t0, t1);
-        const rt = t - SM.roar;
-        p.dark = 0;
-        p.gl = (rt > -0.02 && rt < 0.35 ? Math.exp(-Math.max(rt, 0) / 0.12) * 0.7 : 0) * rg + (t < SM.in0 + 0.4 && t >= SM.in0 ? 0.4 * rg : 0);
-        p.zoom = 1 + 0.02 * u + (rt > 0 ? 0.07 * Math.exp(-rt / 0.2) : 0);
-        p.rad = rt > 0 ? 0.35 * Math.exp(-rt / 0.3) : 0;
-        p.vig = 1.3 + 0.6 * u;
-        p.sat = 1.1;
-        p.bloom = 1.08;
-      } else if (!eigenT && SM.roar && t >= SM.roar && t < SM.roar + 2) {
-        const rt = t - SM.roar;
-        p.gl = Math.max(p.gl, 0.6 * Math.exp(-rt / 0.12) * rg);
-        p.zoom *= 1 + 0.07 * Math.exp(-rt / 0.2);
-        p.rad = Math.max(p.rad, 0.35 * Math.exp(-rt / 0.3));
-      }
-      if (t >= t0 && !eigenT) p.grade = WN === 'kraken' ? [0.92, 0.95, 1.12] : WN === 'draak' ? [0.96, 1.06, 0.94] : [1.1, 0.97, 0.9];
-    }
-
-
-    // ═════════ MYTHISCH in vijf akten (bij een eigen tease, ruim 30 seconden met de onthulling) ═════════
-    //  1  stilte en zwart, een hartslag; het pakje trilt en barst open met lichtscheuren
-    //  2  de wereld valt weg: een reis door een storm naar het rijk van het wezen (vuurvulkaan, zonnetempel, diepzee, bergtoppen)
-    //  3  het wezen ontwaakt: een oog gaat open, een brul, vleugels of tentakels vullen het scherm, het vliegt langs de camera
-    //  4  het ritueel: runen, een lichtkolom, het wezen blaast zijn adem op de kiem van de kaart; een dreun, het wezen duikt naar je toe
-    //  5  de onthulling: de kaart komt, het logo slaat in, het wezen hangt levend achter de kaart en brult nog een keer
-    const MA = {};
-    const myth = tr === 4 && eigenT && !!art.wereld;
-    if (myth) {
-      const T = TEASE_T;
-      const f = (x) => t0 + x * T;
-      Object.assign(MA, { kraak: f(0.04), zwart: f(0.085), flits1: f(0.185), storm0: f(0.19), wereld0: f(0.285), wereld1: f(0.4), oog0: f(0.455), oogOpen: f(0.51), roar: f(0.555), pass0: f(0.625), pass1: f(0.69), circ0: f(0.7), rune0: f(0.72), zuil0: f(0.775), adem0: f(0.8), adem1: f(0.89), dive0: f(0.9), dive1: f(0.975) });
-      tex.wr = { bg: c.tekstuur(art.wereld.bg), voor: c.tekstuur(art.wereld.voor) };
-      tex.oog = c.tekstuur(art.oog);
-      tex.runen = c.tekstuur(art.runen);
-      tex.zuil = c.tekstuur(art.zuil);
-      tex.kiem = c.tekstuur(art.kiem);
-      // de hartslagen van akte 1: steeds sneller
-      MA.slagen = [0.03, 0.07, 0.1, 0.125, 0.147, 0.164, 0.178].map((x) => f(x));
-      MA.donder = [0.215, 0.255, 0.33, 0.375].map((x) => f(x));
-      const thumpM = (t) => {
-        let a = 0;
-        for (const b of MA.slagen) {
-          const dt = t - b;
-          if (dt >= 0 && dt < 0.8) a += Math.exp(-dt / 0.1);
-        }
-        return Math.min(1.4, a);
-      };
-      MA.thump = thumpM;
-      // ── geluid, laag voor laag ──
-      c.at(t0 + 0.05, () => audio.speel('kosmisch-bas', { gain: 0.9, galmen: 0.3 }));
-      MA.slagen.forEach((b, i) => c.at(b, () => audio.hartslag(0.7 + 0.04 * i)));
-      c.at(MA.kraak, () => audio.speel('schiet-scherf', { gain: 0.55, rate: 0.6, galmen: 0.4 }));
-      c.at(MA.flits1 - 1.4 * sf, () => audio.riser(1.4 * sf, 1.0));
-      c.at(MA.flits1 - 0.05, () => {
-        audio.speel('zeldzaam-boem', { gain: 0.9, rate: 0.9, galmen: 0.3 });
-        trillen([60, 30, 60, 30, 200]);
-      });
-      c.at(MA.storm0 + 0.3, () => audio.speel('kosmisch-zwaai', { gain: 0.85, rate: 0.7, pan: -0.4, galmen: 0.3 }));
-      c.at(MA.storm0 + 2.4 * sf, () => audio.speel('kosmisch-zwaai', { gain: 0.85, rate: 0.6, pan: 0.4, galmen: 0.3 }));
-      MA.donder.forEach((b, i) => c.at(b, () => audio.boem(0.45 + 0.1 * i, 0.9 - 0.1 * i)));
-      c.at(MA.wereld0, () => audio.speel('kosmisch-gat', { gain: 0.8, rate: 0.75, galmen: 0.3 }));
-      c.at(MA.oog0, () => audio.hartslag(1.0));
-      c.at(MA.oog0 + 0.4 * sf, () => audio.hartslag(1.0));
-      c.at(MA.roar - 0.12, () => {
-        audio.speel('mythisch-brul', { gain: 1.25, rate: PAL.brul, galmen: 0.35 });
-        audio.speel('zeldzaam-boem', { gain: 0.95, rate: 0.75, galmen: 0.3 });
-        trillen([80, 30, 120, 30, 300]);
-      });
-      c.at(MA.roar + 0.35, () => audio.speel('mythisch-vleugel', { gain: 1.0, rate: 0.7, galmen: 0.3 }));
-      c.at(MA.roar + 1.1 * sf, () => audio.speel('mythisch-vleugel', { gain: 1.0, rate: 0.65, galmen: 0.3 }));
-      c.at(MA.pass0 - 0.1, () => {
-        audio.speel('kosmisch-zwaai', { gain: 1.1, rate: 0.8, pan: 0.3, galmen: 0.3 });
-        audio.speel('mythisch-vleugel', { gain: 1.0, rate: 0.6, galmen: 0.3 });
-      });
-      c.at(MA.rune0, () => audio.speel('kosmisch-bas', { gain: 0.85, rate: 0.9, galmen: 0.3 }));
-      c.at(MA.zuil0 - 0.6 * sf, () => audio.riser(1.8 * sf, 1.0));
-      c.at(MA.adem0 - 0.15, () => audio.speel('mythisch-adem', { gain: 1.1, rate: WN === 'kraken' ? 0.7 : 1, galmen: 0.3 }));
-      c.at(MA.dive0 - 0.05, () => {
-        audio.speel('mythisch-brul', { gain: 0.9, rate: PAL.brul * 0.8, galmen: 0.35 });
-        audio.speel('mythisch-vleugel', { gain: 1.0, rate: 0.7, galmen: 0.3 });
-        trillen([40, 30, 40, 30, 40, 30, 300]);
-      });
-      c.at(K0 - 0.12, () => {
-        audio.boem(1, 0.55);
-        audio.speel('zeldzaam-boem', { gain: 1.15, rate: 0.65, galmen: 0.35 });
-      });
-      // ── flitsen, schokken en golven ──
-      MA.slagen.forEach((b, i) => c.schok(b, 0.008 + 0.004 * i, 0.12));
-      c.flits(MA.flits1, 0.8, 0.05);
-      c.schok(MA.flits1, 0.1, 0.4);
-      for (let i = 0; i < 4; i++) c.golf(MA.flits1 + 0.1 * i, 1.2 + 0.4 * i, 0.8 - 0.1 * i, 0);
-      MA.donder.forEach((b) => {
-        c.flits(b, 0.55, 0.06);
-        c.flits(b + 0.12, 0.3, 0.05);
-        c.schok(b, 0.05, 0.25);
-      });
-      c.flits(MA.oogOpen, 0.35, 0.1);
-      c.flits(MA.roar, 0.7, 0.05);
-      c.flits(MA.roar + 0.03, 0.25, 0.22);
-      c.schok(MA.roar, 0.18, 0.7);
-      for (let i = 0; i < 5; i++) c.golf(MA.roar + 0.12 * i, 1.1 + 0.4 * i, 0.9 - 0.1 * i, 0.04);
-      c.schok(MA.pass0 + 0.2, 0.06, 0.5);
-      c.schok(MA.pass1 - 0.1, 0.07, 0.5);
-      c.golf(MA.pass1 - 0.1, 1.5, 0.8, 0);
-      c.flits(MA.dive0, 0.55, 0.1);
-      c.schok(MA.dive0, 0.08, 0.4);
-      for (let i = 0; i < 4; i++) c.golf(MA.dive0 + 0.1 * i, 1.3 + 0.5 * i, 0.9 - 0.12 * i, 0);
-      c.flits(K0 - 0.03, 0.45, 0.08);
-      c.golf(K0, 1.8, 1.0, 0);
-      c.golf(K0 + 0.12, 1.3, 0.8, 0);
-      // ── deeltjes ──
-      w({ mode: 0, t0: MA.kraak, delay: MA.flits1 - MA.kraak - 0.3, life: 1.3, n: 900, org: [0, 0.02], angle: 0, spread: c.TWEE_PI, spd: [0.05, 0.9], grav: [0, 0], drag: 1.4, size: [0.002, 0.006], col1: wk1, col2: wk2, alpha: 1, seed: 201 });
-      w({ mode: 0, t0: MA.flits1, delay: 0.1, life: 1.8, n: 1800, org: [0, 0.02], angle: 0, spread: c.TWEE_PI, spd: [0.4, 3.4], grav: [0, 0], drag: 1.0, size: [0.002, 0.008], col1: wk1, col2: wk2, alpha: 1, seed: 202 });
-      // de sfeer van de wereld: vuur en as, goudstof, bellen of sneeuw
-      const op = WN === 'kraken' ? 0.7 : WN === 'griffioen' ? -0.5 : 1.2;
-      w({ mode: 8, t0: MA.wereld0 - 1, delay: 0, life: 80, n: 260, size: [0.004, 0.014], grav: [0, op], spd: [0.5, 1.5], col1: wk1, col2: wk2, alpha: 0.9, seed: 203 });
-      w({ mode: 1, t0: MA.wereld0 - 1, delay: 0, life: 40, n: 70, size: [0.006, 0.03], col1: wk1, col2: wk2, alpha: 0.45, seed: 204 });
-      // de brul: de adem van het wezen, vanuit de mond
-      MA.stBrul = () => actToestand(MA.roar + 0.3, 1.78);
-      const mondM = (x, asp) => {
-        const st = actToestand(MA.roar + 0.3, asp);
-        const m = wzOmzet(st, art.wezen).naarWereld(art.wezen.mond[0], art.wezen.mond[1]);
-        x.org[0] = m[0] / c.H_ZICHT;
-        x.org[1] = m[1] / c.H_ZICHT;
-      };
-      const emM = (o, bij) => {
-        const e1 = w(o);
-        e1.bij = bij;
-        return e1;
-      };
-      if (WN === 'draak' || WN === 'feniks') {
-        emM({ mode: 0, t0: MA.roar + 0.2, delay: 1.1, life: 1.8, n: 3600, org: [0, 0], angle: 0, spread: 0.7, spd: [0.8, 3.4], grav: [0.05, 0.3], drag: 0.6, size: [0.003, 0.018], col1: wk1, col2: wk2, alpha: 1, seed: 205 }, mondM);
-      } else if (WN === 'kraken') {
-        emM({ mode: 6, t0: MA.roar + 0.1, delay: 1.2, life: 2.8, n: 40, org: [0, 0], size: [0.22, 0.5], col1: [0.2, 0.1, 0.7], col2: [0.1, 0.45, 0.9], alpha: 0.75, seed: 205, lod: false }, mondM);
-        emM({ mode: 0, t0: MA.roar + 0.1, delay: 1.2, life: 2.2, n: 2600, org: [0, 0], angle: 0, spread: c.TWEE_PI, spd: [0.2, 2.0], grav: [0, 0.08], drag: 0.8, size: [0.003, 0.013], col1: wk1, col2: wk2, alpha: 1, seed: 206 }, mondM);
-      } else {
-        emM({ mode: 5, t0: MA.roar, delay: 1.6, life: 3.6, n: 520, org: [0, 0], angle: 0, spread: c.TWEE_PI, spd: [0.2, 1.8], grav: [0, -0.2], drag: 0.9, size: [0.01, 0.036], col1: [1, 0.97, 0.88], col2: [1, 0.8, 0.3], alpha: 1, blend: 'alpha', seed: 205 }, mondM);
-        emM({ mode: 0, t0: MA.roar + 0.1, delay: 0.9, life: 1.8, n: 2200, org: [0, 0], angle: 0, spread: c.TWEE_PI, spd: [0.4, 3.0], grav: [0, -0.1], drag: 1.1, size: [0.002, 0.009], col1: wk1, col2: wk2, alpha: 1, seed: 206 }, mondM);
-      }
-      // het ritueel: de adem naar het midden, vonken die samenkomen, een uitbarsting en een regen van vonken
-      const mondH = (x, asp) => {
-        const st = actToestand(MA.adem0 + 0.3, asp);
-        const m = wzOmzet(st, art.wezen).naarWereld(art.wezen.mond[0], art.wezen.mond[1]);
-        x.org[0] = m[0] / c.H_ZICHT;
-        x.org[1] = m[1] / c.H_ZICHT;
-        x.angle = Math.atan2(-0.02 - m[1], 0 - m[0]);
-      };
-      emM({ mode: 0, t0: MA.adem0, delay: MA.adem1 - MA.adem0, life: 0.9, n: 3200, org: [0, 0], angle: 0, spread: 0.18, spd: [1.6, 3.4], grav: [0, 0], drag: 0.5, size: [0.003, 0.014], col1: wk1, col2: wk2, alpha: 1, seed: 207 }, mondH);
-      w({ mode: 0, t0: MA.adem0 + 0.3, delay: MA.adem1 - MA.adem0, life: 1.2, n: 2400, org: [0, -0.01], angle: 0, spread: c.TWEE_PI, spd: [0.1, 1.0], grav: [0, 0.1], drag: 1.2, size: [0.002, 0.007], col1: wk2, col2: [1, 1, 1], alpha: 1, seed: 208 });
-      w({ mode: 0, t0: MA.dive0, delay: 0.12, life: 2.4, n: 2400, org: [0, -0.01], angle: 0, spread: c.TWEE_PI, spd: [0.4, 4.0], grav: [0, -0.2], drag: 1.0, size: [0.002, 0.008], col1: wk1, col2: wk2, alpha: 1, seed: 209 });
-      w({ mode: 0, t0: MA.dive0, delay: 3.6 * sf, life: 2.6, n: 2200, org: [0, 0.62], angle: -Math.PI / 2, spread: 2.6, spd: [0.1, 0.9], grav: [0, -0.3], drag: 0.8, size: [0.002, 0.007], col1: wk1, col2: wk2, alpha: 0.95, seed: 210 });
-      // na de kaart: een laatste brul van het wezen
-      MA.slot = RV + (snel ? 1.6 : 2.8);
-      c.at(MA.slot - 0.1, () => {
-        audio.speel('mythisch-brul', { gain: 1.2, rate: PAL.brul * 0.85, galmen: 0.4 });
-        audio.boem(1, 0.6);
-        trillen([60, 30, 60, 30, 240]);
-      });
-      c.flits(MA.slot, 0.4, 0.06);
-      c.schok(MA.slot, 0.1, 0.5);
-      for (let i = 0; i < 3; i++) c.golf(MA.slot + 0.12 * i, 1.2 + 0.4 * i, 0.8 - 0.12 * i, 0.04);
-      w({ mode: 0, t0: MA.slot, delay: 0.3, life: 2.8, n: 1600, org: [0, 0.2], angle: 0, spread: c.TWEE_PI, spd: [0.3, 3.0], grav: [0, -0.2], drag: 1.0, size: [0.002, 0.008], col1: wk1, col2: wk2, alpha: 1, seed: 211 });
-    }
-    // de toestand van het wezen in de akten 3 en 4 (nul als het niet in beeld is), en daarna de achtergrondversie
-    function actToestand(t, asp) {
-      const hwv = hw(asp);
-      const e = (x) => glad(klem(x, 0, 1));
-      let x = 0, y = 0.05, s = 1, sx = 1, bank = 0, flap = 0, alpha = 0, wf = 6;
-      if (t >= MA.roar - 0.3 && t < MA.pass0) {
-        // het wezen is vlak voor je neus: de vleugels vullen het scherm
-        const q = ramp(t, MA.roar - 0.3, MA.pass0);
-        s = 2.0 + 0.9 * q;
-        y = 0.0 + 0.06 * Math.sin(t * 2.2);
-        bank = 0.08 * Math.sin(t * 1.5) + (t > MA.roar - 0.1 && t < MA.roar + 1.0 ? 0.28 * Math.sin(Math.min(1, (t - MA.roar + 0.1) / 0.3) * 1.57) * (1 - sm(t, MA.roar + 0.7, MA.roar + 1.1)) : 0);
-        alpha = sm(t, MA.roar - 0.3, MA.roar + 0.05);
-        wf = 5.2;
-      } else if (t >= MA.pass0 && t < MA.pass1) {
-        // het vliegt rakelings langs de camera, naar links
-        const q = ramp(t, MA.pass0, MA.pass1);
-        s = mix(2.9, 9, q * q * (0.5 + 0.5 * q));
-        x = -1.5 * hwv * q * q;
-        y = mix(0.0, 0.5, q);
-        bank = -0.3 * q;
-        alpha = 1 - sm(q, 0.85, 1);
-        wf = 9;
-      } else if (t >= MA.pass1 && t < MA.dive0) {
-        const A = 0.55 * hwv;
-        const cir = (tau) => ({ x: A * Math.cos(0.8 * tau + 2.4), y: 0.12 + 0.12 * Math.sin(1.6 * tau + 0.5), s: 0.62 + 0.18 * Math.sin(0.8 * tau + 1.0) });
-        const H = { x: -0.62 * hwv, y: 0.3, s: 0.82 };
-        const tau = t - MA.circ0;
-        if (t < MA.adem0 - 0.7) {
-          const c0 = cir(tau);
-          const intro = e(ramp(t, MA.pass1, MA.circ0 + 0.6)); // het komt van achteren terug in beeld
-          x = mix(0.9 * hwv, c0.x, intro);
-          y = mix(0.45, c0.y, intro);
-          s = mix(0.3, c0.s, intro);
-          alpha = sm(t, MA.pass1 + 0.02, MA.pass1 + 0.3);
-          const vx = -A * 0.8 * Math.sin(0.8 * tau + 2.4);
-          sx = Math.tanh(vx * 3.5) || 1;
-          bank = 0.1 * Math.sin(t * 1.3);
-        } else {
-          const q = e(ramp(t, MA.adem0 - 0.7, MA.adem0));
-          const c1 = cir(MA.adem0 - 0.7 - MA.circ0);
-          x = mix(c1.x, H.x, q);
-          y = mix(c1.y, H.y, q) + 0.015 * Math.sin(t * 2.4);
-          s = mix(c1.s, H.s, q);
-          sx = mix(Math.tanh(-A * 0.8 * Math.sin(0.8 * (MA.adem0 - 0.7 - MA.circ0) + 2.4) * 3.5) || 1, 1, q);
-          bank = 0.14 * q;
-          alpha = 1;
-        }
-        wf = t >= MA.adem0 - 0.7 && t < MA.adem1 ? 3.4 : 5.8;
-      } else if (t >= MA.dive0 && t < MA.dive1 + 0.1) {
-        const q = ramp(t, MA.dive0, MA.dive1);
-        const H = { x: -0.62 * hwv, y: 0.3, s: 0.82 };
-        s = mix(H.s, 6.5, q * q * (0.6 + 0.4 * q));
-        x = mix(H.x, 0.15 * hwv, e(q));
-        y = mix(H.y, -0.1, e(q));
-        bank = -0.3 * q;
-        alpha = 1 - sm(q, 0.82, 1);
-        wf = 8.5;
-      } else return null;
-      flap = -0.25 + 0.7 * Math.sin(wf * t);
-      if (t >= MA.roar - 0.1 && t < MA.roar + 1.1) flap = mix(flap, 0.5, sm(t, MA.roar - 0.1, MA.roar + 0.2) * (1 - sm(t, MA.roar + 0.8, MA.roar + 1.1)));
-      return { x, y, s, sx, bank, flap, alpha, t };
-    }
-    // het wezen dat levend achter de kaart hangt, na de onthulling
-    function wezenAchterKaart(t, asp) {
-      if (t < K0 + 0.4) return;
-      const hwv = hw(asp);
-      const wa = 0.5 * sm(t, K0 + 0.4, K0 + 2.4) * (1 - sm(t, MA.slot + 3.5, MA.slot + 5.5));
-      if (wa < 0.01) return;
-      const bump = t >= MA.slot ? 1 + 0.25 * Math.exp(-(t - MA.slot) / 0.35) : 1;
-      const st = { x: 0.5 * hwv + 0.06 * Math.sin(t * 0.4), y: 0.34 + 0.04 * Math.sin(t * 0.8), s: 1.35 * bump, sx: -1, bank: 0.1 + 0.05 * Math.sin(t * 0.7), flap: -0.3 + 0.5 * Math.sin(t * 3.0), alpha: 1, t };
-      wezenTekenen(t, asp, st, wa);
-    }
-    function mythActs(t, asp) {
-      const hwv = hw(asp);
-      const visB = c.H_ZICHT * asp;
-      const U1 = ramp(t, t0, t1);
-      // akte 1: lichtscheuren en hartslagen
-      if (t < MA.flits1 + 0.5) {
-        const th = MA.thump(t);
-        const stap = t >= MA.kraak + 0.55 * (MA.zwart - MA.kraak + 2.2) ? 2 : t >= MA.zwart ? 1 : 0;
-        const aan = sm(t, MA.kraak, MA.kraak + 0.15) * (1 - sm(t, MA.flits1, MA.flits1 + 0.5));
-        if (aan > 0.01) rissen(t, stap, aan * (0.7 + 0.8 * Math.min(1, th)), asp, visB);
-        const al = sm(t, MA.kraak, MA.flits1) * (1 - sm(t, MA.flits1, MA.flits1 + 0.3));
-        c.licht(t, 0, 0.02, 0.1 + 0.55 * Math.min(1, th) * al, 0.02 + 0.03 * al, 0.2 * al * th, 0.5 * al * th, t * 0.3, wk1);
-      }
-      // akte 2: de storm en de wereld
-      const stormA = sm(t, MA.storm0, MA.storm0 + 0.5) * (1 - sm(t, MA.oog0 - 0.3, MA.oog0 + 0.3));
-      const wA = sm(t, MA.wereld0, MA.wereld1) * (1 - sm(t, MA.dive1, MA.dive1 + (t1 - MA.dive1))) ;
-      if (wA > 0.003 || t >= K0) {
-        const q = ramp(t, MA.wereld0, t1);
-        const m = 0.88 + 0.4 * q;
-        const hz = c.H_ZICHT * 4.6 / 3;
-        const wB = Math.max(hz * asp, hz * (16 / 9)) * 1.1 * m;
-        const hz2 = c.H_ZICHT * 3.4 / 3;
-        const wV = Math.max(hz2 * asp, hz2 * (16 / 9)) * 1.1 * (1.0 + 0.9 * q);
-        const naK = t >= K0 ? 0.42 * (1 - sm(t, RV + 0.5, RV + 3.5)) * sm(t, K0, K0 + 0.5) : 0;
-        const a = t >= K0 ? naK : wA;
-        if (a > 0.003) {
-          c.vlak(t, tex.wr.bg, Math.sin(t * 0.13) * 0.04, 0.0, -1.6, 0, 0, 0.01 * Math.sin(t * 0.17), wB, wB * 0.5625, a, 2, 0, 0, k1, 0, 0);
-          if (t < K0) c.vlak(t, tex.wr.voor, 0, -0.1 * q, -0.4, 0, 0, 0, wV, wV * 0.5625, a * (1 - 0.6 * sm(t, MA.adem0, MA.adem1)), 2, 0, 0, k1, 0, 0);
-        }
-      }
-      if (stormA > 0.004) {
-        const a = [0, 0, 0], b = [0, 0, 0];
-        for (let i = 0; i < 3; i++) {
-          a[i] = wk1[i] * 0.55;
-          b[i] = wk2[i] * 0.5;
-        }
-        c.warp(t, 0.55 * stormA, 2.4 + 2.6 * sm(t, MA.storm0, MA.wereld1), 0.25, a, b);
-      }
-      // akte 3: het oog
-      const oA = sm(t, MA.oog0 - 0.15, MA.oog0 + 0.25) * (1 - sm(t, MA.roar - 0.1, MA.roar + 0.5));
-      if (oA > 0.004) {
-        const open = glad(ramp(t, MA.oog0, MA.oogOpen));
-        const wO = 2.5 + 1.1 * ramp(t, MA.oog0, MA.roar);
-        const tril = 0.006 * Math.sin(t * 61) * ramp(t, MA.oogOpen, MA.roar);
-        c.vlak(t, tex.oog, tril, 0.03, 0.15, 0, 0, 0, wO, Math.max(0.005, wO * 0.56 * open), oA, 2, 0, 0, k1, 0, 0);
-        c.licht(t, 0, 0.03, 0.15 * oA * open, 0.05, 0.1, 0.2 * oA * open, t * 0.2, wk1);
-      }
-      // het wezen zelf (akte 3 en 4)
-      const st = actToestand(t, asp);
-      if (st) {
-        const roarT = t - MA.roar;
-        const fel = (roarT > 0 && roarT < 2 ? 0.5 + 0.9 * Math.exp(-roarT * 1.2) : 0.15) * st.alpha;
-        if (fel > 0.01 && c.kw < 3) c.stralen(t, fel * 0.5, 0.6, 0.12, 0.1, st.x / c.H_ZICHT, st.y / c.H_ZICHT, t * 0.3, 1, wk1, wk2, 14);
-        wezenTekenen(t, asp, st);
-      }
-      // akte 4: runen, lichtkolom en de kiem van de kaart
-      const rA = sm(t, MA.rune0, MA.rune0 + 1.2) * (1 - sm(t, MA.dive0, MA.dive0 + 0.4));
-      if (rA > 0.004) {
-        const D = 3.1 * (0.85 + 0.15 * veer(ramp(t, MA.rune0, MA.rune0 + 1.4)));
-        const pulse = 1 + 0.04 * Math.sin(t * 5);
-        c.vlak(t, tex.runen, 0, -0.1, 0.05, 0, 0, t * 0.35, D * pulse, D * pulse, rA * 0.9, 2, 1, 0, k1, 0, 0);
-        c.vlak(t, tex.runen, 0, -0.1, 0.05, 0, 0, -t * 0.6, D * 0.62, D * 0.62, rA * 0.6, 2, 1, 0, k1, 0, 0);
-      }
-      const zA = sm(t, MA.zuil0, MA.zuil0 + 0.8) * (1 - sm(t, MA.dive0, MA.dive0 + 0.35));
-      if (zA > 0.004) {
-        const bw = 0.55 + 0.12 * Math.sin(t * 7) + 0.4 * sm(t, MA.adem0, MA.adem1);
-        c.vlak(t, tex.zuil, 0, 0.9, 0.04, 0, 0, 0, bw, 3.8, zA * 0.85, 2, 1, 0, k1, 0, 0);
-      }
-      const kA = sm(t, MA.adem0 - 0.2, MA.adem1) * (1 - sm(t, MA.dive1 - 0.1, t1 + 0.02));
-      if (kA > 0.004) {
-        const bs = 0.5 + 0.55 * ramp(t, MA.adem0 - 0.2, MA.dive0) + 0.03 * Math.sin(t * 9);
-        c.vlak(t, tex.kiem, 0, -0.05, 0.06, 0, 0, 0.02 * Math.sin(t * 2), bs * 0.69, bs, kA * (0.5 + 0.5 * sm(t, MA.adem0, MA.adem1)), 2, 0, 0, k1, 0, 0);
-      }
-      const hl = sm(t, MA.adem0, MA.adem1) * (1 - sm(t, MA.dive1, t1));
-      if (hl > 0.01) c.licht(t, 0, -0.02, 0.2 * hl, 0.05, 0.5 * hl, 0.5 * hl * hl, t * 0.5, wk2);
-    }
-    function mythPost(p, t) {
-      if (t >= t0 && t < K0) {
-        p.dark = 0;
-        p.sat = 1.1;
-        p.bloom = 1.05;
-        const th = MA.thump(t);
-        const rt = t - MA.roar;
-        let gl = 0;
-        if (t < MA.flits1) {
-          gl = (0.2 + 0.45 * Math.min(1, th)) * ramp(t, MA.kraak, MA.flits1) * 0.5;
-          p.vig = 1.6 + 0.8 * ramp(t, t0, MA.flits1);
-          p.zoom = 1 + 0.03 * Math.min(1, th) * ramp(t, MA.kraak, MA.flits1);
-        } else {
-          p.vig = 1.35;
-        }
-        for (const b of MA.donder) if (t >= b && t < b + 0.4) gl = Math.max(gl, 0.5 * Math.exp(-(t - b) / 0.1));
-        if (rt > -0.02 && rt < 0.5) gl = Math.max(gl, 0.7 * Math.exp(-Math.max(rt, 0) / 0.12));
-        if (t >= MA.flits1 && t < MA.flits1 + 0.5) gl = Math.max(gl, 0.8 * Math.exp(-(t - MA.flits1) / 0.1));
-        p.gl = gl * rg;
-        if (rt > 0 && rt < 1.5) {
-          p.zoom *= 1 + 0.08 * Math.exp(-rt / 0.2);
-          p.rad = Math.max(p.rad, 0.4 * Math.exp(-rt / 0.35));
-        }
-        if (t >= MA.pass0 && t < MA.pass1) p.rad = Math.max(p.rad, 0.35 * Math.sin(ramp(t, MA.pass0, MA.pass1) * 3.14));
-        if (t >= MA.dive0 && t < MA.dive1) p.rad = Math.max(p.rad, 0.3 * ramp(t, MA.dive0, MA.dive1));
-        if (t >= MA.adem0 && t < MA.adem1) p.bloom = 1.12 + 0.2 * ramp(t, MA.adem0, MA.adem1);
-        p.grade = [1 + 0.1 * (wk1[0] - 0.6), 1 + 0.1 * (wk1[1] - 0.6), 1 + 0.1 * (wk1[2] - 0.6)];
-      }
-    }
-    function mythSchud(t) {
-      if (!myth) return 0;
-      const R = reduceer ? 0.15 : 1;
-      let a = 0;
-      if (t >= t0 && t < MA.flits1) a += (0.002 + 0.012 * Math.pow(ramp(t, t0, MA.flits1), 2) * (0.5 + 0.5 * Math.min(1, MA.thump(t)))) * R;
-      if (t >= MA.storm0 && t < MA.oog0) a += 0.004 * R;
-      if (t >= MA.roar && t < MA.roar + 1.6) a += 0.014 * Math.exp(-(t - MA.roar) / 0.6) * R;
-      if (t >= MA.pass0 && t < MA.pass1) a += 0.01 * R;
-      if (t >= MA.adem0 && t < MA.adem1) a += (0.003 + 0.004 * ramp(t, MA.adem0, MA.adem1)) * R;
-      if (t >= MA.dive0 && t < K0) a += 0.012 * ramp(t, MA.dive0, MA.dive1) * R;
-      return a;
-    }
+    // ───────────────── MYTHISCH: een korte film met het wezen van de vakgroep (zie mythisch.js) ─────────────────
+    // vijf akten in de eigen tease (stilte en hartslag, de wereld, het ontwaken en de brul, het smeden van de kaart) en daarna de
+    // onthulling met het wezen achter de kaart
+    const myth = tr === 4 && eigenT && !!SPO.mythisch && !!c.motor;
+    const MY = myth ? SPO.mythisch.maak(c, { WN, PAL, t0, t1, K0, RV, snel, w, reduceer, rg }) : null;
+    const mythSchud = (t) => (MY ? MY.schud(t) : 0);
 
     // ───────────────── de upgrade: de reeks lijkt op ZELDZAAM! uit te komen en breekt dan nog eens open ─────────────────
-    const LS = tr < 2 || !upg ? -1 : tr === 2 ? U : tr === 3 ? U + 0.9 * sf : SM.roar; // wanneer het logo van de trede het ZELDZAAM!-logo vervangt
+    const LS = tr < 2 || !upg ? -1 : tr === 2 ? U : tr === 3 ? U + 0.9 * sf : -1; // wanneer het logo van de trede het ZELDZAAM!-logo vervangt
     if (LS > 0) {
       c.at(LS - 0.05, () => {
         audio.speel('schiet-scherf', { gain: 0.9, rate: 0.9, galmen: 0.3 });
@@ -3793,7 +3413,7 @@
     }
 
     // ═════════════════════════ samenstellen ═════════════════════════
-    const plaatNu = (t) => plaat(t, (myth ? sm(t, t0 + TEASE_T * 0.015, t0 + TEASE_T * 0.08) : sm(t, t0, t0 + 0.35 * sf)) * (1 - sm(t, K0 + 0.2, K0 + 1.4)));
+    const plaatNu = (t) => plaat(t, (myth ? sm(t, t0 + 0.02, t0 + 0.25 * TEASE_T / 20) : sm(t, t0, t0 + 0.35 * sf)) * (1 - sm(t, K0 + 0.2, K0 + 1.4)));
     const logoNu = (t) => (tr >= 2 ? (LS > 0 && t < LS ? tex.logoZ : tex.logoT) : tex.logo);
     const logoR = (t) => (LS > 0 && t >= LS ? t - LS : t - RV - 0.12);
 
@@ -3801,8 +3421,7 @@
       if (eigenT) {
         plaatNu(t);
         if (tr === 3) kosmosTease(t, asp);
-        else if (myth) mythActs(t, asp);
-        else wezenTease(t, asp);
+        else if (myth) MY.tease(t, asp);
         return;
       }
       teaseTeken0(t, asp, visB);
@@ -3812,10 +3431,7 @@
       if (tr >= 3 && t >= t0 && (!ult || t < UL.f2)) {
         if (eigenT && t >= t1) plaatNu(t);
         if (tr === 3) kosmosTekenen(t, asp, 0);
-        else if (myth) {
-          if (t >= t1) mythActs(t, asp);
-          if (!ult || t < UL.f2) wezenAchterKaart(t, asp);
-        } else wezenAchter(t, asp);
+        else if (myth && t >= t1) MY.na(t, asp);
       }
       achter0(t, asp);
       if (ult) {
@@ -3840,6 +3456,16 @@
       kaartNu.lay = 0.84;
       const zk = kaart0(t);
       if (tr === 2) glimKaart(zk, t);
+      if (KOS) {
+        // kosmisch: geen extra draai bij de onthulling; een korte, strakke tik en daarna een scherpe, leesbare kaart
+        const r = t - RV;
+        if (r >= 0) {
+          zk.rot = 0.22 * Math.sin(r * 0.9) * sm(r, 0.6, 1.8);
+          zk.schaal = 1 + 0.05 * Math.exp(-r / 0.15);
+        }
+        zk.folie *= 0.55;
+      }
+      if (tr === 4) zk.folie *= 0.35; // mythisch: de kaart moet leesbaar blijven
       if (tr >= 2) ultKaart(zk, t);
       return zk;
     }
@@ -3848,6 +3474,7 @@
       p.inv = 0;
       p.pinch = 0;
       p.grade = null;
+      p.bars = undefined; // alleen de mythische film zet een eigen breedbeeld
       post0(t);
       if (tr === 2) glimPost(p, t);
       else if (tr === 3) {
@@ -3855,8 +3482,7 @@
         rustigerOnthulling(p, t);
       }
       else if (tr === 4) {
-        wezenPost(p, t);
-        if (myth) mythPost(p, t);
+        if (myth) MY.post(p, t);
         rustigerOnthulling(p, t);
       }
       if (ult) ultPost(p, t);
@@ -3864,7 +3490,8 @@
     }
     function schud(t) {
       let a = myth && t >= t0 && t < t1 ? 0 : schud0(t);
-      if (eigenT && tr >= 3 && t >= t0 && t < t1) {
+      if (KO) a += KO.schud(t);
+      else if (eigenT && tr >= 3 && t >= t0 && t < t1) {
         const u = ramp(t, t0, t1);
         a += (0.0012 + 0.006 * u * u) * (reduceer ? 0.15 : 1);
       }
@@ -3882,8 +3509,11 @@
       schud,
       kleur,
       regenUit,
+      stralenMul: () => (tr === 4 ? 0.12 : KOS ? 0 : 1),
       verwijder() {
-        /* de teksturen zijn via c.tekstuur gemaakt en worden door scene.js opgeruimd */
+        /* de teksturen zijn via c.tekstuur gemaakt en worden door scene.js opgeruimd; de film heeft een eigen doel */
+        if (MY) MY.verwijder();
+        if (KO) KO.verwijder();
       },
     };
   }
@@ -3947,5 +3577,5 @@
     };
   }
 
-  SPO.zeldzaam = { tijden, maakArt, maak, vroeg, lot };
+  SPO.zeldzaam = { tijden, maakArt, maak, vroeg, lot, wezenVan, WEZENS };
 })();

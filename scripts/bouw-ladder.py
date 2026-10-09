@@ -9,6 +9,8 @@
 #   mythisch-brul      een brul van een groot wezen (~3,4 s)
 #   mythisch-vleugel   twee zware vleugelslagen (~1,3 s)
 #   mythisch-adem      ademvuur: sissend, knetterend (~3 s)
+#   mythisch-smeed     een slag op een aambeeld met lang nazingend metaal (~2,4 s)
+#   mythisch-grom      een laag, dreigend gegrom dat aanzwelt (~3,2 s)
 #   ultiem-akkoord     een majestueus koor- en orkestakkoord in lagen (~9,5 s)
 #   ultiem-barst       de werkelijkheid breekt: glas, omgekeerde zwelling, zuiging en dan stilte (~4 s)
 #   ultiem-bang        de BIG BANG: een knal, een uitdijend heelal en een glanzend akkoord (~7 s)
@@ -233,6 +235,46 @@ def adem():
     return aanzet_uitsterf(uit, 0.05, 0.5)
 
 
+def smeed():
+    """Een slag op een aambeeld: een harde tik, metalen boventonen die lang nazingen en een doffe dreun."""
+    rng = np.random.default_rng(4111)
+    dur = 2.4
+    n = int(dur * SR)
+    t = tijdas(n)
+    tik = fft_filter(stereo_ruis(rng, n, 0.6), hp(1800, 2), piek(4200, 0.5, 6.0)) * np.exp(-t / 0.012)
+    ring = np.zeros(n)
+    for f, a, d in [(812.0, 1.0, 1.1), (1957.0, 0.7, 0.8), (3121.0, 0.45, 0.55), (4430.0, 0.3, 0.35), (2510.0, 0.35, 0.9), (6020.0, 0.15, 0.2)]:
+        ring += a * np.sin(2 * np.pi * f * t * (1 + 0.0006 * np.sin(2 * np.pi * 5 * t))) * np.exp(-t / d)
+    ring *= smoothstep(t / 0.002)
+    dreun = np.sin(2 * np.pi * 85 * t) * np.exp(-t / 0.18) * smoothstep(t / 0.003)
+    mono = 0.55 * ring / np.max(np.abs(ring)) + 0.6 * dreun
+    uit = np.stack([mono, np.roll(mono, 25)]) + tik * 1.2
+    uit = galm(uit, rng, rt60=2.2, nat=0.35, voorvertraging=0.02, demping_hz=7000)[:, :n]
+    return aanzet_uitsterf(uit, 0.001, 0.6)
+
+
+def grom():
+    """Een laag, dreigend gegrom dat aanzwelt: het wezen wordt wakker."""
+    rng = np.random.default_rng(4112)
+    dur = 3.2
+    n = int(dur * SR)
+    t = tijdas(n)
+    env = smoothstep(t / 1.1) * (1 - smoothstep((t - 2.4) / 0.8))
+    f0 = kontour(t, [(0.0, 42.0), (1.6, 58.0), (3.2, 46.0)])
+    bron = zaagtand(f0, hoogste=1800.0)
+    am = 0.5 + 0.5 * np.sin(2 * np.pi * (17 + 6 * np.sin(2 * np.pi * 0.4 * t)) * t)
+    bron = bron * am
+    lucht = fft_filter(rng.standard_normal(n), bp(150, 1200)) * 0.5
+    bron = bron / np.std(bron) + lucht / np.std(lucht) * 0.6
+    keel = fft_filter(bron, hp(30, 2), lp(1400, 2), piek(320, 0.4, 9.0), piek(700, 0.4, 5.0))
+    keel = np.tanh(1.8 * keel / np.std(keel)) * env
+    sub = np.sin(2 * np.pi * np.cumsum(f0) / SR) * env * 0.7
+    mono = keel + sub
+    uit = np.stack([mono, np.roll(mono, 60)])
+    uit = galm(uit, rng, rt60=2.6, nat=0.3, voorvertraging=0.03, demping_hz=3000)[:, :n]
+    return aanzet_uitsterf(uit, 0.05, 0.6)
+
+
 def koor_laag(rng, n, t, noten, t_aan, t_uit, aanzet, uitsterf, amp, stemmen=5, formanten=True):
     env = smoothstep((t - t_aan) / aanzet) * (1 - smoothstep((t - t_uit) / uitsterf))
     som = np.zeros((2, n))
@@ -362,6 +404,8 @@ GELUIDEN = {
     'mythisch-brul': brul,
     'mythisch-vleugel': vleugel,
     'mythisch-adem': adem,
+    'mythisch-smeed': smeed,
+    'mythisch-grom': grom,
     'ultiem-akkoord': akkoord,
     'ultiem-barst': barst,
     'ultiem-bang': bang,

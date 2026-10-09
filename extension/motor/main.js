@@ -62,13 +62,23 @@
     poll();
   }
 
+  // de programma's van de mythische film (mythisch.js): alleen bij een mythische kaart, per wezen
+  function mythModule(d) {
+    // kosmisch (trede 3) heeft ook eigen programma's: de ruimte met het zwarte gat (kosmisch.js)
+    if (d && d.zeldzaam && (d.trede | 0) === 3 && SPO.kosmisch) return SPO.kosmisch.module();
+    if (!d || !d.zeldzaam || (d.trede | 0) !== 4 || !SPO.mythisch || !SPO.zeldzaam || !SPO.zeldzaam.wezenVan) return null;
+    return SPO.mythisch.module(SPO.zeldzaam.wezenVan(d));
+  }
+
   function warm(data) {
     let mod = null;
+    let mythMod = null;
     // De afbeeldingen van dit cijfer maken we alvast, in kleine stukjes tussen de rest door.
     if (data) {
       try {
         const dd = SPO.maakData(data);
         mod = dd.opening !== 'pak' ? SPO.openingen[dd.opening] : null;
+        mythMod = mythModule(dd);
         SPO.audio.voorlaad(dd.opening, dd.seizoen, dd.zeldzaam);
         const sleutel = sleutelVan(dd);
         if (!artCache || artCache.sleutel !== sleutel) {
@@ -85,10 +95,12 @@
     if (!SPO.Motor) return;
     if (warmStaat) {
       // de motor staat al klaar; de programma's van deze opening komen er nog bij
-      if (mod && !warmStaat.motor.extra.has(mod.naam) && !warmStaat.motor.gl.isContextLost()) {
-        warmStaat.klaar = false;
-        warmStaat.motor.voegToe(mod);
-        opwarmVolg(warmStaat);
+      for (const m of [mod, mythMod]) {
+        if (m && !warmStaat.motor.extra.has(m.naam) && !warmStaat.motor.gl.isContextLost()) {
+          warmStaat.klaar = false;
+          warmStaat.motor.voegToe(m);
+          opwarmVolg(warmStaat);
+        }
       }
       return;
     }
@@ -99,6 +111,7 @@
       const motor = SPO.Motor.maak(canvas, {});
       if (!motor) return;
       if (mod) motor.voegToe(mod);
+      if (mythMod) motor.voegToe(mythMod);
       const staat = { canvas, motor, klaar: false, timer: 0 };
       warmStaat = staat;
       opwarmVolg(staat);
@@ -733,6 +746,8 @@
         motor.kwaliteit = kwaliteit;
         const opMod = d.opening !== 'pak' ? SPO.openingen[d.opening] : null;
         if (opMod) motor.voegToe(opMod);
+        const mythMod = mythModule(d);
+        if (mythMod) motor.voegToe(mythMod);
 
         // de afbeeldingen: uit de voorraad als je er al boven hing, anders nu maken
         const sleutel = sleutelVan(d);
