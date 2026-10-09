@@ -107,7 +107,7 @@
     { id: 'mythe', naam: 'Mythe', tekst: 'Trek een mythische kaart (kans 1/1000).', tier: 4, icoon: 'kroon', meet: (d) => vooruit(d.trede[4], 1) },
     { id: 'volle-ladder', naam: 'Volle ladder', tekst: 'Heb van elke trede een kaart: zeldzaam (1/10), glim (1/40), kosmisch (1/150) en mythisch (1/1000).', tier: 4, icoon: 'kroon', meet: (d) => vooruit(d.ladderVol, 4) },
     { id: 'perfecte-kaart', naam: 'De perfecte kaart', tekst: 'Haal een 10 op een kosmische of mythische kaart.', tier: 4, icoon: 'beker', meet: (d) => vooruit(d.perfect, 1) },
-    { id: 'fout-in-de-werkelijkheid', naam: 'Onmogelijk', tekst: 'Haal een 10 op een mythische kaart (1 op 1000 én een 10).', tier: 5, icoon: 'kroon', meet: (d) => vooruit(d.perfectMythisch, 1) },
+    { id: 'fout-in-de-werkelijkheid', naam: 'Pure Aura', tekst: 'Haal een 10 op een mythische kaart (1 op 1000 én een 10).', tier: 5, icoon: 'kroon', meet: (d) => vooruit(d.perfectMythisch, 1) },
     { id: 'topcijfer', naam: 'Topcijfer', tekst: 'Haal een 9 of hoger.', tier: 2, icoon: 'ster', meet: (d) => vooruit(d.negenPlus, 1) },
     { id: 'icoon', naam: 'Icoonkaart', tekst: 'Haal een 10.', tier: 4, icoon: 'beker', meet: (d) => vooruit(d.tien, 1) },
     { id: 'vijf-vakken', naam: 'Veelzijdig', tekst: 'Heb kaarten van 5 verschillende vakken.', tier: 0, icoon: 'boeken', meet: (d) => vooruit(d.vakken, 5) },
