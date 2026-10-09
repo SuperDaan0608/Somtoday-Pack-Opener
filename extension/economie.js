@@ -135,9 +135,13 @@
     return true;
   }
 
+  // zeldzaam: true/false (oud) of de trede 0..4 (v2.4): zeldzaam ×3, glim ×5, kosmisch ×8, mythisch ×15
+  const TREDE_KEER = [1, 3, 5, 8, 15];
+  const TREDE_NAAM = ['', 'Zeldzaam', 'Glim', 'Kosmisch', 'Mythisch'];
   const cijferMunten = (c, zeldzaam) => {
     const basis = c >= 10 ? 30 : c >= 9 ? 18 : c >= 8 ? 12 : c >= 7 ? 8 : c >= 5.5 ? 5 : 2;
-    return basis * (zeldzaam ? 3 : 1);
+    const t = zeldzaam === true ? 1 : Math.max(0, Math.min(4, zeldzaam | 0));
+    return basis * TREDE_KEER[t];
   };
 
   // Een geopend cijfer. id = de sig van het cijfer (ook de id in de galerij), dus galerij en direct tellen niet dubbel.
@@ -146,7 +150,8 @@
     return werk((s) => {
       if (s.nieuw) return 0; // de eerste keer regelt sweep() het startbedrag
       const n = cijferMunten(cijfer, zeldzaam);
-      return verdien(s, 'c:' + id, n, zeldzaam ? 'Zeldzaam cijfer geopend' : 'Cijfer geopend') ? n : 0;
+      const t = zeldzaam === true ? 1 : zeldzaam | 0;
+      return verdien(s, 'c:' + id, n, t ? TREDE_NAAM[t] + ' cijfer geopend' : 'Cijfer geopend') ? n : 0;
     });
   }
 
@@ -162,7 +167,7 @@
         if (verdien(s, id, n, reden)) erbij += n;
       };
       for (const e of Array.isArray(r[K.galerij]) ? r[K.galerij] : []) {
-        if (e && typeof e.id === 'string' && Number.isFinite(e.cijfer)) telop('c:' + e.id, cijferMunten(e.cijfer, e.zeldzaam === true), e.zeldzaam === true ? 'Zeldzaam cijfer geopend' : 'Cijfer geopend');
+        if (e && typeof e.id === 'string' && Number.isFinite(e.cijfer)) telop('c:' + e.id, cijferMunten(e.cijfer, (e.trede | 0) || e.zeldzaam === true), e.zeldzaam === true ? 'Zeldzaam cijfer geopend' : 'Cijfer geopend');
       }
       const gev = obj(r[K.gev]);
       for (const [vid, lijst] of Object.entries(gev)) {

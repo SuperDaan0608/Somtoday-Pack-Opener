@@ -19,7 +19,7 @@
 
   const SLEUTEL_GEOPEND = 'spo_geopend';
   const SLEUTEL_INSTELLINGEN = 'spo_instellingen';
-  const STANDAARD = { dagelijks: true, afdekking: true, geluid: true, snel: false, opening: 'pak', galerij: true, laag: false, kaartThema: 'auto', kaartRand: 'standaard', zeldzaam: true, seizoen: true, gemiddelden: true, knop: true, uitval: true };
+  const STANDAARD = { dagelijks: true, afdekking: true, geluid: true, snel: false, opening: 'pak', galerij: true, laag: false, kaartThema: 'auto', kaartRand: 'standaard', zeldzaam: true, seizoen: true, gemiddelden: true, knop: true, uitval: true, huisdier: true, meekijken: true };
   const SLEUTEL_GALERIJ = 'spo_galerij';
   const SLEUTEL_DICHT = 'spo_dicht';
   const SLEUTEL_HUB_OPEN = 'spo_hub_open'; // { tab, ts }: de popup vraagt om het paneel te openen zodra Somtoday geladen is
@@ -379,7 +379,7 @@
         if (!e || typeof e.kaart === 'string' || !Number.isFinite(e.cijfer)) continue;
         await new Promise((r) => (window.requestIdleCallback ? requestIdleCallback(r, { timeout: 500 }) : setTimeout(r, 30)));
         try {
-          const d = SPO.maakData({ vak: e.vak, cijfer: e.cijfer, onderwerp: e.onderwerp, weging: e.weging, opening: e.opening || 'pak', zeldzaam: e.zeldzaam === true, kaartThema: instellingen.kaartThema, kaartRand: instellingen.kaartRand, kaartOntwerp: instellingen.kaartOntwerp });
+          const d = SPO.maakData({ vak: e.vak, cijfer: e.cijfer, onderwerp: e.onderwerp, weging: e.weging, opening: e.opening || 'pak', zeldzaam: e.zeldzaam === true, trede: e.trede | 0, kaartThema: instellingen.kaartThema, kaartRand: instellingen.kaartRand, kaartOntwerp: instellingen.kaartOntwerp });
           nieuw[e.id] = SPO.art.maakMiniatuur(d, SPO.art.maakKaartLagen(d));
         } catch (x) { /* dit plaatje dan niet */ }
       }
@@ -402,6 +402,12 @@
       if (wijzigingen[SLEUTEL_DICHT]) dicht = schoonDicht(wijzigingen[SLEUTEL_DICHT].newValue);
       if (wijzigingen[SLEUTEL_INSTELLINGEN]) instellingen = { ...STANDAARD, ...(wijzigingen[SLEUTEL_INSTELLINGEN].newValue || {}) };
       if (wijzigingen.spo_update) verouderd = isVerouderd(wijzigingen.spo_update.newValue);
+      // Galerij: 'Animatie opnieuw' (v2.4). Alleen een verse vraag, en alleen als het paneel hier open is of Somtoday zichtbaar is.
+      const rp = wijzigingen.spo_replay && wijzigingen.spo_replay.newValue;
+      if (rp && Date.now() - (rp.ts || 0) < 8000 && document.visibilityState === 'visible' && ingelogd && !verouderd) {
+        if (paneel) sluitPaneel(false);
+        setTimeout(() => startProef(rp), 150);
+      }
       if (wijzigingen[SLEUTEL_ACCOUNT]) {
         ingelogd = isIngelogd(wijzigingen[SLEUTEL_ACCOUNT].newValue);
         accountId = ingelogd ? String(wijzigingen[SLEUTEL_ACCOUNT].newValue.account || '') : '';
@@ -454,10 +460,68 @@
   // Eén op de tien kaarten is zeldzaam (instelling 'zeldzaam'). De uitkomst ligt vast per cijfer en per account: hij volgt uit
   // een hash van het cijfer (sig) en je account-id. Opnieuw openen, de pagina verversen of afdekken en nog eens openen geeft dus
   // altijd dezelfde uitkomst: herkansen tot je een zeldzame kaart hebt kan niet.
-  function zeldzaamVoor(rij) {
-    if (instellingen.zeldzaam === false) return false;
-    return vastGetal(rij.sig + '|' + accountId + '|zeldzaam') < 0.1;
+  // De ladder (v2.4): binnen die één op de tien bepaalt dezelfde vaste waarde hoe zeldzaam:
+  //   < 0,001 MYTHISCH (1 op 1000) · < 0,001 + 1/150 KOSMISCH · < … + 1/40 GLIM · < 0,1 ZELDZAAM · anders gewoon
+  const LADDER = [0.001, 0.001 + 1 / 150, 0.001 + 1 / 150 + 1 / 40, 0.1];
+  function tredeVoor(rij) {
+    if (instellingen.zeldzaam === false) return 0;
+    const v = vastGetal(rij.sig + '|' + accountId + '|zeldzaam');
+    return v < LADDER[0] ? 4 : v < LADDER[1] ? 3 : v < LADDER[2] ? 2 : v < LADDER[3] ? 1 : 0;
   }
+  const zeldzaamVoor = (rij) => tredeVoor(rij) >= 1;
+  // v2.4: vervloekte kaart. Een onvoldoende (onder de 5,5) is in 1 van de 15 gevallen vervloekt.
+  // Net als de trede ligt dit vast per cijfer en per account: opnieuw openen verandert er niets aan.
+  const VLOEK_KANS = 1 / 15;
+  const vloekVoor = (rij) => rij.d.cijfer < 5.5 && vastGetal(rij.sig + '|' + accountId + '|vloek') < VLOEK_KANS;
+  // Korte paarse glitch over het scherm met een eng geluid, direct na de onthulling van een vervloekte kaart.
+  function toonVloek() {
+    try {
+      document.querySelectorAll('spo-vloek').forEach((e) => e.remove());
+      const host = document.createElement('spo-vloek');
+      const w = host.attachShadow({ mode: 'open' });
+      const stil = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const st = document.createElement('style');
+      st.textContent = `
+        :host { position: fixed; inset: 0; z-index: 2147483646; pointer-events: none; }
+        .v { position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(90,10,160,.3), rgba(30,0,60,.88));
+          animation: ${stil ? 'zacht 2.2s ease forwards' : 'knip 2.8s steps(1, end) forwards'}; }
+        .s { position: absolute; left: 0; right: 0; height: 9%; background: rgba(190,90,255,.5); mix-blend-mode: screen; animation: ${stil ? 'none' : 'sl .5s steps(2, end) 5'}; opacity: ${stil ? 0 : 1}; }
+        .t { position: absolute; left: 0; right: 0; top: 42%; text-align: center; font: 900 clamp(38px, 9vw, 110px)/1 Impact, 'Arial Black', sans-serif; letter-spacing: .08em; color: #e6b3ff;
+          text-shadow: 3px 0 #ff2bd6, -3px 0 #29e0ff, 0 0 30px #9b30ff; animation: ${stil ? 'zacht 2.2s ease forwards' : 'tekst 2.8s steps(1, end) forwards'}; }
+        .t small { display: block; font: 600 clamp(14px, 2.4vw, 24px)/1.3 system-ui, sans-serif; letter-spacing: .02em; margin-top: 12px; color: #fff; text-shadow: 0 2px 8px #000; }
+        @keyframes knip { 0% { opacity: 0; } 8% { opacity: 1; transform: translateX(-14px); filter: hue-rotate(40deg); } 14% { transform: translateX(10px) skewX(6deg); } 22% { transform: none; filter: none; opacity: .75; }
+          30% { opacity: 1; transform: translateX(8px); filter: hue-rotate(-30deg) saturate(2); } 38% { transform: none; opacity: .7; filter: none; } 55% { opacity: .9; transform: translateY(-6px); } 62% { transform: none; opacity: .7; } 100% { opacity: 0; } }
+        @keyframes tekst { 0%, 10% { opacity: 0; } 12% { opacity: 1; transform: translateX(-12px); } 16% { transform: translateX(14px) skewX(-8deg); } 20% { transform: none; }
+          45% { transform: translateX(-6px); } 48% { transform: none; } 80% { opacity: 1; } 100% { opacity: 0; } }
+        @keyframes sl { 0% { top: 10%; } 25% { top: 70%; } 50% { top: 30%; } 75% { top: 85%; } 100% { top: 50%; } }
+        @keyframes zacht { 0% { opacity: 0; } 25% { opacity: 1; } 75% { opacity: 1; } 100% { opacity: 0; } }`;
+      const v = document.createElement('div'); v.className = 'v';
+      const s1 = document.createElement('div'); s1.className = 's';
+      const t = document.createElement('div'); t.className = 't'; t.textContent = 'VERVLOEKT';
+      const k = document.createElement('small'); k.textContent = 'Een onvoldoende, en nu zit er een vloek op.'; t.append(k);
+      w.append(st, v, s1, t);
+      (document.body || document.documentElement).appendChild(host);
+      setTimeout(() => host.remove(), 3000);
+      if (instellingen.geluid !== false) new Audio(chrome.runtime.getURL('sounds/halloween-huil.mp3')).play().catch(() => {});
+    } catch (e) { /* geen effect is ook goed */ }
+  }
+  // Meekijken (v2.4): een vriend opent een kosmische of mythische kaart. We sturen hem alleen aan vrienden aan wie je al
+  // al je kaarten laat zien (de achtergrond kiest wie). Staat 'Vrienden laten meekijken' uit, dan gaat er niets weg.
+  function stuurKijk(rij, d, trede) {
+    if (trede < 3 || instellingen.meekijken === false) return;
+    try {
+      chrome.runtime.sendMessage({ type: 'spo-kijk-stuur', data: { vak: d.vak, cijfer: d.cijfer, trede, opening: openingVoor(rij), seizoen: seizoenKeuze() } }).catch(() => {});
+    } catch (e) { /* achtergrond niet bereikbaar */ }
+  }
+  // Klik op "kijk mee!": dezelfde animatie op dit scherm (zoals 'Animatie opnieuw' in de galerij) en het emoji-balkje.
+  document.addEventListener('spo-kijk', (e) => {
+    const d = e.detail || {};
+    const k = d.kijk;
+    if (!k || typeof d.van !== 'string' || !ingelogd) return;
+    if (paneel) sluitPaneel(false);
+    if (!verouderd) startProef({ vak: k.vak, cijfer: k.cijfer, onderwerp: 'Meekijken', trede: k.trede, opening: k.opening, seizoen: k.seizoen });
+    document.dispatchEvent(new CustomEvent('spo-kijk-balk', { detail: { van: d.van, naam: String(d.naam || '').slice(0, 24) } }));
+  });
   // cyrb53: een snelle, vaste hash naar een getal tussen 0 en 1
   function vastGetal(t) {
     let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
@@ -659,13 +723,16 @@
       stil: !instellingen.geluid,
       opening: openingVoor(rij),
       zeldzaam: zeldzaamVoor(rij),
+      trede: tredeVoor(rij),
       seizoen: seizoenKeuze(),
       direct,
       opOnthuld() {
         if (gemarkeerd) return;
         gemarkeerd = true;
         markeer(rij.sig);
-        try { if (window.SPOEco) window.SPOEco.verdienCijfer(rij.sig, d.cijfer, !!window.__somPack.zeldzaam); } catch (e) { /* geen munten */ }
+        try { if (window.SPOEco) window.SPOEco.verdienCijfer(rij.sig, d.cijfer, tredeVoor(rij)); } catch (e) { /* geen munten */ }
+        try { if (window.SPOHuisdier) window.SPOHuisdier.xp({ id: rij.sig, cijfer: d.cijfer, trede: tredeVoor(rij) }); } catch (e) { /* geen huisdier */ }
+        if (vloekVoor(rij)) setTimeout(toonVloek, 450);
       },
       // de miniatuur van de kaart, kort na de onthulling: bewaren voor de galerij (alleen in deze browser)
       opKaartKlaar(k) {
@@ -675,7 +742,9 @@
         try {
           chrome.storage.local.get(SLEUTEL_GALERIJ).then((r) => {
             const lijst = Array.isArray(r[SLEUTEL_GALERIJ]) ? r[SLEUTEL_GALERIJ].filter((x) => x && x.id !== rij.sig) : [];
-            lijst.unshift({ id: rij.sig, ts: Date.now(), vak: String(k.vak).slice(0, 60), cijfer: k.cijfer, onderwerp: String(k.onderwerp).slice(0, 120), weging: k.weging, opening: k.opening, tier: k.tier, zeldzaam: !!k.zeldzaam, kaart: k.kaart });
+            const nieuw = { id: rij.sig, ts: Date.now(), vak: String(k.vak).slice(0, 60), cijfer: k.cijfer, onderwerp: String(k.onderwerp).slice(0, 120), weging: k.weging, opening: k.opening, tier: k.tier, zeldzaam: !!k.zeldzaam, trede: tredeVoor(rij), kaart: k.kaart };
+            if (vloekVoor(rij)) nieuw.vloek = true;
+            lijst.unshift(nieuw);
             return chrome.storage.local.set({ [SLEUTEL_GALERIJ]: lijst.slice(0, 150) });
           }).then(() => controleerPrestaties(), () => {});
         } catch (e) {
@@ -697,6 +766,7 @@
       bezig = false;
       return false;
     }
+    stuurKijk(rij, d, tredeVoor(rij));
     return true;
   }
 
@@ -727,7 +797,7 @@
       const rij = rijen.find((r) => r.host === host);
       // dezelfde gegevens als bij open(): zo herkent de animatie dat de afbeeldingen al klaarstaan
       if (typeof window.__somPackWarm === 'function') {
-        window.__somPackWarm(rij && { vak: rij.d.vak, cijfer: rij.d.cijfer, onderwerp: rij.d.onderwerp || 'Nieuw cijfer', weging: rij.d.weging, snel: !!instellingen.snel, laag: !!instellingen.laag, persoon: leesNaam(), kaartThema: instellingen.kaartThema, kaartRand: instellingen.kaartRand, kaartOntwerp: instellingen.kaartOntwerp, opening: openingVoor(rij), zeldzaam: zeldzaamVoor(rij), seizoen: seizoenKeuze() });
+        window.__somPackWarm(rij && { vak: rij.d.vak, cijfer: rij.d.cijfer, onderwerp: rij.d.onderwerp || 'Nieuw cijfer', weging: rij.d.weging, snel: !!instellingen.snel, laag: !!instellingen.laag, persoon: leesNaam(), kaartThema: instellingen.kaartThema, kaartRand: instellingen.kaartRand, kaartOntwerp: instellingen.kaartOntwerp, opening: openingVoor(rij), zeldzaam: zeldzaamVoor(rij), trede: tredeVoor(rij), seizoen: seizoenKeuze() });
       }
     } catch (x) {
       /* opwarmen is een extraatje */
@@ -947,6 +1017,9 @@
     }
   }
 
+  // Klik op een melding rechtsboven (meldingen.js): meteen het goede tabblad openen.
+  document.addEventListener('spo-open-tab', (e) => { if (e.detail === 'team' || e.detail === 'vrienden' || e.detail === 'galerij') openPaneel(e.detail); });
+
   function openPaneel(tab) {
     if (!document.body || bezig || !window.__SPO) return false;
     if (paneel) {
@@ -1071,8 +1144,9 @@
       stil: !instellingen.geluid,
       kaartThema: instellingen.kaartThema,
       kaartRand: instellingen.kaartRand, kaartOntwerp: instellingen.kaartOntwerp,
-      opening: instellingen.opening,
-      zeldzaam: d.zeldzaam === true,
+      opening: OPENINGEN.includes(d.opening) ? d.opening : instellingen.opening,
+      zeldzaam: d.zeldzaam === true || (d.trede | 0) >= 1,
+      trede: Math.max(0, Math.min(4, d.trede | 0)) || (d.zeldzaam === true ? 1 : 0),
       seizoen: ['auto', 'halloween', 'kerst', 'zomer', 'geen'].includes(d.seizoen) ? d.seizoen : 'auto',
       direct: true, // de klik in het paneel is er al geweest
       opGesloten() {

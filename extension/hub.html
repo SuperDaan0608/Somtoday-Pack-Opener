@@ -6,6 +6,7 @@
   <title>Pack Opener</title>
   <link rel="icon" href="icons/icon-32.png" />
   <link rel="stylesheet" href="hub.css" />
+  <link rel="stylesheet" href="rondleiding.css" />
 </head>
 <body>
   <!-- Pictogrammen (Lucide, ISC): één keer hier, overal met <use> -->
@@ -164,7 +165,15 @@
               </div>
             </div>
             <div class="veld proef">
-              <label class="vink" title="Zeldzaam met een 9,5 of hoger: dan krijg je de legendarische animatie"><input type="checkbox" id="proef-zeldzaam" /> Als zeldzame kaart (met 9,5+ wordt hij legendarisch)</label>
+              <label class="vink" for="proef-trede" title="Zeldzaam met een 9,5 of hoger wordt legendarisch; een 10 op kosmisch of mythisch is het allerhoogste">Zeldzaamheid
+                <select id="proef-trede">
+                  <option value="0">Gewoon</option>
+                  <option value="1">Zeldzaam (1 op 10)</option>
+                  <option value="2">Glim (1 op 40)</option>
+                  <option value="3">Kosmisch (1 op 150)</option>
+                  <option value="4">Mythisch (1 op 1000)</option>
+                </select>
+              </label>
               <label class="vink">Thema
                 <select id="proef-seizoen">
                   <option value="auto">Automatisch (volgens de datum)</option>
@@ -211,6 +220,8 @@
           <label class="schakel"><input type="checkbox" id="afdekking" /><span class="knopje"></span><span class="schakel-tekst">Cijfers afdekken<small>Op Somtoday blijven nieuwe cijfers verborgen tot je ze opent.</small></span></label>
           <label class="schakel"><input type="checkbox" id="gemiddelden" /><span class="knopje"></span><span class="schakel-tekst">Gemiddelden ook afdekken<small>Vakgemiddelden en Cijferoverzicht blijven verborgen zolang je een nieuw cijfer nog niet hebt geopend.</small></span></label>
           <label class="schakel"><input type="checkbox" id="uitval" /><span class="knopje"></span><span class="schakel-tekst">Uitval-feest<small>Confetti en een label als een les op het rooster uitvalt.</small></span></label>
+          <label class="schakel"><input type="checkbox" id="huisdier" /><span class="knopje"></span><span class="schakel-tekst">Huisdier tonen<small>Een klein beestje linksonder op Somtoday dat groeit van je cijfers. Het blijft ook als je het verbergt: het slaapt dan gewoon door.</small></span></label>
+          <label class="schakel"><input type="checkbox" id="meekijken" /><span class="knopje"></span><span class="schakel-tekst">Vrienden laten meekijken<small>Open jij een KOSMISCHE of MYTHISCHE kaart, dan krijgen vrienden aan wie je al je kaarten laat zien een melding en kunnen ze dezelfde animatie op hun eigen scherm afspelen en emoji naar je gooien. Het is geen videostream: zij zien de animatie op hun eigen computer, met het vak en cijfer dat zij toch al van je kunnen zien.</small></span></label>
           <label class="schakel"><input type="checkbox" id="knop" /><span class="knopje"></span><span class="schakel-tekst">Knop op de pagina tonen<small>De knop “Pack Opener” rechtsonder op Somtoday. Staat hij uit, dan open je dit paneel via het icoon van de extensie in je browser.</small></span></label>
         </div>
 
@@ -228,6 +239,9 @@
         <div class="schakels">
           <label class="schakel"><input type="checkbox" id="galerij" /><span class="knopje"></span><span class="schakel-tekst">Galerij bijhouden<small>Bewaart je geopende kaarten, alleen in deze browser.</small></span></label>
         </div>
+        <h3 class="sectie">Hulp</h3>
+        <p class="onder">Nieuw bij de Pack Opener? In een minuutje zie je wat alles is.</p>
+        <button type="button" class="knop rl-opnieuw" id="rondleiding-opnieuw">Rondleiding opnieuw</button>
         <p class="melding" id="inst-melding" role="status" aria-live="polite"></p>
       </section>
     </main>
@@ -237,7 +251,9 @@
   </div>
   <script src="account.js"></script>
   <script src="poort.js"></script>
+  <script src="ladder.js"></script>
   <script src="hub.js"></script>
+  <script src="rondleiding.js"></script>
   <script src="hub-munten.js"></script>
   <script src="updatemelding.js"></script>
 </body>

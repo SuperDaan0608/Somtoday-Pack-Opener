@@ -25,7 +25,7 @@
   const BACKUP_SLEUTELS = [
     'spo_galerij', 'spo_geopend', 'spo_dicht', 'spo_instellingen', 'spo_munten', 'spo_munten_log', 'spo_munten_ids',
     'spo_dagelijks', 'spo_winkel', 'spo_profiel', 'spo_prestaties', 'spo_prestaties_gezien', 'spo_stats', 'spo_team',
-    'spo_gevechten', 'spo_vrienden', 'spo_vrienden_sec', 'spo_uitval_gezien',
+    'spo_gevechten', 'spo_vrienden', 'spo_vrienden_sec', 'spo_uitval_gezien', 'spo_huisdier', 'spo_rondleiding',
   ];
   const ITERATIES = 250000;
 
@@ -177,6 +177,14 @@
           else if (typeof w === 'number' && typeof h === 'number') u[s] = Math.max(w, h);
         }
         return u;
+      }
+      case 'spo_rondleiding':
+        return Math.max(Number(hier) || 0, Number(daar) || 0); // eenmaal gezien blijft gezien
+      case 'spo_huisdier': {
+        // het huisdier groeit alleen: de hoogste xp wint (en de bijbehorende naam en gezien-lijst gaan mee)
+        const h = obj(hier), d = obj(daar);
+        const w = (d.xp || 0) > (h.xp || 0) ? d : h, a = w === d ? h : d;
+        return Object.assign({}, a, w, { xp: Math.max(h.xp || 0, d.xp || 0), ids: Array.from(new Set([].concat(Array.isArray(d.ids) ? d.ids : [], Array.isArray(h.ids) ? h.ids : []))).slice(-400) });
       }
       default:
         return vers ? daar : hier; // de rest (instellingen, team, vrienden, ...): deze browser gaat voor, behalve na een nieuwe installatie

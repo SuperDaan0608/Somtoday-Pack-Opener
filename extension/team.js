@@ -55,12 +55,14 @@
       const img = new Image(); img.src = k.kaart; img.alt = ''; img.draggable = false; d.append(img); d.classList.add('met-plaatje');
     } else {
       d.append(el('span', 'mk-cj', fmt(k.cijfer)), el('span', 'mk-vk', k.vak || ''));
-      if (k.z) d.append(el('i', 'mk-z', 'Z'));
+      const tr = Number.isInteger(k.t) ? k.t : k.z ? 1 : 0;
+      if (tr) { const b = el('i', 'mk-z mk-t' + tr, globalThis.SPOLadder.KORT[tr]); b.title = globalThis.SPOLadder.label(tr); d.append(b); }
     }
+    if (k.v) { d.classList.add('vloek'); d.append(el('i', 'vloek-badge', 'VLOEK')); }
     if (naam) d.setAttribute('aria-label', naam);
     return d;
   }
-  const mijnKaart = (e) => ({ vak: e.vak, cijfer: e.cijfer, tier: e.tier | 0, z: e.zeldzaam === true, kaart: e.kaart, id: e.id });
+  const mijnKaart = (e) => ({ vak: e.vak, cijfer: e.cijfer, tier: e.tier | 0, z: e.zeldzaam === true || (e.trede | 0) >= 1, t: Math.max(0, Math.min(4, e.trede | 0)) || (e.zeldzaam === true ? 1 : 0), kaart: e.kaart, id: e.id, v: e.vloek === true });
 
   // ---- prestaties: reddingen onthouden en een melding bij een nieuwe badge ----
   async function nieuweBadges(reddingen) {
@@ -217,6 +219,7 @@
       b.style.setProperty('--gl', GLOED[e.tier | 0]);
       const img = new Image(); img.src = e.kaart; img.alt = ''; img.loading = 'lazy'; img.draggable = false;
       b.append(img, el('span', 'kies-cj', fmt(e.cijfer)));
+      if (e.vloek) { b.classList.add('vloek'); b.append(el('i', 'vloek-badge', 'VLOEK')); b.setAttribute('aria-label', b.getAttribute('aria-label') + ', vervloekt'); }
       if (aan) b.append(el('i', 'kies-vink', team.ids[0] === e.id ? 'K' : '✓'));
       b.addEventListener('click', () => {
         if (aan) { team.ids = team.ids.filter((x) => x !== e.id); if (!team.ids.length) team = null; }
@@ -679,8 +682,9 @@
       $('duel-keeper').replaceChildren(kaartEl(ev.keeper.z === ik ? keeperKaart : Object.assign({}, keeperKaart, { kaart: null })));
       $('duel-schutter').className = 'duel-kaart schutter'; $('duel-keeper').className = 'duel-kaart keeper';
       $('duel-rol').textContent = ikSchiet ? 'Jij schiet! Klik zo snel als je kunt.' : 'Jij verdedigt! Klik zo snel als je kunt.';
-      const mf = G.klikFactor(mijnKaartD, mijnChem), hf = G.klikFactor(hunKaartD, hunChem);
+      const mf = G.klikFactor(mijnKaartD, mijnChem, G.auraVan ? G.auraVan(teams[ik]) : 0), hf = G.klikFactor(hunKaartD, hunChem, G.auraVan ? G.auraVan(teams[ik === 'A' ? 'B' : 'A']) : 0);
       $('duel-bonus').textContent = `Jouw ${ikSchiet ? 'schutter' : 'keeper'} (${fmt(mijnKaartD.cijfer)}): elke klik telt ×${fmtFlex(mf)}${mijnChem ? ` (chemie ${mijnChem})` : ''}. Bij ${o.hunNaam} ×${fmtFlex(hf)}${hunChem ? ` (chemie ${hunChem})` : ''}.`;
+      if (mijnKaartD.v || hunKaartD.v) $('duel-bonus').textContent += ` ${mijnKaartD.v ? 'Jouw kaart is vervloekt: sterker, maar de vloek kan toeslaan.' : ''}${hunKaartD.v ? ` De kaart van ${o.hunNaam} is vervloekt.` : ''}`;
       $('kl-mijn').textContent = '0'; $('kl-hun').textContent = '0';
       $('meter-mijn').style.width = '50%'; $('meter-hun').style.width = '50%';
       $('duel-teller').textContent = ''; $('duel-teller').className = 'duel-teller';
@@ -711,11 +715,35 @@
       const eerder = kn.heeft('kl:' + k); // de ander kan al zijn begonnen
       if (eerder) verwerkHun(eerder);
       let open = true;
-      const tik = () => {
-        if (!open) return;
+      // Anti-autoclicker: alleen echte klikken (isTrusted), hoogstens ~15 per seconde, en een autoclicker klikt veel te
+      // regelmatig (een mens wisselt altijd een beetje). Zien we dat, dan tellen je kliks in dit duel niet.
+      const momenten = [];
+      let autoclicker = false;
+      // Alleen een machine klikt zó strak: over de laatste 30 kliks wijkt elke tussentijd gemiddeld minder dan 2,5 ms af
+      // (en minder dan 3%). Een mens die op een beat tikt, zit daar ruim boven (meestal 10-30 ms).
+      const teRegelmatig = () => {
+        if (momenten.length < 31) return false;
+        const m = momenten.slice(-31), d = [];
+        for (let i = 1; i < m.length; i++) d.push(m[i] - m[i - 1]);
+        const gem = d.reduce((a, x) => a + x, 0) / d.length;
+        const sd = Math.sqrt(d.reduce((a, x) => a + (x - gem) * (x - gem), 0) / d.length);
+        return gem > 0 && sd < 2.5 && sd / gem < 0.03;
+      };
+      const tik = (e) => {
+        if (!open || autoclicker) return;
+        if (e && e.isTrusted === false) return;
         const nu = performance.now();
-        if (nu - vorige < 30) return; // sneller dan ~30 per seconde is geen hand meer
+        if (nu - vorige < 65) return; // sneller dan ~15 per seconde is geen hand meer
         vorige = nu;
+        momenten.push(nu);
+        if (teRegelmatig()) {
+          autoclicker = true;
+          mijn = 0;
+          $('kl-mijn').textContent = '0';
+          $('duel-rol').textContent = 'Autoclicker gezien: je kliks tellen in dit duel niet.';
+          meter();
+          return;
+        }
         if (mijn >= G.KLIK_MAX) return;
         mijn++;
         $('kl-mijn').textContent = mijn;
@@ -725,8 +753,8 @@
         trilVoor(12);
         if (mijn % 3 === 0) speel('klik', 0.3);
       };
-      const onKey = (e) => { if ((e.code === 'Space' || e.key === ' ') && !e.repeat) { e.preventDefault(); tik(); } };
-      const onPtr = (e) => { e.preventDefault(); tik(); };
+      const onKey = (e) => { if ((e.code === 'Space' || e.key === ' ') && !e.repeat) { e.preventDefault(); tik(e); } };
+      const onPtr = (e) => { e.preventDefault(); tik(e); };
       $('klik').disabled = false; $('klik').textContent = 'KLIK!';
       $('klik').addEventListener('pointerdown', onPtr);
       document.addEventListener('keydown', onKey, true);
@@ -741,6 +769,7 @@
         $('duel-teller').textContent = ((KLIK_MS - (performance.now() - t0)) / 1000).toFixed(1).replace('.', ',');
       }
       open = false;
+      if (!autoclicker && teRegelmatig()) { autoclicker = true; mijn = 0; }
       $('klik').removeEventListener('pointerdown', onPtr);
       document.removeEventListener('keydown', onKey, true);
       $('klik').disabled = true;
@@ -756,10 +785,19 @@
       // wie wint?
       const goal = u.goal;
       const iktel = ikSchiet ? u.sa : u.sk, hunTel = ikSchiet ? u.sk : u.sa;
-      const jijWint = iktel > hunTel;
-      $('duel-teller').textContent = goal ? 'GOAL!' : 'GEREDDEN!';
+      const jijWint = u.keert ? goal === ikSchiet : iktel > hunTel;
+      $('duel-teller').textContent = u.keert ? 'VLOEK!' : goal ? 'GOAL!' : 'GEREDDEN!';
       $('duel-teller').className = 'duel-teller uit-' + (goal ? 'goal' : 'redding') + (jijWint ? ' win' : ' verlies');
       $('duel-bonus').textContent = `Jij: ${mijn} kliks ×${fmtFlex(mf)} = ${fmtFlex(iktel)}. ${o.hunNaam}: ${hunC} kliks ×${fmtFlex(hf)} = ${fmtFlex(hunTel)}.`;
+      if (u.keert) {
+        // De vloek sloeg toe: de uitslag van de kliks telt niet. Voor het team van de vervloekte kaart is dit een minpunt.
+        const mijnVloek = u.keert.z === ik;
+        const wat = u.keert.rol === 'schutter' ? 'schoot er expres naast' : 'liet de bal er expres in';
+        $('duel-bonus').textContent = mijnVloek
+          ? `VLOEK! Jouw vervloekte kaart keerde zich tegen je en ${wat}. Een minpunt voor jouw team.`
+          : `VLOEK! De vervloekte kaart van ${o.hunNaam} keerde zich tegen zijn eigen team en ${wat}. Een punt voor jou.`;
+        melding(mijnVloek ? 'De vloek sloeg toe: je eigen kaart werkte tegen.' : `De vloek sloeg toe bij ${o.hunNaam}.`, mijnVloek);
+      }
       if (goal) { speel('gejuich', 0.8); speel('boem', 0.6); trilVoor([80, 40, 160]); } else { speel('boem', 0.5); trilVoor(60); }
       duelEl.classList.add('schud-groot');
       await wacht(2300);

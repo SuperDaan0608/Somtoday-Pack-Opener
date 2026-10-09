@@ -26,6 +26,7 @@
   }
 
   const G = () => globalThis.SPOGevecht || null;
+  const tredeVan = (e) => Math.max(0, Math.min(4, (e && e.trede) | 0)) || (e && e.zeldzaam === true ? 1 : 0);
   const getal = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : 0);
 
   // ---- iconen: een medaille (zeshoek) in de kleur van het niveau, met een lijntekening erin ----
@@ -97,13 +98,19 @@
     { id: 'tien-op-rij', naam: 'Tien op rij', tekst: 'Haal 10 voldoendes (5,5 of hoger) achter elkaar.', tier: 2, icoon: 'vlam', meet: (d) => vooruit(d.reeks, 10) },
     { id: 'comeback', naam: 'Comeback', tekst: 'Haal in een vak minstens 2 punten meer dan je vorige cijfer.', tier: 1, icoon: 'pijl', meet: (d) => ({ nu: Math.min(2, Math.max(0, d.besteStijging)), doel: 2 }) },
     { id: 'alles-goud', naam: 'Alles goud', tekst: 'Heb in al je vakken een goudkaart (7 of hoger), in minstens 3 vakken.', tier: 3, icoon: 'kroon', meet: (d) => ({ nu: d.vakkenMetGoud, doel: Math.max(3, d.vakken) }) },
-    { id: 'zeldzaam', naam: 'Zeldzaam!', tekst: 'Trek een zeldzame kaart.', tier: 2, icoon: 'diamant', meet: (d) => vooruit(d.zeldzaam, 1) },
+    { id: 'zeldzaam', naam: 'Zeldzaam!', tekst: 'Trek een zeldzame kaart (kans 1/10).', tier: 2, icoon: 'diamant', meet: (d) => vooruit(d.zeldzaam, 1) },
     { id: 'drie-zeldzaam', naam: 'Zeldzaam geluk', tekst: 'Trek 3 zeldzame kaarten.', tier: 3, icoon: 'diamant', meet: (d) => vooruit(d.zeldzaam, 3) },
     { id: 'legendarisch', naam: 'Legendarisch', tekst: 'Trek een zeldzame kaart met een 9,5 of hoger.', tier: 4, icoon: 'kroon', meet: (d) => vooruit(d.legendarisch, 1) },
+    { id: 'eerste-glim', naam: 'Eerste glim', tekst: 'Trek een glimkaart (kans 1/40, of nog zeldzamer).', tier: 3, icoon: 'ster', meet: (d) => vooruit(d.trede[2], 1) },
+    { id: 'sterrenkijker', naam: 'Sterrenkijker', tekst: 'Trek 3 kosmische (kans 1/150) of mythische kaarten.', tier: 4, icoon: 'ster', meet: (d) => vooruit(d.trede[3], 3) },
+    { id: 'mythe', naam: 'Mythe', tekst: 'Trek een mythische kaart (kans 1/1000).', tier: 4, icoon: 'kroon', meet: (d) => vooruit(d.trede[4], 1) },
+    { id: 'volle-ladder', naam: 'Volle ladder', tekst: 'Heb van elke trede een kaart: zeldzaam (1/10), glim (1/40), kosmisch (1/150) en mythisch (1/1000).', tier: 4, icoon: 'kroon', meet: (d) => vooruit(d.ladderVol, 4) },
+    { id: 'perfecte-kaart', naam: 'De perfecte kaart', tekst: 'Haal een 10 op een kosmische of mythische kaart.', tier: 4, icoon: 'beker', meet: (d) => vooruit(d.perfect, 1) },
     { id: 'topcijfer', naam: 'Topcijfer', tekst: 'Haal een 9 of hoger.', tier: 2, icoon: 'ster', meet: (d) => vooruit(d.negenPlus, 1) },
     { id: 'icoon', naam: 'Icoonkaart', tekst: 'Haal een 10.', tier: 4, icoon: 'beker', meet: (d) => vooruit(d.tien, 1) },
     { id: 'vijf-vakken', naam: 'Veelzijdig', tekst: 'Heb kaarten van 5 verschillende vakken.', tier: 0, icoon: 'boeken', meet: (d) => vooruit(d.vakken, 5) },
     { id: 'vier-groepen', naam: 'Van alles wat', tekst: 'Heb een kaart uit elke vakgroep: Exact, Talen, Mens & maatschappij en Kunst & sport.', tier: 1, icoon: 'groepen', meet: (d) => vooruit(d.groepen, 4) },
+    { id: 'vervloekt', naam: 'Vervloekt', tekst: 'Trek een vervloekte kaart: een zeldzame kaart met een onvoldoende.', tier: 3, icoon: 'spook', meet: (d) => vooruit(d.vloek, 1) },
     { id: 'halloween', naam: 'Spookpakje', tekst: 'Open het Halloween-pakje (1 oktober tot en met 2 november).', tier: 3, icoon: 'spook', meet: (d) => vooruit(d.halloween ? 1 : 0, 1) },
     { id: 'alle-openingen', naam: 'Alles geprobeerd', tekst: 'Open een pakket met elk van de 7 openingen.', tier: 2, icoon: 'pakket', meet: (d) => vooruit(d.openingen, OPENINGEN.length) },
     { id: 'eerste-zege', naam: 'Eerste zege', tekst: 'Win je eerste gevecht tegen een vriend.', tier: 0, icoon: 'schild', meet: (d) => vooruit(d.zeges, 1) },
@@ -169,8 +176,13 @@
       zeldzaam: gal.filter((e) => e.zeldzaam === true).length,
       negenPlus: gal.filter((e) => e.cijfer >= 9).length,
       legendarisch: gal.filter((e) => e.zeldzaam === true && e.cijfer >= 9.5).length,
+      // aantal kaarten van deze trede of hoger (trede[2] = glim, kosmisch en mythisch samen)
+      trede: [0, 1, 2, 3, 4].map((t) => gal.filter((e) => tredeVan(e) >= t).length),
+      ladderVol: [1, 2, 3, 4].filter((t) => gal.some((e) => tredeVan(e) === t)).length,
+      perfect: gal.filter((e) => tredeVan(e) >= 3 && e.cijfer >= 9.95).length,
       tien: gal.filter((e) => e.cijfer >= 9.95).length,
       groepen: groepen.size,
+      vloek: gal.filter((e) => e.vloek === true).length,
       halloween: Array.isArray(st.seizoenen) && st.seizoenen.includes('halloween'),
       openingen: Array.isArray(st.openingen) ? new Set(st.openingen.filter((x) => OPENINGEN.includes(x))).size : 0,
       gevechten: alle.length,

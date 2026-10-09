@@ -1,0 +1,42 @@
+/* Debug-menu: alleen in de debug-build. */
+@font-face { font-family: 'SPO Display'; src: url('fonts/unbounded.woff2') format('woff2'); font-weight: 200 900; }
+@font-face { font-family: 'SPO Text'; src: url('fonts/inter.woff2') format('woff2'); font-weight: 100 900; }
+:root { color-scheme: dark; --rood: #d6203b; --goud: #ffd24a; }
+* { box-sizing: border-box; }
+body { margin: 0; padding: 24px 20px 80px; background: #080a14; color: #eef1f8; font: 14px/1.5 'SPO Text', system-ui, sans-serif; }
+html.embed body { background: transparent; padding: 18px 20px 60px; }
+main { max-width: 860px; margin: 0 auto; }
+h1 { margin: 0 0 6px; font: 700 24px 'SPO Display', system-ui, sans-serif; letter-spacing: -0.02em; }
+h1::after { content: 'DEBUG'; margin-left: 10px; vertical-align: middle; font: 800 11px/1 system-ui, sans-serif; letter-spacing: .1em; background: var(--rood); color: #fff; padding: 4px 7px; border-radius: 5px; }
+h2 { margin: 0 0 10px; font: 700 16px 'SPO Display', system-ui, sans-serif; }
+h3 { margin: 16px 0 6px; font: 650 12px 'SPO Text', sans-serif; letter-spacing: .14em; text-transform: uppercase; color: #8790a8; }
+.onder, .klein { color: #a5aec4; margin: 4px 0 8px; }
+.klein { font-size: 12.5px; color: #8790a8; }
+.kop { padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,.1); margin-bottom: 18px; }
+.blok { padding: 16px; margin-bottom: 16px; border-radius: 14px; background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.09); }
+.rij { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0; }
+.vorm { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px 14px; margin-bottom: 8px; }
+label { display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; color: #c9cfdd; }
+label.vink { flex-direction: row; align-items: center; gap: 6px; font-size: 13px; }
+input, select { font: inherit; color: #fff; background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.18); border-radius: 8px; padding: 7px 9px; min-width: 0; }
+input[type=checkbox] { width: 16px; height: 16px; padding: 0; }
+input[type=number] { width: 110px; }
+.vorm input, .vorm select { width: 100%; }
+.knop { font: 600 13px/1.2 system-ui, sans-serif; color: #fff; text-decoration: none; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2); border-radius: 9px; padding: 8px 12px; cursor: pointer; }
+.knop:hover { background: rgba(255,255,255,.18); }
+.knop:disabled { opacity: .5; cursor: default; }
+.knop.goud { background: linear-gradient(135deg, #fff0b3, var(--goud) 45%, #ff9a3d); color: #2a1a00; border-color: transparent; }
+.knop.gevaar { background: rgba(214,32,59,.25); border-color: rgba(214,32,59,.7); }
+:focus-visible { outline: 2px solid var(--goud); outline-offset: 2px; }
+code { background: rgba(255,255,255,.1); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+.melding { min-height: 1.4em; margin: 8px 0 0; color: #9fe3b0; font-weight: 600; }
+.melding.fout { color: #ff9a9a; }
+.bevestig { margin: 10px 0; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(214,32,59,.7); background: rgba(214,32,59,.12); }
+.bevestig p { margin: 0 0 8px; }
+.tab { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+.tab th, .tab td { text-align: left; padding: 5px 8px; border-bottom: 1px solid rgba(255,255,255,.08); }
+.tab td:last-child, .tab th:last-child { text-align: right; white-space: nowrap; }
+.tab tbody tr { cursor: pointer; }
+.tab tbody tr:hover { background: rgba(255,255,255,.06); }
+pre { max-height: 260px; overflow: auto; padding: 10px; border-radius: 8px; background: rgba(0,0,0,.45); font-size: 12px; white-space: pre-wrap; word-break: break-all; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }

@@ -67,8 +67,8 @@
       tl.onder = null;
       tl.pakIn = [0, 0.65];
     } else {
-      tl.vak = [0.3, 1.95];
-      tl.onder = [1.35, 2.95];
+      tl.vak = [0.25, 1.75];
+      tl.onder = [1.5, 3.0]; // pas als het vak voorbij is: de woorden overlappen niet
       tl.pakIn = [2.35, 3.4];
     }
     const c1 = tl.pakIn[1];
@@ -99,6 +99,8 @@
     const tier = d.tier;
     const I = d.I;
     const zeldzaam = !!d.zeldzaam;
+    const trede = d.trede | 0; // de ladder: 0 gewoon, 1 zeldzaam, 2 glim, 3 kosmisch, 4 mythisch
+    const myth4 = zeldzaam && trede === 4; // de mythische film heeft een rustige, strakke onthulling: geen confetti en vuurwerk
     // Een zeldzame kaart is overal een stuk heftiger, ook bij een brons cijfer: meer licht, meer glans, meer glitter.
     const L = zeldzaam
       ? Object.assign({}, LOOK[tier], {
@@ -108,13 +110,18 @@
           sat: Math.max(LOOK[tier].sat, 1.08),
           holo: Math.max(LOOK[tier].holo, 1.25),
           glit: Math.max(LOOK[tier].glit, 1.7),
-        })
+        }, trede >= 2 ? { holo: 1.45, glit: 2.0, bloom: Math.max(LOOK[tier].bloom, 0.8), stralen: LOOK[tier].stralen + 4 } : null)
       : LOOK[tier];
     const op = d.opening !== 'pak' && SPO.openingen ? SPO.openingen[d.opening] : null;
+    // De gewone reeks doseert het licht per niveau: brons blijft ingetogen, een Icoon mag knallen. Zo blijft de
+    // kaart leesbaar en voelt elk niveau anders. Bij zeldzaam (eigen regie) blijft alles zoals het was.
+    const gw = zeldzaam ? 1 : [0.42, 0.52, 0.64, 0.8, 0.95][tier];
     const tl = maakTijdlijnZ(d);
     const tlOp = tl.basis || tl; // wat de opening ziet: de gewone tijdlijn
+    const kosm3 = zeldzaam && trede === 3 && !tl.upg; // kosmisch met eigen reeks (kosmisch.js): ook een strakke onthulling die als poster eindigt
     const Zt = tl.tease ? { t0: tl.tease[0], t1: tl.tease[1], T: tl.tease[1] - tl.tease[0] } : null;
     let Zm = null; // de ZELDZAAM-reeks (zeldzaam.js)
+    let Zv = null; // het teken vooraf en het vals alarm (zeldzaam.js)
     const regenboog = tier === 4;
     const reduceer = !!hulp.minderBeweging;
     const kl = [0, 0, 0];
@@ -146,8 +153,9 @@
 
     // Kleur van het licht: bij een Icoon wisselt die langzaam van tint.
     // Een zeldzame kaart krijgt vanaf het moment dat de kaart verschijnt ook het wisselende regenboog-licht.
-    const regenAan = (t) => regenboog || (zeldzaam && (t >= tl.K0 - 0.05 || (!!Zt && t >= Zt.t0)));
+    const regenAan = (t) => (Zm && Zm.regenUit && Zm.regenUit(t) ? false : regenboog || (zeldzaam && (t >= tl.K0 - 0.05 || (!!Zt && t >= Zt.t0))));
     function kleuren(t) {
+      if (Zm && Zm.kleur && Zm.kleur(t, kl, kl2)) return; // glim, kosmisch en mythisch hebben eigen kleuren
       if (regenAan(t)) {
         SPO.hsv(t * 0.12, 0.62, 1, kl);
         SPO.hsv(t * 0.12 + 0.35, 0.8, 1, kl2);
@@ -255,7 +263,7 @@
 
     // vuurwerk vanaf een 9 (bij een zeldzame kaart altijd)
     const vuurwerk = [];
-    if (d.g >= 9 || zeldzaam) {
+    if ((d.g >= 9 || zeldzaam) && !myth4 && !kosm3) {
       const aantal = zeldzaam ? 16 : tier === 4 ? 14 : 5;
       for (let i = 0; i < aantal; i++) {
         const tt = RV + 0.5 + i * (zeldzaam ? 0.27 : tier === 4 ? 0.34 : 0.45);
@@ -282,15 +290,15 @@
     const golven = [];
     const schok = (t0, amp, dec) => schokken.push({ t: t0, amp: amp * L.schud * (reduceer ? 0.15 : 1), dec });
     const flits = (t0, sterkte, dec) => flitsen.push({ t: t0, p: sterkte * (reduceer ? 0.4 : 1), dec });
-    const golf = (t0, snelheid, sterkte, y) => golven.push({ t: t0, v: snelheid, s: sterkte, y: y || 0 });
+    const golf = (t0, snelheid, sterkte, y, x) => golven.push({ t: t0, v: snelheid, s: sterkte, y: y || 0, x: x || 0 }); // x (p-ruimte): alleen de mythische film
 
     if (!op) {
       schok(c1, 0.022, 0.18);
       flits(c1, 0.2, 0.1);
       golf(c1, 0.9, 0.45, 0);
       schok(E, 0.05, 0.28);
-      flits(E, 0.5, 0.025); // een heel korte, felle pop
-      flits(E, 0.22 + 0.28 * I, 0.1 + 0.18 * I);
+      flits(E, (zeldzaam ? 0.5 : 0.3) * gw, 0.025); // een heel korte, felle pop
+      flits(E, (0.22 + 0.28 * I) * gw * (zeldzaam ? 1 : 0.6), zeldzaam ? 0.1 + 0.18 * I : 0.08 + 0.1 * I);
       golf(E, 1.5, 1.0, lekP);
       golf(E + 0.09, 1.1, 0.7, lekP);
       if (tl.wo) {
@@ -299,33 +307,34 @@
           const q = (ts - tl.wo[0]) / (tl.wo[1] - tl.wo[0]);
           schok(ts, 0.0016 + 0.009 * q * q, 0.12);
         }
-        flits(K0 - 0.04, 0.8, 0.3);
+        flits(K0 - 0.04, kosm3 ? 0.22 : 0.8 * gw, 0.3);
       }
       // oplaadgolven rond het pakje: steeds sneller
       for (let ts = c1 + 0.35, stap = 0.55; ts < E - 0.15; ts += stap, stap = Math.max(0.22, stap * 0.87)) golf(ts, 0.7, 0.16 + 0.2 * I, 0);
     } else {
-      flits(K0 - 0.04, 0.8, 0.3); // de kaart komt uit een felle flits
+      flits(K0 - 0.04, kosm3 ? 0.22 : 0.8, 0.3); // de kaart komt uit een felle flits
     }
     schok(K0, 0.02, 0.2);
     schok(RV, 0.03 + 0.06 * I, 0.3 + 0.3 * I);
-    flits(RV, 0.35, 0.03);
-    flits(RV, 0.12 + 0.18 * I, 0.1 + 0.25 * I);
-    golf(RV, 1.2, 0.8, 0.03);
-    golf(RV + 0.1, 1.6, 0.6, 0.03);
-    if (tier >= 2 || zeldzaam) golf(RV + 0.22, 2.0, 0.5, 0.03);
+    flits(RV, myth4 ? 0.12 : kosm3 ? 0.1 : (zeldzaam ? 0.35 : 0.2) * gw, 0.03);
+    if (!myth4 && !kosm3) flits(RV, (0.12 + 0.18 * I) * gw * (zeldzaam ? 1 : 0.6), zeldzaam ? 0.1 + 0.25 * I : 0.08 + 0.14 * I);
+    const gG = zeldzaam ? 1 : 0.4; // gewoon: zachtere schokgolven, de kaart blijft scherp
+    golf(RV, 1.2, myth4 ? 0.3 : 0.8 * gG, 0.03);
+    if (!myth4) golf(RV + 0.1, 1.6, 0.6 * gG, 0.03);
+    if ((tier >= 2 || zeldzaam) && !myth4 && !kosm3) golf(RV + 0.22, 2.0, 0.5 * gG, 0.03);
     if (zeldzaam) {
       // een glinstering als de kaart verschijnt, en daarna nog vier klappen na de onthulling
       flits(E + 0.05, 0.4, 0.15);
       golf(E + 0.05, 1.3, 0.6, op ? 0 : lekP);
-      flits(K0 + 0.2, 0.45, 0.14);
+      flits(K0 + 0.2, kosm3 ? 0.08 : 0.45, 0.14);
       golf(K0 + 0.2, 1.4, 0.7, 0.03);
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < (myth4 || kosm3 ? 0 : 4); i++) {
         golf(RV + 0.35 + i * 0.3, 1.5 + 0.2 * i, 0.75, 0.03);
         schok(RV + 0.45 + i * 0.3, 0.03, 0.25);
         flits(RV + 0.45 + i * 0.3, 0.3, 0.1);
       }
     }
-    if (tier === 4 || zeldzaam) {
+    if ((tier === 4 || zeldzaam) && !myth4 && !kosm3) {
       flits(RV + 0.35, 0.35, 0.3);
       golf(RV + 0.35, 1.6, 0.8, 0.03);
     }
@@ -352,27 +361,27 @@
       stof = e({ mode: 1, n: 70, life: 9, size: [0.006, 0.03], col1: sk1, col2: sk2, alpha: 0.5, seed: 11, lod: true });
       // vonken uit de naad tijdens het opladen
       const lekY = lekP;
-      e({ mode: 0, t0: c1 + 0.1, delay: E - c1 - 0.3, life: 0.9, n: Math.round(160 + 340 * I), org: [0, lekY], angle: 0, spread: TWEE_PI, spd: [0.05, 0.45], grav: [0, -0.05], drag: 1.5, size: [0.0016, 0.0042], col1: kl, col2: wit, seed: 3 });
+      e({ mode: 0, t0: c1 + 0.1, delay: E - c1 - 0.3, life: 0.9, n: Math.round((160 + 340 * I) * (zeldzaam ? 1 : 0.55)), org: [0, lekY], angle: 0, spread: TWEE_PI, spd: [0.05, 0.45], grav: [0, -0.05], drag: 1.5, size: [0.0016, 0.0042], col1: kl, col2: wit, seed: 3 });
       // de scheur zelf
-      const nBrand = Math.round(300 + 1300 * I);
+      const nBrand = Math.round((300 + 1300 * I) * (zeldzaam ? 1 : 0.4));
       e({ mode: 0, t0: E, delay: 0.1, life: 1.6, n: nBrand, org: [0, lekY], angle: Math.PI / 2, spread: TWEE_PI, spd: [0.25, 1.9], grav: [0, -0.45], drag: 1.2, size: [0.002, 0.0065], col1: kl, col2: wit, seed: 5 });
-      e({ mode: 5, t0: E, life: 1.8, n: Math.round(70 + 190 * I), org: [0, lekY], angle: Math.PI / 2, spread: TWEE_PI, spd: [0.25, 1.1], grav: [0, -0.8], drag: 0.6, size: [0.012, 0.03], col1: [0.25, 0.3, 0.85], col2: [1, 0.8, 0.3], alpha: 1, blend: 'alpha', seed: 6 });
+      e({ mode: 5, t0: E, life: 1.3, n: Math.round(40 + 90 * I), org: [0, lekY], angle: Math.PI / 2, spread: TWEE_PI, spd: [0.25, 1.1], grav: [0, -0.9], drag: 0.7, size: [0.006, 0.016], col1: zeldzaam ? [0.25, 0.3, 0.85] : [0.75, 0.78, 0.86], col2: zeldzaam ? [1, 0.8, 0.3] : kl, alpha: 1, blend: 'alpha', seed: 6 });
     }
     // de onthulling
-    const rvVonken = e({ mode: 0, t0: RV, delay: 0.14, life: 2.2, n: Math.round(300 + 1500 * I), org: [0, 0.02], angle: 0, spread: TWEE_PI, spd: [0.3, 2.3], grav: [0, -0.35], drag: 1.1, size: [0.002, 0.007], col1: kl, col2: kl2, alpha: 0.75, regen: regenboog || zeldzaam ? 1 : 0, seed: 8 });
-    if (zeldzaam) {
+    const rvVonken = e({ mode: 0, t0: RV, delay: 0.14, life: 2.2, n: Math.round((300 + 1500 * I) * (zeldzaam ? 1 : 0.55)), org: [0, 0.02], angle: 0, spread: TWEE_PI, spd: [0.3, 2.3], grav: [0, -0.35], drag: 1.1, size: [0.002, 0.007], col1: kl, col2: kl2, alpha: 0.75, regen: regenboog || (zeldzaam && trede < 3) ? 1 : 0, seed: 8 });
+    if (zeldzaam && !myth4 && !kosm3) {
       // een gouden regen van vonken van boven, bovenop de gewone onthulling, en een gouden uitbarsting als de kaart verschijnt
       e({ mode: 0, t0: RV, delay: 1.2, life: 3.6, n: 1500, org: [0, 0.62], angle: -Math.PI / 2, spread: 1.6, spd: [0.15, 0.8], grav: [0, -0.28], drag: 0.7, size: [0.002, 0.0065], col1: [1, 0.82, 0.3], col2: [1, 0.97, 0.8], alpha: 0.9, seed: 17 });
       e({ mode: 0, t0: K0, delay: 0.2, life: 1.6, n: 900, org: [0, 0.01], angle: 0, spread: TWEE_PI, spd: [0.3, 1.6], grav: [0, -0.1], drag: 1.4, size: [0.002, 0.006], col1: [1, 0.85, 0.35], col2: [1, 1, 0.9], alpha: 0.9, seed: 18 });
-      e({ mode: 0, t0: RV, delay: 0.5, life: 3.2, n: 900, org: [0, 0.02], angle: 0, spread: TWEE_PI, spd: [0.5, 2.6], grav: [0, -0.3], drag: 1.0, size: [0.002, 0.007], col1: kl, col2: kl2, alpha: 0.8, regen: 1, seed: 19 });
+      e({ mode: 0, t0: RV, delay: 0.5, life: 3.2, n: 900, org: [0, 0.02], angle: 0, spread: TWEE_PI, spd: [0.5, 2.6], grav: [0, -0.3], drag: 1.0, size: [0.002, 0.007], col1: kl, col2: kl2, alpha: 0.8, regen: trede < 3 ? 1 : 0, seed: 19 });
       // een tweede ronde confetti, later
       e({ mode: 2, t0: RV + 0.1, life: 4.6, delay: 2.2, n: 420, org: [0, 0.62], angle: -Math.PI / 2, spread: 0.9, spd: [0.1, 0.5], grav: [0, -0.09], drag: 0.45, size: [0.008, 0.017], alpha: 1, blend: 'alpha', seed: 21 });
     }
     if (tier === 0 && !zeldzaam) {
       e({ mode: 3, t0: RV, life: 5, delay: 0.2, n: 160, alpha: 0.8, seed: 9, blend: 'alpha' });
       e({ mode: 6, t0: RV, life: 3.2, delay: 0.5, n: 14, org: [0, -0.2], size: [0.18, 0.4], col1: [0.16, 0.12, 0.1], col2: [0.3, 0.22, 0.16], blend: 'alpha', seed: 10, lod: false });
-    } else if (d.g >= 6 || zeldzaam) {
-      e({ mode: 2, t0: RV + 0.1, life: 4.6, delay: 1.1, n: Math.max(zeldzaam ? 260 : 0, Math.round(50 + 330 * Math.max(0, I - 0.5) * 2 * (d.g >= 9 ? 1.4 : 1))), org: [0, 0.62], angle: -Math.PI / 2, spread: 0.7, spd: [0.1, 0.45], grav: [0, -0.09], drag: 0.45, size: [0.008, 0.017], alpha: 1, blend: 'alpha', seed: 12 });
+    } else if ((d.g >= 6 || zeldzaam) && !myth4 && !kosm3) {
+      e({ mode: 2, t0: RV + 0.1, life: 4.6, delay: 1.1, n: Math.max(zeldzaam ? 260 : 0, Math.round(40 + 200 * Math.max(0, I - 0.5) * 2 * (d.g >= 9 ? 1.4 : 1))), org: [0, 0.62], angle: -Math.PI / 2, spread: 0.7, spd: [0.1, 0.45], grav: [0, -0.09], drag: 0.45, size: zeldzaam ? [0.008, 0.017] : [0.006, 0.012], col1: kl, col2: kl2, alpha: 1, blend: 'alpha', seed: 12 });
     }
     // een staart van vonken terwijl de kaart de lucht in draait
     e({ mode: 0, t0: K0, delay: tl.spin * 0.9, life: 0.9, n: Math.round(80 + 260 * I), org: [0, 0.01], angle: 0, spread: TWEE_PI, spd: [0.12, 0.7], grav: [0, 0], drag: 2.2, size: [0.0014, 0.0038], col1: kl, col2: wit, alpha: 0.7, seed: 15 });
@@ -392,7 +401,7 @@
     const eigenTex = []; // tekstuur die een opening via ctx.tekstuur heeft gemaakt: die ruimen wij op
     // Een opening zet hier per beeld haar wensen voor de nabewerking in (zie eindbeeld).
     const post = { rad: 0, zoom: 1, roll: 0, bars: 0, bloom: 1, streak: 0, vig: 1, ca: 1, sat: 1, grade: [1, 1, 1] };
-    const rust2Van = (t) => (t >= RV ? (tl.nova ? sm(t, tl.nova + 2.5, tl.nova + 5.5) : zeldzaam ? sm(t, RV + 3.6, RV + 6.6) : sm(t, RV + 0.9, RV + 2.6)) : 0); // na de onthulling wordt het beeld rustiger
+    const rust2Van = (t) => (t >= RV ? (tl.rust2 ? tl.rust2(t) : tl.nova ? sm(t, tl.nova + 2.5, tl.nova + 5.5) : zeldzaam ? sm(t, RV + 3.6, RV + 6.6) : sm(t, RV + 0.9, RV + 2.6)) : 0); // na de onthulling wordt het beeld rustiger
 
     // schudden van de camera: een som van dempende stoten plus een voortdurend gerommel bij het opladen
     function camera(t, uit, tp) {
@@ -404,6 +413,7 @@
       }
       const inTease = Zt && t >= Zt.t0 && t < Zt.t1;
       if (Zm) a += Zm.schud(t);
+      if (Zv) a += Zv.schud(t);
       if (inTease) {
         /* tijdens de tease schudt alleen de tease zelf */
       } else if (op) {
@@ -620,10 +630,27 @@
       };
       opInst = op.maak(ctx);
     }
+    const zctx = {
+      tl, tlOp, d, I, audio, trillen, reduceer, TWEE_PI, trede, lekP, cam, kl, kl2, H_ZICHT, KAART_H, KAART_B, opNaam: d.opening,
+      at, schok, flits, golf, e0: e, zend: zendDeeltjes, vlak, stralen, licht, warp,
+      tekstuur(bron, opties) {
+        const x = motor.tekstuur(bron, opties);
+        eigenTex.push(x);
+        return x;
+      },
+      get kw() {
+        return motor.kwaliteit;
+      },
+    };
+    const lot = SPO.zeldzaam && SPO.zeldzaam.lot ? SPO.zeldzaam.lot(d) : null;
+    if (lot && (lot.vals || trede >= 2)) Zv = SPO.zeldzaam.vroeg(Object.assign({}, zctx, { lot }));
     if (Zt && art.zeld) {
       Zm = SPO.zeldzaam.maak({
-        tl, d, I, audio, trillen, reduceer, art: art.zeld, TWEE_PI,
+        tl, d, I, audio, trillen, reduceer, art: art.zeld, TWEE_PI, trede, lekP, cam, kl, kl2, H_ZICHT, KAART_H, KAART_B, tlOp, lot,
         at, schok, flits, golf, e0: e, zend: zendDeeltjes, vlak, stralen, licht, warp,
+        // voor de mythische film (mythisch.js): eigen programma's, eigen doelen en het pakje zelf
+        motor, gl, obj, basis,
+        pak: tex.pak ? (t, alpha, x, y, z, rx, ry, rz, schaal, laad, glans) => pakDeel(t, 0, alpha, x, y, z, rx, ry, rz, schaal, 0.08 + 0.1 * laad, laad, glans, 0) : null,
         tekstuur(bron, opties) {
           const x = motor.tekstuur(bron, opties);
           eigenTex.push(x);
@@ -649,7 +676,7 @@
         let haze = 0.2;
         if (t < E) {
           pow = 0.1 + (0.35 + 0.9 * I) * laad * laad;
-          core = 0.06 + (0.25 + 0.7 * I) * laad * laad;
+          core = 0.06 + (0.25 + 0.7 * I) * laad * laad * (zeldzaam ? 1 : 0.6);
         } else if (t < K0) {
           pow = (0.22 + 0.45 * I) * Math.exp(-(t - E) / 0.6) + 0.3;
           core = (0.18 + 0.28 * I) * Math.exp(-(t - E) / 0.4) + 0.1;
@@ -663,8 +690,8 @@
           }
           haze = 0.22;
         }
-        const dim = 1 - 0.62 * rustig2;
-        stralen(t, stralenKans * (1 - 0.35 * rustig2), pow * dim, core * dim, haze, 0, 0.02, t * (0.12 + 0.35 * laad + (t >= RV ? 0.2 : 0)), 1);
+        const dim = (1 - 0.62 * rustig2) * gw;
+        stralen(t, stralenKans * (1 - 0.35 * rustig2) * ((myth4 || kosm3) && Zm && Zm.stralenMul ? Zm.stralenMul(t) : 1), pow * dim, core * dim, haze, 0, 0.02, t * (0.12 + 0.35 * laad + (t >= RV ? 0.2 : 0)), 1);
       }
     }
 
@@ -744,6 +771,7 @@
           p.f1('uBundel', 0.55 + 0.6 * q);
           p.f1('uAlpha', sm(t, w0 - 0.02, w0 + 0.25) * (1 - sm(t, K0 - 0.02, K0 + 0.1)));
           p.f1('uRegen', regenboog ? 1 : 0);
+          p.f1('uKw', motor.kwaliteit);
           p.f1('uLicht', 0.35 + 0.35 * q + 1.6 * Math.pow(ramp(q, 0.9, 1), 2) + 0.9 * Math.exp(-(t - w0) / 0.4));
           p.f4('uFig', 0, 0.07 - 0.55 * h, h, sm(q, 0, 0.08));
           p.v3('uTint', kl);
@@ -820,8 +848,9 @@
             const alpha = 1 - sm(k, 0.35, 1);
             kantel[0] = 0;
             kantel[1] = 0;
-            pakDeel(t, 1, alpha, -0.7 * e1, wy + 1.5 * e1 - 0.8 * e1 * e1, 0.5 * e1, -0.3 * e1, 0.4 * e1, 2.2 * e1 + 0.5 * e1 * e1, sch, 0.15 + 0.4 * e1, 1, 0.3, pivotY);
-            pakDeel(t, 2, alpha, 0.35 * e1, wy - 1.1 * e1 - 0.3 * e1 * e1, -0.2 * e1, 0.3 * e1, -0.2 * e1, -0.5 * e1, sch, 0.15, 1, 0.3, pivotY);
+            const laadH = zeldzaam ? 1 : 0.25 + 0.45 * Math.exp(-(t - E) / 0.12);
+            pakDeel(t, 1, alpha, -0.7 * e1, wy + 1.5 * e1 - 0.8 * e1 * e1, 0.5 * e1, -0.3 * e1, 0.4 * e1, 2.2 * e1 + 0.5 * e1 * e1, sch, 0.15 + 0.4 * e1, laadH, 0.3, pivotY);
+            pakDeel(t, 2, alpha, 0.35 * e1, wy - 1.1 * e1 - 0.3 * e1 * e1, -0.2 * e1, 0.3 * e1, -0.2 * e1, -0.5 * e1, sch, 0.15, laadH, 0.3, pivotY);
           }
         }
 
@@ -830,7 +859,7 @@
           const dt2 = t - E;
           const aan = sm(dt2, -0.05, 0.03);
           const b = Math.exp(-dt2 / (0.35 + 0.25 * I));
-          licht(t, 0, lekP, (0.3 + 0.55 * I) * b * aan, 0.01 + 0.12 * Math.pow(Math.min(dt2, 0.6), 0.7) + 0.015, (0.35 + 0.55 * I) * Math.exp(-dt2 / 0.65) * aan, (0.3 + 0.4 * I) * Math.exp(-dt2 / 0.9), t * 0.35);
+          licht(t, 0, lekP, (0.3 + 0.55 * I) * b * aan * gw * (zeldzaam ? 1 : 0.5), 0.01 + 0.12 * Math.pow(Math.min(dt2, 0.6), 0.7) + 0.015, (0.35 + 0.55 * I) * Math.exp(-dt2 / 0.65) * aan, (0.3 + 0.4 * I) * Math.exp(-dt2 / 0.9), t * 0.35);
         }
 
         // ── plaatjes tijdens de walkout ──
@@ -859,15 +888,16 @@
       if (!op && t >= RV - 0.05 && aan('licht')) {
         const dt2 = t - RV;
         const b = Math.exp(-dt2 / (0.4 + 0.5 * I));
-        licht(t, 0, 0.02, (0.2 + 0.4 * I) * b, 0.04 + 0.1 * Math.min(dt2, 0.7), (0.3 + 0.5 * I) * Math.exp(-dt2 / 0.9), (0.35 + 0.6 * I) * Math.exp(-dt2 / 1.2), t * 0.3);
+        licht(t, 0, 0.02, (0.2 + 0.4 * I) * b * gw * (zeldzaam ? 1 : 0.6), 0.04 + 0.1 * Math.min(dt2, 0.7), (0.3 + 0.5 * I) * Math.exp(-dt2 / 0.9) * gw, (0.35 + 0.6 * I) * Math.exp(-dt2 / 1.2) * gw, t * 0.3);
       }
+      if (Zv) Zv.teken(t, asp, visB);
       if (Zm) {
         if (inTease) Zm.teaseTeken(t, asp, visB);
         Zm.achter(t, asp);
       }
 
       // de vonken van de onthulling komen van achter de kaart vandaan
-      if (t >= RV - 0.01 && t <= RV + 2.6) zendDeeltjes(t, rvVonken);
+      if (t >= RV - 0.01 && t <= RV + 2.6 && !myth4 && !kosm3) zendDeeltjes(t, rvVonken);
 
       // ── de kaart ──
       if (t >= K0 - 0.05 && aan('kaart')) {
@@ -881,7 +911,7 @@
         const op = veer(ramp(q, 0, 0.6));
         // na de onthulling schuift de kaart wat omlaag en wordt hij iets kleiner, zodat de titel erboven past
         const lay = sm(t, RV + 0.15, RV + 0.9);
-        const sc = KAART_H * R(1) * (0.02 + 0.98 * Math.min(1.12, op)) * mix(1, zk ? 0.84 : 0.92, lay) * (zk ? zk.schaal : 1);
+        const sc = KAART_H * R(1) * (0.02 + 0.98 * Math.min(1.12, op)) * mix(1, zk ? zk.lay : 0.92, lay) * (zk ? zk.schaal : 1);
         // tel het cijfer op
         const cp = ramp(t, tl.telStart, RV);
         const val = t >= RV ? d.g : 1 + (d.g - 1) * (1 - Math.pow(1 - cp, 2));
@@ -909,7 +939,7 @@
         kantel[1] = ky;
         const sc2 = sc * (1 + (t >= RV ? 0.08 * Math.exp(-(t - RV) / 0.45) : 0) + 0.012 * Math.sin(t * 1.6) * rust);
         const p = P.kaart.gebruik();
-        obj(p, 0, mix(0.03, -0.17, lay) + Math.sin(t * 1.15) * 0.012 * rust, z, -ky * 0.3 + Math.sin(t * 0.6) * 0.03 * rust, draai + kx * 0.4 + Math.sin(t * 0.8) * 0.05 * rust, 0.04 * (1 - uit) * Math.sin(q * 6), (KAART_B / KAART_H) * sc2, sc2);
+        obj(p, zk ? zk.x : 0, mix(0.03, -0.17, lay) + (zk ? zk.y : 0) + Math.sin(t * 1.15) * 0.012 * rust, z, -ky * 0.3 + Math.sin(t * 0.6) * 0.03 * rust, draai + kx * 0.4 + Math.sin(t * 0.8) * 0.05 * rust, 0.04 * (1 - uit) * Math.sin(q * 6), (KAART_B / KAART_H) * sc2, sc2);
         p.tex('uBG', 0, tex.bg);
         p.tex('uMid', 1, tex.mid);
         p.tex('uFG', 2, tex.fg);
@@ -925,11 +955,11 @@
         // een glinsterveeg die over de kaart trekt zodra hij landt, en daarna af en toe
         p.f1('uVeeg', t >= RV ? ((t - RV) * 0.32) % 2.2 - 0.5 : ramp(q, tl.spin * 0.6, tl.spin) * 1.6 - 0.4);
         p.f1('uGlow', 0.5 + 0.8 * rust);
-        p.f1('uAlpha', sm(q, 0, 0.12));
+        p.f1('uAlpha', sm(q, 0, 0.12) * (zk ? zk.alpha : 1));
         p.f1('uPop', pop);
         p.f1('uFolie', zk ? zk.folie : 0);
         p.f1('uTier', tier);
-        p.f1('uHelder', 1 + (t >= RV ? 0.35 * Math.exp(-(t - RV) / 0.3) : 0));
+        p.f1('uHelder', 1 + (t >= RV ? (kosm3 ? 0.08 : (zeldzaam ? 0.35 : 0.16) * gw * gw) * Math.exp(-(t - RV) / 0.3) : 0));
         p.v3('uCol', kl);
         p.v3('uCol2', kl2);
         motor.mengen('alpha');
@@ -1009,7 +1039,7 @@
           if (dt2 < 0 || dt2 > 1.6) continue;
           const sterkte = g.s * Math.exp(-dt2 / 0.55) * (reduceer ? 0.3 : 1);
           if (sterkte < 0.01) continue;
-          sh[n * 4] = 0.5;
+          sh[n * 4] = 0.5 + g.x / asp;
           sh[n * 4 + 1] = 0.5 + g.y;
           sh[n * 4 + 2] = dt2 * g.v;
           sh[n * 4 + 3] = sterkte;
@@ -1032,6 +1062,8 @@
       p.f1('uGl', zp ? zp.gl : 0);
       p.f1('uDark', zp ? zp.dark : 0);
       p.f1('uShockRegen', zp ? zp.regen : 0);
+      p.f1('uInv', zp && zp.inv ? zp.inv : 0);
+      p.f1('uPinch', zp && zp.pinch ? zp.pinch : 0);
       const pk = !rustig && op ? post : null; // de wensen van de opening voor dit beeld
       p.f1('uBloomAmt', (L.bloom * 0.9 + 0.3 * heftig) * (0.9 + 0.2 * I) * (1 - 0.4 * rust2) * (pk ? pk.bloom : 1) * (zp ? zp.bloom : 1));
       p.f1('uStreakAmt', rustig || motor.kwaliteit >= 2 ? 0 : Math.min(1.5, 0.12 + 1.2 * heftig + (!op && t >= E && t < E + 1 ? 0.7 : 0) + (pk ? pk.streak : 0)) * (1 - 0.7 * rust2));
@@ -1044,6 +1076,7 @@
       let bars = 0;
       if (pk) bars = pk.bars;
       else if (tl.wo && !rustig) bars = sm(t, tl.wo[0] + 0.1, tl.wo[0] + 0.7) * (1 - sm(t, K0 - 0.15, K0 + 0.05));
+      if (zp && zp.bars !== undefined) bars = zp.bars; // de mythische film: een eigen breedbeeld
       p.f1('uBars', bars);
       p.f1('uCA', rustig ? 0.001 : (L.ca * 0.5 * (0.5 + 1.5 * I) * (pk ? pk.ca : 1) + 0.004 * flash * 0.5) * (reduceer ? 0.3 : 1));
       // radiaal wazig bij de vliegende tekst, het pakje dat aankomt en de klappen
@@ -1059,12 +1092,13 @@
             }
           }
           if (t > tl.pakIn[0] && t < c1) rad = Math.max(rad, 0.4 * Math.pow(1 - ramp(t, tl.pakIn[0], c1), 2));
-          if (t >= E) rad = Math.max(rad, 0.25 * Math.exp(-(t - E) / 0.25));
+          if (t >= E) rad = Math.max(rad, (zeldzaam ? 0.25 : 0.14) * Math.exp(-(t - E) / 0.25));
         }
-        if (t >= RV) rad = Math.max(rad, 0.22 * Math.exp(-(t - RV) / 0.3));
+        if (t >= RV) rad = Math.max(rad, (zeldzaam ? 0.22 : 0.09) * gw * Math.exp(-(t - RV) / (zeldzaam ? 0.3 : 0.2))); // gewoon: de kaart blijft leesbaar
         if (zeldzaam && t >= RV + 0.35) rad = Math.max(rad, 0.16 * Math.exp(-((t - RV - 0.35) % 0.3) / 0.1) * (t < RV + 1.5 ? 1 : 0));
         if (t > K0 - 0.3 && t < K0) rad = Math.max(rad, 0.3 * ramp(t, K0 - 0.3, K0));
       }
+      if (myth4 || kosm3) rad *= kosm3 ? 0.12 : 0.2; // de mythische film: de onthulling blijft scherp
       if (zp) rad = Math.max(rad, zp.rad);
       p.f3('uRadial', 0.5, 0.5, rad * (reduceer ? 0.2 : 1));
       let zoom = 1;
@@ -1085,8 +1119,9 @@
       p.f1('uRoll', rustig ? 0 : (Math.sin(t * 0.7) * 0.004 + (pk ? pk.roll : t >= E && t < E + 0.6 ? 0.012 * Math.exp(-(t - E) / 0.2) * Math.sin(t * 40) : 0)) * (reduceer ? 0.2 : 1));
       p.f2('uShake', 0, 0);
       p.f1('uSat', rustig ? 1 : L.sat * (pk ? pk.sat : 1) * (zp ? zp.sat : 1));
-      if (pk) p.f3('uGrade', pk.grade[0], pk.grade[1], pk.grade[2]);
-      else p.f3('uGrade', 1, 1, 1);
+      const zg = zp && zp.grade ? zp.grade : null;
+      if (pk) p.f3('uGrade', pk.grade[0] * (zg ? zg[0] : 1), pk.grade[1] * (zg ? zg[1] : 1), pk.grade[2] * (zg ? zg[2] : 1));
+      else p.f3('uGrade', zg ? zg[0] : 1, zg ? zg[1] : 1, zg ? zg[2] : 1);
       p.f1('uShockW', 0.035);
       p.i1('uTaps', [8, 6, 4, 3][motor.kwaliteit] || 3);
       p.v3('uShockCol', kl);
@@ -1107,7 +1142,11 @@
     function sprong(t) {
       if (Zt) {
         if (t < Zt.t0 - 0.05 && !(opInst && opInst.sprong)) { /* gewone regels hieronder */ }
-        else if (t >= Zt.t0 - 0.05 && t < K0) return null; // de tease laten we even gebeuren
+        else if (t >= Zt.t0 - 0.05 && t < K0) {
+          // de lange reeksen (kosmisch en mythisch) mag je overslaan: dan springen we naar vlak voor de kaart
+          if (tl.klikSprong && t >= Zt.t0 + (tl.klikVanaf || 1.0) && t < tl.klikSprong - 0.3) return { doel: tl.klikSprong };
+          return null; // de tease laten we even gebeuren
+        }
         if (t >= tl.vier && t < tl.EIND - 0.3) return { doel: tl.EIND + 0.05 };
         if (t >= K0 && t < RV - 0.6) return { doel: RV - 0.5 };
         if (t >= RV - 0.6) return null;

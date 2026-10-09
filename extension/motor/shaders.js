@@ -84,6 +84,8 @@ uniform vec2 uRes;
 uniform float uTime, uBloomAmt, uStreakAmt, uStreakTexel, uVig, uGrain, uFade, uBars, uCA, uZoom, uRoll, uSat, uShockW;
 // zeldzaam: uGl = glitch (scheve strepen, kleurverschuiving, regenboogstrepen), uDark = scherm donker maken, uShockRegen = regenboog-schokgolf
 uniform float uGl, uDark, uShockRegen;
+// ultiem: uInv = kleuren omkeren (0..1), uPinch = het beeld wordt naar het midden gezogen (0..1)
+uniform float uInv, uPinch;
 uniform vec3 uVigCol, uStreakCol, uFlash, uGrade, uShockCol;
 uniform vec2 uShake;
 uniform vec3 uRadial;
@@ -105,6 +107,16 @@ void main(){
   vec2 c0 = uv - .5;
   c0 = rot2(uRoll) * (c0 * asp) / asp;
   uv = .5 + c0 / uZoom + uShake;
+  float inP = 1.;
+  if (uPinch > .001) {
+    // implosie: het beeld krimpt naar het midden en draait mee, daarbuiten is het zwart
+    vec2 pq = (uv - .5) * asp;
+    float pr = length(pq);
+    float ps = 1. / max(1. - uPinch, .012);
+    pq = rot2(uPinch * uPinch * 4.5 * exp(-pr * 2.2)) * pq * ps;
+    uv = .5 + pq / asp;
+    inP = step(0., uv.x) * step(uv.x, 1.) * step(0., uv.y) * step(uv.y, 1.);
+  }
 
   // glitch: horizontale stroken die verschuiven en af en toe een groot blok
   if (uGl > .001) {
@@ -168,6 +180,8 @@ void main(){
     col += st * uStreakCol * uStreakAmt * .1;
   }
   col += ringCol * .35;
+  if (uInv > .001) col = mix(col, vec3(1.) - min(col, vec3(1.)), uInv);
+  col *= inP;
 
   // kleurcorrectie en vignet
   float l = dot(col, vec3(.299, .587, .114));
@@ -231,8 +245,11 @@ void main(){
     float w = .16 + .22 * h11(id * 1.93);
     float across = smoothstep(w, w * .12, abs(lane));
     float br = (.3 + .7 * h11(id * 3.7 + fl)) * smoothstep(0., .1, z);
-    vec3 c = mix(uTint, vec3(1.), .2 + .55 * h11(id * 7.1));
-    col += c * across * along * br * (.5 + .55 * uSpeed);
+    // kleurgrading: de staart kleurt van de tweede tint naar de eerste, de kop is bijna wit
+    float kop = smoothstep(-tail * .25, 0., d);
+    vec3 c = mix(mix(uTint2, uTint, smoothstep(-tail, 0., d)), vec3(1., .98, .94), kop * (.35 + .5 * h11(id * 7.1)));
+    // dichtbij (z groot) dikker en feller, ver weg dun en gedempt: diepte
+    col += c * across * along * br * (.5 + .55 * uSpeed) * (.45 + .9 * z * z) * (1. - .6 * float(L) / 2. * (1. - z));
   }
   col += mix(uTint, vec3(1.), .5) * uGlow * .55 / (1. + 45. * r * r);
   o = vec4(col * uAlpha, 1.);
@@ -298,44 +315,66 @@ void main(){
   // ───────────────────────── De walkout-arena ─────────────────────────
   const FS_ARENA = `${KOP}
 out vec4 o;
-uniform vec2 uRes, uShake; uniform float uTime, uZoom, uLicht, uStap, uAmp, uFlits, uBundel, uAlpha, uRegen;
+uniform vec2 uRes, uShake; uniform float uTime, uZoom, uLicht, uStap, uAmp, uFlits, uBundel, uAlpha, uRegen, uKw;
 uniform vec3 uTint, uTint2;
 uniform vec4 uFig;   // x, voeten-y, hoogte, zichtbaar
 ${GEMEEN}
 float cap(vec2 p, vec2 a, vec2 b, float r){ vec2 pa = p - a, ba = b - a; float h = clamp(dot(pa, ba) / dot(ba, ba), 0., 1.); return length(pa - ba * h) - r; }
+// taps toelopend lidmaat: dikte ra bij a, rb bij b
+float tcap(vec2 p, vec2 a, vec2 b, float ra, float rb){ vec2 pa = p - a, ba = b - a; float h = clamp(dot(pa, ba) / dot(ba, ba), 0., 1.); return length(pa - ba * h) - mix(ra, rb, h); }
 float smin(float a, float b, float k){ float h = clamp(.5 + .5 * (b - a) / k, 0., 1.); return mix(b, a, h) - k * h * (1. - h); }
 float ell(vec2 p, vec2 c, vec2 r){ vec2 q = (p - c) / r; return (length(q) - 1.) * min(r.x, r.y); }
-// De leerling, van voren gezien, met capuchon. q: x -0,5..0,5 en y 0 (voeten) tot 1 (kruin).
+// Een voetballer van voren gezien, ruim zeven koppen hoog: brede schouders, shirt dat naar de taille smaller
+// wordt, een korte broek, kousen en schoenen. q: x -0,5..0,5 en y 0 (voeten) tot 1 (kruin).
+// ph: fase van de loopcyclus, amp: hoe hard hij loopt.
 float figuur(vec2 q, float ph, float amp){
   float s1 = sin(ph);
-  float s2 = sin(ph + 3.14159);
-  q.y -= abs(s1) * .012 * amp;
-  q.x -= s1 * .010 * amp;
-  q = rot2(s1 * .018 * amp) * (q - vec2(0., .5)) + vec2(0., .5);
-  float d = ell(q, vec2(0., .915), vec2(.050, .060));
-  d = smin(d, cap(q, vec2(0., .865), vec2(0., .83), .022), .02);
-  d = smin(d, ell(q, vec2(0., .866), vec2(.068, .042)), .03);
-  float sch = cap(q, vec2(-.125, .795), vec2(.125, .795), .036);
-  float borst = cap(q, vec2(-.07, .735), vec2(.07, .735), .08);
-  float taille = cap(q, vec2(-.045, .60), vec2(.045, .60), .075);
-  d = smin(d, smin(smin(sch, borst, .05), taille, .08), .02);
-  d = smin(d, cap(q, vec2(-.045, .545), vec2(.045, .545), .07), .04);
+  float c1 = cos(ph);
+  // het lichaam deint op en neer (twee keer per cyclus) en wiegt licht over het standbeen
+  q.y -= (.5 - .5 * cos(2. * ph)) * .010 * amp;
+  q.x -= s1 * .009 * amp;
+  vec2 qb = rot2(s1 * .022 * amp) * (q - vec2(0., .52)) + vec2(0., .52); // bekken kantelt mee
+  vec2 qs = rot2(-s1 * .03 * amp) * (q - vec2(0., .78)) + vec2(0., .78); // schouders tegengesteld
+  // hoofd, haar en nek
+  float d = ell(qs, vec2(0., .925), vec2(.046, .058));
+  d = smin(d, ell(qs, vec2(.004, .962), vec2(.050, .036)), .012);
+  d = smin(d, tcap(qs, vec2(0., .872), vec2(0., .835), .026, .030), .018);
+  // romp: trapezius, schouders, borst en een taille
+  float trap = tcap(qs, vec2(0., .842), vec2(-.118, .808), .026, .034);
+  trap = min(trap, tcap(qs, vec2(0., .842), vec2(.118, .808), .026, .034));
+  float borst = ell(qs, vec2(0., .735), vec2(.122, .088));
+  float buik = ell(mix(qs, qb, .5), vec2(0., .615), vec2(.088, .085));
+  float romp = smin(smin(trap, borst, .035), buik, .05);
+  // shirt hangt wat los over de broek
+  romp = smin(romp, ell(qb, vec2(0., .54), vec2(.094, .03)), .03);
+  d = smin(d, romp, .02);
+  // korte broek: wijd uitlopend boven de knie
+  float broek = smin(tcap(qb, vec2(-.05, .52), vec2(-.072, .43), .055, .048), tcap(qb, vec2(.05, .52), vec2(.072, .43), .055, .048), .03);
+  d = smin(d, broek, .015);
   for (int s = 0; s < 2; s++) {
     float sg = s == 0 ? -1. : 1.;
-    float lift = max(0., s == 0 ? s1 : s2) * amp;
-    vec2 hip = vec2(sg * .052, .53);
-    vec2 knee = vec2(sg * (.062 + .012 * lift), .30 + .065 * lift);
-    vec2 ank = vec2(sg * (.066 + .01 * lift), .05 + .12 * lift);
-    d = smin(d, cap(q, hip, knee, .05), .03);
-    d = smin(d, cap(q, knee, ank, .036), .03);
-    d = smin(d, ell(q, ank + vec2(sg * .008, -.022), vec2(.05, .03)), .02);
-    float sw = (s == 0 ? s2 : s1) * amp;
-    vec2 sh = vec2(sg * .158, .78);
-    vec2 el = vec2(sg * (.185 + .01 * sw), .64 + .035 * abs(sw));
-    vec2 ha = vec2(sg * (.18 + .015 * sw), .50 + .06 * abs(sw));
-    d = smin(d, cap(q, sh, el, .03), .02);
-    d = smin(d, cap(q, el, ha, .026), .02);
-    d = smin(d, length(q - ha) - .03, .015);
+    float fs = s == 0 ? s1 : -s1;            // >0: dit been zwaait naar voren
+    float fc = s == 0 ? c1 : -c1;
+    float zwaai = max(0., fs) * amp;          // het zwaaibeen tilt de knie en de voet op
+    float stand = max(0., -fs) * amp;
+    vec2 hip = vec2(sg * .056, .50);
+    vec2 knee = vec2(sg * (.064 + .008 * zwaai), .285 + .07 * zwaai);
+    // voet komt van achter (hoog, achter de knie) en zet voor neer
+    float voetOp = max(0., fs * .8 + fc * .5) * amp;
+    vec2 ank = vec2(sg * (.060 + .006 * zwaai), .045 + .10 * voetOp);
+    d = smin(d, tcap(qb, hip, knee, .056, .040), .025);
+    d = smin(d, tcap(qb, knee + vec2(0., -.03), ank, .041, .024), .02); // kuit, dan een smalle enkel
+    // schoen, in perspectief iets breder aan de neus
+    float neus = .03 - .012 * voetOp;
+    d = smin(d, ell(qb, ank + vec2(sg * .006, -.026 + .006 * voetOp), vec2(.034, neus)), .012);
+    // armen: schouder, elleboog (iets gebogen) en hand; ze zwaaien tegengesteld aan de benen
+    float arm = -fs * amp;
+    vec2 sh = vec2(sg * .128, .79);
+    vec2 el = vec2(sg * (.166 - .006 * abs(arm)), .64 + .03 * max(arm, 0.));
+    vec2 ha = vec2(sg * (.17 - .03 * max(arm, 0.)), .515 + .07 * max(arm, 0.) - .01 * max(-arm, 0.));
+    d = smin(d, tcap(qs, sh, el, .036, .028), .025);
+    d = smin(d, tcap(qs, el, ha, .027, .021), .012);
+    d = smin(d, ell(qs, ha + vec2(0., -.018), vec2(.021, .028)), .01);
   }
   return d;
 }
@@ -344,95 +383,148 @@ float straal(vec2 p, vec2 o0, float ang, float w){
   vec2 v = p - o0;
   float al = dot(v, dir);
   float dl = abs(dot(v, vec2(-dir.y, dir.x)));
-  float ww = w * (1. + al * .9);
-  return exp(-dl * dl / (ww * ww)) * smoothstep(0., .25, al) * exp(-al * .9);
+  float ww = w * (1. + al * 1.4);
+  return exp(-dl * dl / (ww * ww)) * smoothstep(0., .2, al) * exp(-al * .7);
 }
 void main(){
   vec2 p = (gl_FragCoord.xy - .5 * uRes) / uRes.y;
   p = (p - uShake) / uZoom;
   float asp = uRes.x / uRes.y;
   vec2 VP = vec2(0., .07);
-  vec3 wit = mix(uTint, vec3(1.), .6);
-
-  // lucht en tribune
-  vec3 col = mix(vec3(.005, .008, .02), vec3(.02, .03, .07), smoothstep(-.1, .55, p.y));
-  col += uTint2 * .03 * exp(-length(p - VP) * 1.5);
-
-  // publiek: lichtjes en camera-flitsen links, rechts en bovenin
-  vec2 cp = p * 58.;
-  vec2 ci = floor(cp);
-  float hh = h21(ci);
-  vec2 jit = h22(ci + 3.7);
-  float dd = length(fract(cp) - (.25 + .5 * jit));
-  float tribune = smoothstep(.1, .5, abs(p.x) / asp * 2. + max(p.y - .05, 0.) * .9) * smoothstep(-.12, .12, p.y - VP.y + .05);
-  float punt = smoothstep(.2, 0., dd) * step(.86, hh) * (.35 + .35 * sin(uTime * (2. + 5. * h11(ci.x * 3.1 + ci.y)) + hh * 60.));
-  float ft = uTime * 3. + hh * 11.;
-  float fon = step(1. - uFlits * .12, h21(ci + floor(ft) * 13.7 + 5.1));
-  float flits = fon * pow(1. - fract(ft), 5.) * exp(-dd * dd * 40.);
-  col += (vec3(.55, .6, .8) * punt * .5 + vec3(1., .97, .9) * flits * 3.2) * tribune;
-
-  // gloed van het tegenlicht aan het eind van de tunnel
-  vec2 e = (p - VP) * vec2(1., 1.2);
+  vec3 wit = mix(uTint, vec3(1.), .55);
   float L = uLicht;
-  col += wit * L * .9 / (1. + 110. * dot(e, e));
-  col += uTint * L * .45 * exp(-length(e) * 2.3);
+  vec2 fq = uFig.w > 0. ? (p - uFig.xy) / uFig.z : vec2(9.);
+  float px = 1.4 / (uRes.y * max(uFig.z, 1e-3));
 
-  // lichtbundels van de schijnwerpers en vanuit de tunnel
-  float sw = sin(uTime * .6);
-  float beams = straal(p, vec2(-asp * .62, .6), -.62 + .22 * sw, .028) + straal(p, vec2(asp * .62, .6), 3.76 - .22 * sw, .028);
-  col += mix(uTint, vec3(1.), .25) * beams * (.28 + .35 * L) * uBundel;
-  float aV = atan(p.y - VP.y, p.x - VP.x + 1e-5);
-  float rv = length(p - VP);
-  float spaken = pow(max(sin(aV * 13. + uTime * .35) * .5 + .5, 0.), 6.) * (.5 + .7 * vn(vec2(aV * 4., uTime * .2)));
-  vec3 rc = uTint;
-  if (uRegen > .5) rc = hsv(vec3(aV / 6.2831853 + uTime * .06, .6, 1.));
-  col += rc * spaken * exp(-rv * 1.9) * L * .55 * uBundel;
+  // achtergrond: een donkere tunnel die opent naar een fel verlicht stadion
+  vec3 col = mix(vec3(.004, .005, .012), vec3(.016, .02, .045), smoothstep(-.2, .6, p.y));
+  col += uTint2 * .05 * exp(-length((p - VP) * vec2(.6, 1.4)) * 1.6);
+  // tunnelwanden: twee schuine vlakken met lichtstrips die naar het vluchtpunt lopen
+  float ax = abs(p.x) / asp;
+  float wand = smoothstep(.34, .5, ax + .25 * abs(p.y - VP.y));
+  float diepteW = 1. / max(abs(p.x) - .02, .02);
+  float strip = pow(max(0., sin(diepteW * 2.4 - uTime * (1.3 + 1.2 * uAmp))), 30.) * exp(-abs(p.y - VP.y - .1 * sign(p.y - VP.y)) * 6.);
+  col += mix(uTint, vec3(1.), .3) * strip * wand * .22 * (.4 + .6 * L);
+  col *= 1. - .55 * wand * smoothstep(.2, .9, abs(p.y - VP.y));
 
-  // vloer met reflectie
-  if (p.y < VP.y) {
-    float dz = VP.y - p.y;
-    float depth = 1. / (dz + .02);
-    float gx = abs(fract(p.x * depth * .8) - .5);
-    float gz = abs(fract(depth * .45 - uTime * (.55 + .4 * uAmp)) - .5);
-    float lijn = smoothstep(.03, 0., gx - .46 + .02) * .0 + smoothstep(.035, .0, min(gx, gz) - .46 + .035) * 0.;
-    float vloer = exp(-dz * 1.7);
-    col += wit * L * exp(-abs(p.x) * 5.5) * exp(-dz * 1.9) * .55;
-    col += uTint * L * vloer * .08 * (.6 + .4 * sin(p.x * depth * 3.));
-    col *= mix(1., .65, smoothstep(0., .5, dz));
+  // het stadion in de verte: een lichtrand van schijnwerpers en een publiek als zachte bokeh
+  float hor = exp(-pow((p.y - VP.y - .05) * 22., 2.));
+  float lampen = pow(max(0., sin(p.x * 70.)), 18.) * exp(-pow((p.y - VP.y - .19) * 60., 2.)) * smoothstep(.75, .1, abs(p.x) / asp);
+  col += wit * (lampen * .6 + hor * .06) * (.3 + .7 * L);
+  for (int k = 0; k < 2; k++) {
+    float sc = k == 0 ? 26. : 52.;
+    vec2 cp = p * sc + vec2(float(k) * 7.3, 0.);
+    vec2 ci = floor(cp);
+    float hh = h21(ci + float(k) * 19.);
+    vec2 jit = h22(ci + 3.7);
+    float dd = length(fract(cp) - (.25 + .5 * jit));
+    float tribune = smoothstep(.0, .2, p.y - VP.y + .02) * smoothstep(.95, .3, p.y) * (1. - wand);
+    float bokeh = smoothstep(.32, .26, dd) * (.6 + .4 * smoothstep(.0, .26, dd)); // schijfje met een lichte rand
+    float aanH = step(.82 - .1 * float(k), hh) * (.25 + .25 * sin(uTime * (1. + 3. * h11(ci.x * 3.1 + ci.y)) + hh * 60.));
+    vec3 bc = mix(uTint, mix(vec3(.6, .7, 1.), vec3(1.), hh), .5 + .3 * float(k));
+    col += bc * bokeh * aanH * tribune * (k == 0 ? .18 : .32);
+    // camera-flitsen
+    float ft = uTime * 2.6 + hh * 11.;
+    float fon = step(1. - uFlits * .06, h21(ci + floor(ft) * 13.7 + 5.1));
+    col += vec3(1., .97, .92) * fon * pow(1. - fract(ft), 6.) * exp(-dd * dd * 60.) * 2.4 * tribune;
   }
 
-  // nevel
-  float hz = fbm(p * vec2(1.6, 2.4) + vec2(uTime * .04, -uTime * .02));
-  col += mix(uTint2, uTint, .5) * hz * (.04 + .1 * L) * exp(-length(p - VP) * .9);
+  // de lichtbron achter de speler: een felle kern met een ovale halo
+  vec2 e = (p - VP) * vec2(1., 1.25);
+  col += wit * L * .75 / (1. + 140. * dot(e, e));
+  col += uTint * L * .38 * exp(-length(e) * 2.6);
 
-  // de leerling
+  // volumetrische bundels uit de bron, met de schaduw van de speler erin (een korte mars naar de bron)
+  float aV = atan(p.y - VP.y, p.x - VP.x + 1e-5);
+  float rv = length(p - VP);
+  float sp1 = pow(max(sin(aV * 9. + uTime * .18) * .5 + .5, 0.), 5.);
+  float sp2 = pow(max(sin(aV * 23. - uTime * .27 + 1.3) * .5 + .5, 0.), 10.);
+  float spaken = (sp1 * .8 + sp2 * .5) * (.45 + .8 * vn(vec2(aV * 5., uTime * .25)));
+  float vrij = 1.;
+  if (uFig.w > 0. && rv < 3. * uFig.z + .2) {
+    int N = uKw > 1.5 ? 5 : 9;
+    float blok = 0.;
+    float jit = h21(gl_FragCoord.xy + fract(uTime) * 37.);
+    for (int i = 0; i < 9; i++) {
+      if (i >= N) break;
+      float f = (float(i) + jit) / float(N);
+      vec2 s = mix(p, VP, f * .92);
+      vec2 qq = (s - uFig.xy) / uFig.z;
+      if (abs(qq.x) < .3 && qq.y > 0. && qq.y < 1.02) blok += step(figuur(qq, uStap, uAmp), 0.);
+    }
+    vrij = 1. - blok / float(N) * uFig.w;
+  }
+  vec3 rc = uTint;
+  if (uRegen > .5) rc = hsv(vec3(aV / 6.2831853 + uTime * .06, .6, 1.));
+  float bundelV = spaken * exp(-rv * 1.5) * L * .6 * uBundel;
+  col += mix(rc, wit, .25) * bundelV * vrij;
+
+  // schijnwerpers van boven die over de speler zwiepen
+  float sw = sin(uTime * .55);
+  float beams = straal(p, vec2(-asp * .55, .75), -.75 + .2 * sw, .02) + straal(p, vec2(asp * .55, .75), 3.89 - .2 * sw, .02);
+  beams += .6 * (straal(p, vec2(-asp * .25, .8), -1.25 - .12 * sw, .014) + straal(p, vec2(asp * .25, .8), 4.39 + .12 * sw, .014));
+  col += mix(uTint, vec3(1.), .4) * beams * (.16 + .25 * L) * uBundel;
+
+  // vloer: gepolijst, met een lange reflectie van de bron en lichtvlekken
+  if (p.y < VP.y) {
+    float dz = VP.y - p.y;
+    float depth = 1. / (dz + .015);
+    col *= .55;
+    float refl = exp(-abs(p.x) * (6. - 3. * smoothstep(0., .5, dz))) * exp(-dz * 1.6);
+    col += wit * L * refl * .4 * (.85 + .15 * vn(vec2(p.x * 40., depth * 2.)));
+    // naden in de vloer die naar het vluchtpunt lopen
+    float naad = smoothstep(.02, .0, abs(fract(p.x * depth * .22) - .5) - .47) * exp(-dz * 2.);
+    col += uTint * naad * .03 * L;
+    col += rc * bundelV * .25 * vrij * exp(-dz * 3.);
+  }
+
+  // rook: twee lagen nevel die door het licht oplichten, en laaghangende vloermist
+  float hz = fbm(p * vec2(1.4, 2.6) + vec2(uTime * .05, -uTime * .015));
+  float hz2 = fbm(p * vec2(3.1, 4.2) - vec2(uTime * .09, uTime * .02) + 4.);
+  float lichtOp = exp(-length(e) * 1.4) * (.5 + .5 * vrij);
+  col += mix(uTint2, wit, .45) * (hz * .7 + hz2 * .4) * (.025 + .2 * L * lichtOp) ;
+  float mist = smoothstep(.25, -.05, p.y - VP.y + .25) * smoothstep(-.6, -.15, p.y);
+  col += mix(uTint, wit, .5) * mist * hz2 * .12 * (.3 + L) * exp(-abs(p.x) * 1.2);
+
+  // de speler
   if (uFig.w > 0.) {
-    vec2 q = (p - vec2(uFig.x, uFig.y)) / uFig.z;
-    float px = 1.4 / (uRes.y * uFig.z);
-    if (abs(q.x) < .55 && q.y > -.3 && q.y < 1.12) {
+    vec2 q = fq;
+    if (abs(q.x) < .32 && q.y > -.12 && q.y < 1.05) {
       float d = figuur(q, uStap, uAmp);
       float sil = smoothstep(px, -px, d);
-      float rand = smoothstep(.016, 0., abs(d + .004)) * (1. - sil * 0.);
-      vec3 fcol = vec3(.004, .005, .011);
-      col = mix(col, fcol, sil * uFig.w);
-      col += wit * L * (smoothstep(-.016, 0., d) * sil) * 1.6 * uFig.w;
-      // tegenlicht: de stof licht zacht op langs de randen en aan de kant van de bundel
-      float binnen = exp(d * 38.) * sil;
-      float kant = .5 + .5 * clamp(-q.x * 6., -1., 1.) * 0.;
-      col += mix(uTint, vec3(1.), .4) * L * binnen * .5 * uFig.w * (.6 + .8 * smoothstep(.2, .9, q.y));
-      col += uTint2 * L * sil * .035 * uFig.w * (1. - q.y);
-      col += uTint * L * exp(-max(d, 0.) * 30.) * (1. - sil) * .22 * uFig.w;
+      if (sil > 0.) {
+        // normaal uit de afstand: voor het randlicht van achteren
+        vec2 h = vec2(.004, 0.);
+        vec2 gN = normalize(vec2(figuur(q + h.xy, uStap, uAmp) - d, figuur(q + h.yx, uStap, uAmp) - d) + 1e-6);
+        vec2 naarBron = normalize((VP - uFig.xy) / uFig.z + vec2(0., .2) - q + 1e-5);
+        float rim = exp(d / (2.2 * px + .0025)); // een dunne rand, een paar pixels breed
+        float tegen = .45 + .55 * max(0., -dot(gN, naarBron) * .5 + .5);
+        // het lijf: bijna zwart, met wat volume (een zachte vulling van voren in de tweede kleur)
+        float vol = smoothstep(-.06, 0., d);
+        vec3 fcol = vec3(.006, .007, .014) + uTint2 * .025 * (1. - vol) * smoothstep(.2, .9, q.y);
+        // de shirtrand en broek iets anders van tint, zodat je kleding leest
+        float broekZ = smoothstep(.535, .525, q.y) * smoothstep(.40, .42, q.y);
+        fcol = mix(fcol, fcol * 1.6 + uTint * .01, broekZ);
+        col = mix(col, fcol, sil * uFig.w);
+        col += mix(uTint, vec3(1.), .55) * L * rim * tegen * sil * uFig.w * (1.1 + .7 * smoothstep(.55, .95, q.y));
+        col += uTint * L * exp(d / (5. * px + .004)) * sil * uFig.w * .06 * tegen; // zachte doorschijn in de stof
+        col += wit * L * smoothstep(-1.2 * px, 0., d) * sil * uFig.w * .8 * tegen;
+      }
+      // gloed rond de speler (het licht kruipt om de randen heen)
+      col += uTint * L * exp(-max(d, 0.) * 22.) * (1. - sil) * .22 * uFig.w;
     }
-    // reflectie in de vloer
-    vec2 qr = vec2(q.x, -q.y * 1.0 - .02);
-    if (q.y < 0. && q.y > -.55 && abs(qr.x) < .55) {
+    // reflectie in de vloer: wazig en vervagend
+    if (q.y < 0. && q.y > -.6 && abs(q.x) < .32) {
+      vec2 qr = vec2(q.x + .01 * sin(q.y * 60. + uTime), -q.y - .01);
       float dr = figuur(qr, uStap, uAmp);
-      float silr = smoothstep(px * 3., -px * 3., dr);
-      col = mix(col, vec3(.004, .005, .011), silr * .38 * smoothstep(-.55, 0., q.y) * uFig.w);
+      float silr = smoothstep(px * 6., -px * 6., dr);
+      col = mix(col, vec3(.004, .005, .01), silr * .55 * smoothstep(-.6, -.02, q.y) * uFig.w);
+      col += uTint * L * exp(-abs(dr) * 40.) * .05 * smoothstep(-.4, 0., q.y) * uFig.w;
     }
-    // schaduw onder de voeten
-    float sh = exp(-pow(length(vec2(q.x * .9, (q.y + .015) * 3.2)), 2.) * 14.);
-    col *= 1. - .7 * sh * uFig.w;
+    // contactschaduw en een lange schaduw naar voren (het licht staat achter hem)
+    float sh = exp(-pow(length(vec2(q.x * .9, (q.y + .012) * 4.)), 2.) * 18.);
+    float lang = exp(-q.x * q.x * 60.) * smoothstep(0., -.05, q.y) * exp(q.y * 2.5);
+    col *= 1. - (.75 * sh + .45 * lang) * uFig.w;
   }
   o = vec4(col * uAlpha, 1.);
 }`;
@@ -517,24 +609,37 @@ void main(){
   vec3 L = normalize(vec3(.45 + uKantel.x * .5, .7 - uKantel.y * .3, 1.));
   float luma = dot(t.rgb, vec3(.299, .587, .114));
   float metaal = smoothstep(.3, .75, luma);
-  float diff = .66 + .5 * max(dot(N, L), 0.);
+  // krimpseal boven en onder: fijne geperste ribbels die het licht in streepjes breken
+  float seal = smoothstep(.085, .065, vUv.y) + smoothstep(.915, .935, vUv.y);
+  float rib = sin(vUv.x * 230.);
+  N = normalize(N + vec3(rib * .45 * seal, 0., 0.));
+  // folie-reliëf: zachte kreukels in het materiaal (alleen in de normaal, het artwork blijft scherp)
+  vec2 kr = vec2(vn(vUv * vec2(9., 14.) + uSeed), vn(vUv * vec2(9., 14.) + uSeed + 7.)) - .5;
+  N = normalize(N + vec3(kr * .09 * (1. - seal), 0.));
+  float diff = .58 + .42 * max(dot(N, L), 0.);
   vec3 col = t.rgb * diff;
-  // folie: scherpe weerspiegeling en een regenboog-glans die met de hoek meebeweegt
-  float spec = pow(max(dot(reflect(-L, N), V), 0.), mix(30., 90., metaal)) * (.2 + .8 * metaal);
-  float band = dot(N.xy, vec2(.8, .6)) * 3.2 + vUv.y * 1.8 + uTime * .12 + uKantel.x * .6;
+  // folie: scherpe weerspiegeling en een regenboog-glans die met de hoek meebeweegt (subtiel en vlekkerig, zoals echte holofolie)
+  float spec = pow(max(dot(reflect(-L, N), V), 0.), mix(40., 120., metaal)) * (.15 + .7 * metaal);
+  float spec2 = pow(max(dot(reflect(-normalize(vec3(-.6, .2, 1.)), N), V), 0.), 18.) * .12; // zacht tegenlicht
+  float band = dot(N.xy, vec2(.8, .6)) * 3.2 + vUv.y * 1.8 + uTime * .12 + uKantel.x * .6 + fbm(vUv * 5.) * .8;
   vec3 regenboog = .5 + .5 * cos(6.2831853 * (band + vec3(0., .33, .67)));
-  col += regenboog * (.08 + .22 * metaal) * (.4 + 1.6 * length(N.xy));
-  col += vec3(1., .97, .92) * spec;
+  col += regenboog * (.05 + .16 * metaal) * (.4 + 1.6 * length(N.xy)) * (1. + seal);
+  col += vec3(1., .97, .92) * (spec + spec2) * (1. + .6 * seal);
+  // de ribbels van de seal vangen het licht in strepen
+  col += vec3(1.) * seal * pow(max(rib, 0.), 6.) * .08;
   // glanzende veeg die over het pakje trekt
   float veeg = exp(-pow((vUv.x * .7 + vUv.y * .5 - uGlans) * 7., 2.));
-  col += vec3(1.) * veeg * (.2 + .45 * metaal);
+  col += vec3(1.) * veeg * (.12 + .3 * metaal);
+  // de randen van het zakje lopen donkerder weg (volume), zodat het niet vlak oogt
+  float randD = smoothstep(0., .07, vUv.x) * smoothstep(1., .93, vUv.x);
+  col *= .72 + .28 * randD;
   // rand in de kleur van het niveau
   float fres = pow(1. - abs(dot(N, V)), 3.);
   col += uCol * fres * (.3 + 1.0 * uLaad) * uRand + vec3(.45, .6, 1.) * fres * .3;
   // licht dat uit de naad lekt terwijl het pakje oplaadt
   float lek = exp(-abs(rand) * (95. - 30. * uLaad)) * uLaad;
-  col += mix(uCol, vec3(1.), .55) * lek * 1.5 + uCol * exp(-abs(rand) * 9.) * uLaad * uLaad * .35;
-  col += uCol * uLaad * uLaad * .12;
+  col += mix(uCol, vec3(1.), .45) * lek * .9 + uCol * exp(-abs(rand) * 9.) * uLaad * uLaad * .25;
+  col += uCol * uLaad * uLaad * .05;
   // gescheurde rand: witte folie-vezels
   if (uDeel > .5) {
     float ed = abs(rand);
@@ -783,7 +888,13 @@ void main(){
     off = rot2(rt) * q;
     alpha = smoothstep(1., .85, u) * smoothstep(0., .02, u);
     float sh = .65 + .35 * flip;
-    if (uMode == 2) { float pk = fract(r6 * 7.3); col = (uRegen > .5 ? hsv(vec3(r5, .7, 1.)) : pk < .45 ? mix(uCol1, uCol2, r5) * 1.15 : pk < .75 ? vec3(1., .96, .88) : hsv(vec3(fract(r5 + .55), .5, 1.))) * (.5 + .6 * sh); alpha *= .9; } else col = col * (.7 + .5 * abs(flip));
+    if (uMode == 2) {
+      // een beperkt palet in de kleuren van het niveau (geen kermis), met een metalen glinstering als het blaadje kantelt
+      float pk = fract(r6 * 7.3);
+      col = uRegen > .5 ? hsv(vec3(r5, .7, 1.)) : pk < .55 ? mix(uCol1, uCol2, r5) : pk < .8 ? mix(uCol1, vec3(1., .97, .9), .6) : uCol2 * .55;
+      col *= .35 + .55 * sh + .9 * pow(abs(flip), 14.);
+      alpha *= .92;
+    } else col = col * (.7 + .5 * abs(flip));
     vK = 2;
   } else if (uMode == 3) {
     // regen

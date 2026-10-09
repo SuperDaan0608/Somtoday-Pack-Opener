@@ -186,7 +186,14 @@
         return i && { vak: i.vak, tijd: i.tijd, stijl: ['top', 'left', 'width', 'height'].map((k) => it.style[k] ? `${k}:${it.style[k]}` : '').filter(Boolean).join(';'), uit: isUitgevallen(it) };
       }).filter(Boolean);
       const oud = vorig[sl];
-      const weg = oud ? oud.lessen.filter((l) => !nuLessen.some((n) => lesSleutel(n) === lesSleutel(l))) : [];
+      // Weg = de les staat er niet meer, én op dat tijdstip staat ook niets anders. Staat er iets anders (een andere les,
+      // een toets, een inzagemoment), dan is het rooster gewijzigd en is het geen vrije tijd: dan geen uitval.
+      const bezet = items.filter((it) => !isUitgevallen(it)).map((it) => [parseFloat(it.style.top) || 0, (parseFloat(it.style.top) || 0) + (parseFloat(it.style.height) || 0)]);
+      const vanTot = (l) => { const t = /top:\s*([\d.]+)/.exec(l.stijl || ''), h = /height:\s*([\d.]+)/.exec(l.stijl || ''); return t && h ? [+t[1], +t[1] + +h[1]] : null; };
+      const vrij = (l) => { const r = vanTot(l); return !r || !bezet.some(([a, b]) => a < r[1] - 2 && b > r[0] + 2); };
+      const weg = oud ? oud.lessen.filter((l) => !nuLessen.some((n) => lesSleutel(n) === lesSleutel(l)) && vrij(l)) : [];
+      // spookblokken die nu over een les vallen, horen er niet (meer)
+      for (const g of dag.querySelectorAll('.spo-spook')) if (!weg.some((l) => lesSleutel(l) === g.dataset.les)) g.remove();
       // Een les die net weg is, kan ook nog aan het laden zijn: pas na 2 seconden en met de rest van de dag zichtbaar is het uitval.
       if (weg.length && !weg.every((l) => l.weg)) {
         if (!nuLessen.length) continue;

@@ -11,7 +11,7 @@ const BERICHT_TTL = 600;  // berichten in een kanaal verdwijnen na 10 minuten
 const MAX_WACHTRIJ = 300; // hoogstens zoveel berichten tegelijk van één afzender naar één ontvanger
 
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Headers: Content-Type, X-Id, X-Token, X-Beheer, X-Sessie');
+header('Access-Control-Allow-Headers: Content-Type, X-Id, X-Token, X-Beheer, X-Sessie, X-Versie');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
@@ -35,7 +35,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET' && isset($_GET['status'])) {
   try {
     $d = new PDO($c['db_dsn'], $c['db_user'] ?? null, $c['db_pass'] ?? null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
   } catch (Throwable $e) { fout(500, 'Database niet bereikbaar: controleer host, naam, gebruiker en wachtwoord in config.php.'); }
-  foreach (['users', 'friendships', 'blobs', 'ratelimit', 'berichten', 'bans', 'accounts', 'acc_codes', 'acc_sessies', 'acc_backup'] as $t) {
+  foreach (['users', 'friendships', 'blobs', 'ratelimit', 'berichten', 'bans', 'accounts', 'acc_codes', 'acc_sessies', 'acc_backup', 'user_versie'] as $t) {
     try { $d->query('SELECT 1 FROM ' . $t . ' LIMIT 1'); }
     catch (Throwable $e) { fout(500, 'Tabel ontbreekt: ' . $t . '. Voer schema.sql uit in phpMyAdmin.'); }
   }
@@ -124,6 +124,7 @@ function verwijderGebruiker(PDO $db, string $id): void {
   q($db, 'DELETE FROM berichten WHERE afz = ? OR ontv = ?', [$id, $id]);
   q($db, 'DELETE FROM friendships WHERE a = ? OR b = ?', [$id, $id]);
   q($db, 'DELETE FROM bans WHERE id = ?', [$id]);
+  q($db, 'DELETE FROM user_versie WHERE id = ?', [$id]);
   q($db, 'DELETE FROM users WHERE id = ?', [$id]);
 }
 if (random_int(1, 100) === 1) {
@@ -432,6 +433,30 @@ if ($relayActie) tel($db, hash('sha256', $ik . ':rel'), intdiv($nu, 60), (int)($
 else tel($db, hash('sha256', $ik . ':usr'), intdiv($nu, 60), (int)($cfg['limiet_user_per_min'] ?? 180));
 if ($nu - (int)$rij['last_seen'] > 3600) q($db, 'UPDATE users SET last_seen = ? WHERE id = ?', [$nu, $ik]);
 
+// Vrienden alleen met dezelfde versie (v2.3.4). Oude versies sturen geen X-Versie mee en moeten eerst updaten.
+$versieCheck = ($cfg['vrienden_zelfde_versie'] ?? true) !== false;
+$mijnVersie = $_SERVER['HTTP_X_VERSIE'] ?? '';
+if (!is_string($mijnVersie) || !preg_match('/^[0-9]{1,4}(\.[0-9]{1,4}){0,3}$/', $mijnVersie)) $mijnVersie = '';
+if ($versieCheck && $actie !== 'deleteAccount') {
+  if ($mijnVersie === '') uit(426, ['fout' => 'Je Pack Opener is te oud. Update naar de nieuwste versie om vrienden te gebruiken.', 'update' => true]);
+  $oudV = q($db, 'SELECT versie FROM user_versie WHERE id = ?', [$ik])->fetchColumn();
+  if ($oudV !== $mijnVersie) {
+    if ($oudV === false) q($db, 'INSERT INTO user_versie (id, versie) VALUES (?, ?)', [$ik, $mijnVersie]);
+    else q($db, 'UPDATE user_versie SET versie = ? WHERE id = ?', [$mijnVersie, $ik]);
+  }
+}
+function versieVan(PDO $db, string $id): string {
+  $v = q($db, 'SELECT versie FROM user_versie WHERE id = ?', [$id])->fetchColumn();
+  return $v === false ? '' : (string)$v;
+}
+// Weigert als de ander een andere versie heeft.
+function zelfdeVersie(PDO $db, string $ander): void {
+  global $versieCheck, $mijnVersie;
+  if (!$versieCheck) return;
+  $v = versieVan($db, $ander);
+  if ($v !== $mijnVersie) uit(409, ['fout' => 'Je vriend heeft een andere versie van de Pack Opener (' . ($v === '' ? 'een oude' : $v) . ', jij ' . $mijnVersie . '). Jullie moeten allebei de nieuwste versie hebben.', 'andereVersie' => true, 'zijnVersie' => $v]);
+}
+
 // Zoekt de vriendschap in beide richtingen.
 function vriendschap(PDO $db, string $x, string $y): ?array {
   $r = q($db, 'SELECT a, b, status FROM friendships WHERE (a = ? AND b = ?) OR (a = ? AND b = ?)', [$x, $y, $y, $x])->fetch();
@@ -447,6 +472,7 @@ switch ($actie) {
     if (!isId($to)) fout(400, 'Ongeldige vriendcode.');
     if ($to === $ik) fout(400, 'Je kunt jezelf niet toevoegen.');
     if (!bestaat($db, $to)) fout(404, 'Deze vriendcode bestaat niet (meer).');
+    zelfdeVersie($db, $to);
     $f = vriendschap($db, $ik, $to);
     if ($f === null) {
       q($db, 'INSERT INTO friendships (a, b, status, created) VALUES (?, ?, ?, ?)', [$ik, $to, 'pending', $nu]);
@@ -460,11 +486,14 @@ switch ($actie) {
   }
   case 'inbox': {
     $r = q($db, 'SELECT u.id AS id, u.pub AS pub FROM friendships f JOIN users u ON u.id = f.a WHERE f.b = ? AND f.status = ? ORDER BY f.created', [$ik, 'pending'])->fetchAll();
+    foreach ($r as &$x) { $x['versie'] = versieVan($db, $x['id']); $x['andereVersie'] = $versieCheck && $x['versie'] !== $mijnVersie; }
+    unset($x);
     uit(200, ['verzoeken' => $r]);
   }
   case 'respond': {
     $van = $in['from'] ?? null;
     if (!isId($van) || !is_bool($in['accept'] ?? null)) fout(400, 'Ongeldig verzoek.');
+    if ($in['accept']) zelfdeVersie($db, $van);
     $f = q($db, 'SELECT 1 FROM friendships WHERE a = ? AND b = ? AND status = ?', [$van, $ik, 'pending'])->fetchColumn();
     if ($f === false) fout(404, 'Geen openstaand verzoek van deze vriend.');
     if ($in['accept']) q($db, 'UPDATE friendships SET status = ? WHERE a = ? AND b = ?', ['accepted', $van, $ik]);
@@ -473,6 +502,8 @@ switch ($actie) {
   }
   case 'friends': {
     $r = q($db, 'SELECT u.id AS id, u.pub AS pub FROM friendships f JOIN users u ON u.id = (CASE WHEN f.a = ? THEN f.b ELSE f.a END) WHERE (f.a = ? OR f.b = ?) AND f.status = ?', [$ik, $ik, $ik, 'accepted'])->fetchAll();
+    foreach ($r as &$x) { $x['versie'] = versieVan($db, $x['id']); $x['andereVersie'] = $versieCheck && $x['versie'] !== $mijnVersie; }
+    unset($x);
     uit(200, ['vrienden' => $r]);
   }
   case 'put': {
@@ -481,6 +512,7 @@ switch ($actie) {
     if (!isId($to) || !is_string($data)) fout(400, 'Ongeldig verzoek.');
     if (strlen($data) > MAX_BLOB) fout(413, 'Gegevens te groot (max 96 KB).');
     if ($data !== '' && !preg_match('/^[A-Za-z0-9._-]+$/', $data)) fout(400, 'Ongeldig formaat.');
+    zelfdeVersie($db, $to);
     $f = vriendschap($db, $ik, $to);
     if ($f === null || $f['status'] !== 'accepted') fout(403, 'Jullie zijn geen vrienden.');
     $db->beginTransaction();
@@ -493,6 +525,7 @@ switch ($actie) {
   }
   case 'get': {
     $r = q($db, 'SELECT owner, data, updated FROM blobs WHERE recipient = ?', [$ik])->fetchAll();
+    if ($versieCheck) $r = array_values(array_filter($r, function ($x) use ($db, $mijnVersie) { return versieVan($db, $x['owner']) === $mijnVersie; }));
     foreach ($r as &$x) $x['updated'] = (int)$x['updated'];
     uit(200, ['blobs' => $r]);
   }
@@ -518,6 +551,7 @@ switch ($actie) {
     if (!isId($to) || !is_string($data) || !is_int($seq) || $seq < 1 || $seq > 9007199254740991) fout(400, 'Ongeldig verzoek.');
     if ($data === '' || strlen($data) > MAX_BERICHT) fout(413, 'Bericht te groot (max 2 KB).');
     if (!preg_match('/^[A-Za-z0-9._-]+$/', $data)) fout(400, 'Ongeldig formaat.');
+    zelfdeVersie($db, $to);
     $f = vriendschap($db, $ik, $to);
     if ($f === null || $f['status'] !== 'accepted') fout(403, 'Jullie zijn geen vrienden.');
     q($db, 'DELETE FROM berichten WHERE afz = ? AND ontv = ? AND created < ?', [$ik, $to, $nu - BERICHT_TTL]);
@@ -531,6 +565,7 @@ switch ($actie) {
     $van = $in['from'] ?? null;
     $na = $in['after'] ?? 0;
     if (!isId($van) || !is_int($na) || $na < 0) fout(400, 'Ongeldig verzoek.');
+    zelfdeVersie($db, $van);
     $f = vriendschap($db, $ik, $van);
     if ($f === null || $f['status'] !== 'accepted') fout(403, 'Jullie zijn geen vrienden.');
     $r = q($db, 'SELECT seq, data, created FROM berichten WHERE afz = ? AND ontv = ? AND seq > ? AND created >= ? ORDER BY seq LIMIT 50', [$van, $ik, $na, $nu - BERICHT_TTL])->fetchAll();

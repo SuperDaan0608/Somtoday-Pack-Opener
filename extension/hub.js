@@ -24,7 +24,7 @@
   const SLEUTEL_GALERIJ = 'spo_galerij';
   const SLEUTEL_GEOPEND = 'spo_geopend';
   const SLEUTEL_PROEF = 'spo_proef';
-  const STANDAARD = { dagelijks: true, afdekking: true, geluid: true, snel: false, opening: 'pak', galerij: true, laag: false, zeldzaam: true, seizoen: true, gemiddelden: true, knop: true, uitval: true };
+  const STANDAARD = { dagelijks: true, afdekking: true, geluid: true, snel: false, opening: 'pak', galerij: true, laag: false, zeldzaam: true, seizoen: true, gemiddelden: true, knop: true, uitval: true, huisdier: true, meekijken: true };
   const OPENINGEN = ['pak', 'kluis', 'plinko', 'ster', 'raket', 'schiet', 'dans', 'willekeurig'];
   const OPENING_NAAM = { pak: 'Pakje', kluis: 'Kluis', plinko: 'Plinko', ster: 'Wensster', raket: 'Raket', schiet: 'Schieten', dans: 'Dansje', willekeurig: 'Verras me' };
   const TABS = ['overzicht', 'galerij', 'kaart', 'proberen', 'team', 'vrienden', 'prestaties', 'winkel', 'profiel', 'rekenen', 'instellingen', 'geluiden']; // zelfde volgorde als in de zijbalk (pijltjestoetsen)
@@ -194,6 +194,13 @@
     else laadTimer = setTimeout(() => laadKader(naam), 150);
     if (naam === 'overzicht' && ververs) verversStatus();
   }
+
+  // De rondleiding start pas als het paneel klaar is (bij een iframe: na 'init' van content.js, zodat die niet van tabblad wisselt).
+  function hubKlaar() {
+    window.SPOHub.klaar = true;
+    document.dispatchEvent(new Event('spo-hub-klaar'));
+  }
+  window.SPOHub = { kies: (naam) => kies(naam, { focus: false }), huidig: () => huidig }; // voor de rondleiding (rondleiding.js)
 
   $('tabs').addEventListener('click', (e) => {
     const k = e.target.closest('[role="tab"]');
@@ -415,7 +422,7 @@
     bewaarTimer = setTimeout(() => {
       try {
         chrome.storage.local.set({
-          [SLEUTEL_PROEF]: { vak: vakEl.value, cijfer: cijferEl.value, onderwerp: onderEl.value, weging, zeldzaam: $('proef-zeldzaam').checked, seizoen: $('proef-seizoen').value, geschiedenis },
+          [SLEUTEL_PROEF]: { vak: vakEl.value, cijfer: cijferEl.value, onderwerp: onderEl.value, weging, trede: Number($('proef-trede').value) || 0, zeldzaam: Number($('proef-trede').value) >= 1, seizoen: $('proef-seizoen').value, geschiedenis },
         });
       } catch (e) {
         /* geen opslag */
@@ -529,7 +536,7 @@
     zetWeging(Number(b.dataset.w));
     bewaarProef();
   });
-  $('proef-zeldzaam').addEventListener('change', bewaarProef);
+  $('proef-trede').addEventListener('change', bewaarProef);
   $('proef-seizoen').addEventListener('change', bewaarProef);
   $('wis').addEventListener('click', () => {
     geschiedenis = [];
@@ -553,7 +560,8 @@
       onderwerp: onderEl.value.trim() || 'Toets',
       weging,
       // bij het proberen kies je zelf: een zeldzame kaart en een seizoensthema kun je zo altijd uitproberen
-      zeldzaam: $('proef-zeldzaam').checked,
+      zeldzaam: Number($('proef-trede').value) >= 1,
+      trede: Number($('proef-trede').value) || 0,
       seizoen: $('proef-seizoen').value,
     };
     geschiedenis.unshift({ vak: data.vak, cijfer: g, onderwerp: data.onderwerp, weging, ts: Date.now() });
@@ -585,7 +593,7 @@
       // eenmalig: wat de oude popup in localStorage onthield (werkt alleen in een los tabblad)
       try {
         const l = (k, r) => localStorage.getItem('sp_' + k) ?? r;
-        p = { vak: l('vak', ''), cijfer: l('cijfer', ''), onderwerp: l('onderwerp', ''), weging: parseInt(l('weging', '1'), 10), zeldzaam: l('proef-zeldzaam', '0') === '1', seizoen: l('proef-seizoen', 'auto'), geschiedenis: JSON.parse(l('geschiedenis', '[]')) };
+        p = { vak: l('vak', ''), cijfer: l('cijfer', ''), onderwerp: l('onderwerp', ''), weging: parseInt(l('weging', '1'), 10), zeldzaam: l('proef-zeldzaam', '0') === '1', trede: l('proef-zeldzaam', '0') === '1' ? 1 : 0, seizoen: l('proef-seizoen', 'auto'), geschiedenis: JSON.parse(l('geschiedenis', '[]')) };
       } catch (e) {
         p = {};
       }
@@ -596,7 +604,7 @@
     cijferEl.value = c ? fmt(c) : '';
     schuifEl.value = c || 7.5;
     zetWeging(Math.min(4, Math.max(1, parseInt(p.weging, 10) || 1)));
-    $('proef-zeldzaam').checked = p.zeldzaam === true;
+    $('proef-trede').value = String(Math.max(0, Math.min(4, p.trede | 0)) || (p.zeldzaam === true ? 1 : 0));
     $('proef-seizoen').value = ['auto', 'halloween', 'kerst', 'zomer', 'geen'].includes(p.seizoen) ? p.seizoen : 'auto';
     geschiedenis = (Array.isArray(p.geschiedenis) ? p.geschiedenis : []).filter((x) => x && typeof x.cijfer === 'number' && typeof x.vak === 'string').slice(0, 20);
     werkVoorbeeldBij();
@@ -664,6 +672,7 @@
           if (m.status) status = m.status;
           kies(TABS.includes(m.tab) ? m.tab : 'overzicht', { focus: true });
           tekenHero();
+          hubKlaar();
           break;
         case 'tab':
           kies(TABS.includes(m.tab) ? m.tab : 'overzicht', { focus: true });
@@ -722,6 +731,7 @@
     if (ingebed) {
       naarPagina('hub-klaar');
     } else {
+      hubKlaar();
       // los tabblad: opnieuw kijken zodra je terugkomt uit het Somtoday-tabblad
       document.addEventListener('visibilitychange', () => {
         if (!document.hidden && huidig === 'overzicht') verversStatus();

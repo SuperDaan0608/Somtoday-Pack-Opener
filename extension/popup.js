@@ -5,7 +5,7 @@
   const chrome = typeof browser !== 'undefined' && browser.runtime ? browser : globalThis.chrome; // Firefox heeft `browser`, Chrome `chrome`
 
   // De bestanden van de animatie, in de volgorde waarin ze geladen moeten worden (zie manifest.json).
-  const PAKKET_BESTANDEN = ['motor/data.js', 'motor/audio.js', 'motor/shaders.js', 'motor/gl.js', 'motor/art.js', 'motor/openingen/kluis.js', 'motor/openingen/plinko.js', 'motor/openingen/ster.js', 'motor/openingen/raket.js', 'motor/openingen/schiet.js', 'motor/openingen/dans.js', 'motor/zeldzaam.js', 'motor/scene.js', 'motor/main.js'];
+  const PAKKET_BESTANDEN = ['motor/data.js', 'motor/audio.js', 'motor/shaders.js', 'motor/gl.js', 'motor/art.js', 'motor/openingen/kluis.js', 'motor/openingen/plinko.js', 'motor/openingen/ster.js', 'motor/openingen/raket.js', 'motor/openingen/schiet.js', 'motor/openingen/dans.js', 'motor/mythisch.js', 'motor/kosmisch.js', 'motor/zeldzaam.js', 'motor/scene.js', 'motor/main.js'];
 
   const $ = (id) => document.getElementById(id);
   const SOMTODAY = /^https:\/\/leerling\.somtoday\.nl\//;

@@ -86,3 +86,108 @@
   // Bij het opstarten van de browser: de back-up van een ander apparaat erbij halen.
   if (chrome.runtime.onStartup) chrome.runtime.onStartup.addListener(() => A.herstel().catch(() => {}));
 })();
+
+/*
+ * v2.4: meldingen rechtsboven op Somtoday bij een nieuw vriendverzoek of een uitdaging voor een duel.
+ * De Somtoday-pagina (meldingen.js) vraagt elke paar seconden 'iets nieuws?'. Wij doen dan één goedkope 'puls' bij de server
+ * en halen alleen meer op als daar iets veranderd is. Berichten worden hier alleen gelezen (eigen cursor), niet weggehaald:
+ * de Team-pagina ziet ze daarna gewoon nog.
+ */
+(function () {
+  'use strict';
+  const chrome = typeof browser !== 'undefined' && browser.runtime ? browser : globalThis.chrome;
+  try {
+    if (!globalThis.SPOVrienden && typeof importScripts === 'function') importScripts('vriendenlib.js');
+  } catch (e) { /* zonder vriendenlib geen meldingen */ }
+  const L = globalThis.SPOVrienden;
+  if (!L) return;
+  let bezig = null, laatst = 0, vh = null, eerste = true;
+  const cursor = {};
+  const gezienVerzoek = new Set();
+  const gezienUitdaging = new Set();
+  const KIJK_REST = 60; // seconden dat een uitnodiging om mee te kijken blijft staan
+  const gezienKijk = new Set();
+  const gezienEmoji = new Set();
+
+  async function kijk() {
+    const st = await L.laad();
+    if (!st) return [];
+    const cl = L.clientVan(st);
+    const p = await cl.roep('puls');
+    const uit = [];
+    if (vh === null || p.vh !== vh) {
+      vh = p.vh;
+      const inb = await cl.roep('inbox');
+      for (const r of inb.verzoeken || []) {
+        if (gezienVerzoek.has(r.id)) continue;
+        gezienVerzoek.add(r.id);
+        const bekend = st.vrienden.find((v) => v.id === r.id && v.status === 'vriend');
+        // Bij de eerste keer niet alle oude verzoeken melden die je al gezien had (die staan al als 'ontvangen' in je lijst).
+        if (!bekend && !(eerste && st.vrienden.some((v) => v.id === r.id && v.status === 'ontvangen'))) uit.push({ soort: 'verzoek', tekst: 'Je hebt een nieuw vriendverzoek.' });
+      }
+    }
+    for (const x of p.post || []) {
+      if (x.seq <= (cursor[x.van] || 0)) continue;
+      const v = st.vrienden.find((y) => y.id === x.van && y.status === 'vriend');
+      if (!v) continue;
+      const lijst = await L.haalBerichten(st, v, cursor);
+      for (const b of lijst) {
+        if (b.m.t === 'uitnodiging') {
+          if (b.leeftijd >= 300 || typeof b.m.mid !== 'string' || gezienUitdaging.has(b.m.mid)) continue;
+          gezienUitdaging.add(b.m.mid);
+          uit.push({ soort: 'duel', tekst: `${L.naam(v)} daagt je uit voor een duel!` });
+        } else if (b.m.t === 'gg') {
+          // GG van een vriend op een kosmische of mythische kaart van mij (alleen als die kaart echt in mijn galerij staat)
+          const g = L.schoonGG(b.m);
+          if (!g || b.leeftijd >= 600) continue;
+          const kaart = (await L.leesGalerij()).find((e) => String(e.ts) === g.k && (e.trede | 0) >= 3);
+          if (!kaart || !(await L.bewaarGG(v.id, g.k))) continue;
+          uit.push({ soort: 'gg', tekst: `${L.naam(v)} zegt GG op je ${kaart.trede === 4 ? 'MYTHISCHE (1/1000)' : 'KOSMISCHE (1/150)'} kaart (${String(kaart.vak).slice(0, 40)})!` });
+        } else if (b.m.t === 'kijk') {
+          // Een vriend opent nu een kosmische of mythische kaart: meekijken kan 60 seconden lang
+          const k = L.schoonKijk(b.m, b.leeftijd);
+          if (!k || gezienKijk.has(k.mid)) continue;
+          gezienKijk.add(k.mid);
+          uit.push({ soort: 'kijk', van: v.id, naam: L.naam(v), kijk: k, rest: Math.max(5, KIJK_REST - b.leeftijd), tekst: `${L.naam(v)} opent nu iets ${k.trede === 4 ? 'MYTHISCHS (kans 1/1000)' : 'KOSMISCHS (kans 1/150)'}: kijk mee!` });
+        } else if (b.m.t === 'emoji') {
+          const e = L.schoonKijkEmoji(b.m);
+          if (!e || b.leeftijd >= 30 || gezienEmoji.has(b.seq + ':' + v.id)) continue;
+          gezienEmoji.add(b.seq + ':' + v.id);
+          uit.push({ soort: 'emoji', emoji: e, naam: L.naam(v) });
+        }
+      }
+    }
+    eerste = false;
+    return uit;
+  }
+
+  // Meekijken: de pagina vraagt om 'ik open nu een kaart' of een emoji naar de opener te sturen. De sleutels blijven hier in de achtergrond.
+  async function instelling(naam) {
+    const r = await chrome.storage.local.get('spo_instellingen');
+    const i = r.spo_instellingen && typeof r.spo_instellingen === 'object' ? r.spo_instellingen : {};
+    return i[naam] !== false;
+  }
+  chrome.runtime.onMessage.addListener((m, _afz, antwoord) => {
+    if (!m || (m.type !== 'spo-kijk-stuur' && m.type !== 'spo-emoji-stuur')) return;
+    (async () => {
+      const st = await L.laad();
+      if (!st) return { ok: false };
+      if (m.type === 'spo-kijk-stuur') {
+        if (!(await instelling('meekijken'))) return { ok: false };
+        return { ok: true, n: await L.stuurKijk(st, m.data || {}) };
+      }
+      await L.stuurKijkEmoji(st, String(m.naar || ''), m.emoji);
+      return { ok: true };
+    })().then(antwoord, () => antwoord({ ok: false }));
+    return true;
+  });
+
+  chrome.runtime.onMessage.addListener((m, _afz, antwoord) => {
+    if (!m || m.type !== 'spo-meldingen') return;
+    // Meerdere tabbladen tegelijk: hoogstens één keer per 4 seconden echt bij de server kijken.
+    if (bezig || Date.now() - laatst < 4000) { antwoord([]); return; }
+    laatst = Date.now();
+    bezig = kijk().catch(() => []).then((r) => { bezig = null; antwoord(r); });
+    return true;
+  });
+})();
