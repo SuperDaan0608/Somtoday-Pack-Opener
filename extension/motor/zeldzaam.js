@@ -3285,7 +3285,7 @@
         const wa = 0.5 * sm(b, 1.0, 2.6);
         if (wa > 0.01) {
           const st = { x: 0.62 * hwv, y: 0.36 + 0.03 * Math.sin(t * 0.8), s: 1.25, sx: -1, bank: 0.1 + 0.05 * Math.sin(t * 0.7), flap: -0.3 + 0.55 * Math.sin(t * 3.4), alpha: 1, t: t };
-          wezenTekenen(t, asp, st, wa);
+          if (typeof wezenTekenen === 'function') wezenTekenen(t, asp, st, wa); // (oude tekenaar; het nieuwe wezen staat in mythisch.js)
         }
       }
       // de krans en de stralen achter de relikwie
