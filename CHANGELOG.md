@@ -1,8 +1,12 @@
 # Wijzigingen
 
+## v2.4.3
+
+- De prestatie voor een 10 op een mythische kaart heet nu **Onmogelijk**.
+
 ## v2.4.2
 
-- **Nieuwe prestatie: Fout in de werkelijkheid.** Haal een 10 op een mythische kaart. Het is de enige prestatie met de hoogste rang, en die rang bestaat alleen uit kapotte glitch-tekens die flikkeren.
+- **Nieuwe prestatie: Onmogelijk.** Haal een 10 op een mythische kaart. Het is de enige prestatie met de hoogste rang, en die rang bestaat alleen uit kapotte glitch-tekens die flikkeren.
 
 ## v2.4.1
 
