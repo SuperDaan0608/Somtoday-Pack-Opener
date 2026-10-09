@@ -719,15 +719,15 @@
       // regelmatig (een mens wisselt altijd een beetje). Zien we dat, dan tellen je kliks in dit duel niet.
       const momenten = [];
       let autoclicker = false;
-      // Alleen een machine klikt zó strak: over de laatste 20 kliks wijkt elke tussentijd gemiddeld minder dan 4 ms af
+      // Alleen een machine klikt zó strak: over de laatste 30 kliks wijkt elke tussentijd gemiddeld minder dan 2,5 ms af
       // (en minder dan 3%). Een mens die op een beat tikt, zit daar ruim boven (meestal 10-30 ms).
       const teRegelmatig = () => {
-        if (momenten.length < 21) return false;
-        const m = momenten.slice(-21), d = [];
+        if (momenten.length < 31) return false;
+        const m = momenten.slice(-31), d = [];
         for (let i = 1; i < m.length; i++) d.push(m[i] - m[i - 1]);
         const gem = d.reduce((a, x) => a + x, 0) / d.length;
         const sd = Math.sqrt(d.reduce((a, x) => a + (x - gem) * (x - gem), 0) / d.length);
-        return gem > 0 && sd < 4 && sd / gem < 0.03;
+        return gem > 0 && sd < 2.5 && sd / gem < 0.03;
       };
       const tik = (e) => {
         if (!open || autoclicker) return;
