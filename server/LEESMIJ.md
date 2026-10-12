@@ -43,3 +43,31 @@ Foutcodes: 400, 401, 403, 404, 413, 429, met `{fout: "..."}`.
 3. Bouw de eigenaarsversie: `./scripts/package-owner.sh v1.4`, laad de uitgepakte zip in Chrome en open de tab Beheer. De pagina vraagt de sleutel één keer en bewaart hem in chrome.storage.local.
 
 De server ziet en toont alleen id's, tijden, aantallen en groottes; de inhoud blijft versleuteld.
+
+## Bijwerken naar v3 (blokkeren, melden, waarschuwingen, extra bans)
+
+1. Upload de nieuwe `api.php` (vervangt de oude; `config.php` blijft staan).
+2. Voer `migratie-v3.sql` uit in phpMyAdmin (herhaalbaar; maakt alleen de nieuwe tabellen: `blokkades`, `meldingen`, `waarschuwingen`, `ban_email`, `ban_ip`, `acc_ip`, `acc_koppel`, `beheer_mail`). Ook `schema.sql` bevat ze nu.
+3. Optioneel: zet `'beheer_mail' => 'jij@voorbeeld.nl'` in `config.php` (zie `config.example.php`). Zonder die regel komt er geen mail.
+4. Controleer met `api.php?status=1` en met de beheerpagina (die meldt ontbrekende tabellen).
+
+Zolang stap 2 nog niet is gedaan, werkt de rest van de server gewoon; de nieuwe acties geven dan 503 ("nog niet bijgewerkt").
+
+### Contract voor de client (alle acties: POST, JSON, headers `X-Id` en `X-Token`)
+
+- `blokkeer {id}` -> `{ok:true}`. Haalt de vriendschap (en kaarten/berichten) weg aan beide kanten. `deblokkeer {id}` -> `{ok:true}`. `blokkades` -> `{ids:[...]}` (alleen wie jij blokkeerde; de geblokkeerde ziet niets). Een vriendverzoek van de geblokkeerde aan de blokkeerder geeft `200 {ok:true,status:'pending'}` maar wordt niet opgeslagen. Verzoek van de blokkeerder aan de geblokkeerde geeft 409. send/put/poll tussen hen geven 403 zoals bij niet-vrienden. Max. 500 blokkades per gebruiker (429).
+- `meld {tegen, reden: 'naam'|'tekst'|'pesten'|'spam'|'anders', uitleg (max 300), bewijs (max 400, optioneel)}` -> `{ok:true}`. Langere tekst wordt afgekapt. Fouten: 400 (ongeldig, of jezelf), 404 (onbekende gebruiker), 429 (5 per dag per account; 1 per tegen-id per 24 uur).
+- `waarschuwingen` -> `{lijst:[{id,reden,ts}]}` (alleen ongelezen; `id` is een getal). `waarschuwingGezien {id}` -> `{ok:true}` (404 als de waarschuwing niet van jou is). `puls` heeft nu het veld `w` (aantal ongelezen waarschuwingen).
+- Nieuwe accounts (eerste 24 uur): hoogstens 3 vriendverzoeken per (UTC-)dag, anders 429 met `{fout:"Je account is nieuw: ..."}`. Verzoeken aan blokkeerders tellen mee.
+- Koppeling voor "ook e-mailadres blokkeren": stuur bij `accRegistreer`, `accVerifieer`, `accLogin`, `accReset` en `accBackupBewaar` ook de headers `X-Id` en `X-Token` mee. De server bewaart dan alleen de id's van gebruiker en account. Zonder die headers kan de beheerder het e-mailadres niet blokkeren.
+- Een geblokkeerd e-mailadres of netwerk geeft bij `register`, `accRegistreer`, `accVerifieer`, `accLogin`, `accReset` een 403 (`{fout}`); `accCodeOpnieuw` en `accVergeten` geven stil 200 zonder mail. Een al ingelogd ander account merkt niets van een ip-ban.
+
+Beheeracties (header `X-Beheer`): `beheerMeldingen` -> `{nu, meldingen:[{id, ts, van, tegen, reden, uitleg, heeftBewijs, aantalTegen, waarschuwingen, ipBekend, ipAccounts, banStatus (null of {tot,reden,ookEmail,ookIp}), status, uitkomst}]}` (nieuw eerst, max. 300); `beheerBewijs {id}` -> `{bewijs}`; `beheerMeldingKlaar {id, uitkomst}`; `beheerWaarschuw {id, reden}`; `beheerBan {id, tot (0 = voorgoed), reden, ook_email, ook_ip}` -> `{ok, tot, reden, emailGeblokkeerd, ipGeblokkeerd, ipTot}`; `beheerOnban {id}` ruimt ook `ban_email`/`ban_ip` op (ook als het account er niet meer is). `beheerStats` toont nu ook `nieuweMeldingen` en `ontbrekendeTabellen`. De IP-ban is altijd hoogstens 7 dagen en nooit voorgoed, wat er ook gevraagd wordt.
+
+### E-mailadressen (Gmail-varianten)
+
+Voor het hashen wordt het adres gelijkgetrokken: kleine letters, `googlemail.com` wordt `gmail.com`, bij gmail vallen punten weg, bij alle domeinen valt alles vanaf `+` weg. Bestaande accounts staan nog op de oude hash: bij inloggen en code-controle probeert de server eerst de nieuwe en dan de oude hash; werkt de oude, dan wordt het account omgezet (behalve als die plek al bezet is door een ander account: dan blijft het op de oude hash staan en kan de eigenaar gewoon blijven inloggen met het adres zoals het was). Een bestaand account is pas voor alle varianten vindbaar nadat het één keer is ingelogd met het oorspronkelijke adres.
+
+### Privacy
+
+De server bewaart alleen hashes en id's: geen e-mailadressen, geen ruwe IP-adressen. IP-adressen worden gehasht met het geheime `zout` (IPv6 per /64). Het ip-geheugen (`acc_ip`) wordt na 30 dagen opgeruimd; een ip-ban duurt hoogstens 7 dagen. De mail aan de beheerder bevat nooit inhoud: alleen dat er een melding is en de reden-categorie, hoogstens 1 mail per 10 minuten. De beheerder ziet bij een melding wel de uitleg en het bewijs die de melder zelf meestuurde (bewijs pas na apart ophalen); dat is niet versleuteld. Meldingen blijven bewaard tot je ze zelf verwijdert.

@@ -241,13 +241,16 @@ const slaap = (ms) => new Promise((r) => setTimeout(r, ms));
       await p.waitForSelector('dialog#bevestig[open]');
       controle('bevestiging noemt voorgoed en ook IP', /voorgoed/.test(await p.textContent('#bev-regels')) && /IP blokkeren \(max\. 7 dagen\): ja/.test(await p.textContent('#bev-regels')));
       await p.click('#bev-ja');
+      await p.waitForFunction(() => document.querySelectorAll('#meldlijst .meld').length === 1);
+      controle('de tweede melding over dezelfde gebruiker blijft open en toont de ban', (await p.textContent('#meldlijst')).includes('Voorgoed verbannen, ook IP') && (await p.locator('#meldlijst .meld button', { hasText: 'Ban opheffen' }).count()) === 1);
+      await p.locator('#meldlijst .meld button', { hasText: 'Negeren' }).click();
       await p.waitForFunction(() => document.querySelectorAll('#meldlijst .meld').length === 0);
       const stT1 = await L.clientVan(t1).roep('mijnStatus');
       const ipb = sqlDb('SELECT tot FROM ban_ip');
       controle('permanent verbannen, maar de ip-ban duurt hoogstens 7 dagen', stT1.verbannen === true && stT1.tot === 0 && ipb.length === 1 && Number(ipb[0].tot) > 0 && Number(ipb[0].tot) - Math.floor(Date.now() / 1000) <= 604800 + 10, [stT1, ipb]);
       await p.selectOption('#meld-filter', 'alle');
       controle('Alle meldingen: 5 stuks', (await p.locator('#meldlijst .meld').count()) === 5);
-      controle('beide meldingen over t1 staan op afgehandeld', (await p.locator('#meldlijst .meld.klaar').count()) === 5 || (await p.locator('#meldlijst .meld.klaar').count()) >= 4);
+      controle('alle 5 meldingen staan op afgehandeld', (await p.locator('#meldlijst .meld.klaar').count()) === 5);
       await p.screenshot({ path: path.join(TMP, 'beheer-7-meldingen-klaar.png'), fullPage: true });
       // Ban opheffen vanuit de melding ruimt ook het ip op
       controle('meldingen bevatten geen onverwachte gegevens (geen e-mail/ip in de pagina)', !/@|127\.0\.0\.1/.test(await p.textContent('#paneel-meldingen')));
