@@ -109,14 +109,16 @@
         else if (CIJFERS[c]) t += CIJFERS[c];
         else t += c;
       }
-      var uit = '';
-      for (var j = 0; j < t.length; j++) {
-        var k = t[j];
-        if (SYMBOLEN[k] !== undefined) {
-          var l = j > 0 && /[a-z]/.test(t[j - 1]), r = j < t.length - 1 && /[a-z]/.test(t[j + 1]);
-          if ((l && r) || (j === 0 && r && '@$(\u00A7\u00A2'.indexOf(k) >= 0)) { uit += SYMBOLEN[k]; continue; }
-        }
-        uit += k;
+      var uit = '', j = 0;
+      while (j < t.length) {
+        if (SYMBOLEN[t[j]] === undefined) { uit += t[j]; j++; continue; }
+        // Een rijtje symbolen ($$, !!) als geheel: alleen omzetten als er een letter vooraan staat (of $ ( vooraan) en een letter achter.
+        var e = j;
+        while (e < t.length && SYMBOLEN[t[e]] !== undefined) e++;
+        var l = j > 0 && /[a-z]/.test(t[j - 1]), r = e < t.length && /[a-z]/.test(t[e]);
+        var vooraan = j === 0 && r && '@$(\u00A7\u00A2'.indexOf(t[j]) >= 0;
+        for (var q = j; q < e; q++) uit += (l && r) || vooraan ? SYMBOLEN[t[q]] : t[q];
+        j = e;
       }
       return uit;
     }).join(' ');
@@ -164,6 +166,19 @@
     });
     return uit;
   }
+  // Patroon van een woord uit de lijst: een enkele letter mag in de tekst herhaald zijn (kuuuut, vanaf drie keer; aan het eind ook twee keer),
+  // een dubbele letter (boob, gook) moet minstens twee keer staan. Zo blijft 'negeer' iets anders dan 'neger'.
+  function patroon(w) {
+    var src = '', i = 0;
+    while (i < w.length) {
+      var j = i;
+      while (j < w.length && w[j] === w[i]) j++;
+      var k = j - i, ch = w[i].replace(/[^a-z0-9]/g, '');
+      if (ch) src += k === 1 ? ch + (j === w.length ? '{1,2}' : '(?:' + ch + '{2,})?') : ch + '{' + k + ',}';
+      i = j;
+    }
+    return src;
+  }
   var L = null;
   function lijsten() {
     if (L) return L;
@@ -172,13 +187,21 @@
     var zin = function (a) { return (a || []).map(function (z) { return canon(z); }); };
     var uitz = new Set();
     breidUit(W.uitzondering).forEach(function (x) { uitz.add(x); uitz.add(canon(x)); });
-    var lange = function (a) { return (a || []).map(canon); };
+    var woorden = new Map();
+    breidUit(W.woorden).forEach(function (w) {
+      var c = canon(w), re = new RegExp('^' + patroon(w) + '$');
+      if (!woorden.has(c)) woorden.set(c, []);
+      woorden.get(c).push(re);
+    });
+    var delen = function (lijst, anker) {
+      return breidUit(lijst).map(function (w) { return { c: canon(w), re: new RegExp((anker ? '^' : '') + patroon(w)) }; });
+    };
     L = {
-      woorden: set(breidUit(W.woorden).map(canon)),
+      woorden: woorden,
       exact: set(breidUit(W.exact).map(cap2)),
-      begin: lange(breidUit(W.begin)),
-      stam: lange(breidUit(W.stam)),
-      zinnen: zin(W.zinnen), dreiging: zin(W.dreiging), hulp: zin(W.hulp), hulpStam: lange(breidUit(W.hulpStam)),
+      begin: delen(W.begin, true),
+      stam: delen(W.stam, false),
+      zinnen: zin(W.zinnen), dreiging: zin(W.dreiging), hulp: zin(W.hulp), hulpStam: (W.hulpStam || []).map(canon),
       uitz: uitz,
       uitzZin: (W.uitzonderingZin || []).map(function (z) { return basis(z).replace(/[^a-z0-9]+/g, ' ').trim(); })
     };
@@ -186,19 +209,26 @@
   }
   function omgekeerd(s) { return s.split('').reverse().join(''); }
 
+  function woordIn(t, c, l) {
+    var res = l.woorden.get(c);
+    if (!res) return false;
+    for (var i = 0; i < res.length; i++) if (res[i].test(t)) return true;
+    return false;
+  }
   function tokenSlecht(t, l, omgedraaid) {
     if (!t) return false;
     var c = canon(t);
     if (l.uitz.has(t) || l.uitz.has(c)) return false;
     if (omgedraaid) {
-      if (c.length < 5) return false;
-      if (l.woorden.has(c)) return true;
-      for (var a = 0; a < l.stam.length; a++) if (l.stam[a].length >= 5 && c.indexOf(l.stam[a]) >= 0) return true;
+      // Omgekeerd getypt (reknak): alleen lange woorden, anders wordt 'regen' ineens 'neger'.
+      if (c.length < 6) return false;
+      if (woordIn(t, c, l) && c.length >= 6) return true;
+      for (var a = 0; a < l.stam.length; a++) if (l.stam[a].c.length >= 6 && c.indexOf(l.stam[a].c) >= 0 && l.stam[a].re.test(t)) return true;
       return false;
     }
-    if (l.woorden.has(c) || l.exact.has(cap2(t))) return true;
-    for (var i = 0; i < l.begin.length; i++) if (c.indexOf(l.begin[i]) === 0) return true;
-    for (var j = 0; j < l.stam.length; j++) if (c.indexOf(l.stam[j]) >= 0) return true;
+    if (woordIn(t, c, l) || l.exact.has(cap2(t))) return true;
+    for (var i = 0; i < l.begin.length; i++) if (c.indexOf(l.begin[i].c) === 0 && l.begin[i].re.test(t)) return true;
+    for (var j = 0; j < l.stam.length; j++) if (c.indexOf(l.stam[j].c) >= 0 && l.stam[j].re.test(t)) return true;
     return false;
   }
   function tokensSlecht(tokens, l) {
@@ -207,7 +237,7 @@
       if (tokenSlecht(t, l, false)) return true;
       var zonderCijfer = t.replace(/[0-9]+$/, '');
       if (zonderCijfer !== t && zonderCijfer.length > 2 && tokenSlecht(zonderCijfer, l, false)) return true;
-      if (t.length >= 5 && tokenSlecht(omgekeerd(t), l, true)) return true;
+      if (t.length >= 6 && tokenSlecht(omgekeerd(t), l, true)) return true;
       // Losse stukjes (k ut, ku t): twee naastliggende stukken samenvoegen als een ervan heel kort is.
       if (i + 1 < tokens.length && (t.length <= 2 || tokens[i + 1].length <= 2) && /^[a-z]+$/.test(t + tokens[i + 1])) {
         if (tokenSlecht(t + tokens[i + 1], l, false)) return true;
@@ -305,8 +335,9 @@
 
   function controleer(tekst, opties) {
     var o = opties || {};
-    var soort = o.soort === 'naam' ? 'naam' : 'tekst';
-    var max = typeof o.max === 'number' && o.max > 0 ? o.max : (soort === 'naam' ? MAX_NAAM : MAX_TEKST);
+    // 'code' (vriendcode, link): alleen de tekenset en de lengte controleren, geen woorden.
+    var soort = o.soort === 'naam' ? 'naam' : o.soort === 'code' ? 'code' : 'tekst';
+    var max = typeof o.max === 'number' && o.max > 0 ? o.max : (soort === 'naam' ? MAX_NAAM : soort === 'code' ? 400 : MAX_TEKST);
     if (typeof tekst !== 'string') return fout('tekens');
     if (tekst.length > max * 4 + 20) return fout('lengte', { melding: MELDING.lengte + ' Hou het onder ' + max + ' tekens.' });
     var l = lijsten();
@@ -315,6 +346,9 @@
     var schoon = veilig(tekst).trim();
     if (tel(schoon) > max) return fout('lengte', { melding: MELDING.lengte + ' Hou het onder ' + max + ' tekens.' });
     if (!schoon) return { ok: true, schoon: '', reden: '', melding: '' };
+    if (soort === 'code') {
+      return /^[A-Za-z0-9_\-+=\/:.?&#%~@ ]*$/.test(schoon) ? { ok: true, schoon: schoon, reden: '', melding: '' } : fout('tekens');
+    }
 
     var b = basis(schoon);
     var draai = draaiom(schoon);
@@ -333,10 +367,16 @@
   }
 
   // Tekst van ANDEREN: komt hij niet door het filter, dan '•••'. Lengte telt hier ruim (de lezer-lib begrenst zelf al).
+  var toonGeheugen = new Map();
   function toon(tekst) {
     if (typeof tekst !== 'string' || !tekst) return '';
+    var oud = toonGeheugen.get(tekst);
+    if (oud !== undefined) return oud;
     var r = controleer(tekst, { max: 2000 });
-    return r.ok ? r.schoon : STREEPJES;
+    var uit = r.ok ? r.schoon : STREEPJES;
+    if (toonGeheugen.size > 2000) toonGeheugen.clear();
+    toonGeheugen.set(tekst, uit);
+    return uit;
   }
   function toonNaam(tekst, standaard) {
     if (typeof tekst !== 'string' || !tekst.trim()) return standaard;
@@ -386,7 +426,7 @@
   function opties(el, o) {
     o = o || {};
     var soort = o.soort || (el.dataset && el.dataset.tekstfilter) || 'tekst';
-    if (soort !== 'naam') soort = 'tekst';
+    if (soort !== 'naam' && soort !== 'code') soort = 'tekst';
     var max = o.max;
     if (!max && el.dataset && el.dataset.tekstfilterMax) max = parseInt(el.dataset.tekstfilterMax, 10);
     return { soort: soort, max: max };
@@ -401,6 +441,7 @@
   }
   function koppel(el, o) {
     if (!el || el._spoGekoppeld) return el && el._spoGekoppeld;
+    if (el.dataset && el.dataset.tekstfilter === 'uit' && !(o && o.soort)) return null; // bewust uitgezet (bijv. een cijferveld)
     zetStijl(el.ownerDocument);
     var doe = function () { return controleVeld(el, o); };
     el.addEventListener('input', doe);
@@ -424,6 +465,7 @@
   // Voor knoppen die zelf opslaan: eerst dit aanroepen. Koppelt het veld als dat nog niet is gebeurd.
   function geldig(el, o) {
     if (!el) return false;
+    if (el.dataset && el.dataset.tekstfilter === 'uit' && !(o && o.soort)) return true;
     if (!el._spoGekoppeld) koppel(el, o);
     return controleVeld(el, o).ok;
   }

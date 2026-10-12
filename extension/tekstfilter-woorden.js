@@ -39,7 +39,7 @@
       'jodenhater', 'jodenpest', 'flikker+s,tje,tjes', 'homo+s', 'lesbo', 'shemale', 'moslimhater', 'kutmarokkaan', 'kutturk', 'kankerjood',
       // Engels: schelden
       'fuck+ing,er,ers,ed,s,in', 'fuk', 'fck', 'fvck', 'fcking', 'phuck', 'phuk', 'shit+ty,s,ting', 'bitch+es,y,ing', 'bastard+s', 'asshole+s',
-      'cunt+s,y', 'twat+s', 'wanker+s', 'whore+s', 'slut+s,ty', 'dickhead+s', 'pussy', 'pussies', 'dumbass', 'jackass', 'dipshit', 'bullshit',
+      'cunt+s,y', 'cvnt', 'twat+s', 'wanker+s', 'whore+s', 'slut+s,ty', 'dickhead+s', 'pussy', 'pussies', 'dumbass', 'jackass', 'dipshit', 'bullshit',
       'horseshit', 'moron+s,ic', 'idiot+s,ic', 'retard+ed,s', 'scumbag', 'douchebag', 'motherfucker+s', 'stfu', 'gtfo', 'kys', 'bollocks',
       'arsehole', 'tosser', 'knobhead', 'wazzock', 'cocksucker', 'jerkoff',
       // Engels: seksueel
@@ -96,7 +96,7 @@
       'mezelf verwonden', 'mezelf beschadigen', 'mezelf iets aandoen', 'mezelf kwaad doen', 'mezelf doden', 'mezelf van kant maken',
       'mezelf ophangen', 'ik snij mezelf', 'ik krab mezelf', 'ik verwond mezelf', 'ik beschadig mezelf', 'ik ga van het dak springen',
       'ik spring van het dak', 'ik spring van een brug', 'ik spring voor de trein', 'een eind aan mijn leven', 'ik kan niet meer verder leven',
-      'kill myself', 'i want to die', 'i wanna die', 'i want to kill myself', 'i wanna kill myself', 'i will kill myself', 'i ll kill myself',
+      'kill myself', 'self harm', 'self injury', 'i want to die', 'i wanna die', 'i want to kill myself', 'i wanna kill myself', 'i will kill myself', 'i ll kill myself',
       'i m going to kill myself', 'im going to kill myself', 'i am going to kill myself', 'gonna kill myself', 'end my life', 'end it all',
       'ending it all', 'i want to end it', 'hurt myself', 'harm myself', 'cut myself', 'cutting myself', 'hang myself',
       'i don t want to live', 'i dont want to live', 'i do not want to live', 'i wish i was dead', 'i wish i were dead', 'better off dead',

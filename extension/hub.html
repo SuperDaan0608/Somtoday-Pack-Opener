@@ -142,7 +142,7 @@
           <form id="formulier" autocomplete="off" novalidate>
             <label class="veld">
               <span>Vak</span>
-              <input id="vak" list="vakken-lijst" maxlength="40" placeholder="bijv. Wiskunde" />
+              <input id="vak" list="vakken-lijst" maxlength="40" data-tekstfilter="tekst" data-tekstfilter-max="40" placeholder="bijv. Wiskunde" />
               <datalist id="vakken-lijst">
                 <option value="Wiskunde"></option><option value="Nederlands"></option><option value="Engels"></option><option value="Frans"></option><option value="Duits"></option><option value="Biologie"></option><option value="Natuurkunde"></option><option value="Scheikunde"></option><option value="Geschiedenis"></option><option value="Aardrijkskunde"></option><option value="Economie"></option><option value="Informatica"></option><option value="Latijn"></option><option value="Grieks"></option><option value="Lichamelijke opvoeding"></option><option value="CKV"></option><option value="Maatschappijleer"></option>
               </datalist>
@@ -150,13 +150,13 @@
             <div class="veld">
               <span id="cijfer-lbl">Cijfer</span>
               <div class="cijfer-rij">
-                <input id="cijfer" inputmode="decimal" maxlength="4" placeholder="7,5" aria-labelledby="cijfer-lbl" />
+                <input id="cijfer" data-tekstfilter="uit" inputmode="decimal" maxlength="4" placeholder="7,5" aria-labelledby="cijfer-lbl" />
                 <input id="schuif" type="range" min="1" max="10" step="0.1" value="7.5" aria-label="Cijfer, schuifregelaar" />
               </div>
             </div>
             <label class="veld">
               <span>Waar ging de toets over?</span>
-              <input id="onderwerp" maxlength="80" placeholder="bijv. Hoofdstuk 4: Functies" />
+              <input id="onderwerp" maxlength="80" data-tekstfilter="tekst" data-tekstfilter-max="80" placeholder="bijv. Hoofdstuk 4: Functies" />
             </label>
             <div class="veld">
               <span id="weging-lbl">Weging</span>
@@ -250,6 +250,8 @@
     <!-- Als laatste in de tabvolgorde; staat visueel rechtsboven -->
     <button type="button" class="sluit" id="sluit" aria-label="Pack Opener sluiten"><svg class="ico" aria-hidden="true"><use href="#i-sluiten"/></svg></button>
   </div>
+  <script src="tekstfilter-woorden.js"></script>
+  <script src="tekstfilter.js"></script>
   <script src="account.js"></script>
   <script src="poort.js"></script>
   <script src="ladder.js"></script>

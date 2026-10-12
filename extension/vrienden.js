@@ -1,6 +1,8 @@
 (function () {
   'use strict';
   const L = globalThis.SPOVrienden;
+  const R = globalThis.SPORivaal;       // aartsrivaal (rivaal.js)
+  const U = globalThis.SPOUitnodiging;  // een vriend uitnodigen (uitnodiging.js)
   const NIVEAUS = ['Brons', 'Zilver', 'Goud', 'Speciaal', 'Icoon'];
   const $ = (id) => document.getElementById(id);
   const fmt = (n) => Number(n).toFixed(1).replace('.', ',');
@@ -32,6 +34,7 @@
   let uitdagingen = new Set(); // vrienden die je uitdagen (alleen om te melden)
   let live = null;
   let banGemeld = false;  // de verbanningsmelding maar één keer tonen
+  let rivaalS = R.schoonStaat(null); // aartsrivaal: wie, hoe ver, openstaande verzoeken (spo_rivaal)
 
   function el(tag, klas, tekst) {
     const e = document.createElement(tag);
@@ -83,8 +86,9 @@
       const id = 'vz-' + v.id;
       const lab = el('label', 'veld');
       lab.append(el('span', '', 'Bijnaam voor deze vriend (alleen voor jou)'));
-      const inv = el('input'); inv.type = 'text'; inv.id = id; inv.maxLength = 30; inv.value = v.alias || '';
+      const inv = el('input'); inv.type = 'text'; inv.id = id; inv.maxLength = 24; inv.value = v.alias || ''; inv.dataset.tekstfilter = 'naam';
       lab.append(inv);
+      SPOTekst.koppel(inv, { soort: 'naam' }); // tekstfilter: de melding komt onder het veld
       const bev = el('label', 'bevestig');
       const cb0 = el('input'); cb0.type = 'checkbox';
       bev.append(cb0, el('span', '', 'Ik ken de veiligheidscode (of ga bewust door zonder te vergelijken)'));
@@ -94,6 +98,7 @@
       ja.addEventListener('click', async () => {
         const alias = inv.value.trim();
         if (!alias) { melding('Kies eerst een bijnaam voor deze vriend.', true); inv.focus(); return; }
+        if (!SPOTekst.geldig(inv, { soort: 'naam' })) { inv.focus(); return; }
         if (!cb0.checked) { melding('Bevestig eerst dat je de veiligheidscode kent of bewust doorgaat.', true); cb0.focus(); return; }
         try { await L.antwoord(st, v.id, true, alias); melding(`${alias} is nu je vriend. Bij Meer opties kies je wat die mag zien.`); renderAlles(); await sync(true); }
         catch (e) { melding(foutTekst(e), true); }
@@ -158,7 +163,7 @@
     f.append(el('p', 'gok-vraag', `${naam} laat je raden: ${kaartTitel(r)}. Wat denk je dat ${naam} haalde?`));
     const lab = el('label', 'veld');
     lab.append(el('span', '', 'Jouw gok (1,0 tot 10,0)'));
-    const inv = el('input'); inv.type = 'text'; inv.id = `gok-${v.id}-${r.rid}`; inv.inputMode = 'decimal'; inv.maxLength = 5;
+    const inv = el('input'); inv.type = 'text'; inv.id = `gok-${v.id}-${r.rid}`; inv.inputMode = 'decimal'; inv.maxLength = 5; inv.dataset.tekstfilter = 'uit'; // alleen een getal
     inv.autocomplete = 'off'; inv.spellcheck = false;
     inv.value = concept.has(sleutel) ? concept.get(sleutel) : (mijn === undefined ? '' : fmt(mijn));
     inv.addEventListener('input', () => concept.set(sleutel, inv.value));
@@ -311,6 +316,7 @@
     const h = el('h3', 'v-naam', naam);
     h.append(el('span', 'badge' + (v.status === 'weggevallen' || v.andereVersie ? ' weg' : ''),
       v.status === 'verzonden' ? 'Wacht op antwoord' : v.status === 'weggevallen' ? 'Weggevallen' : v.andereVersie ? 'Andere versie' : 'Vriend'));
+    if (v.status === 'vriend' && rivaalS.id === v.id) h.append(el('span', 'badge rivaal-label', rivaalS.status === 'actief' ? 'Rivaal' : 'Rivaalverzoek verstuurd'));
     tekst.append(h);
     wie.append(tekst);
     kop.append(wie);
@@ -341,6 +347,16 @@
     const uit = el('a', 'knop goud klein', 'Uitdagen'); uit.href = 'team.html'; uit.dataset.ga = 'team';
     uit.setAttribute('aria-label', `${naam} uitdagen voor een gevecht`);
     acties.append(uit);
+    if (!rivaalS.id && !v.andereVersie) {
+      const rv = el('button', 'knop klein', 'Maak rivaal'); rv.type = 'button';
+      rv.setAttribute('aria-label', `Maak rivaal: vraag ${naam} als aartsrivaal`);
+      rv.addEventListener('click', async () => {
+        rv.disabled = true;
+        try { const s = await R.vraag(st, v.id); rivaalS = await R.laad(); melding(s === 'actief' ? `${naam} wilde dit ook: jullie zijn nu aartsrivalen!` : `Je hebt ${naam} gevraagd als aartsrivaal. Het werkt pas als ${naam} ja zegt.`); renderAlles(); }
+        catch (e) { rv.disabled = false; melding(foutTekst(e), true); }
+      });
+      acties.append(rv);
+    }
     kop.append(acties);
     if (uitdagingen.has(v.id)) li.append(el('p', 'geverifieerd', `${naam} daagt je uit! Open Team om te accepteren.`));
 
@@ -374,6 +390,51 @@
     $('geen-vrienden').hidden = lijst.length > 0;
     $('vrienden').replaceChildren(...lijst.map(vriendItem));
     for (const d of document.querySelectorAll('#vrienden details')) if (open.has(d.id)) d.open = true;
+  }
+
+  // De rivalenkaart (rivaal.js): verzoeken, het wachten op antwoord of de vergelijking met wat de rivaal zelf deelt.
+  async function rivaalActie(fn, tekst) {
+    try { await fn(); rivaalS = await R.laad(); if (tekst) melding(tekst); }
+    catch (e) { melding(foutTekst(e), true); }
+    renderAlles();
+  }
+  function renderRivaal() {
+    const sec = $('rivaal-sectie');
+    sec.hidden = !R.teken(sec, {
+      s: rivaalS, st, galerij, gek: vriendKaarten[rivaalS.id], gevechten, tweestaps, nu: Date.now(),
+      naamVan: (id) => L.naam(st.vrienden.find((v) => v.id === id) || { id }),
+      acties: {
+        accepteer: (id) => rivaalActie(() => R.accepteer(st, id), `${L.naam(st.vrienden.find((v) => v.id === id) || { id })} is nu je aartsrivaal.`),
+        weiger: (id) => rivaalActie(() => R.weiger(st, id), 'Verzoek geweigerd.'),
+        stop: () => rivaalActie(() => R.stop(st), 'De rivaliteit is gestopt.'),
+      },
+    });
+  }
+  // Na een synchronisatie en daarna elke minuut: opruimen, opnieuw sturen, beloningen en rivaalmunten ophalen.
+  let onderhoudBezig = false;
+  async function onderhoud() {
+    if (!st || onderhoudBezig) return;
+    onderhoudBezig = true;
+    try {
+      await R.onderhoud(st);
+      const u = await U.onderhoud(st);
+      const munten = await R.verwerkGevechten(gevechten);
+      rivaalS = await R.laad();
+      u.meldingen.forEach((m) => melding(m));
+      if (munten) melding(`Rivaal verslagen: ${munten} extra munten.`);
+      renderAlles();
+    } catch (e) { /* de volgende keer weer */ }
+    onderhoudBezig = false;
+  }
+  // Berichten van een vriend over de rivaliteit of een uitnodiging.
+  async function opVriendBerichten(van, lijst) {
+    try {
+      const a = await R.opBerichten(st, van, lijst);
+      const b = await U.opBerichten(st, van, lijst);
+      rivaalS = await R.laad();
+      [...a.meldingen, ...b.meldingen].forEach((m) => melding(m));
+      if (a.veranderd || b.veranderd) renderAlles();
+    } catch (e) { /* de volgende keer weer */ }
   }
 
   // Tab 2: per vriend de gedeelde kaarten met emoji-reacties.
@@ -642,7 +703,7 @@
     const a = document.activeElement;
     const sleutel = a && a.id && $('app').contains(a) ? a.id : null;
     const cursor = sleutel && typeof a.selectionStart === 'number' ? [a.selectionStart, a.selectionEnd] : null;
-    renderVerzoeken(); renderVoorspel(); renderReacties(); renderVrienden(); renderKaartenVanVrienden(); renderUitdagingenTab(); renderTellers();
+    renderVerzoeken(); renderVoorspel(); renderReacties(); renderRivaal(); renderVrienden(); renderKaartenVanVrienden(); renderUitdagingenTab(); renderTellers();
     const n = sleutel && document.getElementById(sleutel);
     if (n && n !== document.activeElement) { n.focus(); try { if (cursor) n.setSelectionRange(cursor[0], cursor[1]); } catch (e) { /* geen tekstveld */ } }
   }
@@ -669,6 +730,7 @@
       [...new Set(r.meldingen)].forEach((m) => melding(m));
       zetStatus(true);
       renderAlles();
+      onderhoud();
     } catch (e) {
       $('sync-status').textContent = e.verbannen ? e.message : 'Synchroniseren mislukt.';
       if (e.verbannen) { if (!banGemeld) { banGemeld = true; melding(e.message, true); } }
@@ -682,7 +744,7 @@
     if (live) return;
     live = L.maakLive({
       st: () => st, galerij: () => galerij,
-      herlaad: async () => { const n = await L.laad(); if (n) { st = n; galerij = await L.leesGalerij(); gevechten = await L.leesGevechten(); renderAlles(); } return st; },
+      herlaad: async () => { const n = await L.laad(); if (n) { st = n; galerij = await L.leesGalerij(); gevechten = await L.leesGevechten(); rivaalS = await R.laad(); renderAlles(); } return st; },
       bij(g) {
         if (!st) return;
         // Alleen opnieuw tekenen als er echt iets veranderd is: anders raak je wat je net intikte kwijt.
@@ -692,10 +754,12 @@
           vriendKaarten = g.kaarten; opgehaald = true;
           [...new Set(g.meldingen)].forEach((m) => melding(m));
           if (handtekening() !== voor) renderAlles();
+          onderhoud();
         } else if (g.type === 'kaarten') {
           for (const id of Object.keys(g.kaarten)) vriendKaarten[id] = g.kaarten[id];
           if (handtekening() !== voor) renderAlles();
         } else if (g.type === 'berichten') {
+          opVriendBerichten(g.van, g.berichten);
           if (g.berichten.some((b) => b.m.t === 'uitnodiging' && b.leeftijd < 300)) { uitdagingen.add(g.van); melding(`${L.naam(st.vrienden.find((v) => v.id === g.van) || { id: g.van })} daagt je uit voor een gevecht. Open Team om te accepteren.`); renderAlles(); }
         } else if (g.type === 'ok') { if (!bezig) zetStatus(true); }
         else if (g.type === 'fout') {
@@ -724,13 +788,15 @@
     dicht = await L.leesDicht();
     // Een cijfer wordt geopend (galerij) of er komt een nieuw cijfer bij (dicht): het scherm volgt zonder opnieuw te synchroniseren.
     L.opOpslagWijziging(async () => {
-      try { galerij = await L.leesGalerij(); dicht = await L.leesDicht(); gevechten = await L.leesGevechten(); if (st) renderAlles(); } catch (e) { /* pagina blijft zoals hij was */ }
+      try { galerij = await L.leesGalerij(); dicht = await L.leesDicht(); gevechten = await L.leesGevechten(); if (st) { renderAlles(); onderhoud(); } } catch (e) { /* pagina blijft zoals hij was */ }
     });
     if (!st) { $('uitleg').hidden = false; return; }
+    rivaalS = await R.laad();
     toonApp(); renderAlles();
     gevechten = await L.leesGevechten();
     await sync();
     startLive();
+    setInterval(onderhoud, 60000);
   }
 
   $('aanzetten').addEventListener('click', async () => {
@@ -754,13 +820,21 @@
     catch (e) { $('mijn-code').select(); melding('Kopieer de geselecteerde code zelf (Ctrl+C).'); }
   });
 
+  for (const id of ['nodig-uit', 'nodig-uit-2']) $(id).addEventListener('click', async () => {
+    try { await U.toonVenster({ st, melding }); } catch (e) { melding(foutTekst(e), true); }
+  });
+
+  SPOTekst.koppel($('t-code'), { soort: 'code' }); // tekstfilter: bij de code alleen de tekens
+  SPOTekst.koppel($('t-alias'), { soort: 'naam' });
   $('toevoegen').addEventListener('submit', async (ev) => {
     ev.preventDefault();
     const alias = $('t-alias').value.trim();
     if (!alias) { melding('Kies een bijnaam voor je vriend.', true); return; }
+    if (!SPOTekst.geldig($('t-alias'), { soort: 'naam' }) || !SPOTekst.geldig($('t-code'), { soort: 'code' })) return;
     try {
-      const s = await L.verzoek(st, $('t-code').value, alias);
-      $('t-code').value = ''; $('t-alias').value = '';
+      const inv = U.leesInvoer($('t-code').value);
+      const s = await L.verzoek(st, inv.code, alias, inv.via || $('t-uitnodiging').checked);
+      $('t-code').value = ''; $('t-alias').value = ''; $('t-uitnodiging').checked = false;
       melding(s === 'accepted' ? `${alias} is nu je vriend.` : `Verzoek verstuurd naar ${alias}.`);
       renderAlles();
       if (s === 'accepted') await sync(true);
@@ -776,7 +850,8 @@
       await L.wis('spo_vrienden'); // account bestond al niet meer op de server
     }
     if (live) { live.stop(); live = null; }
-    st = null; vriendKaarten = {}; opgehaald = false; raadForm = null; concept.clear();
+    try { await L.wis(R.SLEUTEL); } catch (e) { /* niet erg */ } // de rivaliteit hoort bij dit account (de uitnodigingsbeloningen blijven staan)
+    st = null; vriendKaarten = {}; opgehaald = false; rivaalS = R.schoonStaat(null); raadForm = null; concept.clear();
     $('app').hidden = true; $('uitleg').hidden = false; $('meer').open = false; $('kop-toevoegen').hidden = true;
     melding('Je account en al je gedeelde gegevens zijn gewist.');
     $('aanzetten').focus();

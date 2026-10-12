@@ -27,6 +27,7 @@
     'spo_dagelijks', 'spo_winkel', 'spo_profiel', 'spo_prestaties', 'spo_prestaties_gezien', 'spo_stats', 'spo_team',
     'spo_gevechten', 'spo_vrienden', 'spo_vrienden_sec', 'spo_uitval_gezien', 'spo_huisdier', 'spo_rondleiding',
     'spo_capsules', 'spo_weekoverzicht',
+    'spo_rivaal', 'spo_uitnodigingen',
   ];
   const ITERATIES = 250000;
 
@@ -178,6 +179,16 @@
           else if (typeof w === 'number' && typeof h === 'number') u[s] = Math.max(w, h);
         }
         return u;
+      }
+      case 'spo_uitnodigingen': {
+        // beloningen gaan nooit verloren en tellen niet dubbel: de grootste teller, van allebei wie er beloond is
+        const h = obj(hier), d = obj(daar);
+        const link = [h.link, d.link].filter((x) => x > 0);
+        return Object.assign({}, d, h, {
+          v: 1, n: Math.min(10, Math.max(h.n || 0, d.n || 0)), link: link.length ? Math.min(...link) : 0,
+          bekend: Object.assign({}, obj(d.bekend), obj(h.bekend)), beloond: Object.assign({}, obj(d.beloond), obj(h.beloond)),
+          door: Object.assign({}, obj(d.door), obj(h.door)),
+        });
       }
       case 'spo_capsules': {
         // tijdcapsules (v3.0): per kaart de nieuwste; is het dezelfde capsule, dan blijft 'geopend' en 'gemeld' staan

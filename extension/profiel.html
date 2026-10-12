@@ -19,7 +19,7 @@
       <canvas id="kaart" width="360" height="540" role="img" aria-label="Je profielkaart"></canvas>
     </section>
     <section class="opties">
-      <label class="veld"><span>Bijnaam (max 20 tekens)</span><input type="text" id="bijnaam" maxlength="20" autocomplete="off" placeholder="Bijv. De Rekenaar" /></label>
+      <label class="veld"><span>Bijnaam (max 20 tekens)</span><input type="text" id="bijnaam" maxlength="20" data-tekstfilter="naam" autocomplete="off" placeholder="Bijv. De Rekenaar" /></label>
       <label class="veld"><span>Titel</span><select id="titel"></select></label>
       <label class="veld"><span>Achtergrond</span><select id="bg"></select></label>
       <p class="uitleg">Meer titels en achtergronden koop je in de <button type="button" class="tekstknop" id="naar-winkel">Winkel</button>.</p>
@@ -31,6 +31,8 @@
       </div>
     </section>
   </main>
+  <script src="tekstfilter-woorden.js"></script>
+  <script src="tekstfilter.js"></script>
   <script src="economie.js"></script>
   <script src="profielkaart.js"></script>
   <script src="profiel.js"></script>

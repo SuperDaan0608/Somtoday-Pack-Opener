@@ -44,12 +44,12 @@
               <div class="velden">
                 <div class="veld">
                   <label for="g-som">Cijfers maal weging, opgeteld</label>
-                  <input type="text" id="g-som" inputmode="decimal" autocomplete="off" spellcheck="false" aria-describedby="g-som-hint" />
+                  <input type="text" id="g-som" data-tekstfilter="uit" inputmode="decimal" autocomplete="off" spellcheck="false" aria-describedby="g-som-hint" />
                   <small class="hint" id="g-som-hint">Elk cijfer maal zijn weging, bij elkaar opgeteld.</small>
                 </div>
                 <div class="veld">
                   <label for="g-weging">Wegingen, opgeteld</label>
-                  <input type="text" id="g-weging" inputmode="decimal" autocomplete="off" spellcheck="false" aria-describedby="g-weging-hint" />
+                  <input type="text" id="g-weging" data-tekstfilter="uit" inputmode="decimal" autocomplete="off" spellcheck="false" aria-describedby="g-weging-hint" />
                   <small class="hint" id="g-weging-hint">Alle wegingen bij elkaar opgeteld.</small>
                 </div>
               </div>
@@ -67,12 +67,12 @@
           <div class="velden onder-elkaar">
             <div class="veld">
               <label for="z-gem">Je huidige gemiddelde</label>
-              <input type="text" id="z-gem" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="bijvoorbeeld 6,8" aria-describedby="z-gem-hint" />
+              <input type="text" id="z-gem" data-tekstfilter="uit" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="bijvoorbeeld 6,8" aria-describedby="z-gem-hint" />
               <small class="hint" id="z-gem-hint">Een getal van 1,0 tot en met 10,0. Komma of punt mag allebei.</small>
             </div>
             <div class="veld">
               <label for="z-weging">Totale weging van je cijfers tot nu toe</label>
-              <input type="text" id="z-weging" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="bijvoorbeeld 12" aria-describedby="z-weging-hint" />
+              <input type="text" id="z-weging" data-tekstfilter="uit" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="bijvoorbeeld 12" aria-describedby="z-weging-hint" />
               <small class="hint" id="z-weging-hint">Tel de wegingen van je cijfers bij elkaar op.</small>
             </div>
           </div>
@@ -84,7 +84,7 @@
 
         <div class="veld">
           <label for="d-gew">Gewenst gemiddelde</label>
-          <input type="text" id="d-gew" inputmode="decimal" autocomplete="off" spellcheck="false" aria-describedby="d-gew-hint" />
+          <input type="text" id="d-gew" data-tekstfilter="uit" inputmode="decimal" autocomplete="off" spellcheck="false" aria-describedby="d-gew-hint" />
           <small class="hint" id="d-gew-hint">Een getal van 1,0 tot en met 10,0.</small>
         </div>
         <div class="chips" id="snel" role="group" aria-label="Snel kiezen"></div>
@@ -92,7 +92,7 @@
         <div class="velden">
           <div class="veld">
             <label for="d-tw">Weging van de volgende toets</label>
-            <input type="text" id="d-tw" inputmode="numeric" autocomplete="off" spellcheck="false" aria-describedby="d-tw-hint" />
+            <input type="text" id="d-tw" data-tekstfilter="uit" inputmode="numeric" autocomplete="off" spellcheck="false" aria-describedby="d-tw-hint" />
             <small class="hint" id="d-tw-hint">Een heel getal van 1 tot en met 10.</small>
           </div>
           <div class="veld">
@@ -120,7 +120,7 @@
         <h2 id="w-kop">Wat als ik een cijfer haal?</h2>
         <div class="veld">
           <label for="w-cijfer">Een mogelijk cijfer</label>
-          <input type="text" id="w-cijfer" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="bijvoorbeeld 6,5" aria-describedby="w-cijfer-hint" />
+          <input type="text" id="w-cijfer" data-tekstfilter="uit" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="bijvoorbeeld 6,5" aria-describedby="w-cijfer-hint" />
           <small class="hint" id="w-cijfer-hint">Het telt mee met de weging van hierboven.</small>
         </div>
         <div id="wat-als" class="watals" role="status" aria-live="polite" aria-atomic="true"></div>

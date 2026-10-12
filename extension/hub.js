@@ -545,9 +545,14 @@
     vakEl.focus();
   });
 
+  // Tekstfilter op de tekstvelden van het proefformulier (de melding staat onder het veld).
+  SPOTekst.koppel(vakEl, { max: 40 });
+  SPOTekst.koppel(onderEl, { max: 80 });
   $('formulier').addEventListener('submit', async (e) => {
     e.preventDefault();
     $('fout').textContent = '';
+    if (!SPOTekst.geldig(vakEl, { max: 40 })) { vakEl.focus(); return; }
+    if (!SPOTekst.geldig(onderEl, { max: 80 })) { onderEl.focus(); return; }
     const g = leesCijfer(cijferEl.value);
     if (g == null) {
       $('fout').textContent = 'Vul een cijfer in tussen 1 en 10.';

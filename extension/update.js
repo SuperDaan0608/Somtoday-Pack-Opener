@@ -108,6 +108,7 @@
   const KIJK_REST = 60; // seconden dat een uitnodiging om mee te kijken blijft staan
   const gezienKijk = new Set();
   const gezienEmoji = new Set();
+  const gezienRivaal = new Map(); // vriend -> wanneer ik een rivaalverzoek meldde
 
   async function kijk() {
     const st = await L.laad();
@@ -149,6 +150,13 @@
           if (!k || gezienKijk.has(k.mid)) continue;
           gezienKijk.add(k.mid);
           uit.push({ soort: 'kijk', van: v.id, naam: L.naam(v), kijk: k, rest: Math.max(5, KIJK_REST - b.leeftijd), tekst: `${L.naam(v)} opent nu iets ${k.trede === 4 ? 'MYTHISCHS (kans 1/1000)' : 'KOSMISCHS (kans 1/150)'}: kijk mee!` });
+        } else if (b.m.t === 'rivaal') {
+          // v3.0: een vriend vraagt jou als aartsrivaal (hoogstens één melding per vriend per uur; wie al jouw rivaal is, meldt niets)
+          if (b.leeftijd >= 600 || Date.now() - (gezienRivaal.get(v.id) || 0) < 3600000) continue;
+          const rs = await L.lees('spo_rivaal');
+          if (rs && rs.id === v.id) continue;
+          gezienRivaal.set(v.id, Date.now());
+          uit.push({ soort: 'verzoek', tekst: `${L.naam(v)} wil jouw aartsrivaal worden!` });
         } else if (b.m.t === 'emoji') {
           const e = L.schoonKijkEmoji(b.m);
           if (!e || b.leeftijd >= 30 || gezienEmoji.has(b.seq + ':' + v.id)) continue;

@@ -51,6 +51,11 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
     { emoji: '\u2764\uFE0F', naam: 'hart' },
   ];
   const GRENS = { vak: 60, onderwerp: 120, kaarten: 150, reacties: 300, rondes: 10, gokken: 50, dicht: 20 };
+  // Tekstfilter (tekstfilter.js): alles wat van een vriend komt gaat erdoor, ook al filterde de schrijver al.
+  // Is het filter niet geladen, dan blijft er alleen '•••' over (liever dicht dan open). In Node laden we het zelf.
+  if (!globalThis.SPOTekst && typeof require === 'function') { try { globalThis.SPOTekst = require('./tekstfilter.js'); } catch (e) { /* niet beschikbaar */ } }
+  const filterToon = (t) => (t && globalThis.SPOTekst ? globalThis.SPOTekst.toon(t) : t ? '\u2022\u2022\u2022' : '');
+  const filterNaam = (t, std) => (globalThis.SPOTekst ? globalThis.SPOTekst.toonNaam(t, std) : std);
   const heeft = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
   // Veilig één waarde uit een lijst van (vriend)gegevens lezen: nooit iets erven van Object.prototype.
   const eigen = (o, k) => (o && typeof o === 'object' && heeft(o, k) ? o[k] : undefined);
@@ -62,7 +67,7 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
   // Tekst van een vriend: alleen een string, niet langer dan toegestaan (anders wordt het hele veld genegeerd).
   function tekstVeld(t, max, min) {
     if (typeof t !== 'string' || t.length > max) return null;
-    const s = t.replace(STUUR_TEKENS, '').trim();
+    const s = filterToon(t.replace(STUUR_TEKENS, '').trim());
     return s.length >= min ? s : null;
   }
   // Id van een kaart (de id uit de galerij) of van een ronde-sleutel: korte, rustige tekens, nooit '__proto__'.
@@ -283,9 +288,9 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
   function schoonDichtItem(x) {
     if (!x || typeof x !== 'object') return null;
     const id = sleutelTekst(x.id);
-    const vak = typeof x.vak === 'string' ? x.vak.replace(STUUR_TEKENS, '').trim().slice(0, GRENS.vak) : '';
+    const vak = typeof x.vak === 'string' ? filterToon(x.vak.replace(STUUR_TEKENS, '').trim().slice(0, GRENS.vak)) : '';
     if (!id || !vak) return null;
-    const onderwerp = typeof x.onderwerp === 'string' ? x.onderwerp.replace(STUUR_TEKENS, '').trim().slice(0, GRENS.onderwerp) : '';
+    const onderwerp = typeof x.onderwerp === 'string' ? filterToon(x.onderwerp.replace(STUUR_TEKENS, '').trim().slice(0, GRENS.onderwerp)) : '';
     return { id, vak, onderwerp, weging: getal(x.weging, 0.01, 100) ? x.weging : 1, ts: getal(x.ts, 1, 4.1e12) ? x.ts : Date.now() };
   }
   async function leesDicht() {
@@ -383,7 +388,7 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
   const antwoord = (...a) => serieel(() => antwoord_(...a));
   const verwijderVriend = (...a) => serieel(() => verwijderVriend_(...a));
   const synchroniseer = (...a) => serieel(() => synchroniseer_(...a));
-  async function verzoek_(st, code, alias) {
+  async function verzoek_(st, code, alias, via) { // via = true: de code kwam uit een uitnodigingslink (zie uitnodiging.js)
     const c = leesCode(code);
     if (!c) throw new Error('Dit is geen geldige vriendcode.');
     if (c.id === st.id) throw new Error('Dit is je eigen vriendcode.');
@@ -391,7 +396,7 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
     const r = await clientVan(st).roep('request', { to: c.id });
     st.vrienden = st.vrienden.filter((v) => v.id !== c.id);
     ruimOp(st, c.id); // reacties, gokken en rondes uit een eerdere vriendschap met dezelfde id horen hier niet meer bij
-    st.vrienden.push({ id: c.id, pub: c.pub, alias: alias || '', status: r.status === 'accepted' ? 'vriend' : 'verzonden', deel: { modus: 'niets', ids: [] } });
+    st.vrienden.push({ id: c.id, pub: c.pub, alias: alias || '', status: r.status === 'accepted' ? 'vriend' : 'verzonden', deel: { modus: 'niets', ids: [] }, via: via === true });
     await bewaar(st);
     return r.status;
   }
@@ -815,7 +820,7 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
     return m[rid];
   }
 
-  function naam(v) { return v.alias || 'Vriend ' + v.id.slice(0, 4); }
+  function naam(v) { return filterNaam(v.alias, 'Vriend ' + v.id.slice(0, 4)); }
 
   const lib = {
     STANDAARD_SERVER, naB64, vanB64, maakSleutelpaar, deelSleutel, versleutel, ontsleutel, maakCode, leesCode, veiligheidscode,

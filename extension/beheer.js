@@ -16,6 +16,10 @@
   let nuServer = 0;
   let open = null;       // id van de rij met het banformulier open
   let bezig = false;
+  let meldingen = [];    // meldingen van gebruikers (nieuw eerst)
+  let meldFout = '';     // tekst als de server nog geen meldingen kent
+  const bewijsOpen = new Map(); // meldingsid -> bewijs (alleen na klikken opgehaald)
+  let meldForm = null;   // { id, soort } van de melding met een open formulier
 
   function melding(tekst, fout) {
     const p = el('p', fout ? 'fout' : '', tekst);
@@ -56,7 +60,7 @@
     if (!stats) return;
     const items = [
       ['Gebruikers', nl(stats.gebruikers)], ['Actief 24 uur', nl(stats.actief24u)], ['Actief 7 dagen', nl(stats.actief7d)], ['Nieuw 24 uur', nl(stats.nieuw24u)],
-      ['Vriendschappen', nl(stats.vriendschappen)], ['Open verzoeken', nl(stats.verzoeken)], ['Kaartblobs', nl(stats.blobs)], ['Data', grootte(stats.blobBytes)], ['Verbannen', nl(stats.verbannen)],
+      ['Vriendschappen', nl(stats.vriendschappen)], ['Open verzoeken', nl(stats.verzoeken)], ['Kaartblobs', nl(stats.blobs)], ['Data', grootte(stats.blobBytes)], ['Verbannen', nl(stats.verbannen)], ['Nieuwe meldingen', nl(stats.nieuweMeldingen || 0)],
     ];
     for (const [l, w] of items) { const d = el('div', 'stat'); d.append(el('b', '', w), el('span', '', l)); s.append(d); }
   }
@@ -158,6 +162,173 @@
     }
   }
 
+  // ---- tabbladen ----
+  function kiesTab(naam, focus) {
+    for (const t of ['gebruikers', 'meldingen']) {
+      const knop = $('tab-' + t), actief = t === naam;
+      knop.setAttribute('aria-selected', actief ? 'true' : 'false');
+      knop.tabIndex = actief ? 0 : -1;
+      $('paneel-' + t).hidden = !actief;
+      if (actief && focus) knop.focus();
+    }
+  }
+  for (const t of ['gebruikers', 'meldingen']) {
+    $('tab-' + t).addEventListener('click', () => kiesTab(t));
+    $('tab-' + t).addEventListener('keydown', (ev) => {
+      if (ev.key === 'ArrowRight' || ev.key === 'ArrowLeft') { ev.preventDefault(); kiesTab(t === 'gebruikers' ? 'meldingen' : 'gebruikers', true); }
+    });
+  }
+
+  // ---- meldingen ----
+  const REDEN = { naam: 'Naam', tekst: 'Tekst', pesten: 'Pesten', spam: 'Spam', anders: 'Anders' };
+  const DUREN = [['3600', '1 uur'], ['86400', '1 dag'], ['604800', '7 dagen'], ['2592000', '30 dagen']];
+
+  // Bevestigingsvenster (voor elke ban). Geeft een belofte met true bij "ja".
+  function bevestig(regels, jaTekst) {
+    const d = $('bevestig'), lijst = $('bev-regels');
+    lijst.textContent = '';
+    for (const r of regels) lijst.append(el('li', '', r));
+    $('bev-ja').textContent = jaTekst;
+    return new Promise((klaar) => {
+      d.returnValue = 'nee';
+      d.addEventListener('close', () => klaar(d.returnValue === 'ja'), { once: true });
+      if (typeof d.showModal === 'function') d.showModal(); else { klaar(window.confirm(regels.join('\n'))); return; }
+      $('bev-nee').focus();
+    });
+  }
+
+  function meldKaart(m) {
+    const li = el('li', 'meld' + (m.status === 'klaar' ? ' klaar' : ''));
+    li.dataset.id = String(m.id);
+    const kop = el('div', 'meld-kop');
+    kop.append(el('span', 'badge reden', REDEN[m.reden] || m.reden), el('strong', '', 'Melding ' + m.id));
+    const tijd = el('span', 'nu', geleden(m.ts)); tijd.title = datum(m.ts);
+    kop.append(tijd, el('span', 'badge' + (m.status === 'klaar' ? '' : ' nieuw'), m.status === 'klaar' ? 'Afgehandeld' : 'Nieuw'));
+    li.append(kop);
+
+    const dl = el('dl', 'meld-gegevens');
+    const rij = (k, w, mono) => { dl.append(el('dt', '', k)); dl.append(el('dd', mono ? 'mono' : '', w)); };
+    rij('Gemeld door', m.van, true);
+    rij('Tegen', m.tegen + (namen.has(m.tegen) ? ' (' + namen.get(m.tegen) + ')' : ''), true);
+    rij('Uitleg van de melder', m.uitleg || 'Geen uitleg meegestuurd.');
+    rij('Meldingen tegen dit id', nl(m.aantalTegen));
+    rij('Waarschuwingen eerder', nl(m.waarschuwingen));
+    let ban = 'Geen ban';
+    if (m.banStatus) {
+      ban = (m.banStatus.tot ? 'Verbannen tot ' + datum(m.banStatus.tot) : 'Voorgoed verbannen') + (m.banStatus.ookEmail ? ', ook e-mailadres' : '') + (m.banStatus.ookIp ? ', ook IP' : '');
+    }
+    rij('Ban', ban);
+    rij('Accounts op hetzelfde IP (30 dagen)', m.ipBekend ? nl(m.ipAccounts) : 'Geen IP bekend');
+    li.append(dl);
+    if (m.ipAccounts > 3) {
+      const w = el('p', 'ip-waarschuwing', 'Dit IP is de laatste 30 dagen door ' + m.ipAccounts + ' accounts gebruikt: waarschijnlijk een school of gedeeld wifi');
+      w.setAttribute('role', 'alert');
+      li.append(w);
+    }
+
+    // Bewijs: standaard verborgen, apart opgehaald
+    const bw = el('div', 'bewijs-blok');
+    if (!m.heeftBewijs) bw.append(el('span', 'bewijs-geen', 'Geen bewijs meegestuurd.'));
+    else {
+      const kn = el('button', 'knop klein', bewijsOpen.has(m.id) ? 'Verberg bewijs' : 'Toon bewijs'); kn.type = 'button';
+      kn.setAttribute('aria-expanded', bewijsOpen.has(m.id) ? 'true' : 'false');
+      const uit = el('blockquote', 'bewijs'); uit.hidden = !bewijsOpen.has(m.id);
+      if (bewijsOpen.has(m.id)) uit.textContent = bewijsOpen.get(m.id);
+      kn.addEventListener('click', async () => {
+        if (bewijsOpen.has(m.id)) { bewijsOpen.delete(m.id); kn.textContent = 'Toon bewijs'; kn.setAttribute('aria-expanded', 'false'); uit.hidden = true; uit.textContent = ''; return; }
+        try {
+          kn.disabled = true;
+          const r = await beheer('beheerBewijs', { id: m.id });
+          bewijsOpen.set(m.id, String(r.bewijs || ''));
+          uit.textContent = bewijsOpen.get(m.id); uit.hidden = false; kn.textContent = 'Verberg bewijs'; kn.setAttribute('aria-expanded', 'true');
+        } catch (e) { fouten(e); } finally { kn.disabled = false; }
+      });
+      bw.append(kn, uit);
+    }
+    li.append(bw);
+
+    if (m.status === 'klaar') {
+      if (m.uitkomst) li.append(el('p', 'uitkomst', 'Uitkomst: ' + m.uitkomst));
+      return li;
+    }
+
+    // Acties
+    const acties = el('div', 'acties meld-acties');
+    const knop = (tekst, soort, gevaar) => {
+      const k = el('button', 'knop klein' + (gevaar ? ' gevaar' : ''), tekst); k.type = 'button';
+      if (soort) { k.setAttribute('aria-expanded', meldForm && meldForm.id === m.id && meldForm.soort === soort ? 'true' : 'false'); k.addEventListener('click', () => { meldForm = meldForm && meldForm.id === m.id && meldForm.soort === soort ? null : { id: m.id, soort }; tekenMeldingen(); }); }
+      return k;
+    };
+    const negeer = knop('Negeren');
+    negeer.addEventListener('click', () => doe(() => beheer('beheerMeldingKlaar', { id: m.id, uitkomst: 'Genegeerd' }), 'Melding genegeerd.'));
+    acties.append(negeer, knop('Waarschuwen', 'waarschuw'), knop('Tijdelijk bannen', 'tijdelijk', true), knop('Permanent bannen', 'permanent', true));
+    if (m.banStatus) {
+      const op = el('button', 'knop klein', 'Ban opheffen'); op.type = 'button';
+      op.addEventListener('click', () => doe(() => beheer('beheerOnban', { id: m.tegen }), 'Ban opgeheven.'));
+      acties.append(op);
+    }
+    li.append(acties);
+    if (meldForm && meldForm.id === m.id) li.append(meldFormulier(m, meldForm.soort));
+    return li;
+  }
+
+  function meldFormulier(m, soort) {
+    const f = el('form', 'meldform');
+    f.autocomplete = 'off';
+    const ban = soort !== 'waarschuw';
+    let sel = null;
+    if (soort === 'tijdelijk') {
+      const duur = el('label', 'veld'); duur.append(el('span', '', 'Duur'));
+      sel = el('select'); for (const [w, t] of DUREN) { const o = el('option', '', t); o.value = w; sel.append(o); }
+      sel.value = '86400'; duur.append(sel); f.append(duur);
+    }
+    const reden = el('label', 'veld'); reden.append(el('span', '', ban ? 'Reden (verplicht, zien zij zelf, max 200 tekens)' : 'Reden van de waarschuwing (verplicht, max 200 tekens)'));
+    const ri = el('input'); ri.type = 'text'; ri.maxLength = 200; ri.required = true; ri.placeholder = ban ? 'bijv. pesten' : 'bijv. houd het netjes'; reden.append(ri); f.append(reden);
+    let ceE = null, ceI = null;
+    if (ban) {
+      const keuzes = el('fieldset', 'meld-vinkjes'); keuzes.append(el('legend', '', 'Ook blokkeren'));
+      const vink = (tekst, aan, uit) => { const l = el('label', 'vink'); const c = el('input'); c.type = 'checkbox'; c.checked = aan; c.disabled = !!uit; l.append(c, document.createTextNode(' ' + tekst)); keuzes.append(l); return c; };
+      ceE = vink('ook e-mailadres', false);
+      const ipDruk = m.ipAccounts > 3;
+      ceI = vink('ook IP (max. 7 dagen)' + (m.ipBekend ? '' : ' (geen IP bekend)'), m.ipBekend && !ipDruk, !m.ipBekend);
+      if (ipDruk) keuzes.append(el('small', 'vink-uitleg', 'Standaard uit: dit IP wordt door veel accounts gedeeld.'));
+      f.append(keuzes);
+    }
+    const knoppen = el('div', 'rij-knoppen');
+    const ok = el('button', 'knop klein goud', soort === 'waarschuw' ? 'Waarschuw' : soort === 'permanent' ? 'Permanent bannen' : 'Tijdelijk bannen'); ok.type = 'submit';
+    const nee = el('button', 'knop klein', 'Annuleren'); nee.type = 'button';
+    nee.addEventListener('click', () => { meldForm = null; tekenMeldingen(); });
+    knoppen.append(ok, nee); f.append(knoppen);
+    f.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const tekst = ri.value.trim().slice(0, 200);
+      if (!tekst) { melding('Vul een reden in.', true); ri.focus(); return; }
+      if (!ban) { await doe(async () => { await beheer('beheerWaarschuw', { id: m.tegen, reden: tekst }); await beheer('beheerMeldingKlaar', { id: m.id, uitkomst: 'Gewaarschuwd' }); }, 'Waarschuwing verstuurd.'); return; }
+      const duurTekst = soort === 'permanent' ? 'voorgoed' : DUREN.find((d) => d[0] === sel.value)[1];
+      const regels = ['Je verbant ' + m.tegen + ' ' + (soort === 'permanent' ? 'voorgoed' : 'voor ' + duurTekst) + '.', 'Reden: ' + tekst,
+        'Ook e-mailadres blokkeren: ' + (ceE.checked ? 'ja' : 'nee'), 'Ook IP blokkeren (max. 7 dagen): ' + (ceI.checked ? 'ja' : 'nee')];
+      if (!(await bevestig(regels, 'Ja, verbannen'))) return;
+      const tot = soort === 'permanent' ? 0 : Math.floor(Date.now() / 1000) + Number(sel.value);
+      await doe(async () => {
+        await beheer('beheerBan', { id: m.tegen, tot, reden: tekst, ook_email: ceE.checked, ook_ip: ceI.checked });
+        await beheer('beheerMeldingKlaar', { id: m.id, uitkomst: 'Verbannen (' + duurTekst + ')' });
+      }, 'Gebruiker verbannen.');
+    });
+    return f;
+  }
+
+  function tekenMeldingen() {
+    const f = $('meld-filter').value;
+    const l = meldingen.filter((m) => f === 'alle' || (f === 'nieuw' ? m.status !== 'klaar' : m.status === 'klaar'));
+    const ul = $('meldlijst'); ul.textContent = '';
+    for (const m of l) ul.append(meldKaart(m));
+    const nieuw = meldingen.filter((m) => m.status !== 'klaar').length;
+    $('meld-teller').hidden = nieuw === 0; $('meld-teller').textContent = String(nieuw);
+    $('meld-leeg').hidden = l.length > 0 || !!meldFout;
+    $('meld-status').textContent = meldFout || `${nl(l.length)} van ${nl(meldingen.length)} meldingen.`;
+    $('meld-status').classList.toggle('fout-tekst', !!meldFout);
+  }
+
   async function doe(fn, ok) {
     if (bezig) return;
     bezig = true;
@@ -172,9 +343,17 @@
 
   async function laadAlles() {
     $('status').textContent = 'Laden...';
-    const [lijst, s] = await Promise.all([beheer('beheerLijst'), beheer('beheerStats')]);
+    const [lijst, s, ml] = await Promise.all([beheer('beheerLijst'), beheer('beheerStats'), beheer('beheerMeldingen').catch((e) => { if (e.status === 403) throw e; return { fout: e }; })]);
     gebruikers = lijst.gebruikers || []; nuServer = lijst.nu || Math.floor(Date.now() / 1000); stats = s;
-    tekenStats(); teken();
+    if (ml.fout) { meldingen = []; meldFout = ml.fout.status === 503 ? 'De server mist nog tabellen: voer migratie-v3.sql uit.' : ml.fout.status === 400 || ml.fout.status === 404 ? 'De server kent nog geen meldingen: upload de nieuwe api.php.' : 'Meldingen laden lukte niet: ' + ml.fout.message; }
+    else { meldFout = ''; meldingen = ml.meldingen || []; }
+    // Bewijs dat open stond blijft alleen open voor meldingen die er nog zijn
+    for (const id of [...bewijsOpen.keys()]) if (!meldingen.some((m) => m.id === id)) bewijsOpen.delete(id);
+    const tf = $('tabel-fout');
+    const mist = (s.ontbrekendeTabellen || []);
+    tf.hidden = mist.length === 0;
+    tf.textContent = mist.length ? 'De server mist tabellen: ' + mist.join(', ') + '. Voer migratie-v3.sql uit in phpMyAdmin.' : '';
+    tekenStats(); teken(); tekenMeldingen();
   }
 
   async function leesNamen() {
@@ -211,6 +390,8 @@
   $('vergeet').addEventListener('click', async () => { await L.wis(OPSLAG); cfg = null; gebruikers = []; toonInloggen(); melding('Sleutel verwijderd uit deze browser.'); });
   $('ververs').addEventListener('click', () => doe(async () => { await leesNamen(); }, ''));
   for (const id of ['zoek', 'filter', 'sorteer']) $(id).addEventListener('input', () => teken());
+  $('meld-filter').addEventListener('input', () => tekenMeldingen());
+  $('meld-ververs').addEventListener('click', () => doe(async () => { await leesNamen(); }, ''));
 
   async function init() {
     const p = new URLSearchParams(location.search).get('server');

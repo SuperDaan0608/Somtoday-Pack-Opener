@@ -38,3 +38,55 @@ body > * { max-width: 1180px; }
   .filters, .banform { grid-template-columns: 1fr; }
 }
 .banform .veld { min-width: 0; }
+
+/* Tabbladen */
+.tabs { display: flex; gap: 6px; margin-bottom: 12px; border-bottom: 1px solid var(--lijn); }
+.tab { background: none; border: 1px solid transparent; border-bottom: 0; border-radius: 12px 12px 0 0; padding: 10px 18px; color: var(--tekst-2); font-weight: 600; cursor: pointer; margin-bottom: -1px; }
+.tab:hover { color: var(--tekst); }
+.tab[aria-selected="true"] { color: var(--tekst); background: var(--paneel); border-color: var(--lijn); border-bottom-color: var(--bg); }
+.teller { display: inline-block; min-width: 20px; padding: 1px 7px; margin-left: 6px; border-radius: 99px; background: #ff5b5b; color: #1a0000; font-size: 12px; font-weight: 800; text-align: center; }
+.tabel-fout { margin: 0 0 12px; padding: 10px 14px; border: 1px solid #ff5b5b; border-radius: 12px; background: rgba(255,91,91,.14); color: #ffb3b3; }
+
+/* Meldingen */
+.meld-filters { grid-template-columns: 1fr auto; }
+.meld-uitleg { font-size: 13px; color: var(--tekst-3); }
+.meldlijst { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.meld { border: 1px solid var(--lijn-2); border-radius: 14px; padding: 14px 16px; background: rgba(0,0,0,.18); }
+.meld.klaar { opacity: .75; border-color: var(--lijn); }
+.meld-kop { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 10px; }
+.meld-kop .badge { margin-left: 0; }
+.badge.reden { color: var(--tekst); border-color: var(--lijn-2); background: rgba(255,255,255,.07); }
+.badge.nieuw { color: #ffd24a; border-color: #ffd24a; }
+.meld-kop .nu { color: var(--tekst-3); }
+.meld-gegevens { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 16px; margin: 0 0 10px; font-size: 13px; }
+.meld-gegevens dt { color: var(--tekst-3); }
+.meld-gegevens dd { margin: 0; color: var(--tekst); overflow-wrap: anywhere; }
+.meld-gegevens dd.mono { font-family: ui-monospace, monospace; font-size: 12px; }
+.ip-waarschuwing { margin: 0 0 10px; padding: 10px 14px; border: 1px solid #ff5b5b; border-radius: 12px; background: rgba(255,91,91,.16); color: #ffb3b3; font-weight: 600; }
+.bewijs-blok { margin-bottom: 10px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.bewijs-geen { color: var(--tekst-3); font-size: 13px; }
+.bewijs { margin: 0; padding: 10px 14px; border-left: 3px solid #ffd24a; background: rgba(255,210,74,.07); border-radius: 0 10px 10px 0; color: var(--tekst); white-space: pre-wrap; overflow-wrap: anywhere; max-width: 100%; }
+.uitkomst { margin: 0; color: var(--tekst-2); font-size: 13px; }
+.meld-acties { min-width: 0; }
+.meldform { display: grid; gap: 10px; margin-top: 10px; padding: 12px; border: 1px solid var(--lijn-2); border-radius: 12px; background: rgba(0,0,0,.2); }
+.meldform input[type=text], .meldform select { background: rgba(0,0,0,.25); border: 1px solid var(--lijn-2); border-radius: 10px; padding: 8px 10px; color: var(--tekst); width: 100%; }
+.meldform .rij-knoppen { display: flex; gap: 8px; }
+.meldform .knop { width: auto; }
+.meld-vinkjes { border: 1px solid var(--lijn); border-radius: 10px; padding: 8px 12px; margin: 0; display: grid; gap: 6px; }
+.meld-vinkjes legend { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--tekst-3); padding: 0 6px; }
+.vink { display: flex; align-items: center; gap: 8px; color: var(--tekst-2); font-size: 14px; cursor: pointer; }
+.vink input { width: 18px; height: 18px; accent-color: #ffd24a; }
+.vink-uitleg { color: var(--tekst-3); }
+
+/* Bevestigingsvenster */
+dialog#bevestig { border: 1px solid var(--lijn-2); border-radius: 16px; background: #10142a; color: var(--tekst); padding: 20px 22px; max-width: min(460px, calc(100vw - 32px)); }
+dialog#bevestig::backdrop { background: rgba(0,0,0,.65); }
+dialog#bevestig h2 { margin-top: 0; }
+.bev-regels { margin: 0 0 16px; padding-left: 20px; color: var(--tekst-2); overflow-wrap: anywhere; }
+dialog#bevestig .rij-knoppen { display: flex; gap: 8px; justify-content: flex-end; }
+dialog#bevestig .knop { width: auto; }
+
+@media (max-width: 760px) {
+  .meld-filters, .meld-gegevens { grid-template-columns: 1fr; }
+  .meld-gegevens dt { margin-top: 6px; }
+}

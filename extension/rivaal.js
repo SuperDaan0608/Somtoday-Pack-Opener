@@ -258,14 +258,15 @@
     if (tekst !== undefined) e.textContent = tekst;
     return e;
   }
-  const fmt = (n) => Number(n).toFixed(1).replace('.', ',');
   const fmt2 = (n) => Number(n).toFixed(2).replace('.', ',');
+  // Eén decimaal (7,3), of twee als het cijfer er twee heeft (9,97): zo wordt 9,97 nooit afgerond naar 10,0.
+  const fmtFlex = (n) => { const v = Math.round(Number(n) * 100) / 100; return v.toFixed(Math.abs(v * 10 - Math.round(v * 10)) < 1e-9 ? 1 : 2).replace('.', ','); };
   const MIS = 'deelt dit niet';
 
   function wekenTekst(naam, x, leeg) {
     if (!x.w && !x.l) return x.g ? `${leeg} Alleen gelijkspel.` : leeg;
-    if (x.w === x.l) return `Gelijk: jij won ${x.w}, ${naam} won ${x.l}.`;
-    return x.w > x.l ? `Jij leidt: jij won ${x.w}, ${naam} won ${x.l}.` : `${naam} leidt: ${naam} won ${x.l}, jij won ${x.w}.`;
+    if (x.w === x.l) return `gelijk, ${x.w}-${x.l}.`;
+    return x.w > x.l ? `jij leidt met ${x.w}-${x.l}.` : `${naam} leidt met ${x.l}-${x.w}.`;
   }
 
   // Tekent de hele sectie in `doel`. c: { s (staat), st, L, naamVan(id), galerij, gek, gevechten (alle), acties, tweestaps, nu }
@@ -314,7 +315,7 @@
     const kop = el('div', 'rv-kop');
     kop.append(el('span', 'rv-vs', 'VS'), el('p', 'rv-naam', `Jij tegen ${naam}`));
     doel.append(kop);
-    doel.append(el('p', 'rv-week', 'Deze week: ' + wekenTekst(naam, w.dezeWeek, 'Nog geen gevecht tegen elkaar. Daag ' + naam + ' uit!')));
+    doel.append(el('p', 'rv-week', 'Deze week: ' + wekenTekst(naam, w.dezeWeek, 'nog geen gevecht tegen elkaar. Daag ' + naam + ' uit!')));
     if (w.vorigeWeek.w || w.vorigeWeek.l) doel.append(el('p', 'rv-week rv-week-vorig', 'Vorige week: ' + (w.vorigeWeek.w === w.vorigeWeek.l ? `gelijk (${w.vorigeWeek.w}-${w.vorigeWeek.l}).` : w.vorigeWeek.w > w.vorigeWeek.l ? `jij won met ${w.vorigeWeek.w}-${w.vorigeWeek.l}.` : `${naam} won met ${w.vorigeWeek.l}-${w.vorigeWeek.w}.`)));
 
     const tab = el('table', 'rv-tabel');
@@ -325,9 +326,9 @@
     const body = el('tbody');
     // een rij: label, mijn waarde, hun waarde. Een waarde is { w: getal om te vergelijken (of null), t: tekst },
     // null (de rivaal deelt dit niet) of undefined (nog niet opgehaald). Het hoogste getal wint.
-    const rij = (label, m, h) => {
+    const rij = (label, m, h, vergelijkbaar) => {
       const tr = el('tr'); const th = el('th', '', label); th.scope = 'row'; tr.append(th);
-      const wint = m && h && m.w !== null && h.w !== null && m.w !== h.w;
+      const wint = vergelijkbaar !== false && m && h && m.w !== null && h.w !== null && m.w !== h.w;
       const cel = (x, voor) => {
         const td = el('td');
         if (x === undefined) { td.className = 'mis'; td.textContent = 'nog niet opgehaald'; }
@@ -344,9 +345,12 @@
     const onbekend = w.bekend ? null : undefined;
     const zij = (f) => (w.zij ? f(w.zij) : onbekend);
     rij('Gemiddelde', w.ik ? X(w.ik.gem, fmt2(w.ik.gem)) : leeg, zij((z) => X(z.gem, fmt2(z.gem))));
-    rij('Beste kaart', w.ik ? X(w.ik.beste, fmt(w.ik.beste)) : leeg, zij((z) => X(z.beste, fmt(z.beste))));
-    rij('Aantal kaarten', X(w.ik ? w.ik.n : 0, String(w.ik ? w.ik.n : 0)), w.zijProfiel ? X(w.zijProfiel.k, String(w.zijProfiel.k)) : zij((z) => X(z.n, String(z.n))));
-    NIVEAUS.forEach((nv, i) => rij(nv, X(w.ik ? w.ik.treden[i] : 0, String(w.ik ? w.ik.treden[i] : 0)), zij((z) => X(z.treden[i], String(z.treden[i])))));
+    rij('Beste kaart', w.ik ? X(w.ik.beste, fmtFlex(w.ik.beste)) : leeg, zij((z) => X(z.beste, fmtFlex(z.beste))));
+    // Aantallen vergelijken we alleen als dat eerlijk kan: deelt de rivaal minder kaarten dan jij hebt, dan zegt een voorsprong niets.
+    const ikN = w.ik ? w.ik.n : 0;
+    const eerlijk = !!(w.zij && w.zij.n >= ikN);
+    rij('Aantal kaarten', X(ikN, String(ikN)), w.zijProfiel ? X(w.zijProfiel.k, String(w.zijProfiel.k)) : zij((z) => X(z.n, String(z.n))), !!w.zijProfiel || eerlijk);
+    NIVEAUS.forEach((nv, i) => rij(nv, X(w.ik ? w.ik.treden[i] : 0, String(w.ik ? w.ik.treden[i] : 0)), zij((z) => X(z.treden[i], String(z.treden[i]))), eerlijk));
     rij('Kosmisch', X(w.ikTop.kosmisch, String(w.ikTop.kosmisch)), w.zijTop ? X(w.zijTop.kosmisch, String(w.zijTop.kosmisch)) : onbekend);
     rij('Mythisch', X(w.ikTop.mythisch, String(w.ikTop.mythisch)), w.zijTop ? X(w.zijTop.mythisch, String(w.zijTop.mythisch)) : onbekend);
     const o = w.onderling;
@@ -360,8 +364,8 @@
     const noten = [];
     if (!w.bekend) noten.push(`De gegevens van ${naam} zijn nog niet opgehaald. Druk op Synchroniseren.`);
     else if (!w.zij) noten.push(`${naam} deelt geen kaarten met jou, dus je ziet alleen wat ${naam} verder deelt.`);
-    else noten.push(`Je ziet alleen wat ${naam} zelf met jou deelt: ${w.zij.n} ${w.zij.n === 1 ? 'kaart' : 'kaarten'}.`);
-    noten.push(`Gevechten telt de laatste ${Math.min(20, o.n) || 20} uitslagen tegen ${naam}. Elke gewonnen gevecht tegen je rivaal geeft ${MUNTEN_PER_WINST} extra munten (hoogstens ${MUNTEN_MAX_DAG} per dag).`);
+    else noten.push(`Je ziet alleen wat ${naam} zelf met jou deelt: ${w.zij.n} ${w.zij.n === 1 ? 'kaart' : 'kaarten'}.${eerlijk ? '' : ' Daarom tellen de aantallen kaarten niet mee voor de gele voorsprong.'}`);
+    noten.push(`Bij gevechten tellen de laatste (hoogstens 20) uitslagen tegen ${naam}. Elk gevecht dat je tegen je rivaal wint, geeft ${MUNTEN_PER_WINST} extra munten (hoogstens ${MUNTEN_MAX_DAG} per dag).`);
     doel.append(el('p', 'uitleg rv-noot', noten.join(' ')));
 
     const stopKnop = el('button', 'knop gevaar klein', 'Rivaliteit stoppen'); stopKnop.type = 'button';

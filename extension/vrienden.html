@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Vrienden</title>
   <link rel="stylesheet" href="vrienden.css" />
+  <link rel="stylesheet" href="rivaal.css" />
   <link rel="stylesheet" href="embed.css" />
   <script src="embed.js"></script>
 </head>
@@ -51,11 +52,13 @@
       <!-- 1. Vrienden -->
       <section class="sec" id="sec-vrienden" role="tabpanel" aria-labelledby="stab-vrienden" tabindex="0">
         <p class="sec-uitleg">Je vrienden. Klap een profielkaart open of daag iemand uit voor een gevecht.</p>
+        <section class="blok rivaal" id="rivaal-sectie" aria-labelledby="rv-titel" hidden></section>
         <div class="leeg-blok" id="geen-vrienden" hidden>
           <p><strong>Je hebt nog geen vrienden.</strong> Geef je vriendcode aan een klasgenoot, of vul zijn code in.</p>
           <button type="button" class="knop goud" data-sec="toevoegen">Vriend toevoegen</button>
         </div>
         <ul class="vrienden" id="vrienden"></ul>
+        <p class="uitnodig-rij"><button type="button" class="knop klein" id="nodig-uit">Nodig een vriend uit</button></p>
       </section>
 
       <!-- 2. Kaarten van vrienden -->
@@ -117,15 +120,17 @@
           <h2 id="c-titel">Jouw vriendcode</h2>
           <p class="uitleg">Geef deze code aan een vriend. De code bevat geen naam en geen cijfers.</p>
           <div class="rij">
-            <input type="text" id="mijn-code" class="grote-code" readonly aria-labelledby="c-titel" />
+            <input type="text" id="mijn-code" class="grote-code" readonly data-tekstfilter="uit" aria-labelledby="c-titel" />
             <button type="button" class="knop goud" id="kopieer">Kopieer</button>
           </div>
+          <p class="uitnodig-rij"><button type="button" class="knop klein" id="nodig-uit-2">Nodig een vriend uit met een link</button></p>
         </section>
         <section class="blok" aria-labelledby="t-titel">
           <h2 id="t-titel">Code van een vriend invoeren</h2>
           <form id="toevoegen" autocomplete="off">
-            <label class="veld"><span>Vriendcode van je vriend</span><input type="text" id="t-code" placeholder="SPO1-..." spellcheck="false" required /></label>
-            <label class="veld"><span>Bijnaam (alleen zichtbaar voor jou)</span><input type="text" id="t-alias" maxlength="30" required /></label>
+            <label class="veld"><span>Vriendcode van je vriend</span><input type="text" id="t-code" data-tekstfilter="code" placeholder="SPO1-..." spellcheck="false" required /></label>
+            <label class="veld"><span>Bijnaam (alleen zichtbaar voor jou)</span><input type="text" id="t-alias" maxlength="24" data-tekstfilter="naam" required /></label>
+            <label class="bevestig" for="t-uitnodiging"><input type="checkbox" id="t-uitnodiging" /><span>Ik kreeg deze code via een uitnodigingslink (jullie krijgen allebei een gratis pakje)</span></label>
             <button type="submit" class="knop goud">Verzoek sturen</button>
           </form>
         </section>
@@ -142,10 +147,14 @@
       </details>
     </div>
   </main>
+  <script src="tekstfilter-woorden.js"></script>
+  <script src="tekstfilter.js"></script>
   <script src="economie.js"></script>
   <script src="profielkaart.js"></script>
   <script src="vriendenlib.js"></script>
   <script src="ladder.js"></script>
+  <script src="rivaal.js"></script>
+  <script src="uitnodiging.js"></script>
   <script src="vrienden.js"></script>
 </body>
 </html>

@@ -342,7 +342,12 @@
   const TIERNAMEN = ['Brons', 'Zilver', 'Goud', 'Speciaal', 'Icoon'];
   const tierVan = (c) => (c >= 9.95 ? 4 : c >= 9 ? 3 : c >= 7 ? 2 : c >= 5.5 ? 1 : 0);
   const afk = (vak) => String(vak || '?').replace(/[^A-Za-zÀ-ÿ]/g, '').slice(0, 3).toUpperCase() || '?';
-  const schoonBijnaam = (t) => String(t == null ? '' : t).replace(/[\u0000-\u001f\u007f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 20);
+  // Bijnaam (eigen of van een vriend): door het tekstfilter. Komt hij er niet door, of is het filter niet geladen, dan is hij leeg.
+  if (!globalThis.SPOTekst && typeof require === 'function') { try { globalThis.SPOTekst = require('./tekstfilter.js'); } catch (e) { /* niet beschikbaar */ } }
+  const schoonBijnaam = (t) => {
+    const k = String(t == null ? '' : t).replace(/[\u0000-\u001f\u007f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 20);
+    return k && globalThis.SPOTekst ? globalThis.SPOTekst.toonNaam(k, '') : '';
+  };
   function schoonEigenProfiel(p) { p = obj(p); return { bijnaam: schoonBijnaam(p.bijnaam), deel: p.deel !== false }; }
 
   // De kaart die ik zelf laat zien (en aan vrienden stuur): geen echte naam, alleen wat de gebruiker koos.
