@@ -67,6 +67,8 @@
       if (r && r.ok === false) return { ok: false, schoon, reden: r.melding || 'Deze tekst kan niet. Kies andere woorden.' };
       if (r && typeof r.schoon === 'string' && r.schoon) return { ok: true, schoon: r.schoon.slice(0, MAX_TEKENS) };
     }
+    // Is het filter in een echte pagina niet geladen, dan weigeren we liever dan dat er ongefilterde tekst wordt bewaard.
+    if (typeof window !== 'undefined' && typeof document !== 'undefined') return { ok: false, schoon, reden: 'Het tekstfilter is niet geladen. Probeer de pagina te verversen.' };
     return { ok: true, schoon };
   }
   const isOpen = (c, nu) => !!c && (nu == null ? Date.now() : +nu) >= c.opent;
