@@ -13,5 +13,7 @@ return [
   'limiet_mail_email_per_uur' => 50,
   'limiet_login_email_per_uur' => 200,
   'vrienden_zelfde_versie' => getenv('SPO_VERSIECHECK') === '1',
+  'beheer_mail' => getenv('SPO_BEHEERMAIL') ?: null,
+  'limiet_nieuw_verzoek_per_dag' => getenv('SPO_NIEUWLIMIET') ? (int)getenv('SPO_NIEUWLIMIET') : 3,
   'limiet_beheer_per_min' => (int)(getenv('SPO_LIMIET_BEHEER') ?: 30),
 ];

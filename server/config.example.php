@@ -10,6 +10,10 @@ return [
   // Beheer voor de eigenaar: een lange geheime tekst (minstens 16 tekens; maak er een met: openssl rand -hex 32).
   // Zonder deze regel (of leeg) bestaan de beheeracties niet. Zet hem nooit in git of in de extensie.
   // 'beheer_sleutel' => 'VERVANG-DIT-DOOR-EEN-LANGE-GEHEIME-TEKST',
+  // Mail aan jezelf bij een nieuwe melding van een gebruiker (v3, optioneel; zonder deze regel komt er geen mail).
+  // De mail bevat nooit inhoud: alleen "Er is een nieuwe melding", de reden-categorie en "Open je beheerpagina". Hoogstens 1 mail per 10 minuten
+  // (meldingen in die tijd gaan mee in de volgende mail). Gebruikt dezelfde mail-instellingen als de codes hieronder.
+  // 'beheer_mail' => 'jij@voorbeeld.nl',
   // Accounts (v2.2): het afzenderadres voor de mails met codes. Moet een adres van je eigen domein zijn (maak het aan in Strato).
   'mail_van' => 'noreply@JOUWDOMEIN.nl',
   // Liever via Gmail? Zet dan mail_van op je Gmail-adres en vul hieronder een app-wachtwoord in
@@ -27,5 +31,6 @@ return [
   'limiet_mail_per_uur' => 200,      // mails met codes per ip-adres (een school deelt vaak één adres)
   'limiet_mail_email_per_uur' => 5,  // mails met codes per e-mailadres
   'limiet_login_per_min' => 120,     // inlogpogingen per ip-adres
+  // 'limiet_nieuw_verzoek_per_dag' => 3, // vriendverzoeken per dag voor accounts van minder dan 24 uur oud
   // 'limiet_beheer_per_min' => 30, // beheerverzoeken per ip-adres (ook foute sleutels tellen mee)
 ];

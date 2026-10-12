@@ -190,14 +190,14 @@ function normEmail(string $e): string {
 // -- eind email-functie --
 
 // Rate limit: alleen een hash van ip + zout wordt bewaard, nooit het ruwe adres.
-function tel(PDO $db, string $sleutel, int $venster, int $max): void {
+function tel(PDO $db, string $sleutel, int $venster, int $max, string $tekst = 'Te veel verzoeken. Probeer het zo opnieuw.'): void {
   $n = q($db, 'UPDATE ratelimit SET aantal = aantal + 1 WHERE k = ? AND venster = ?', [$sleutel, $venster])->rowCount();
   if ($n === 0) {
     try { q($db, 'INSERT INTO ratelimit (k, venster, aantal) VALUES (?, ?, 1)', [$sleutel, $venster]); }
     catch (Throwable $e) { q($db, 'UPDATE ratelimit SET aantal = aantal + 1 WHERE k = ? AND venster = ?', [$sleutel, $venster]); }
   }
   $a = (int)q($db, 'SELECT aantal FROM ratelimit WHERE k = ? AND venster = ?', [$sleutel, $venster])->fetchColumn();
-  if ($a > $max) { header('Retry-After: 60'); fout(429, 'Te veel verzoeken. Probeer het zo opnieuw.'); }
+  if ($a > $max) { header('Retry-After: 60'); fout(429, $tekst); }
 }
 $nu = time();
 $ipHash = hash('sha256', maskIp((string)($_SERVER['REMOTE_ADDR'] ?? '')) . ($cfg['zout'] ?? ''));
@@ -639,7 +639,7 @@ if (strncmp($actie, 'acc', 3) === 0) {
       $migreer($r, $email);
       if ((int)$r['geverifieerd'] !== 1) {
         $limietMail($email);
-        $stuurCode($email, 'verifieer', $emailHash($email) === $r['email_hash'] || $r['email_hash'] === $emailHashOud($email) ? $r['email_hash'] : $emailHash($email));
+        $stuurCode($email, 'verifieer', (string)q($db, 'SELECT email_hash FROM accounts WHERE id = ?', [$r['id']])->fetchColumn()); // na het migreren kan de hash nieuw zijn
         uit(403, ['fout' => 'Je e-mailadres is nog niet bevestigd. We hebben een nieuwe code gestuurd.', 'nietBevestigd' => true]);
       }
       uit(200, ['sessie' => $nieuweSessie($r['id']), 'account' => $r['id']]);
@@ -688,6 +688,7 @@ if (strncmp($actie, 'acc', 3) === 0) {
       if (!is_string($data) || $data === '' || strlen($data) > MAX_BACKUP || !preg_match('/^[A-Za-z0-9_.-]+$/', $data)) fout(400, 'Ongeldige back-up (te groot of verkeerde vorm).');
       $n = q($db, 'UPDATE acc_backup SET data = ?, versie = versie + 1, bijgewerkt = ? WHERE account = ?', [$data, $nu, $acc])->rowCount();
       if ($n === 0) q($db, 'INSERT INTO acc_backup (account, data, versie, bijgewerkt) VALUES (?, ?, 1, ?)', [$acc, $data, $nu]);
+      koppelAccount($db, $acc, $ipHash, $nu);
       uit(200, ['ok' => true, 'versie' => (int)q($db, 'SELECT versie FROM acc_backup WHERE account = ?', [$acc])->fetchColumn()]);
     }
     case 'accUitloggen': {
@@ -699,6 +700,7 @@ if (strncmp($actie, 'acc', 3) === 0) {
       q($db, 'DELETE FROM acc_backup WHERE account = ?', [$acc]);
       q($db, 'DELETE FROM acc_sessies WHERE account = ?', [$acc]);
       q($db, 'DELETE FROM accounts WHERE id = ?', [$acc]);
+      zonderTabel($db, 'DELETE FROM acc_koppel WHERE account = ?', [$acc]);
       $db->commit();
       uit(200, ['ok' => true]);
     }
@@ -708,6 +710,7 @@ if (strncmp($actie, 'acc', 3) === 0) {
 }
 
 if ($actie === 'register') {
+  ipGeband($db, $ipHash, $nu);
   tel($db, hash('sha256', $ipHash . ':reg'), intdiv($nu, 3600), (int)($cfg['limiet_reg_per_uur'] ?? 5));
   $pub = $in['pub'] ?? null;
   if (!is_string($pub) || !preg_match('/^[A-Za-z0-9_-]{80,100}$/', $pub)) fout(400, 'Ongeldige publieke sleutel.');
@@ -715,16 +718,14 @@ if ($actie === 'register') {
   $token = bin2hex(random_bytes(32));
   q($db, 'INSERT INTO users (id, pub, token_hash, created, last_seen) VALUES (?, ?, ?, ?, ?)',
     [$id, $pub, hash('sha256', $token), $nu, $nu]);
+  ipOnthoud($db, $id, $ipHash, $nu, true);
   uit(200, ['id' => $id, 'token' => $token]);
 }
 
 // Authenticatie voor alle andere acties.
-$ik = $_SERVER['HTTP_X_ID'] ?? '';
-$tok = $_SERVER['HTTP_X_TOKEN'] ?? '';
-if (!isId($ik) || !is_string($tok) || $tok === '') fout(401, 'Niet ingelogd.');
-$rij = q($db, 'SELECT token_hash, last_seen FROM users WHERE id = ?', [$ik])->fetch();
-// Ook bij een onbekende id vergelijken we, zodat de tijd geen aanwijzing geeft.
-if (!hash_equals($rij['token_hash'] ?? str_repeat('0', 64), hash('sha256', $tok)) || !$rij) fout(401, 'Niet ingelogd.');
+$rij = gebruikerUitHeaders($db); // vergelijkt ook bij een onbekende id, zodat de tijd geen aanwijzing geeft
+if (!$rij) fout(401, 'Niet ingelogd.');
+$ik = $rij['id'];
 // Verbannen? Dan alleen deleteAccount en mijnStatus. Een verlopen ban wordt hier meteen opgeruimd.
 $ban = q($db, 'SELECT tot, reden FROM bans WHERE id = ?', [$ik])->fetch();
 if ($ban && (int)$ban['tot'] > 0 && (int)$ban['tot'] <= $nu) { q($db, 'DELETE FROM bans WHERE id = ?', [$ik]); $ban = false; }
@@ -737,6 +738,7 @@ $relayActie = $actie === 'send' || $actie === 'poll';
 if ($relayActie) tel($db, hash('sha256', $ik . ':rel'), intdiv($nu, 60), (int)($cfg['limiet_relay_per_min'] ?? 1200));
 else tel($db, hash('sha256', $ik . ':usr'), intdiv($nu, 60), (int)($cfg['limiet_user_per_min'] ?? 180));
 if ($nu - (int)$rij['last_seen'] > 3600) q($db, 'UPDATE users SET last_seen = ? WHERE id = ?', [$nu, $ik]);
+ipOnthoud($db, $ik, $ipHash, $nu); // hoogstens 1x per dag per ip; max. 30 dagen bewaard
 
 // Vrienden alleen met dezelfde versie (v2.3.4). Oude versies sturen geen X-Versie mee en moeten eerst updaten.
 $versieCheck = ($cfg['vrienden_zelfde_versie'] ?? true) !== false;
@@ -778,6 +780,12 @@ switch ($actie) {
     if ($to === $ik) fout(400, 'Je kunt jezelf niet toevoegen.');
     if (!bestaat($db, $to)) fout(404, 'Deze vriendcode bestaat niet (meer).');
     zelfdeVersie($db, $to);
+    // Nieuwe accounts (eerste 24 uur): hoogstens 3 vriendverzoeken per dag. De dag-teller staat in dezelfde tabel als de andere limieten.
+    if ($nu - (int)$rij['created'] < 86400)
+      tel($db, hash('sha256', $ik . ':nieuwreq'), intdiv($nu, 86400), (int)($cfg['limiet_nieuw_verzoek_per_dag'] ?? 3), 'Je account is nieuw: de eerste dag kun je hoogstens 3 vriendverzoeken sturen. Probeer het morgen opnieuw.');
+    // Geblokkeerd door de ander? Dan lijkt alles gelukt, maar er wordt niets opgeslagen (de geblokkeerde merkt niets).
+    if (blokkeertVan($db, $to, $ik)) uit(200, ['ok' => true, 'status' => 'pending']);
+    if (blokkeertVan($db, $ik, $to)) fout(409, 'Je hebt deze persoon geblokkeerd. Deblokkeer hem of haar eerst.');
     $f = vriendschap($db, $ik, $to);
     if ($f === null) {
       q($db, 'INSERT INTO friendships (a, b, status, created) VALUES (?, ?, ?, ?)', [$ik, $to, 'pending', $nu]);
@@ -800,7 +808,7 @@ switch ($actie) {
     if (!isId($van) || !is_bool($in['accept'] ?? null)) fout(400, 'Ongeldig verzoek.');
     if ($in['accept']) zelfdeVersie($db, $van);
     $f = q($db, 'SELECT 1 FROM friendships WHERE a = ? AND b = ? AND status = ?', [$van, $ik, 'pending'])->fetchColumn();
-    if ($f === false) fout(404, 'Geen openstaand verzoek van deze vriend.');
+    if ($f === false || ($in['accept'] && isGeblokkeerd($db, $ik, $van))) fout(404, 'Geen openstaand verzoek van deze vriend.');
     if ($in['accept']) q($db, 'UPDATE friendships SET status = ? WHERE a = ? AND b = ?', ['accepted', $van, $ik]);
     else q($db, 'DELETE FROM friendships WHERE a = ? AND b = ?', [$van, $ik]);
     uit(200, ['ok' => true]);
@@ -819,7 +827,7 @@ switch ($actie) {
     if ($data !== '' && !preg_match('/^[A-Za-z0-9._-]+$/', $data)) fout(400, 'Ongeldig formaat.');
     zelfdeVersie($db, $to);
     $f = vriendschap($db, $ik, $to);
-    if ($f === null || $f['status'] !== 'accepted') fout(403, 'Jullie zijn geen vrienden.');
+    if ($f === null || $f['status'] !== 'accepted' || isGeblokkeerd($db, $ik, $to)) fout(403, 'Jullie zijn geen vrienden.');
     $db->beginTransaction();
     // `updated` gaat altijd omhoog (ook bij twee wijzigingen in dezelfde seconde), zodat 'puls' elke wijziging ziet.
     $vorig = (int)q($db, 'SELECT updated FROM blobs WHERE owner = ? AND recipient = ?', [$ik, $to])->fetchColumn();
@@ -846,7 +854,10 @@ switch ($actie) {
     $po = q($db, 'SELECT afz, MAX(seq) AS seq FROM berichten WHERE ontv = ? AND created >= ? GROUP BY afz', [$ik, $nu - BERICHT_TTL])->fetchAll();
     $post = [];
     foreach ($po as $x) $post[] = ['van' => $x['afz'], 'seq' => (int)$x['seq']];
-    uit(200, ['nu' => $nu, 'vh' => substr(hash('sha256', implode(',', $ids)), 0, 16), 'blobs' => $bl, 'post' => $post]);
+    $w = 0; // aantal ongelezen waarschuwingen van de beheerder
+    try { $w = (int)q($db, 'SELECT COUNT(*) FROM waarschuwingen WHERE account = ? AND gezien = 0', [$ik])->fetchColumn(); }
+    catch (Throwable $e) { if (!tabelOntbreekt($e)) throw $e; }
+    uit(200, ['nu' => $nu, 'vh' => substr(hash('sha256', implode(',', $ids)), 0, 16), 'blobs' => $bl, 'post' => $post, 'w' => $w]);
   }
   case 'send': {
     // Kanaal voor gevechten: een klein, versleuteld bericht naar een vriend. De server kijkt niet in de inhoud.
@@ -858,7 +869,7 @@ switch ($actie) {
     if (!preg_match('/^[A-Za-z0-9._-]+$/', $data)) fout(400, 'Ongeldig formaat.');
     zelfdeVersie($db, $to);
     $f = vriendschap($db, $ik, $to);
-    if ($f === null || $f['status'] !== 'accepted') fout(403, 'Jullie zijn geen vrienden.');
+    if ($f === null || $f['status'] !== 'accepted' || isGeblokkeerd($db, $ik, $to)) fout(403, 'Jullie zijn geen vrienden.');
     q($db, 'DELETE FROM berichten WHERE afz = ? AND ontv = ? AND created < ?', [$ik, $to, $nu - BERICHT_TTL]);
     $n = (int)q($db, 'SELECT COUNT(*) FROM berichten WHERE afz = ? AND ontv = ?', [$ik, $to])->fetchColumn();
     if ($n >= MAX_WACHTRIJ) fout(429, 'Te veel berichten in de wachtrij.');
@@ -872,7 +883,7 @@ switch ($actie) {
     if (!isId($van) || !is_int($na) || $na < 0) fout(400, 'Ongeldig verzoek.');
     zelfdeVersie($db, $van);
     $f = vriendschap($db, $ik, $van);
-    if ($f === null || $f['status'] !== 'accepted') fout(403, 'Jullie zijn geen vrienden.');
+    if ($f === null || $f['status'] !== 'accepted' || isGeblokkeerd($db, $ik, $van)) fout(403, 'Jullie zijn geen vrienden.');
     $r = q($db, 'SELECT seq, data, created FROM berichten WHERE afz = ? AND ontv = ? AND seq > ? AND created >= ? ORDER BY seq LIMIT 50', [$van, $ik, $na, $nu - BERICHT_TTL])->fetchAll();
     foreach ($r as &$x) { $x['seq'] = (int)$x['seq']; $x['leeftijd'] = $nu - (int)$x['created']; unset($x['created']); }
     unset($x);
@@ -886,6 +897,64 @@ switch ($actie) {
     q($db, 'DELETE FROM blobs WHERE (owner = ? AND recipient = ?) OR (owner = ? AND recipient = ?)', [$ik, $o, $o, $ik]);
     q($db, 'DELETE FROM berichten WHERE (afz = ? AND ontv = ?) OR (afz = ? AND ontv = ?)', [$ik, $o, $o, $ik]);
     $db->commit();
+    uit(200, ['ok' => true]);
+  }
+  case 'blokkeer': {
+    $id = $in['id'] ?? null;
+    if (!isId($id)) fout(400, 'Ongeldig verzoek.');
+    if ($id === $ik) fout(400, 'Je kunt jezelf niet blokkeren.');
+    if (blokkeertVan($db, $ik, $id)) uit(200, ['ok' => true]);
+    if ((int)q($db, 'SELECT COUNT(*) FROM blokkades WHERE van = ?', [$ik])->fetchColumn() >= 500) fout(429, 'Je hebt al heel veel mensen geblokkeerd.');
+    $db->beginTransaction();
+    q($db, 'DELETE FROM friendships WHERE (a = ? AND b = ?) OR (a = ? AND b = ?)', [$ik, $id, $id, $ik]);
+    q($db, 'DELETE FROM blobs WHERE (owner = ? AND recipient = ?) OR (owner = ? AND recipient = ?)', [$ik, $id, $id, $ik]);
+    q($db, 'DELETE FROM berichten WHERE (afz = ? AND ontv = ?) OR (afz = ? AND ontv = ?)', [$ik, $id, $id, $ik]);
+    q($db, 'INSERT INTO blokkades (van, tegen, ts) VALUES (?, ?, ?)', [$ik, $id, $nu]);
+    $db->commit();
+    uit(200, ['ok' => true]);
+  }
+  case 'deblokkeer': {
+    $id = $in['id'] ?? null;
+    if (!isId($id)) fout(400, 'Ongeldig verzoek.');
+    q($db, 'DELETE FROM blokkades WHERE van = ? AND tegen = ?', [$ik, $id]);
+    uit(200, ['ok' => true]);
+  }
+  case 'blokkades': {
+    uit(200, ['ids' => q($db, 'SELECT tegen FROM blokkades WHERE van = ? ORDER BY ts', [$ik])->fetchAll(PDO::FETCH_COLUMN)]);
+  }
+  case 'meld': {
+    $tegen = $in['tegen'] ?? null;
+    $reden = $in['reden'] ?? null;
+    $uitleg = $in['uitleg'] ?? '';
+    $bewijs = $in['bewijs'] ?? '';
+    if (!isId($tegen) || !is_string($reden) || !in_array($reden, MELD_REDENEN, true) || !is_string($uitleg) || !(is_string($bewijs) || $bewijs === null)) fout(400, 'Ongeldige melding.');
+    if ($tegen === $ik) fout(400, 'Je kunt jezelf niet melden.');
+    if (!bestaat($db, $tegen)) fout(404, 'Deze gebruiker bestaat niet (meer).');
+    if ((int)q($db, 'SELECT COUNT(*) FROM meldingen WHERE van = ? AND ts > ?', [$ik, $nu - 86400])->fetchColumn() >= 5) fout(429, 'Je hebt vandaag al 5 meldingen gedaan. Probeer het morgen opnieuw.');
+    if (q($db, 'SELECT 1 FROM meldingen WHERE van = ? AND tegen = ? AND ts > ?', [$ik, $tegen, $nu - 86400])->fetchColumn() !== false) fout(429, 'Je hebt deze persoon vandaag al gemeld.');
+    $uitleg = knip($uitleg, 300); $bewijs = knip((string)$bewijs, 400);
+    for ($poging = 0; ; $poging++) {
+      try { q($db, 'INSERT INTO meldingen (id, ts, van, tegen, reden, uitleg, bewijs, status, uitkomst) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [nieuwId(), $nu, $ik, $tegen, $reden, $uitleg, $bewijs, 'nieuw', '']); break; }
+      catch (Throwable $e) { if ($poging >= 2 || tabelOntbreekt($e)) throw $e; }
+    }
+    // Antwoord eerst afleveren; de mail aan de beheerder (kan een paar seconden duren) gaat daarna.
+    http_response_code(200);
+    echo json_encode(['ok' => true]);
+    if (function_exists('fastcgi_finish_request')) fastcgi_finish_request();
+    beheerMailBundel($db, $cfg, $nu, $reden);
+    exit;
+  }
+  case 'waarschuwingen': {
+    $r = q($db, 'SELECT id, reden, ts FROM waarschuwingen WHERE account = ? AND gezien = 0 ORDER BY ts, id LIMIT 50', [$ik])->fetchAll();
+    foreach ($r as &$x) { $x['id'] = (int)$x['id']; $x['ts'] = (int)$x['ts']; }
+    unset($x);
+    uit(200, ['lijst' => $r]);
+  }
+  case 'waarschuwingGezien': {
+    $id = $in['id'] ?? null;
+    if (!is_int($id) || $id < 1) fout(400, 'Ongeldig verzoek.');
+    if (q($db, 'SELECT 1 FROM waarschuwingen WHERE id = ? AND account = ?', [$id, $ik])->fetchColumn() === false) fout(404, 'Deze waarschuwing bestaat niet (meer).');
+    q($db, 'UPDATE waarschuwingen SET gezien = 1 WHERE id = ? AND account = ?', [$id, $ik]);
     uit(200, ['ok' => true]);
   }
   case 'deleteAccount': {
