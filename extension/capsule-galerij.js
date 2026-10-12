@@ -143,7 +143,7 @@
   function init(opties) {
     opWijzig = (opties && opties.opWijzig) || (() => {});
     const F = globalThis.SPOTekst;
-    if (F && typeof F.koppel === 'function') { try { F.koppel($('cp-tekst'), { max: C.MAX_TEKENS, soort: 'tekst', streng: true }); } catch (e) { /* zonder filter op het veld: bewaar() controleert toch */ } }
+    if (F && typeof F.koppel === 'function') { try { F.koppel($('cp-tekst'), { max: C.MAX_TEKENS, soort: 'tekst' }); } catch (e) { /* zonder filter op het veld: bewaar() controleert toch */ } }
     $('d-capsule').addEventListener('click', toonVenster);
     $('cp-tekst').addEventListener('input', () => { teller(); $('cp-fout').textContent = ''; });
     $('cp-datum').addEventListener('input', () => { $('cp-fout').textContent = ''; });

@@ -26,7 +26,9 @@
     $('samen-sub').textContent = hoofd + (geheimAlle.length ? ` Geheim: ${geheimKlaar} van ${geheimAlle.length} ontdekt.` : '');
     const zichtbaar = lijst.filter((b) => filter === 'alle' || (filter === 'behaald' ? b.klaar : !b.klaar));
     // Behaalde badges eerst (nieuwste bovenaan), daarna de verste voortgang.
-    zichtbaar.sort((a, b) => (b.klaar - a.klaar) || (a.klaar ? b.ts - a.ts : (b.nu / b.doel) - (a.nu / a.doel)));
+    // De geheime prestaties (met hun raadsels) staan na de gewone behaalde badges en voor de rest; Pure Aura staat door de opmaak helemaal bovenaan.
+    const rang = (b) => (b.geheim ? 1 : b.klaar ? 0 : 2);
+    zichtbaar.sort((a, b) => (rang(a) - rang(b)) || (b.klaar - a.klaar) || (a.klaar ? b.ts - a.ts : (b.nu / b.doel) - (a.nu / a.doel)));
     $('geen').hidden = zichtbaar.length > 0;
     for (const b of zichtbaar) {
       const li = el('li', 'badge-kaart ' + (b.klaar ? 'behaald' : 'vergrendeld') + (b.geheim ? ' glitch' : '') + (b.id === 'fout-in-de-werkelijkheid' ? ' pure' : ''));

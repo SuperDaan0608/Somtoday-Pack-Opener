@@ -40,14 +40,14 @@ dialog.cp { width: min(560px, calc(100vw - 24px)); }
 @keyframes cp-trilt { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
 
 /* de opening: ongeveer 3 seconden, rustig */
-.cp-podium { position: relative; height: 230px; display: grid; place-items: center; overflow: hidden; }
+.cp-podium { position: relative; height: 250px; display: grid; place-items: center; overflow: hidden; }
 .cp-straal { position: absolute; left: 50%; top: 50%; width: 260px; height: 260px; margin: -130px 0 0 -130px; border-radius: 50%; opacity: 0; transform: scale(.2);
   background: radial-gradient(closest-side, rgba(255,240,179,.95), rgba(154,215,255,.35) 55%, rgba(154,215,255,0)); }
 .cp-stof { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
 .cp-stof i { position: absolute; left: 0; top: 0; width: 5px; height: 5px; margin: -2px; border-radius: 50%; background: #fff0b3; opacity: 0; box-shadow: 0 0 8px #ffd24a; }
 #cp-anim.speel .cp-pil { animation: cp-schud .9s ease-in-out; }
-#cp-anim.speel .cp-pil b:first-child { transition-delay: .9s; transform: translate(26px, -92px) rotate(38deg); }
-#cp-anim.speel .cp-pil b:last-child { transition-delay: .9s; transform: translate(-8px, 22px) rotate(-6deg); opacity: .0; transition-property: transform, opacity; transition-duration: .8s, 1.4s; }
+#cp-anim.speel .cp-pil b:first-child { transition: transform .8s cubic-bezier(.3,.9,.3,1) .9s, opacity 1.2s ease 1.5s; transform: translate(34px, -50px) rotate(40deg); opacity: 0; }
+#cp-anim.speel .cp-pil b:last-child { transition-delay: .9s; transform: translate(-4px, 10px) rotate(-5deg); }
 #cp-anim.speel .cp-straal { animation: cp-licht 2.2s ease-out .9s forwards; }
 #cp-anim.speel .cp-stof i { animation: cp-op var(--w) ease-out var(--d) forwards; }
 @keyframes cp-schud { 0%, 100% { transform: rotate(0); } 15% { transform: rotate(-6deg); } 35% { transform: rotate(6deg); } 55% { transform: rotate(-4deg); } 75% { transform: rotate(3deg); } }

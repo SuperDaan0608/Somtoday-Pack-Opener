@@ -63,8 +63,8 @@
     if (schoon.length > MAX_TEKENS) return { ok: false, schoon, reden: `Maximaal ${MAX_TEKENS} tekens.` };
     const F = globalThis.SPOTekst;
     if (F && typeof F.controleer === 'function') {
-      const r = F.controleer(schoon, { max: MAX_TEKENS, soort: 'tekst', streng: true });
-      if (r && r.ok === false) return { ok: false, schoon, reden: r.reden || 'Deze tekst mag niet.' };
+      const r = F.controleer(schoon, { max: MAX_TEKENS, soort: 'tekst' });
+      if (r && r.ok === false) return { ok: false, schoon, reden: r.melding || 'Deze tekst kan niet. Kies andere woorden.' };
       if (r && typeof r.schoon === 'string' && r.schoon) return { ok: true, schoon: r.schoon.slice(0, MAX_TEKENS) };
     }
     return { ok: true, schoon };

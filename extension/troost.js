@@ -69,10 +69,11 @@
     const z = document.createElement('div'); z.className = 'z'; z.textContent = tekst;
     const o = document.createElement('div'); o.className = 'o';
     const naam = it ? it.naam : 'een verrassing';
+    const soort = it && E.SOORTEN ? E.SOORTEN[it.soort] : '';
     const zeld = it && E.ZELD ? E.ZELD[it.zeld] : '';
     o.append(document.createTextNode(uit.dubbel ? 'Je had ' : 'Je kreeg: '));
     const b = document.createElement('b'); b.textContent = naam; o.append(b);
-    o.append(document.createTextNode((zeld ? ' (' + zeld.toLowerCase() + ')' : '') + (uit.dubbel ? ' al, dus je krijgt ' + uit.terug + ' munten terug' : '') + `, plus ${uit.munten} munten.`));
+    o.append(document.createTextNode((soort || zeld ? ' (' + [soort && soort.toLowerCase(), zeld && zeld.toLowerCase()].filter(Boolean).join(', ') + ')' : '') + (uit.dubbel ? ' al, dus je krijgt ' + uit.terug + ' munten terug' : '') + `, plus ${uit.munten} munten.`));
     t.append(kop, z, o);
     const x = document.createElement('button'); x.type = 'button'; x.setAttribute('aria-label', 'Sluiten'); x.textContent = '×';
     const weg = () => { k.classList.add('weg'); setTimeout(() => { if (host === mijn) { host.remove(); host = null; } }, 300); };

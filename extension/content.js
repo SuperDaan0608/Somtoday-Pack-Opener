@@ -753,6 +753,8 @@
       },
       opGesloten() {
         bezig = false;
+        // v3.0 troostpakje: na een onvoldoende (ook een vervloekte) een gratis pakje. Het uitdelen (één keer per kaart, hoogstens 3 per dag) staat in troost.js en economie.js.
+        if (gemarkeerd && d.cijfer < 5.5) setTimeout(() => { try { if (window.SPOTroost) window.SPOTroost.na({ id: rij.sig, cijfer: d.cijfer, vloek: vloekVoor(rij) }); } catch (e) { /* geen troostpakje */ } }, 700);
         const st = staat.get(rij.host);
         if (st) {
           st.willekeur = null; // de volgende keer weer een nieuwe verrassing

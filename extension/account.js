@@ -26,6 +26,7 @@
     'spo_galerij', 'spo_geopend', 'spo_dicht', 'spo_instellingen', 'spo_munten', 'spo_munten_log', 'spo_munten_ids',
     'spo_dagelijks', 'spo_winkel', 'spo_profiel', 'spo_prestaties', 'spo_prestaties_gezien', 'spo_stats', 'spo_team',
     'spo_gevechten', 'spo_vrienden', 'spo_vrienden_sec', 'spo_uitval_gezien', 'spo_huisdier', 'spo_rondleiding',
+    'spo_capsules', 'spo_weekoverzicht',
   ];
   const ITERATIES = 250000;
 
@@ -178,6 +179,19 @@
         }
         return u;
       }
+      case 'spo_capsules': {
+        // tijdcapsules (v3.0): per kaart de nieuwste; is het dezelfde capsule, dan blijft 'geopend' en 'gemeld' staan
+        const per = new Map();
+        for (const c of [].concat(Array.isArray(daar) ? daar : [], Array.isArray(hier) ? hier : [])) {
+          if (!c || typeof c.kaartId !== 'string') continue;
+          const oud = per.get(c.kaartId);
+          if (!oud || (c.gemaakt || 0) > (oud.gemaakt || 0)) per.set(c.kaartId, c);
+          else if ((c.gemaakt || 0) === (oud.gemaakt || 0)) per.set(c.kaartId, Object.assign({}, oud, c, { geopend: Math.max(oud.geopend || 0, c.geopend || 0) || undefined, gemeld: Math.max(oud.gemeld || 0, c.gemeld || 0) || undefined }));
+        }
+        return [...per.values()].sort((x, y) => (y.gemaakt || 0) - (x.gemaakt || 0)).slice(0, 150);
+      }
+      case 'spo_weekoverzicht':
+        return String(hier || '') > String(daar || '') ? hier : daar; // de laatste datum wint: zo komt het overzicht niet dubbel
       case 'spo_rondleiding':
         return Math.max(Number(hier) || 0, Number(daar) || 0); // eenmaal gezien blijft gezien
       case 'spo_huisdier': {
