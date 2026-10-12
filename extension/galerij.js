@@ -138,6 +138,8 @@
       const d = document.createElement('span'); d.className = 'dt'; d.textContent = datum(e.ts);
       m.append(v, c, d);
       if (tr) { const tb = document.createElement('span'); tb.className = 'trede-label t' + tr; tb.textContent = TREDE_NAAM[tr]; tb.title = TREDE_LABEL(tr) + ': zo vaak komt deze trede voor'; vak.append(tb); }
+      const ci = globalThis.SPOCapsuleUI ? globalThis.SPOCapsuleUI.icoon(e) : null; // v3.0: tijdcapsule
+      if (ci) vak.append(ci);
       const gg = aantalGG(e);
       if (gg) { const gb = document.createElement('span'); gb.className = 'gg-label'; gb.textContent = '\u{1F64C} ' + gg; gb.title = ggTekst(gg); vak.append(gb); }
       b.append(vak, m); li.append(b); frag.append(li);
@@ -174,6 +176,7 @@
     $('d-vorige').disabled = i <= 0;
     $('d-volgende').disabled = i >= zichtbaar.length - 1;
     $('d-weg').resetTweestaps();
+    if (globalThis.SPOCapsuleUI) globalThis.SPOCapsuleUI.bijDetail(e);
     if (!dlg.open) dlg.showModal();
   }
 
@@ -294,6 +297,7 @@
   }
 
   async function start() {
+    if (globalThis.SPOCapsuleUI) globalThis.SPOCapsuleUI.init({ opWijzig: () => { if (alle.length) raster(); } }).catch(() => {});
     if (demo) { alle = await demoData(); render(); return; }
     try {
       const r = await chrome.storage.local.get(['spo_galerij', 'spo_gg']);
