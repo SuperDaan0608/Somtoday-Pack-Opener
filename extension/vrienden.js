@@ -33,7 +33,9 @@
   let gevechten = {};     // uitslagen van gevechten met vrienden (spo_gevechten)
   let uitdagingen = new Set(); // vrienden die je uitdagen (alleen om te melden)
   let live = null;
-  let banGemeld = false;  // de verbanningsmelding maar één keer tonen
+  let banGemeld = false;  // de verbanningsmelding (toast) maar één keer tonen; het blok bovenaan blijft staan
+  let blok = {};          // wie ik geblokkeerd heb: { [id]: { ts, alias } } (spo_blokkades, zie vriendenlib.js)
+  const V = globalThis.SPOVeilig; // vensters voor blokkeren, melden en waarschuwingen (veilig.js)
   let rivaalS = R.schoonStaat(null); // aartsrivaal: wie, hoe ver, openstaande verzoeken (spo_rivaal)
 
   function el(tag, klas, tekst) {
@@ -62,6 +64,66 @@
   }
 
   async function bewaar() { await L.bewaar(st); }
+
+  // ---- v3.0: blokkeren, melden, waarschuwingen en verbanning ----
+  async function laadBlok() { try { blok = await L.leesBlokkades(); } catch (e) { /* blijft zoals het was */ } }
+  // Na blokkeren: de persoon is uit je lijst, lokale restanten zijn opgeruimd en het scherm klopt weer.
+  async function naBlokkeren(id) {
+    clearTimeout(timers.get(id));
+    delete vriendKaarten[id];
+    await laadBlok();
+    try { rivaalS = await R.laad(); } catch (e) { /* blijft zoals het was */ }
+    renderAlles();
+    $('geblokkeerd-sectie').open = true;
+  }
+  function blokkeerKnop(id, naam) {
+    const b = el('button', 'knop blokkeer klein', 'Blokkeer'); b.type = 'button'; // niet 'gevaar': dat is de knop Verwijderen
+    b.setAttribute('aria-label', `${naam} blokkeren`);
+    b.addEventListener('click', () => V.blokkeerVenster({ st, id, naam, melding, na: () => naBlokkeren(id) }));
+    return b;
+  }
+  function meldKnop(id, naam, vriend) {
+    const b = el('button', 'knop klein', 'Melden'); b.type = 'button';
+    b.setAttribute('aria-label', `${naam} melden bij de beheerder`);
+    b.addEventListener('click', () => V.meldVenster({ st, id, naam, vriend, melding, na: () => naBlokkeren(id) }));
+    return b;
+  }
+  function renderBlokkades() {
+    const ids = Object.keys(blok).sort((a, b) => (blok[b].ts || 0) - (blok[a].ts || 0));
+    $('geblokkeerd-sectie').hidden = !ids.length;
+    $('n-geblokkeerd').textContent = ids.length ? String(ids.length) : '';
+    $('n-geblokkeerd').hidden = !ids.length;
+    $('geblokkeerd').replaceChildren(...ids.map((id) => {
+      const naam = L.naam({ id, alias: blok[id].alias });
+      const li = el('li', 'g-rij'); li.dataset.id = id;
+      li.append(el('span', 'g-naam', naam));
+      const b = el('button', 'knop klein', 'Deblokkeer'); b.type = 'button'; b.setAttribute('aria-label', `${naam} deblokkeren`);
+      b.addEventListener('click', async () => {
+        b.disabled = true;
+        try { await L.deblokkeer(st, id); await laadBlok(); melding(`${naam} is gedeblokkeerd. Jullie zijn niet vanzelf weer vrienden.`); renderAlles(); }
+        catch (e) { b.disabled = false; melding(foutTekst(e), true); }
+      });
+      li.append(b);
+      return li;
+    }));
+  }
+  // Verbannen: een duidelijk blok met wanneer het afloopt en waarom. Verdwijnt zodra het weer werkt.
+  function toonBan(e) {
+    const tot = Number.isInteger(e.tot) ? e.tot : 0;
+    $('ban-wanneer').textContent = tot > 0 ? 'Dit duurt ' + L.banWanneer(tot) + '. Daarna werkt alles vanzelf weer.' : 'Dit is permanent.';
+    $('ban-reden').hidden = !e.reden;
+    $('ban-reden').textContent = e.reden ? 'Reden: ' + e.reden : '';
+    $('ban-banner').hidden = false;
+    $('sync-status').textContent = e.message;
+    $('stip').className = 'stip uit';
+    if (!banGemeld) { banGemeld = true; melding(e.message, true); }
+  }
+  let waarschuwingBezig = false;
+  async function toonWaarschuwing() {
+    if (waarschuwingBezig || !st || !V) return;
+    waarschuwingBezig = true;
+    try { await V.waarschuwingVenster({ st, melding }); } finally { waarschuwingBezig = false; }
+  }
 
   // ---- weergave ----
   function toonCode() { $('mijn-code').value = L.maakCode(st.id, st.pub); }
@@ -107,7 +169,7 @@
         try { await L.antwoord(st, v.id, false); melding('Verzoek geweigerd.'); renderAlles(); }
         catch (e) { melding(foutTekst(e), true); }
       });
-      acties.append(ja, nee);
+      acties.append(ja, nee, meldKnop(v.id, 'deze persoon', false), blokkeerKnop(v.id, 'deze persoon'));
       li.append(el('p', '', 'Iemand wil vrienden worden. Je kent deze persoon alleen via een onleesbare code.'), veiligBlok(v), lab, bev, acties);
       ul.append(li);
     }
@@ -262,6 +324,9 @@
     }
     det.append(vb);
     det.append(verwijderKnop(v, naam));
+    const veilig = el('div', 'v-veilig');
+    veilig.append(meldKnop(v.id, naam, true), blokkeerKnop(v.id, naam));
+    det.append(veilig);
     return det;
   }
   function verwijderKnop(v, naam) {
@@ -703,7 +768,7 @@
     const a = document.activeElement;
     const sleutel = a && a.id && $('app').contains(a) ? a.id : null;
     const cursor = sleutel && typeof a.selectionStart === 'number' ? [a.selectionStart, a.selectionEnd] : null;
-    renderVerzoeken(); renderVoorspel(); renderReacties(); renderRivaal(); renderVrienden(); renderKaartenVanVrienden(); renderUitdagingenTab(); renderTellers();
+    renderVerzoeken(); renderVoorspel(); renderReacties(); renderRivaal(); renderVrienden(); renderBlokkades(); renderKaartenVanVrienden(); renderUitdagingenTab(); renderTellers();
     const n = sleutel && document.getElementById(sleutel);
     if (n && n !== document.activeElement) { n.focus(); try { if (cursor) n.setSelectionRange(cursor[0], cursor[1]); } catch (e) { /* geen tekstveld */ } }
   }
@@ -727,13 +792,15 @@
       gevechten = await L.leesGevechten();
       const r = await L.synchroniseer(st, galerij);
       vriendKaarten = r.kaarten; opgehaald = true;
+      await laadBlok();
+      $('ban-banner').hidden = true;
       [...new Set(r.meldingen)].forEach((m) => melding(m));
       zetStatus(true);
       renderAlles();
       onderhoud();
     } catch (e) {
       $('sync-status').textContent = e.verbannen ? e.message : 'Synchroniseren mislukt.';
-      if (e.verbannen) { if (!banGemeld) { banGemeld = true; melding(e.message, true); } }
+      if (e.verbannen) toonBan(e);
       else if (e.status === 401) melding('Je account is niet meer geldig op de server. Wis alles en zet de functie opnieuw aan.', true);
       else melding(foutTekst(e), true);
     } finally { bezig = false; $('sync').disabled = false; }
@@ -753,6 +820,8 @@
         if (g.type === 'sync') {
           vriendKaarten = g.kaarten; opgehaald = true;
           [...new Set(g.meldingen)].forEach((m) => melding(m));
+          const blokVoor = JSON.stringify(blok);
+          laadBlok().then(() => { if (JSON.stringify(blok) !== blokVoor) renderAlles(); });
           if (handtekening() !== voor) renderAlles();
           onderhoud();
         } else if (g.type === 'kaarten') {
@@ -761,9 +830,10 @@
         } else if (g.type === 'berichten') {
           opVriendBerichten(g.van, g.berichten);
           if (g.berichten.some((b) => b.m.t === 'uitnodiging' && b.leeftijd < 300)) { uitdagingen.add(g.van); melding(`${L.naam(st.vrienden.find((v) => v.id === g.van) || { id: g.van })} daagt je uit voor een gevecht. Open Team om te accepteren.`); renderAlles(); }
-        } else if (g.type === 'ok') { if (!bezig) zetStatus(true); }
+        } else if (g.type === 'waarschuwing') toonWaarschuwing();
+        else if (g.type === 'ok') { $('ban-banner').hidden = true; if (!bezig) zetStatus(true); }
         else if (g.type === 'fout') {
-          if (g.fout.verbannen) { $('sync-status').textContent = g.fout.message; if (!banGemeld) { banGemeld = true; melding(g.fout.message, true); } }
+          if (g.fout.verbannen) toonBan(g.fout);
           else if (g.fout.status === 401) { $('sync-status').textContent = 'Je account is niet meer geldig.'; live.stop(); }
           else { $('sync-status').textContent = 'Verbinding haperde, ik probeer het opnieuw.'; $('stip').className = 'stip uit'; }
         }
@@ -788,10 +858,11 @@
     dicht = await L.leesDicht();
     // Een cijfer wordt geopend (galerij) of er komt een nieuw cijfer bij (dicht): het scherm volgt zonder opnieuw te synchroniseren.
     L.opOpslagWijziging(async () => {
-      try { galerij = await L.leesGalerij(); dicht = await L.leesDicht(); gevechten = await L.leesGevechten(); if (st) { renderAlles(); onderhoud(); } } catch (e) { /* pagina blijft zoals hij was */ }
+      try { galerij = await L.leesGalerij(); dicht = await L.leesDicht(); gevechten = await L.leesGevechten(); await laadBlok(); if (st) { renderAlles(); onderhoud(); } } catch (e) { /* pagina blijft zoals hij was */ }
     });
     if (!st) { $('uitleg').hidden = false; return; }
     rivaalS = await R.laad();
+    await laadBlok();
     toonApp(); renderAlles();
     gevechten = await L.leesGevechten();
     await sync();
@@ -851,7 +922,7 @@
     }
     if (live) { live.stop(); live = null; }
     try { await L.wis(R.SLEUTEL); } catch (e) { /* niet erg */ } // de rivaliteit hoort bij dit account (de uitnodigingsbeloningen blijven staan)
-    st = null; vriendKaarten = {}; opgehaald = false; rivaalS = R.schoonStaat(null); raadForm = null; concept.clear();
+    st = null; vriendKaarten = {}; blok = {}; opgehaald = false; rivaalS = R.schoonStaat(null); raadForm = null; concept.clear();
     $('app').hidden = true; $('uitleg').hidden = false; $('meer').open = false; $('kop-toevoegen').hidden = true;
     melding('Je account en al je gedeelde gegevens zijn gewist.');
     $('aanzetten').focus();

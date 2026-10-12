@@ -27,7 +27,7 @@
     'spo_dagelijks', 'spo_winkel', 'spo_profiel', 'spo_prestaties', 'spo_prestaties_gezien', 'spo_stats', 'spo_team',
     'spo_gevechten', 'spo_vrienden', 'spo_vrienden_sec', 'spo_uitval_gezien', 'spo_huisdier', 'spo_rondleiding',
     'spo_capsules', 'spo_weekoverzicht',
-    'spo_rivaal', 'spo_uitnodigingen',
+    'spo_rivaal', 'spo_uitnodigingen', 'spo_blokkades',
   ];
   const ITERATIES = 250000;
 
@@ -53,12 +53,26 @@
 
   // ---- server ----
   let server = SERVER_STANDAARD;
+  // v3.0: bij deze acties sturen we (als je de vriendenfunctie aan hebt) ook X-Id en X-Token mee. Daarmee kan de beheerder bij een ban ook het
+  // e-mailadres blokkeren. De server bewaart dan alleen de id's van gebruiker en account, nooit het adres.
+  const KOPPEL_ACTIES = ['accRegistreer', 'accVerifieer', 'accLogin', 'accReset', 'accBackupBewaar'];
+  const AANMELD_ACTIES = ['accRegistreer', 'accVerifieer', 'accLogin', 'accReset'];
+  const AANMELD_TEKST = 'Aanmelden lukt nu niet met dit e-mailadres of op dit netwerk. Probeer het later opnieuw of gebruik een ander netwerk.';
+  async function identiteitHeaders(actie) {
+    if (!KOPPEL_ACTIES.includes(actie)) return {};
+    try {
+      const v = (await lees('spo_vrienden')).spo_vrienden;
+      if (v && typeof v.id === 'string' && /^[0-9a-f]{32}$/.test(v.id) && typeof v.token === 'string' && v.token) return { 'X-Id': v.id, 'X-Token': v.token };
+    } catch (e) { /* geen vriendenidentiteit: dan sturen we niets mee */ }
+    return {};
+  }
   async function roep(actie, body, sessie) {
     let r;
+    const koppel = await identiteitHeaders(actie);
     try {
       r = await fetch(server, {
         method: 'POST',
-        headers: Object.assign({ 'Content-Type': 'application/json' }, sessie ? { 'X-Sessie': sessie } : {}),
+        headers: Object.assign({ 'Content-Type': 'application/json' }, sessie ? { 'X-Sessie': sessie } : {}, koppel),
         body: JSON.stringify(Object.assign({ a: actie }, body || {})),
         credentials: 'omit',
         cache: 'no-store',
@@ -73,6 +87,8 @@
     if (!r.ok) {
       const f = new Error(j.fout || 'Er ging iets mis (' + r.status + ').');
       f.status = r.status;
+      // Geblokkeerd e-mailadres of netwerk: altijd dezelfde vriendelijke tekst, zonder te zeggen wat er speelt. ('nog niet bevestigd' is iets anders.)
+      if (r.status === 403 && AANMELD_ACTIES.includes(actie) && !j.nietBevestigd) { f.message = AANMELD_TEKST; f.aanmeldGeweigerd = true; }
       f.data = j;
       throw f;
     }
@@ -162,6 +178,12 @@
       case 'spo_geopend': {
         const u = Object.assign({}, obj(daar));
         for (const [id, n] of Object.entries(obj(hier))) u[id] = Math.max(u[id] || 0, n || 0);
+        return u;
+      }
+      case 'spo_blokkades': {
+        // geblokkeerd blijft geblokkeerd: de unie van allebei (van wie ik de bijnaam al kende, blijft die)
+        const h = obj(hier), d = obj(daar), u = Object.assign({}, d, h);
+        for (const [id, w] of Object.entries(u)) if (obj(w) && !obj(w).alias && obj(d[id]).alias) u[id] = Object.assign({}, w, { alias: d[id].alias });
         return u;
       }
       case 'spo_munten_ids':

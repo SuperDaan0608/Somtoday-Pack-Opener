@@ -6,6 +6,7 @@
   <title>Vrienden</title>
   <link rel="stylesheet" href="vrienden.css" />
   <link rel="stylesheet" href="rivaal.css" />
+  <link rel="stylesheet" href="veilig.css" />
   <link rel="stylesheet" href="embed.css" />
   <script src="embed.js"></script>
 </head>
@@ -17,6 +18,12 @@
     <button type="button" class="knop goud kop-knop" id="kop-toevoegen" data-sec="toevoegen" hidden>Vriend toevoegen</button>
   </header>
   <div class="melding" id="melding" role="status" aria-live="polite"></div>
+  <section class="ban-banner" id="ban-banner" role="alert" hidden aria-labelledby="ban-titel">
+    <h2 id="ban-titel">Je bent verbannen van de vriendenfunctie</h2>
+    <p id="ban-wanneer"></p>
+    <p id="ban-reden" hidden></p>
+    <p>Je kaarten, munten en prestaties werken gewoon. Vrienden, delen en gevechten werken pas weer als de ban voorbij is. Je hoeft niets te doen: deze pagina probeert het niet steeds opnieuw.</p>
+  </section>
 
   <main id="hoofd">
     <section class="paneel" id="uitleg" hidden aria-labelledby="u-titel">
@@ -59,6 +66,11 @@
         </div>
         <ul class="vrienden" id="vrienden"></ul>
         <p class="uitnodig-rij"><button type="button" class="knop klein" id="nodig-uit">Nodig een vriend uit</button></p>
+        <details class="geblokkeerd" id="geblokkeerd-sectie" hidden>
+          <summary>Geblokkeerd<b class="n" id="n-geblokkeerd"></b></summary>
+          <p class="uitleg">Deze mensen kunnen je niet toevoegen en jij hen ook niet. Als je iemand deblokkeert, zijn jullie niet vanzelf weer vrienden: een van jullie moet een nieuw verzoek sturen.</p>
+          <ul class="geblokkeerd-lijst" id="geblokkeerd"></ul>
+        </details>
       </section>
 
       <!-- 2. Kaarten van vrienden -->
@@ -154,6 +166,7 @@
   <script src="vriendenlib.js"></script>
   <script src="ladder.js"></script>
   <script src="rivaal.js"></script>
+  <script src="veilig.js"></script>
   <script src="uitnodiging.js"></script>
   <script src="vrienden.js"></script>
 </body>

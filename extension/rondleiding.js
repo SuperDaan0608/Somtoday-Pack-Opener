@@ -75,7 +75,7 @@
     { tab: 'team', doel: '#tab-team', titel: 'Team en duels',
       tekst: 'Zet je beste kaarten in je Team en speel duels tegen vrienden. Hoe hoger de trede op de ladder, hoe sterker je kaart. Een autoclicker telt niet mee: alleen echte klikken.' },
     { tab: 'vrienden', doel: '#tab-vrienden', titel: 'Vrienden',
-      tekst: 'Geef je vriendcode aan een klasgenoot en vul de zijne in. Dan zien jullie elkaars kaarten, kun je GG sturen bij een zeldzame trekking en kunnen vrienden meekijken als jij iets kosmisch of mythisch opent. Dat kan alleen met vrienden die dezelfde versie hebben.' },
+      tekst: 'Geef je vriendcode aan een klasgenoot en vul de zijne in. Dan zien jullie elkaars kaarten, kun je GG sturen bij een zeldzame trekking en kunnen vrienden meekijken als jij iets kosmisch of mythisch opent. Dat kan alleen met vrienden die dezelfde versie hebben. Gedraagt iemand zich niet netjes? Bij Meer opties kun je die persoon melden of blokkeren.' },
     { tab: 'prestaties', doel: '#tab-prestaties', titel: 'Huisdier en Prestaties',
       tekst: 'Linksonder op Somtoday woont een draakje. Het groeit met je cijfers en is blij na een voldoende. Bij Prestaties verzamel je beloningen voor bijzondere dingen.' },
     { tab: 'instellingen', doel: '#rondleiding-opnieuw', titel: 'Klaar!',

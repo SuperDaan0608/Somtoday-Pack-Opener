@@ -109,18 +109,42 @@
   const gezienKijk = new Set();
   const gezienEmoji = new Set();
   const gezienRivaal = new Map(); // vriend -> wanneer ik een rivaalverzoek meldde
+  // v3.0: waarschuwing van de beheerder en verbanning. Hoogstens 1 toast per uur (waarschuwing) of per 6 uur (ban), ook na een herstart van de achtergrond.
+  const TOAST_WAARSCHUWING = 60 * 60 * 1000, TOAST_BAN = 6 * 60 * 60 * 1000, BAN_HERHAAL = 15 * 60 * 1000;
+  let rustTot = 0; // verbannen: zolang niet bij de server aankloppen
+  async function hoogstensEens(sleutel, ms) {
+    try {
+      const r = await chrome.storage.local.get(sleutel);
+      if (Date.now() - (Number(r[sleutel]) || 0) < ms) return false;
+      await chrome.storage.local.set({ [sleutel]: Date.now() });
+      return true;
+    } catch (e) { return false; }
+  }
 
   async function kijk() {
+    if (Date.now() < rustTot) return [];
     const st = await L.laad();
     if (!st) return [];
     const cl = L.clientVan(st);
-    const p = await cl.roep('puls');
+    let p;
+    try { p = await cl.roep('puls'); }
+    catch (e) {
+      if (e.verbannen) {
+        // Verbannen: niet blijven proberen (hoogstens een keer per kwartier, of zodra de ban afloopt) en het één keer melden.
+        rustTot = Math.min(e.tot > 0 ? e.tot * 1000 : Infinity, Date.now() + BAN_HERHAAL);
+        if (await hoogstensEens('spo_toast_ban', TOAST_BAN)) return [{ soort: 'ban', tekst: e.message }];
+        return [];
+      }
+      throw e;
+    }
     const uit = [];
+    if (p.w > 0 && await hoogstensEens('spo_toast_waarschuwing', TOAST_WAARSCHUWING)) uit.push({ soort: 'waarschuwing', tekst: 'Je hebt een waarschuwing van de beheerder.' });
     if (vh === null || p.vh !== vh) {
       vh = p.vh;
       const inb = await cl.roep('inbox');
+      const geblokkeerd = await L.leesBlokkades();
       for (const r of inb.verzoeken || []) {
-        if (gezienVerzoek.has(r.id)) continue;
+        if (gezienVerzoek.has(r.id) || geblokkeerd[r.id]) continue; // van een geblokkeerde persoon melden we niets
         gezienVerzoek.add(r.id);
         const bekend = st.vrienden.find((v) => v.id === r.id && v.status === 'vriend');
         // Bij de eerste keer niet alle oude verzoeken melden die je al gezien had (die staan al als 'ontvangen' in je lijst).
