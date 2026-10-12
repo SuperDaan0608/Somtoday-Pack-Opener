@@ -390,11 +390,11 @@
     if (!doc || doc.getElementById(STIJL_ID) || !doc.head) return;
     var st = doc.createElement('style');
     st.id = STIJL_ID;
-    st.textContent = '.spo-tekst-melding{margin:6px 0 0;padding:0;font-size:.85em;line-height:1.4;color:#c0392b;font-weight:600}' +
+    // De pagina's van de extensie zijn donker; daarom lichte kleuren (leesbaar op donker). Eigen kleuren kan via --spo-tekst-fout en --spo-tekst-hulp.
+    st.textContent = '.spo-tekst-melding{margin:8px 0 0;padding:0;font-size:.92em;line-height:1.45;color:var(--spo-tekst-fout,#ff9a8a);font-weight:600}' +
       '.spo-tekst-melding[hidden]{display:none}' +
-      '.spo-tekst-melding.spo-tekst-hulp{padding:10px 12px;border-radius:10px;border:1px solid rgba(80,150,220,.55);background:rgba(80,150,220,.14);color:inherit;font-weight:400}' +
-      '.spo-tekst-melding a{color:inherit;font-weight:700;text-decoration:underline}' +
-      '@media (prefers-color-scheme: dark){.spo-tekst-melding:not(.spo-tekst-hulp){color:#ff8a7a}}';
+      '.spo-tekst-melding.spo-tekst-hulp{padding:12px 14px;border-radius:10px;border:1px solid rgba(110,170,240,.6);background:rgba(110,170,240,.16);color:var(--spo-tekst-hulp,#eef3fb);font-weight:400}' +
+      '.spo-tekst-melding a{color:inherit;font-weight:700;text-decoration:underline}';
     doc.head.appendChild(st);
   }
   function maakMelding(el, r, max) {
