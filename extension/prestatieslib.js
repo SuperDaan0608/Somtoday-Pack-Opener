@@ -28,6 +28,8 @@
   const G = () => globalThis.SPOGevecht || null;
   const tredeVan = (e) => Math.max(0, Math.min(4, (e && e.trede) | 0)) || (e && e.zeldzaam === true ? 1 : 0);
   const getal = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : 0);
+  // Het nummer van de kalenderdag (lokale datum), zodat 'dagen achter elkaar' ook over zomer- en wintertijd klopt.
+  const dagNr = (ts) => { const d = new Date(ts); return Math.round(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 864e5); };
 
   // ---- iconen: een medaille (zeshoek) in de kleur van het niveau, met een lijntekening erin ----
   const KLEUREN = [
@@ -39,6 +41,9 @@
     ['#d6b8ff', '#12021f'], // ??? (glitch)
   ];
   const TIER_NAMEN = ['Brons', 'Zilver', 'Goud', 'Speciaal', 'Icoon', '▓̷̢░̴͓█̸̙⌁̶͙▒̵̦¿̷̣']; // de laatste rang is opzettelijk kapot
+  // Geheime prestaties (tier 5) krijgen elk een eigen, 'kapotte' rang: de letters krijgen vaste streepjes en krasjes (zonder toeval).
+  const KRAS = ['\u0338', '\u0337', '\u0336', '\u0335', '\u0346', '\u0351'];
+  const kapot = (t) => Array.from(t).map((c, i) => c + (c === ' ' ? '' : KRAS[(i * 5 + t.length) % KRAS.length] + (i % 3 === 0 ? KRAS[(i + 2) % KRAS.length] : ''))).join('');
   // Lijntekeningen op 24 x 24 (stijl: Lucide, ISC, of zelf getekend).
   const GLYPHS = {
     kaart: 'M8 3h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z M12 8.5l1.1 2.4 2.6.3-1.9 1.8.5 2.6-2.3-1.3-2.3 1.3.5-2.6-1.9-1.8 2.6-.3z',
@@ -107,7 +112,23 @@
     { id: 'mythe', naam: 'Mythe', tekst: 'Trek een mythische kaart (kans 1/1000).', tier: 4, icoon: 'kroon', meet: (d) => vooruit(d.trede[4], 1) },
     { id: 'volle-ladder', naam: 'Volle ladder', tekst: 'Heb van elke trede een kaart: zeldzaam (1/10), glim (1/40), kosmisch (1/150) en mythisch (1/1000).', tier: 4, icoon: 'kroon', meet: (d) => vooruit(d.ladderVol, 4) },
     { id: 'perfecte-kaart', naam: 'De perfecte kaart', tekst: 'Haal een 10 op een kosmische of mythische kaart.', tier: 4, icoon: 'beker', meet: (d) => vooruit(d.perfect, 1) },
-    { id: 'fout-in-de-werkelijkheid', naam: 'Pure Aura', tekst: 'Haal een 10 op een mythische kaart (1 op 1000 én een 10).', tier: 5, icoon: 'kroon', meet: (d) => vooruit(d.perfectMythisch, 1) },
+    // ---- Geheime prestaties (tier 5, glitch-rang) ----
+    // Model: elke badge met tier 5 is geheim. `raadsel` is de hint die je ziet zolang je hem niet hebt (geen voortgangsbalk, geen uitleg);
+    // `tekst` is de echte uitleg en verschijnt pas na het behalen (lijst en toast). De naam blijft altijd zichtbaar. `rang` is de eigen glitch-rang.
+    // Echte voorwaarde: een 10 op een mythische kaart.
+    { id: 'fout-in-de-werkelijkheid', naam: 'Pure Aura', raadsel: 'Het hoogste van het hoogste.', tekst: 'Haal een 10 op een mythische kaart (1 op 1000 én een 10).', tier: 5, icoon: 'kroon', meet: (d) => vooruit(d.perfectMythisch, 1) },
+    // Echte voorwaarde: een pakket geopend (tijdstip van openen, lokale tijd) tussen 00:00 en 00:59.
+    { id: 'twaalf-slagen', naam: 'Twaalf slagen', raadsel: 'De klok slaat twaalf.', tekst: 'Open een pakket tussen 00:00 en 00:59.', rang: kapot('MIDDERNACHT'), tier: 5, icoon: 'spook', meet: (d) => vooruit(d.middernacht, 1) },
+    // Echte voorwaarde: twee kaarten recht na elkaar (op volgorde van openen) met precies hetzelfde cijfer.
+    { id: 'echo', naam: 'Echo', raadsel: 'Alles is een echo.', tekst: 'Open twee kaarten recht na elkaar met precies hetzelfde cijfer.', rang: kapot('HERHALING'), tier: 5, icoon: 'stapels', meet: (d) => vooruit(d.echo, 1) },
+    // Echte voorwaarde: een kaart met precies een 5,5.
+    { id: 'op-het-randje', naam: 'Op het randje', raadsel: 'Precies op de grens.', tekst: 'Haal precies een 5,5.', rang: kapot('GRENSGEVAL'), tier: 5, icoon: 'doel', meet: (d) => vooruit(d.grens, 1) },
+    // Echte voorwaarde: op 7 kalenderdagen achter elkaar minstens één kaart geopend.
+    { id: 'zeven-zonnen', naam: 'Zeven zonnen', raadsel: 'Zeven keer de zon op, zeven keer iets openen.', tekst: 'Open 7 dagen achter elkaar minstens één pakket.', rang: kapot('WEEKLANG'), tier: 5, icoon: 'vlam', meet: (d) => vooruit(d.dagReeks, 7) },
+    // Echte voorwaarde: een vervloekte kaart in een vak, en daarna (later geopend) een 8 of hoger in hetzelfde vak.
+    { id: 'heel-gemaakt', naam: 'Heel gemaakt', raadsel: 'Wat gebroken is, kan heel worden.', tekst: 'Trek een vervloekte kaart en haal daarna in hetzelfde vak een 8 of hoger.', rang: kapot('VLOEK GEBROKEN'), tier: 5, icoon: 'schild', meet: (d) => vooruit(d.genezen, 1) },
+    // Echte voorwaarde: 10 gevechten achter elkaar gewonnen (een verlies of gelijkspel maakt de reeks weer nul).
+    { id: 'ongebroken', naam: 'Ongebroken', raadsel: 'Tien keer staan, nooit gevallen.', tekst: 'Win 10 gevechten achter elkaar, zonder verlies of gelijkspel.', rang: kapot('ONVERSLAAN'), tier: 5, icoon: 'zwaard', meet: (d) => vooruit(d.zegeReeks, 10) },
     { id: 'topcijfer', naam: 'Topcijfer', tekst: 'Haal een 9 of hoger.', tier: 2, icoon: 'ster', meet: (d) => vooruit(d.negenPlus, 1) },
     { id: 'icoon', naam: 'Icoonkaart', tekst: 'Haal een 10.', tier: 4, icoon: 'beker', meet: (d) => vooruit(d.tien, 1) },
     { id: 'vijf-vakken', naam: 'Veelzijdig', tekst: 'Heb kaarten van 5 verschillende vakken.', tier: 0, icoon: 'boeken', meet: (d) => vooruit(d.vakken, 5) },
@@ -171,8 +192,20 @@
     for (const v of Object.keys(bron.gev)) if (Array.isArray(bron.gev[v])) for (const x of bron.gev[v]) if (x && Number.isFinite(x.mijn) && Number.isFinite(x.hun)) alle.push(x);
     const st = bron.stats;
     const t = teamNu(bron);
+    // geheime prestaties
+    const dagen = [...new Set(gal.map((e) => dagNr(e.ts)))].sort((a, b) => a - b);
+    let dagReeks = 0, dagNu = 0;
+    dagen.forEach((x, i) => { dagNu = i && x === dagen[i - 1] + 1 ? dagNu + 1 : 1; dagReeks = Math.max(dagReeks, dagNu); });
+    const echo = gal.some((e, i) => i > 0 && Math.abs(e.cijfer - gal[i - 1].cijfer) < 0.001);
+    const genezen = gal.some((v, i) => v.vloek === true && gal.slice(i + 1).some((e) => e.ts > v.ts && vakSleutel(e.vak) === vakSleutel(v.vak) && e.cijfer >= 8));
+    let zegeReeks = 0, zegeNu = 0;
+    alle.slice().sort((a, b) => getal(a.ts) - getal(b.ts)).forEach((x) => { zegeNu = x.mijn > x.hun ? zegeNu + 1 : 0; zegeReeks = Math.max(zegeReeks, zegeNu); });
     return {
       gal, reeks, besteStijging,
+      middernacht: gal.filter((e) => e.ts > 0 && new Date(e.ts).getHours() === 0).length,
+      echo: echo ? 1 : 0,
+      grens: gal.filter((e) => Math.abs(e.cijfer - 5.5) < 0.001).length,
+      dagReeks, genezen: genezen ? 1 : 0, zegeReeks,
       vakken: vakkenSet.size,
       vakkenMetGoud: [...vakkenSet].filter((v) => goudVakken.has(v)).length,
       zeldzaam: gal.filter((e) => e.zeldzaam === true).length,
@@ -203,7 +236,11 @@
     return BADGES.map((b) => {
       const m = b.meet(d);
       const ts = getal(bron.behaald[b.id]);
-      return Object.assign({}, b, { nu: m.nu, doel: m.doel, klaar: !!ts || m.nu >= m.doel, ts: ts || 0, meet: undefined });
+      const klaar = !!ts || m.nu >= m.doel;
+      const o = Object.assign({}, b, { nu: m.nu, doel: m.doel, klaar, ts: ts || 0, meet: undefined, geheim: b.tier === 5 });
+      // Geheim en nog niet behaald: alleen het raadsel, geen echte uitleg en geen voortgang (die zou het verklappen).
+      if (o.geheim && !klaar) { o.nu = 0; o.doel = 1; o.tekst = ''; o.uitleg = b.raadsel; } else o.uitleg = b.tekst;
+      return o;
     });
   }
   // Rekent alles uit, bewaart nieuwe badges (met tijdstip) en nieuwe records, en geeft de nieuw behaalde badges terug.
@@ -221,7 +258,7 @@
     for (const b of BADGES) {
       if (behaald[b.id]) continue;
       const m = b.meet(d);
-      if (m.nu >= m.doel) { behaald[b.id] = nu; nieuw.push({ id: b.id, naam: b.naam, tekst: b.tekst, tier: b.tier, icoon: b.icoon }); }
+      if (m.nu >= m.doel) { behaald[b.id] = nu; nieuw.push({ id: b.id, naam: b.naam, tekst: b.tekst, tier: b.tier, icoon: b.icoon, geheim: b.tier === 5, rang: b.rang }); }
     }
     if (nieuw.length) {
       // Net opnieuw lezen, zodat een gelijktijdige controle (ander tabblad) niets overschrijft of dubbel meldt.
@@ -254,10 +291,11 @@
   // ---- toast-melding (eigen stijl in het element, zodat het ook in een shadow root werkt) ----
   function maakToast(doc, lijst) {
     const el = (tag, css, tekst) => { const e = doc.createElement(tag); if (css) e.style.cssText = css; if (tekst !== undefined) e.textContent = tekst; return e; };
-    const kaart = el('div', 'display:flex;align-items:center;gap:12px;max-width:340px;padding:10px 16px 10px 10px;border-radius:14px;color:#eef1f8;background:#14182e;border:1px solid rgba(255,210,74,.55);box-shadow:0 14px 34px -8px rgba(0,0,0,.7);font:600 14px/1.3 system-ui,sans-serif;');
+    const geheim = lijst.some((b) => b.geheim);
+    const kaart = el('div', 'display:flex;align-items:center;gap:12px;max-width:340px;padding:10px 16px 10px 10px;border-radius:14px;color:#eef1f8;background:#14182e;border:1px solid ' + (geheim ? 'rgba(190,120,255,.8)' : 'rgba(255,210,74,.55)') + ';box-shadow:0 14px 34px -8px rgba(0,0,0,.7);font:600 14px/1.3 system-ui,sans-serif;');
     kaart.setAttribute('role', 'status');
     const tekst = el('div', 'min-width:0;');
-    tekst.append(el('div', 'font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#ffd24a;font-weight:800;', lijst.length === 1 ? 'Nieuwe badge' : lijst.length + ' nieuwe badges'));
+    tekst.append(el('div', 'font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:800;color:' + (geheim ? '#c99bff' : '#ffd24a') + ';', geheim ? 'Geheime prestatie ontdekt' : lijst.length === 1 ? 'Nieuwe badge' : lijst.length + ' nieuwe badges'));
     tekst.append(el('div', 'font-size:15px;font-weight:800;', lijst.slice(0, 2).map((b) => b.naam).join(', ') + (lijst.length > 2 ? ' en ' + (lijst.length - 2) + ' meer' : '')));
     if (lijst.length === 1) tekst.append(el('div', 'font-size:12.5px;font-weight:500;color:#a5aec4;', lijst[0].tekst));
     const ic = icoon(doc, lijst[0], false);
@@ -266,7 +304,7 @@
     return kaart;
   }
 
-  const lib = { BADGES, GLYPHS, TIER_NAMEN, OPENINGEN, SLEUTEL_PRESTATIES, SLEUTEL_STATS, VOLDOENDE, verzamelBron, afgeleid, uitrekenen, controleer, overzicht, telOp, voegToe, icoon, maakToast, lees, schrijf };
+  const lib = { BADGES, GLYPHS, TIER_NAMEN, kapot, OPENINGEN, SLEUTEL_PRESTATIES, SLEUTEL_STATS, VOLDOENDE, verzamelBron, afgeleid, uitrekenen, controleer, overzicht, telOp, voegToe, icoon, maakToast, lees, schrijf };
   globalThis.SPOPrestaties = lib;
   if (typeof module !== 'undefined' && module.exports) module.exports = lib;
 })();

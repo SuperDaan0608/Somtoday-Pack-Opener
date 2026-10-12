@@ -5,7 +5,7 @@
  * Opslag (chrome.storage.local):
  *   spo_munten      { v:1, saldo, totaal, gev:{w,g,v}, ts }       de portemonnee
  *   spo_munten_log  [{ ts, n, r, id }]                              laatste 100 mutaties
- *   spo_munten_ids  { [id]: 1 }                                     wat al is uitbetaald (cijfer c:, gevecht g:, prestatie p:), zodat niets dubbel telt
+ *   spo_munten_ids  { [id]: 1 }                                     wat al is uitbetaald (cijfer c:, gevecht g:, prestatie p:, troostpakje t: en td:), zodat niets dubbel telt
  *   spo_dagelijks   { laatste:'JJJJ-MM-DD', reeks:1..7, dagen }     dagelijkse beloning
  *   spo_winkel      { gekocht:[itemId], gebruik:{somtoday, titel, bg} }
  *   spo_profiel     { bijnaam, deel }
@@ -223,22 +223,73 @@
     return 0;
   }
   function lootUit(lijst) { const b = new Uint32Array(1); crypto.getRandomValues(b); return lijst[b[0] % lijst.length]; }
+  // Trekt een item uit een pakje en boekt het (dubbel: je krijgt een deel van de waarde terug). Rekent het pakje zelf niet af.
+  function trekItem(s, pak) {
+    let z = kiesKans(pak.kans);
+    while (z > 0 && !ITEMS.some((i) => i.zeld === z)) z--;
+    const it = lootUit(ITEMS.filter((i) => i.zeld === z));
+    const dubbel = s.winkel.gekocht.includes(it.id);
+    let terug = 0;
+    if (dubbel) { terug = Math.max(1, Math.round(waarde(it) * TERUG)); boek(s, terug, 'Dubbel: ' + it.naam, 'dubbel:' + it.id); }
+    else s.winkel.gekocht.push(it.id);
+    return { it, dubbel, terug };
+  }
   // Koopt en opent een pakje. Dubbel item: je krijgt een deel van de waarde terug.
   function openPakje(pakId) {
     return werk((s) => {
       const pak = PAKJES.find((x) => x.id === pakId);
       if (!pak) return { ok: false, reden: 'onbekend' };
       if (s.munten.saldo < pak.prijs) return { ok: false, reden: 'te-weinig' };
-      let z = kiesKans(pak.kans);
-      while (z > 0 && !ITEMS.some((i) => i.zeld === z)) z--;
-      const it = lootUit(ITEMS.filter((i) => i.zeld === z));
-      boek(s, -pak.prijs, pak.naam + ' geopend', 'pak:' + pak.id + ':' + it.id); // met het item erbij, zodat het terug te vinden is
-      const dubbel = s.winkel.gekocht.includes(it.id);
-      let terug = 0;
-      if (dubbel) { terug = Math.max(1, Math.round(waarde(it) * TERUG)); boek(s, terug, 'Dubbel: ' + it.naam, 'dubbel:' + it.id); }
-      else s.winkel.gekocht.push(it.id);
-      return { ok: true, item: it.id, dubbel, terug, saldo: s.munten.saldo };
+      const t = trekItem(s, pak);
+      boek(s, -pak.prijs, pak.naam + ' geopend', 'pak:' + pak.id + ':' + t.it.id); // met het item erbij, zodat het terug te vinden is
+      return { ok: true, item: t.it.id, dubbel: t.dubbel, terug: t.terug, saldo: s.munten.saldo };
     });
+  }
+
+  // ───────── Troostpakje (v3.0) ─────────
+  // Na een onvoldoende (onder 5,5) krijg je een gratis klein pakje en een paar munten. Niet te misbruiken:
+  //   - per kaart-id maar één keer (spo_munten_ids, sleutel 't:<kaart>');
+  //   - hoogstens TROOST_PER_DAG per dag (spo_munten_ids, sleutels 'td:<dag>:1..3'). Zo is er geen extra opslag en gaan beide mee in de back-up.
+  const TROOST_PER_DAG = 3;
+  const TROOST_MUNTEN = 5;
+  const VOLDOENDE = 5.5;
+  // Geeft { ok:true, item, dubbel, terug, munten, saldo } of { ok:false, reden: 'ongeldig' | 'voldoende' | 'al-gehad' | 'dagmax' }.
+  function troostPakje(kaartId, cijfer) {
+    return werk((s) => {
+      const id = typeof kaartId === 'string' ? kaartId.slice(0, 60) : '';
+      if (!id || !Number.isFinite(cijfer) || cijfer < 1 || cijfer > 10) return { ok: false, reden: 'ongeldig' };
+      if (cijfer >= VOLDOENDE) return { ok: false, reden: 'voldoende' };
+      if (s.ids['t:' + id]) return { ok: false, reden: 'al-gehad' };
+      const nu = vandaag();
+      let slot = 0;
+      for (let n = 1; n <= TROOST_PER_DAG; n++) if (!s.ids['td:' + nu + ':' + n]) { slot = n; break; }
+      if (!slot) return { ok: false, reden: 'dagmax' };
+      s.ids['t:' + id] = 1;
+      s.ids['td:' + nu + ':' + slot] = 1;
+      const pak = PAKJES[0];
+      const t = trekItem(s, pak);
+      s.log.unshift({ ts: Date.now(), n: 0, r: 'Troostpakje: ' + t.it.naam, id: 'pak:troost:' + t.it.id });
+      boek(s, TROOST_MUNTEN, 'Troostmunten', 'troost:' + id);
+      return { ok: true, item: t.it.id, dubbel: t.dubbel, terug: t.terug, munten: TROOST_MUNTEN, saldo: s.munten.saldo };
+    });
+  }
+  // ───────── Beloningen van vrienden (v3.0: uitnodigen en aartsrivaal) ─────────
+  // Een gratis pakje. `id` zorgt dat het maar één keer telt (spo_munten_ids, sleutel 'gp:<id>').
+  function gratisPakje(pakId, reden, id) {
+    return werk((s) => {
+      const pak = PAKJES.find((x) => x.id === pakId);
+      const sl = 'gp:' + String(id || '').slice(0, 80);
+      if (!pak || !id) return { ok: false, reden: 'onbekend' };
+      if (s.ids[sl]) return { ok: false, reden: 'al-gehad' };
+      s.ids[sl] = 1;
+      const t = trekItem(s, pak);
+      s.log.unshift({ ts: Date.now(), n: 0, r: String(reden || 'Gratis pakje').slice(0, 40) + ': ' + t.it.naam, id: 'pak:gratis:' + t.it.id });
+      return { ok: true, item: t.it.id, dubbel: t.dubbel, terug: t.terug, saldo: s.munten.saldo };
+    });
+  }
+  // Een paar bonusmunten, één keer per id (de aanroeper bewaakt het maximum per dag).
+  function bonusMunten(id, n, reden) {
+    return werk((s) => (Number.isFinite(n) && n > 0 && n <= 100 && verdien(s, 'bm:' + String(id).slice(0, 80), Math.floor(n), reden) ? Math.floor(n) : 0));
   }
   function gebruik(soort, itemId) {
     return werk((s) => {
@@ -340,7 +391,7 @@
 
   globalThis.SPOEco = {
     K, ITEMS, PER_ID, SOORTEN, ZELD, PAKJES, TERUG, DAG_BELONING, TIERNAMEN,
-    waarde, cijferMunten, verdienCijfer, sweep, koop, openPakje, gebruik, claimDagelijks, dagStatus, lees, registreerThemas,
+    waarde, cijferMunten, verdienCijfer, sweep, koop, openPakje, gratisPakje, bonusMunten, gebruik, claimDagelijks, dagStatus, troostPakje, TROOST_PER_DAG, lees, registreerThemas,
     maakProfiel, schoonProfiel, mijnProfielDeelbaar, bewaarProfiel, schoonBijnaam, schoonWinkel, schoonMunten, vandaag,
   };
 })();
