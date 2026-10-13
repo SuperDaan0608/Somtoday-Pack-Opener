@@ -9,7 +9,7 @@
  *   spo_dagelijks   { laatste:'JJJJ-MM-DD', reeks:1..7, dagen }     dagelijkse beloning
  *   spo_winkel      { gekocht:[itemId], gebruik:{somtoday, titel, bg} }
  *   spo_profiel     { bijnaam, deel }
- *   (v3.0) spo_munten_ids bevat ook 'dm:<kaart>' (mythische kaart gemeld) en 'ar:<dag>:<nr>' / 'arw:<dag>:<nr>' (arcade gestart / uitbetaald)
+ *   (v3.0) spo_munten_ids bevat ook 'dm:<kaart>' (mythische kaart gemeld) en 'ar:<dag>:<nr>' / 'arw:<dag>:<nr>' (arcade gestart / uitbetaald) en 'ks:<dag>:<nr>' / 'ksw:<potje>' (kaartspel, dagelijkse limiet / uitbetaald)
  *   spo_voetbal     { v:1, avatar, stadion }                       je voetballer en je stadion (zie voetbal.js)
  * De munten hebben nooit invloed op cijfers: het zijn alleen cosmetische dingen.
  */
@@ -338,6 +338,35 @@
     });
   }
 
+  // ───────── Kaartspel (v3.0): munten voor een uitgespeeld potje, met een dagelijkse limiet ─────────
+  // Hoogstens KAARTSPEL_PER_DAG potjes per dag leveren munten op (sleutel 'ks:<dag>:<nr>'); elk potje (id van het potje, 'ksw:<id>') wordt maar één keer uitbetaald.
+  const KAARTSPEL_PER_DAG = 5;
+  const KAARTSPEL_MUNTEN = { w: 12, g: 5, v: 2 };
+  const KS_MID = /^[0-9a-f]{16,32}$/;
+  const kaartspelTelling = (s, nu) => { let n = 0; for (let i = 1; i <= KAARTSPEL_PER_DAG; i++) if (s.ids['ks:' + nu + ':' + i]) n++; return n; };
+  async function kaartspelStatus() {
+    const r = await leesAlles([K.ids, K.munten]);
+    const g = kaartspelTelling({ ids: obj(r[K.ids]) }, vandaag());
+    return { gespeeld: g, over: Math.max(0, KAARTSPEL_PER_DAG - g), max: KAARTSPEL_PER_DAG, saldo: schoonMunten(r[K.munten]).saldo };
+  }
+  // uitslag: 'w' | 'g' | 'v'. Geeft { ok:true, munten, dagmax, over, saldo } of { ok:false, reden: 'onbekend' | 'al-betaald' }.
+  function kaartspelKlaar(id, uitslag) {
+    return werk((s) => {
+      if (typeof id !== 'string' || !KS_MID.test(id) || !Object.prototype.hasOwnProperty.call(KAARTSPEL_MUNTEN, uitslag)) return { ok: false, reden: 'onbekend' };
+      const sl = 'ksw:' + id;
+      if (s.ids[sl]) return { ok: false, reden: 'al-betaald' };
+      s.ids[sl] = 1;
+      const nu = vandaag();
+      let nr = 0;
+      for (let i = 1; i <= KAARTSPEL_PER_DAG; i++) if (!s.ids['ks:' + nu + ':' + i]) { nr = i; break; }
+      if (!nr) return { ok: true, munten: 0, dagmax: true, over: 0, saldo: s.munten.saldo };
+      s.ids['ks:' + nu + ':' + nr] = 1;
+      const n = KAARTSPEL_MUNTEN[uitslag];
+      boek(s, n, 'Kaartspel: ' + (uitslag === 'w' ? 'gewonnen' : uitslag === 'g' ? 'gelijkspel' : 'meegedaan'), sl);
+      return { ok: true, munten: n, dagmax: false, over: KAARTSPEL_PER_DAG - kaartspelTelling(s, nu), saldo: s.munten.saldo };
+    });
+  }
+
   // ───────── Beloningen van vrienden (v3.0: uitnodigen en aartsrivaal) ─────────
   // Een gratis pakje. `id` zorgt dat het maar één keer telt (spo_munten_ids, sleutel 'gp:<id>').
   function gratisPakje(pakId, reden, id) {
@@ -498,7 +527,7 @@
 
   globalThis.SPOEco = {
     K, ITEMS, PER_ID, SOORTEN, ZELD, PAKJES, TERUG, DAG_BELONING, TIERNAMEN,
-    waarde, cijferMunten, verdienCijfer, sweep, koop, openPakje, gratisPakje, bonusMunten, gebruik, claimDagelijks, dagStatus, troostPakje, TROOST_PER_DAG, dropGemeld, dropMarkeer, ARCADE, ARCADE_PER_DAG, ARCADE_INZET, arcadeStatus, arcadeStart, arcadeKlaar, lees, registreerThemas, leesVoetbal, bewaarVoetbal, duelUiterlijk,
+    waarde, cijferMunten, verdienCijfer, sweep, koop, openPakje, gratisPakje, bonusMunten, gebruik, claimDagelijks, dagStatus, troostPakje, TROOST_PER_DAG, dropGemeld, dropMarkeer, ARCADE, ARCADE_PER_DAG, ARCADE_INZET, arcadeStatus, arcadeStart, arcadeKlaar, KAARTSPEL_PER_DAG, KAARTSPEL_MUNTEN, kaartspelStatus, kaartspelKlaar, lees, registreerThemas, leesVoetbal, bewaarVoetbal, duelUiterlijk,
     maakProfiel, schoonProfiel, mijnProfielDeelbaar, bewaarProfiel, schoonBijnaam, schoonWinkel, schoonMunten, vandaag,
   };
 })();

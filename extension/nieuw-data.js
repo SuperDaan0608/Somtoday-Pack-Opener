@@ -14,12 +14,12 @@
       datum: '',
       titel: 'Grote update',
       punten: [
-        'Veiliger voor iedereen: alles wat je typt gaat eerst door een streng filter, en scheldwoorden en persoonlijke gegevens komen er niet meer door.',
-        'Je kunt vrienden blokkeren en melden. De beheerder kan iemand waarschuwen, en je ziet netjes een melding als dat gebeurt.',
+        'Veiliger voor iedereen: een streng filter op alles wat je typt, en je kunt vrienden blokkeren en melden.',
         'Geheime prestaties met een raadsel erbij, een troostpakje na een tegenvallend cijfer en op maandag een weekoverzicht.',
         'Maak je eigen voetballer en je eigen stadion. Kies huid, haar, tenue, rugnummer en juichstijl, en geef je stadion een naam. Vrienden zien ze ook, en je voetballer schiet de strafschoppen.',
+        'Nieuw Kaartspel: kies een deck van 5 kaarten en speel deck tegen deck, tegen de computer of een vriend. Je verdient munten, hoogstens 5 potjes per dag.',
         'Schrijf een tijdcapsule aan jezelf bij een kaart, kies een aartsrivaal en nodig vrienden uit met een link.',
-        'Opgeheven vloeken (haal een voldoende in hetzelfde vak), een Arcade-hoek met vier spelletjes, een teller met mythische kaarten van alle spelers en de knoppen Wat is nieuw en Feedback.',
+        'Opgeheven vloeken, een Arcade-hoek met vier spelletjes, een teller met mythische kaarten van alle spelers en de knoppen Wat is nieuw en Feedback.',
       ],
     },
     {

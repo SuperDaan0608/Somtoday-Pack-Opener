@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kaartspel</title>
+  <link rel="stylesheet" href="kaartspel.css" />
+  <link rel="stylesheet" href="embed.css" />
+  <script src="embed.js"></script>
+</head>
+<body>
+  <a class="skip" href="#hoofd">Naar de inhoud</a>
+  <header class="kop">
+    <h1>Kaartspel</h1>
+    <p class="onder">Deck tegen deck. Kies 5 eigen kaarten, speel per ronde een kaart uit en kies hoe de kaarten worden vergeleken. Wie het eerst 3 rondes wint, wint het potje. Het verandert nooit je cijfers.</p>
+  </header>
+
+  <main id="hoofd">
+    <section class="saldo-balk" aria-label="Je munten en potjes van vandaag">
+      <div><span class="saldo-label">Je munten</span><strong id="saldo">0</strong></div>
+      <div class="dag-info" id="dag-info"></div>
+      <button type="button" class="knop klein" id="geluid" aria-pressed="true">Geluid aan</button>
+    </section>
+    <p class="melding" id="melding" role="status" aria-live="polite"></p>
+
+    <section id="voorbereiding" aria-labelledby="v-titel">
+      <h2 id="v-titel">Jouw deck</h2>
+      <p class="uitleg">Kies precies 5 kaarten uit je galerij. De ladder-sterkte van je kaarten hangt af van het cijfer, het niveau en de trede. Bij de vergelijking Vakgroep slaat Exact de Talen, Talen slaat Mens &amp; maatschappij, Mens &amp; maatschappij slaat Kunst &amp; sport en Kunst &amp; sport slaat Exact. Een winst levert 12 munten op, gelijkspel 5 en meedoen 2 (hoogstens 5 potjes per dag).</p>
+      <div class="deck-rij" id="deck-slots" aria-label="Je gekozen deck" role="list"></div>
+      <div class="spelrij">
+        <span class="stand" id="deck-stand" aria-live="polite"></span>
+        <button type="button" class="knop" id="deck-beste">Kies mijn beste 5</button>
+        <button type="button" class="knop" id="deck-leeg">Deck leegmaken</button>
+      </div>
+      <p class="geen" id="geen-galerij" hidden>Je galerij heeft minder dan 5 kaarten. Open eerst een paar cijfers, dan kun je een deck maken.</p>
+      <ul class="kies-raster" id="kies" aria-label="Kaarten in je galerij"></ul>
+
+      <h2 id="s-titel">Spelen</h2>
+      <div class="spelrij"><button type="button" class="knop goud" id="start-pc" disabled>Speel tegen de computer</button></div>
+      <div id="vriend-blok">
+        <h3 id="vr-titel">Tegen een vriend</h3>
+        <p class="uitleg" id="vriend-uitleg">Zet de vriendenfunctie aan op het tabblad Vrienden om tegen een vriend te spelen.</p>
+        <p class="uitleg" id="sync-status" aria-live="polite"></p>
+        <div id="uitnodigingen" aria-live="polite"></div>
+        <ul class="vriendenlijst" id="vrienden" aria-labelledby="vr-titel"></ul>
+      </div>
+    </section>
+
+    <section id="tafel" aria-labelledby="t-titel" hidden>
+      <h2 id="t-titel">Aan tafel</h2>
+      <div class="scorebalk">
+        <div class="score"><span class="score-naam">Jij</span><strong id="score-ik" aria-hidden="true">0</strong></div>
+        <div class="ronde-info"><span id="ronde-info"></span><span id="kiezer-info"></span></div>
+        <div class="score"><span class="score-naam" id="naam-zij">Tegenstander</span><strong id="score-zij" aria-hidden="true">0</strong></div>
+      </div>
+      <div class="hun-deck" id="hun-deck" role="list" aria-label="Deck van de tegenstander"></div>
+      <div class="arena" id="arena">
+        <div class="slot" id="slot-zij" aria-label="Kaart van de tegenstander"></div>
+        <div class="vgl-badge" id="vgl-badge" aria-hidden="true"></div>
+        <div class="slot" id="slot-ik" aria-label="Jouw kaart"></div>
+      </div>
+      <p class="tafel-tekst" id="tafel-tekst" role="status" aria-live="polite"></p>
+      <div class="vgl-knoppen" id="vgl-knoppen" role="group" aria-label="Kies hoe de kaarten worden vergeleken" hidden></div>
+      <div class="hand" id="hand" role="group" aria-label="Jouw kaarten"></div>
+      <div class="spelrij"><button type="button" class="knop" id="opgeven">Opgeven</button></div>
+    </section>
+  </main>
+
+  <div class="einde" id="einde" hidden role="dialog" aria-modal="true" aria-labelledby="einde-kop">
+    <canvas id="confetti" aria-hidden="true"></canvas>
+    <div class="einde-binnen">
+      <p class="einde-kop" id="einde-kop" tabindex="-1"></p>
+      <p class="einde-stand" id="einde-stand"></p>
+      <p class="einde-tekst" id="einde-tekst"></p>
+      <div class="spelrij"><button type="button" class="knop goud" id="einde-nog">Nog een potje</button><button type="button" class="knop" id="einde-terug">Terug naar mijn deck</button></div>
+    </div>
+  </div>
+
+  <script src="tekstfilter-woorden.js"></script>
+  <script src="tekstfilter.js"></script>
+  <script src="economie.js"></script>
+  <script src="vriendenlib.js"></script>
+  <script src="gevecht.js"></script>
+  <script src="ladder.js"></script>
+  <script src="kaartspellib.js"></script>
+  <script src="kaartspel.js"></script>
+</body>
+</html>
