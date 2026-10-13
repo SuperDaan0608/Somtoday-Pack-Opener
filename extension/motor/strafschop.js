@@ -1543,10 +1543,11 @@ void main(){
     };
     const par = gl.getExtension('KHR_parallel_shader_compile');
     // compileren en linken starten zonder te wachten (met KHR_parallel_shader_compile blokkeert dat niet)
-    const prog = (fs) => {
+    const prog = (fs, vsEigen) => {
       const p = gl.createProgram();
       const f = comp(gl.FRAGMENT_SHADER, fs);
-      gl.attachShader(p, vs);
+      const v = vsEigen ? comp(gl.VERTEX_SHADER, vsEigen) : null;
+      gl.attachShader(p, v || vs);
       gl.attachShader(p, f);
       gl.linkProgram(p);
       const loc = {};
@@ -1558,7 +1559,7 @@ void main(){
         controleer: () => {
           if (gl.isContextLost()) throw new Error('context verloren');
           if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
-            const lg = (gl.getShaderParameter(f, gl.COMPILE_STATUS) ? '' : 'shader: ' + gl.getShaderInfoLog(f) + ' ') + 'link: ' + gl.getProgramInfoLog(p);
+            const lg = (gl.getShaderParameter(f, gl.COMPILE_STATUS) ? '' : 'shader: ' + gl.getShaderInfoLog(f) + ' ') + (v && !gl.getShaderParameter(v, gl.COMPILE_STATUS) ? 'vs: ' + gl.getShaderInfoLog(v) + ' ' : '') + 'link: ' + gl.getProgramInfoLog(p);
             throw new Error(lg);
           }
         },
@@ -1566,6 +1567,7 @@ void main(){
           try {
             gl.deleteProgram(p);
             gl.deleteShader(f);
+            if (v) gl.deleteShader(v);
           } catch (e) {
             /* niets */
           }
@@ -1578,7 +1580,7 @@ void main(){
         m3: (n, v) => gl.uniformMatrix3fv(u(n), false, v),
       };
     };
-    const doel = (w, h) => {
+    const doel = (w, h, diepte) => {
       const tex = gl.createTexture();
       gl.bindTexture(gl.TEXTURE_2D, tex);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
@@ -1589,7 +1591,15 @@ void main(){
       const fb = gl.createFramebuffer();
       gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
       gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
-      return { tex, fb, w, h };
+      let rb = null;
+      if (diepte) {
+        // dieptebuffer voor de mesh-variant
+        rb = gl.createRenderbuffer();
+        gl.bindRenderbuffer(gl.RENDERBUFFER, rb);
+        gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, w, h);
+        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, rb);
+      }
+      return { tex, fb, w, h, rb };
     };
     // zonder float-doelen werken we in 8 bit met een vaste schaal: de scène schrijft lineair licht / 4
     const G = { gl, vao, prog, doel, init };
@@ -1871,6 +1881,729 @@ void main(){
     e.her.querySelector('i').style.opacity = 0.4 + 0.6 * (Math.sin(t * 6) > 0 ? 1 : 0);
   }
 
+  // ═════════════════════════ MESH-variant (rasterisatie, voor zwakke/D3D-videokaarten) ═════════════════════════
+  // Gewone driehoeken: spelers uit capsules en ellipsoïden (instanced), veld/tribunes als vlakken met een korte
+  // fragmentshader, het net als een raster, lampen/bundels/balstaart als additieve kaartjes. Geen raymarching, geen
+  // dynamische lussen; korte shaders. Eén nabewerkingspass zonder bloom (één textuurlookup per beeldpunt).
+  const MS_LICHT = 'const vec3 LA = vec3(-26., 29., -16.); const vec3 LB = vec3(46., 30., 62.); const vec3 LC = vec3(46., 30., 20.);\n' +
+    'vec3 mist(vec3 c, float d){ return mix(c, vec3(.012, .016, .026), (1. - exp(-min(d, 160.) * .006)) * .55); }\n';
+  const VS_OBJ = `${KOP}
+layout(location = 0) in vec3 aP;
+layout(location = 1) in vec3 aN;
+layout(location = 2) in float aE;
+layout(location = 3) in vec4 iA;
+layout(location = 4) in vec4 iB;
+layout(location = 5) in vec4 iC;
+layout(location = 6) in vec4 iD;
+layout(location = 7) in vec4 iK;
+uniform mat4 uVP;
+uniform int uModus;
+out vec3 vW; out vec3 vN; out vec4 vK;
+void main(){
+  vec3 w; vec3 n;
+  if (uModus == 0) {
+    // taps toelopende capsule van iA.xyz (straal iA.w) naar iB.xyz (straal iB.w)
+    vec3 ax = iB.xyz - iA.xyz;
+    float L = max(length(ax), 1e-5);
+    vec3 z = length(ax) > 1e-5 ? ax / L : vec3(0., 1., 0.);
+    vec3 r = abs(z.y) < .9 ? vec3(0., 1., 0.) : vec3(1., 0., 0.);
+    vec3 x = normalize(cross(r, z));
+    vec3 y = cross(z, x);
+    vec3 d = x * aN.x + y * aN.y + z * aN.z;
+    w = mix(iA.xyz, iB.xyz, aE) + d * mix(iA.w, iB.w, aE);
+    n = normalize(d + z * ((iA.w - iB.w) / L) * length(aN.xy));
+  } else {
+    // ellipsoïde of doos: middelpunt iA, assen (met straal) iB, iC, iD
+    mat3 M = mat3(iB.xyz, iC.xyz, iD.xyz);
+    w = iA.xyz + M * aP;
+    n = M * (aN / vec3(dot(iB.xyz, iB.xyz), dot(iC.xyz, iC.xyz), dot(iD.xyz, iD.xyz)));
+  }
+  vW = w; vN = n; vK = iK;
+  gl_Position = uVP * vec4(w, 1.);
+}`;
+  const FS_OBJ = `${KOP}
+in vec3 vW; in vec3 vN; in vec4 vK;
+out vec4 o;
+uniform vec3 uCam;
+uniform vec3 uTor[8];   // per speler: bekken, rechts, omhoog, vooruit (romp)
+uniform vec3 uHd[8];    // per speler: hoofd, rechts, omhoog, vooruit
+uniform vec3 uRim[2];
+uniform vec3 uHaar[2];
+uniform vec3 uAcc[2];
+uniform vec4 uBal;
+uniform mat3 uBalRot;
+uniform sampler2D uGetal;
+${MS_LICHT}
+float h21(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * .1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+void main(){
+  vec3 n = normalize(vN);
+  vec3 V = normalize(uCam - vW);
+  float code = vK.a + .5;
+  int i = code > 16. ? 1 : 0;
+  int m = int(code) - i * 16;
+  vec3 alb = vK.rgb;
+  float spec = .15, glans = 24., wrap = 0.;
+  vec3 hq = vW - uHd[i * 4];
+  vec3 hl = vec3(dot(hq, uHd[i * 4 + 1]), dot(hq, uHd[i * 4 + 2]), dot(hq, uHd[i * 4 + 3]));
+  if (m == 10) { o = vec4(mist(alb, length(uCam - vW)), 1.); return; }
+  if (m == 1) {
+    vec3 q = vW - uTor[i * 4];
+    vec3 l = vec3(dot(q, uTor[i * 4 + 1]), dot(q, uTor[i * 4 + 2]), dot(q, uTor[i * 4 + 3]));
+    alb *= .92 + .08 * sin(l.x * 60. + l.y * 25.) - .1 * smoothstep(.2, .02, l.y);
+    alb = mix(alb, uAcc[i], smoothstep(.02, .012, abs(l.y - .515)) * smoothstep(.11, .08, length(l.xz)) * .9);
+    vec2 uv = vec2(-l.x / .32 + .5, (l.y - .32) / .24 + .5);
+    if (l.z < -.02 && uv.x > 0. && uv.x < 1. && uv.y > 0. && uv.y < 1.) {
+      vec4 g = texture(uGetal, vec2((uv.x + float(i)) * .5, 1. - uv.y));
+      alb = mix(alb, g.rgb, g.a);
+    }
+    spec = .1; glans = 14.;
+  } else if (m == 2 || m == 11) {
+    spec = .16; glans = 20.; wrap = .45;
+    if (m == 11) {
+      float lip = smoothstep(.026, .016, abs(hl.x)) * smoothstep(.012, .004, abs(hl.y + .05)) * step(.07, hl.z);
+      alb = mix(alb, alb * vec3(.8, .6, .58), lip * .6);
+      float wb = smoothstep(.007, .003, abs(hl.y - .034 + 1.5 * (abs(hl.x) - .03) * (abs(hl.x) - .03))) * smoothstep(.052, .04, abs(hl.x)) * smoothstep(.01, .02, abs(hl.x)) * step(.06, hl.z);
+      alb = mix(alb, uHaar[i], wb * .85);
+    }
+  } else if (m == 3) { alb *= .92 + .1 * sin(dot(vW, vec3(31., 47., 23.))); }
+  else if (m == 5) { spec = .7; glans = 70.; }
+  else if (m == 6) { spec = .3; }
+  else if (m == 7) {
+    // haar: een kap boven de haarlijn (eronder valt hij weg)
+    float lijn = mix(-.075, .052, smoothstep(-.035, .065, hl.z)) - .03 * smoothstep(.06, .075, abs(hl.x)) * smoothstep(.07, .02, hl.z);
+    if (hl.y < lijn + .006 * sin(hl.x * 90.)) discard;
+    alb *= .8 + .35 * h21(floor(vec2(hl.x * 300., hl.z * 70. + hl.y * 70.)));
+    spec = .3; glans = 36.;
+  } else if (m == 8) {
+    float ir = length(vec2(abs(hl.x) - .03, hl.y - .011));
+    alb = mix(vec3(.5, .48, .45), vec3(.07, .04, .022), smoothstep(.0085, .0072, ir));
+    alb = mix(alb, vec3(.005), smoothstep(.0036, .0026, ir));
+    spec = 1.; glans = 120.;
+  } else if (m == 9) {
+    vec3 ln = uBalRot * normalize(vW - uBal.xyz);
+    vec3 a = abs(ln);
+    float pat = max(smoothstep(.93, .955, max(a.x, max(a.y, a.z))), smoothstep(.93, .955, dot(a, vec3(.57735))));
+    alb = mix(vec3(.9), vec3(.05, .06, .1), pat);
+    spec = .6; glans = 30.;
+  } else if (m == 0) { spec = .5; glans = 40.; }
+  vec3 L1 = normalize(LA - vW), L2 = normalize(LB - vW), L3 = normalize(LC - vW);
+  float d1 = max((dot(n, L1) + wrap) / (1. + wrap), 0.), d2 = max((dot(n, L2) + wrap) / (1. + wrap), 0.), d3 = max(dot(n, L3), 0.);
+  vec3 col = alb * (d1 * 1.25 * vec3(1., .95, .88) + d2 * .42 * vec3(.85, .9, 1.) + d3 * .22);
+  col += spec * pow(max(dot(n, normalize(L1 + V)), 0.), glans);
+  col += spec * .5 * pow(max(dot(n, normalize(L2 + V)), 0.), glans);
+  col += alb * mix(vec3(.012, .03, .014), vec3(.02, .025, .045), n.y * .5 + .5) * 2.;
+  float rim = pow(1. - max(dot(n, V), 0.), 3.);
+  vec3 achter = normalize(V * vec3(-1., 0., -1.) + vec3(0., .6, 0.));
+  vec3 rk = m == 0 || m == 9 ? vec3(.3, .33, .4) : uRim[i];
+  col += rk * rim * (.2 + 1.3 * max(dot(n, achter), 0.)) * (.7 + .5 * smoothstep(.2, .8, n.y));
+  o = vec4(mist(col, length(uCam - vW)), 1.);
+}`;
+  // veld, tribunes, reclameborden en dak: vlakken; aU = (u, v, soort)
+  const VS_VLAK = `${KOP}
+layout(location = 0) in vec3 aP;
+layout(location = 1) in vec3 aU;
+uniform mat4 uVP;
+out vec3 vW; out vec3 vU;
+void main(){ vW = aP; vU = aU; gl_Position = uVP * vec4(aP, 1.); }`;
+  const FS_VLAK = `${KOP}
+in vec3 vW; in vec3 vU;
+out vec4 o;
+uniform vec3 uCam;
+uniform float uTime, uFlits, uVeld;
+uniform vec3 uGras[2];
+uniform vec4 uPubliek;
+uniform vec3 uPubA, uPubB;
+uniform vec4 uSa[11];  // schaduwstukken op het gras: a.xz, b.xz
+uniform vec2 uSb[11];  // straal, sterkte
+${MS_LICHT}
+float h21(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * .1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+vec2 h22(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * vec3(.1031, .1030, .0973)); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.xx + p3.yz) * p3.zy); }
+float vn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f);
+  return mix(mix(h21(i), h21(i + vec2(1., 0.)), f.x), mix(h21(i + vec2(0., 1.)), h21(i + vec2(1., 1.)), f.x), f.y); }
+float lijn(float d){ float aa = fwidth(d) + 1e-4; return smoothstep(.06 + aa, .06 - aa, abs(d)); }
+void main(){
+  int k = int(vU.z + .5);
+  float afst = length(uCam - vW);
+  vec3 col;
+  if (k == 0) {
+    vec3 p = vW;
+    float band = mod(floor(p.z / 5.5), 2.);
+    float band2 = mod(floor(p.x / 5.5), 2.) * .25;
+    if (uVeld > 1.5) { band = mod(floor((p.x + p.z) / 5.5), 2.); band2 = 0.; }
+    else if (uVeld > .5) { band = mod(floor(p.z / 5.5) + floor(p.x / 5.5), 2.); band2 = 0.; }
+    vec3 g = mix(uGras[0], uGras[1], band) * (.92 + band2 * .3);
+    g *= .8 + .45 * (vn(p.xz * 3.) * .3 + vn(p.xz * 9.) * .2 + vn(p.xz * .3) * .5);
+    float L = lijn(p.z) * step(abs(p.x), 34.);
+    L = max(L, lijn(abs(p.x) - 9.16) * step(p.z, 5.5) * step(0., p.z));
+    L = max(L, lijn(p.z - 5.5) * step(abs(p.x), 9.16));
+    L = max(L, lijn(abs(p.x) - 20.16) * step(p.z, 16.5) * step(0., p.z));
+    L = max(L, lijn(p.z - 16.5) * step(abs(p.x), 20.16));
+    L = max(L, lijn(length(p.xz - vec2(0., 11.)) - 9.15) * step(16.5, p.z));
+    L = max(L, smoothstep(.13, .1, length(p.xz - vec2(0., 11.))));
+    L = max(L, lijn(abs(p.x) - 34.));
+    L = max(L, lijn(p.z - 52.5) * step(abs(p.x), 34.));
+    L = max(L, lijn(length(p.xz - vec2(0., 52.5)) - 9.15));
+    float verf = L * clamp(1.2 - afst * .004, 0., 1.);
+    float buiten = max(step(34.5, abs(p.x)), step(p.z, -1.));
+    g *= 1. - .4 * buiten;
+    g = mix(g, vec3(.62, .66, .62), verf * (1. - buiten));
+    float pool = .55 + .45 * exp(-dot(p.xz - vec2(0., 9.), p.xz - vec2(0., 9.)) / 900.);
+    // vlekschaduwen (capsules op de grond) van spelers en bal
+    float sh = 1.;
+    for (int j = 0; j < 11; j++) {
+      vec2 a = uSa[j].xy, b = uSa[j].zw, pa = p.xz - a, ba = b - a;
+      float h = clamp(dot(pa, ba) / max(dot(ba, ba), 1e-6), 0., 1.);
+      float d = length(pa - ba * h);
+      sh *= 1. - uSb[j].y * smoothstep(uSb[j].x, uSb[j].x * .35, d);
+    }
+    col = g * pool * (.25 + .75 * sh) * 1.1;
+    // nat gras: glans van de lampen en een vleugje lucht
+    vec3 V = normalize(uCam - p);
+    float fr = .03 + .55 * pow(1. - max(V.y, 0.), 5.);
+    vec3 rr = reflect(-V, vec3(0., 1., 0.));
+    float gl = pow(max(dot(rr, normalize(LA - p)), 0.), 80.) + pow(max(dot(rr, normalize(LB - p)), 0.), 80.) + pow(max(dot(rr, normalize(vec3(26., 29., -16.) - p)), 0.), 80.);
+    col += (vec3(.9, .9, 1.) * gl * .5 + vec3(.01, .014, .025)) * fr * (1. - verf * .5);
+  } else if (k <= 4) {
+    // tribune: rijen publiek met lichtjes
+    float u = vU.x, v = vU.y;
+    float wie = float(k - 1);
+    float fp = max(fwidth(u), fwidth(v)) + 1e-4;
+    float balkon = smoothstep(.35, .0, abs(v - 12.5) - .6);
+    vec2 c = vec2(u / .62, v / .48);
+    vec2 id = floor(c);
+    vec2 f = fract(c) - .5;
+    float hh = h21(id + wie * 17.);
+    vec3 shirt = hh < .4 ? (uPubliek.w > .5 ? uPubliek.xyz : uPubA) : hh < .75 ? (uPubliek.w > .5 ? uPubliek.xyz * .6 : uPubB) : vec3(.35, .36, .4);
+    shirt = mix(shirt, vec3(.08), step(.82, hh) * .8);
+    float pers = smoothstep(.5, .15, length(f * vec2(1.1, .8) + vec2(0., .05)));
+    float detail = clamp(1.8 - fp / .25, 0., 1.) * .7;
+    vec3 pub = mix(shirt * .45 + .02, shirt * (.2 + .7 * pers), detail);
+    pub *= .55 + .75 * vn(vec2(u * .08, v * .2) + wie * 3.);
+    col = pub * .2 * (1. - .6 * smoothstep(4., 24., v));
+    col = mix(col, vec3(.012, .014, .02), balkon);
+    vec2 c2 = vec2(u / 1.3, v);
+    vec2 i2 = floor(c2);
+    float hz = h21(i2 + wie * 5.1);
+    if (hz > .9) {
+      vec2 o2 = (h22(i2) - .5) * .6;
+      float rr = length(fract(c2) - .5 - o2) * 1.15;
+      float R = clamp(fp * 1.6 / 1.15, .045, .4);
+      float slot = floor(uTime * (1.5 + 3. * h21(i2 * 3.1)) + hz * 30.);
+      float aan = step(.5, h21(i2 + slot)) * (.4 + .6 * h21(i2 * 7.7));
+      float fl = step(.985, h21(i2 + slot * 1.3)) * (1. + 6. * uFlits);
+      vec3 kl = mix(vec3(1., .85, .7), vec3(.75, .85, 1.), h21(i2 * 1.9));
+      col += kl * smoothstep(R, R * .55, rr) * (aan * .55 + fl) * (.75 + .75 * uFlits) * .5;
+    }
+  } else if (k == 5) {
+    float bu = vU.x;
+    float seg = floor(bu / 9.);
+    vec3 a = mix(vec3(.05, .25, 1.), vec3(1., .2, .5), h21(vec2(seg, floor(uTime * .25))));
+    float strepen = .55 + .45 * smoothstep(.3, .7, fract(bu * .25 - uTime * .6));
+    float letters = step(.5, vn(vec2(bu * 2.2, vU.y * 9.))) * smoothstep(.18, .3, vU.y) * smoothstep(.8, .66, vU.y);
+    col = (a * (.25 + .5 * strepen) + vec3(1.) * letters * .35) * .9;
+  } else col = vec3(.008, .009, .012);
+  o = vec4(mist(col, afst), 1.);
+}`;
+  // het net: een raster in de vertexshader gebogen (de uitbolling waar de bal raakt)
+  const VS_NET = `${KOP}
+layout(location = 0) in vec3 aP;
+uniform mat4 uVP;
+uniform vec4 uNet;
+out vec3 vW; out vec2 vG;
+void main(){
+  float u = aP.x, v = aP.y; int k = int(aP.z + .5);
+  vec3 p;
+  if (k == 0) {
+    p = vec3(mix(-3.72, 3.72, u), v * 2.5, 0.);
+    vec2 dd = p.xy - uNet.xy;
+    float bol = uNet.z * exp(-dot(dd, dd) / .55) + uNet.z * .25 * sin(length(dd) * 7. - uNet.w * 9.) * exp(-dot(dd, dd) / 2.);
+    p.z = -2. + .32 * v - bol;
+    vG = p.xy;
+  } else if (k == 1) { p = vec3(mix(-3.72, 3.72, u), 2.5, -1.7 * v); vG = p.xz; }
+  else { float y = v * 2.5; p = vec3(k == 2 ? -3.72 : 3.72, y, u * (-2. + .32 * v)); vG = p.zy; }
+  vW = p;
+  gl_Position = uVP * vec4(p, 1.);
+}`;
+  const FS_NET = `${KOP}
+in vec3 vW; in vec2 vG;
+out vec4 o;
+uniform vec3 uCam;
+uniform vec4 uNet;
+${MS_LICHT}
+void main(){
+  vec2 g = vG / .12;
+  vec2 fw = fwidth(g);
+  float pw = max(max(fw.x, fw.y), 1e-4);
+  float t = length(uCam - vW);
+  float bij = exp(-dot(vW.xy - uNet.xy, vW.xy - uNet.xy) / .35) * smoothstep(.0, .08, uNet.z) * step(vW.z, -1.);
+  float blur = pw + .3 * smoothstep(2.6, .9, t) * (1. - bij);
+  vec2 dd = abs(fract(g + .5) - .5);
+  float cov = clamp(.05 / blur, 0., 1.) * smoothstep(blur * .5 + .025, 0., min(dd.x, dd.y));
+  float a = mix(cov, .1, smoothstep(.3, .8, pw)) * max(mix(.22, .6, smoothstep(.9, 2.6, t)), .8 * bij);
+  vec3 L2 = normalize(LB - vW);
+  o = vec4(mist(vec3(.85, .88, .92) * (.25 + .4 * max(L2.y, 0.)), t), a);
+}`;
+  // additieve kaartjes: lampen (0), lichtbundels (1), balstaart (2)
+  const VS_ADD = `${KOP}
+layout(location = 0) in vec3 aP;
+layout(location = 1) in vec3 aU;
+layout(location = 2) in vec4 aK;
+uniform mat4 uVP;
+out vec3 vU; out vec4 vK;
+void main(){ vU = aU; vK = aK; gl_Position = uVP * vec4(aP, 1.); }`;
+  const FS_ADD = `${KOP}
+in vec3 vU; in vec4 vK;
+out vec4 o;
+void main(){
+  float a;
+  if (vU.z < .5) { float d2 = dot(vU.xy, vU.xy); a = 2.5 * exp(-d2 / 4.5) + .12 * exp(-d2 / 60.); }
+  else if (vU.z < 1.5) a = exp(-vU.x * vU.x * 4.) * smoothstep(0., .25, vU.y) * (1. - .7 * vU.y);
+  else a = exp(-vU.x * vU.x * 3.) * (1. - vU.y);
+  o = vec4(vK.rgb * vK.a * a, 1.);
+}`;
+  // samenstellen zonder bloom: één textuurlookup per beeldpunt
+  const FS_MSAMEN = `${KOP}
+in vec2 vUv; out vec4 o;
+uniform sampler2D uTex;
+uniform float uTime, uFlits, uZwart, uGlitch, uWipe, uBalk;
+uniform vec3 uGlitchK;
+float h21(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * .1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+vec3 aces(vec3 x){ return clamp((x * (2.51 * x + .03)) / (x * (2.43 * x + .59) + .14), 0., 1.); }
+void main(){
+  vec2 uv = vUv;
+  if (uGlitch > .001) {
+    float rij = floor(uv.y * 40.), tik = floor(uTime * 14.);
+    uv.x += (h21(vec2(rij * 3., tik)) - .5) * .03 * step(.93, h21(vec2(rij, tik))) * uGlitch;
+  }
+  vec3 c = texture(uTex, uv).rgb;
+  c = aces(c * 1.12);
+  float l = dot(c, vec3(.299, .587, .114));
+  c = mix(c * vec3(.92, 1., 1.1), c * vec3(1.04, 1., .94), smoothstep(.2, .7, l));
+  c = pow(c, vec3(.95));
+  vec2 q = vUv - .5;
+  c *= 1. - .55 * dot(q * vec2(1.2, 1.), q * vec2(1.2, 1.));
+  if (uGlitch > .001) c += uGlitchK * smoothstep(.8, 1., max(abs(q.x), abs(q.y)) * 2.) * uGlitch * .5;
+  if (uWipe > 0. && uWipe < 1.) {
+    float x = vUv.x + (vUv.y - .5) * .35;
+    float pos = mix(-.4, 1.4, uWipe);
+    c = mix(c, vec3(.06, .08, .14), smoothstep(.16, .0, abs(x - pos)) * .85);
+    c += vec3(.5, .7, 1.) * smoothstep(.006, .0, abs(abs(x - pos) - .16)) * .8;
+  }
+  c += uFlits;
+  c *= 1. - uZwart;
+  float bh = uBalk * .5;
+  if (vUv.y < bh || vUv.y > 1. - bh) c = vec3(0.);
+  o = vec4(c, 1.);
+}`;
+
+  // basismeshes: bol/capsule (twee halve bollen, aE kiest het eind) en doos; per hoekpunt aP, aN, aE
+  function capsuleMesh() {
+    const SEG = 14, RING = 5, v = [], idx = [];
+    for (let s = 0; s < 2; s++) {
+      const sg = s ? 1 : -1;
+      for (let j = 0; j <= RING; j++) {
+        const ph = (j / RING) * Math.PI * 0.5, z = sg * Math.sin(ph), rr = Math.cos(ph);
+        for (let k = 0; k <= SEG; k++) {
+          const th = (k / SEG) * Math.PI * 2, n = [rr * Math.cos(th), rr * Math.sin(th), z];
+          v.push(...n, ...n, s);
+        }
+      }
+    }
+    const rij = SEG + 1, per = (RING + 1) * rij;
+    const quad = (a, b, c, d) => idx.push(a, b, c, b, d, c);
+    for (let s = 0; s < 2; s++) for (let j = 0; j < RING; j++) for (let k = 0; k < SEG; k++) {
+      const a = s * per + j * rij + k;
+      quad(a, a + 1, a + rij, a + rij + 1);
+    }
+    for (let k = 0; k < SEG; k++) quad(k, k + 1, per + k, per + k + 1); // de cilinder tussen de evenaars
+    return { v: new Float32Array(v), i: new Uint16Array(idx) };
+  }
+  function doosMesh() {
+    const v = [], idx = [];
+    const F = [[[1, 0, 0], [0, 1, 0], [0, 0, 1]], [[-1, 0, 0], [0, 0, 1], [0, 1, 0]], [[0, 1, 0], [0, 0, 1], [1, 0, 0]], [[0, -1, 0], [1, 0, 0], [0, 0, 1]], [[0, 0, 1], [1, 0, 0], [0, 1, 0]], [[0, 0, -1], [0, 1, 0], [1, 0, 0]]];
+    F.forEach(([n, a, b], f) => {
+      [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([s, t]) => v.push(n[0] + a[0] * s + b[0] * t, n[1] + a[1] * s + b[1] * t, n[2] + a[2] * s + b[2] * t, ...n, 0));
+      const o = f * 4;
+      idx.push(o, o + 1, o + 2, o + 1, o + 3, o + 2);
+    });
+    return { v: new Float32Array(v), i: new Uint16Array(idx) };
+  }
+  // vaste vlakken: veld, vier tribunes, reclameborden, dak (per hoekpunt: positie, u, v, soort)
+  function vlakkenData() {
+    const v = [];
+    const quad = (p, u) => [0, 1, 2, 1, 3, 2].forEach((k) => v.push(...p[k], ...u[k]));
+    const K = 1.6;
+    quad([[-90, 0, -60], [90, 0, -60], [-90, 0, 170], [90, 0, 170]], [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]);
+    // tribunes: hellend van y = 0,9 tot 27
+    const y0 = 0.9, y1 = 27;
+    const xb = (y) => 48 + y * K;
+    quad([[-xb(y0), y0, -9 - (y0 - 1) * K], [xb(y0), y0, -9 - (y0 - 1) * K], [-xb(y1), y1, -9 - (y1 - 1) * K], [xb(y1), y1, -9 - (y1 - 1) * K]],
+      [[-xb(y0), y0, 1], [xb(y0), y0, 1], [-xb(y1), y1, 1], [xb(y1), y1, 1]]);
+    quad([[41 + (y0 - 1) * K, y0, -60], [41 + (y0 - 1) * K, y0, 170], [41 + (y1 - 1) * K, y1, -60], [41 + (y1 - 1) * K, y1, 170]], [[-60, y0, 2], [170, y0, 2], [-60, y1, 2], [170, y1, 2]]);
+    quad([[-41 - (y0 - 1) * K, y0, -60], [-41 - (y0 - 1) * K, y0, 170], [-41 - (y1 - 1) * K, y1, -60], [-41 - (y1 - 1) * K, y1, 170]], [[60, y0, 3], [-170, y0, 3], [60, y1, 3], [-170, y1, 3]]);
+    quad([[-xb(y0), y0, 114 + (y0 - 1) * K], [xb(y0), y0, 114 + (y0 - 1) * K], [-xb(y1), y1, 114 + (y1 - 1) * K], [xb(y1), y1, 114 + (y1 - 1) * K]], [[xb(y0), y0, 4], [-xb(y0), y0, 4], [xb(y1), y1, 4], [-xb(y1), y1, 4]]);
+    // reclameborden
+    quad([[-40, 0, -6.5], [40, 0, -6.5], [-40, 0.95, -6.5], [40, 0.95, -6.5]], [[-40, 0, 5], [40, 0, 5], [-40, 0.95, 5], [40, 0.95, 5]]);
+    quad([[39, 0, -6.5], [39, 0, 114], [39, 0.95, -6.5], [39, 0.95, 114]], [[43.5, 0, 5], [164, 0, 5], [43.5, 0.95, 5], [164, 0.95, 5]]);
+    quad([[-39, 0, -6.5], [-39, 0, 114], [-39, 0.95, -6.5], [-39, 0.95, 114]], [[156.5, 0, 5], [36, 0, 5], [156.5, 0.95, 5], [36, 0.95, 5]]);
+    // dak: een ring rond het gat boven het veld
+    const yd = 27.5, Xo = 85.4, Xi = 74.4, Zo = -53.4, Zi = -42.4, Zf = 160;
+    const d6 = [0, 0, 6];
+    quad([[-Xo, yd, Zo], [Xo, yd, Zo], [-Xo, yd, Zi], [Xo, yd, Zi]], [d6, d6, d6, d6]);
+    quad([[-Xo, yd, Zi], [-Xi, yd, Zi], [-Xo, yd, Zf], [-Xi, yd, Zf]], [d6, d6, d6, d6]);
+    quad([[Xi, yd, Zi], [Xo, yd, Zi], [Xi, yd, Zf], [Xo, yd, Zf]], [d6, d6, d6, d6]);
+    return new Float32Array(v);
+  }
+  function netData() {
+    const v = [];
+    const rooster = (nu, nv, k) => {
+      for (let j = 0; j < nv; j++) for (let i = 0; i < nu; i++) {
+        const p = (a, b) => v.push(a / nu, b / nv, k);
+        p(i, j); p(i + 1, j); p(i, j + 1); p(i + 1, j); p(i + 1, j + 1); p(i, j + 1);
+      }
+    };
+    rooster(22, 12, 0);
+    rooster(8, 3, 1);
+    rooster(6, 6, 2);
+    rooster(6, 6, 3);
+    return new Float32Array(v);
+  }
+
+  // Een speler als lijst van capsules (cap) en ellipsoïden (ell); 20 floats per stuk: iA, iB, iC, iD, kleur+code.
+  function meshSpeler(sk, i, kl, cap, ell, as) {
+    const kp = i === 1;
+    const code = (m) => m + 16 * i;
+    const C = (a, ra, b, rb, k, m) => cap.push(a[0], a[1], a[2], ra, b[0], b[1], b[2], rb, 0, 0, 0, 0, 0, 0, 0, 0, k[0], k[1], k[2], code(m));
+    const E = (c, X, Y, Z, r, k, m) => ell.push(c[0], c[1], c[2], 0, X[0] * r[0], X[1] * r[0], X[2] * r[0], 0, Y[0] * r[1], Y[1] * r[1], Y[2] * r[1], 0, Z[0] * r[2], Z[1] * r[2], Z[2] * r[2], 0, k[0], k[1], k[2], code(m));
+    const L = (o, A, x, y, z) => [o[0] + A[0][0] * x + A[1][0] * y + A[2][0] * z, o[1] + A[0][1] * x + A[1][1] * y + A[2][1] * z, o[2] + A[0][2] * x + A[1][2] * y + A[2][2] * z];
+    const { R, U, F, Rp, Up, Fp, Rh, Uh, Fh } = as;
+    const T = [R, U, F], P = [Rp, Up, Fp], H = [Rh, Uh, Fh];
+    const P0 = sk[0], NK = sk[2], HD = sk[3];
+    const sh = kl.shirt, hu = kl.huid;
+    // romp: borst, middel, taille, borstkas voor, trapezius
+    E(L(P0, T, 0, 0.36, -0.005), R, U, F, [0.152, 0.165, 0.1], sh, 1);
+    E(L(P0, T, 0, 0.27, -0.004), R, U, F, [0.14, 0.14, 0.094], sh, 1);
+    E(L(P0, T, 0, 0.17, -0.004), R, U, F, [0.13, 0.13, 0.088], sh, 1);
+    E(L(P0, T, 0, 0.06, -0.002), R, U, F, [0.15, 0.1, 0.106], sh, 1);
+    E(L(P0, T, 0, 0.385, 0.02), R, U, F, [0.13, 0.065, 0.075], sh, 1);
+    const SL = sk[4], SR = sk[7];
+    C(min3(NK, keer(U, 0.015)), 0.06, plus(SL, keer(U, 0.01)), 0.055, sh, 1);
+    C(min3(NK, keer(U, 0.015)), 0.06, plus(SR, keer(U, 0.01)), 0.055, sh, 1);
+    // broek
+    E(L(P0, P, 0, -0.04, -0.008), Rp, Up, Fp, [0.158, 0.118, 0.106], kl.broek, 3);
+    E(L(P0, P, -0.055, -0.07, -0.035), Rp, Up, Fp, [0.08, 0.08, 0.07], kl.broek, 3);
+    E(L(P0, P, 0.055, -0.07, -0.035), Rp, Up, Fp, [0.08, 0.08, 0.07], kl.broek, 3);
+    // armen
+    for (let k = 0; k < 2; k++) {
+      const a = 4 + k * 3, zij = k ? 1 : -1;
+      const S = sk[a], El = sk[a + 1], Hd = sk[a + 2];
+      const S0 = min3(S, keer(min3(El, S), 0.1));
+      if (kp) {
+        C(S0, 0.07, El, 0.056, sh, 1);
+        C(El, 0.056, lerp3(El, Hd, 0.92), 0.048, sh, 1);
+      } else {
+        C(S0, 0.07, lerp3(S, El, 0.46), 0.062, sh, 1);
+        C(lerp3(S, El, 0.44), 0.063, lerp3(S, El, 0.47), 0.065, kl.acc, 1); // mouwzoom
+        C(S, 0.054, El, 0.042, hu, 2);
+        C(El, 0.043, Hd, 0.03, hu, 2);
+      }
+      const ax = norm(min3(Hd, El));
+      const ref = Math.abs(dot(ax, F)) > 0.92 ? U : F;
+      const hx = norm(min3(ref, keer(ax, dot(ref, ax))));
+      const pv = keer(kruis(ax, hx), zij);
+      const g = kp ? 1.45 : 1;
+      const hk = kp ? kl.hand : hu, hm = kp ? 6 : 2;
+      E(plus(Hd, keer(ax, 0.05 * g)), hx, ax, pv, [0.042 * g, 0.052 * g, 0.021 * g], hk, hm);
+      E(plus(plus(Hd, keer(ax, 0.11 * g)), keer(pv, 0.012 * g)), hx, ax, pv, [0.037 * g, 0.045 * g, 0.016 * g], hk, hm);
+      const d0 = plus(plus(Hd, keer(ax, 0.025 * g)), plus(keer(hx, 0.032 * g), keer(pv, 0.008)));
+      C(d0, 0.015 * g, plus(d0, plus(keer(ax, 0.045 * g), plus(keer(hx, 0.022 * g), keer(pv, 0.018 * g)))), 0.011 * g, hk, hm);
+      if (kp) C(min3(Hd, keer(ax, 0.03)), 0.05, plus(Hd, keer(ax, 0.03)), 0.053, kl.acc, 6);
+    }
+    // benen
+    for (let k = 0; k < 2; k++) {
+      const a = 10 + k * 4;
+      const Hp = sk[a], K = sk[a + 1], A = sk[a + 2], To = sk[a + 3];
+      const dD = norm(min3(K, Hp)), dS = norm(min3(A, K));
+      let vf = min3(Fp, keer(dS, dot(Fp, dS)));
+      vf = lengte(vf) > 0.05 ? norm(vf) : F;
+      C(min3(Hp, keer(dD, 0.03)), 0.086, K, 0.054, hu, 2);
+      C(lerp3(Hp, K, 0.35), 0.093, lerp3(Hp, K, 0.55), 0.072, hu, 2);
+      C(min3(Hp, keer(dD, 0.02)), 0.102, lerp3(Hp, K, 0.4), 0.098, kl.broek, 3);
+      C(lerp3(Hp, K, 0.36), 0.1, lerp3(Hp, K, 0.4), 0.1, kl.acc, 3); // pijpzoom
+      const kTop = lerp3(K, A, 0.14);
+      C(K, 0.05, kTop, 0.048, hu, 2);
+      C(kTop, 0.051, A, 0.036, kl.sok, 4);
+      C(min3(kTop, keer(vf, 0.016)), 0.056, min3(lerp3(K, A, 0.62), keer(vf, 0.008)), 0.039, kl.sok, 4);
+      C(lerp3(K, A, 0.2), 0.06, lerp3(K, A, 0.25), 0.058, kl.acc, 4);
+      // schoen
+      const vF = norm(min3(To, A));
+      let vU = min3(keer(dS, -1), keer(vF, dot(keer(dS, -1), vF)));
+      vU = lengte(vU) > 0.05 ? norm(vU) : U;
+      const hiel = min3(min3(A, keer(vF, 0.035)), keer(vU, 0.025));
+      C(hiel, 0.042, min3(plus(To, keer(vF, 0.028)), keer(vU, 0.016)), 0.033, kl.schoen, 5);
+      C(A, 0.042, A, 0.042, kl.schoen, 5);
+      C(min3(hiel, keer(vU, 0.03)), 0.03, min3(plus(To, keer(vF, 0.03)), keer(vU, 0.035)), 0.024, kl.zool, 5);
+    }
+    // nek en hoofd
+    C(min3(NK, keer(U, 0.07)), 0.06, min3(min3(HD, keer(Uh, 0.045)), keer(Fh, 0.012)), 0.054, hu, 2);
+    E(L(HD, H, 0, 0.016, -0.006), Rh, Uh, Fh, [0.077, 0.094, 0.09], hu, 11);
+    E(L(HD, H, 0, -0.045, 0.026), Rh, Uh, Fh, [0.056, 0.06, 0.064], hu, 11);
+    E(L(HD, H, 0, -0.086, 0.055), Rh, Uh, Fh, [0.028, 0.02, 0.024], hu, 11);
+    E(L(HD, H, 0, 0.03, 0.074), Rh, Uh, Fh, [0.056, 0.014, 0.02], hu, 11);
+    C(L(HD, H, 0, 0.016, 0.088), 0.009, L(HD, H, 0, -0.022, 0.1), 0.013, hu, 11);
+    for (const s of [-1, 1]) {
+      E(L(HD, H, s * 0.04, -0.012, 0.064), Rh, Uh, Fh, [0.018, 0.014, 0.016], hu, 11);
+      E(L(HD, H, s * 0.078, 0, -0.006), Rh, Uh, Fh, [0.012, 0.026, 0.018], hu, 11);
+      E(L(HD, H, s * 0.03, 0.011, 0.074), Rh, Uh, Fh, [0.0115, 0.0115, 0.0115], [1, 1, 1], 8);
+    }
+    E(L(HD, H, 0, 0.024, -0.012), Rh, Uh, Fh, [0.084, 0.099, 0.096], kl.haar, 7);
+    E(L(HD, H, 0, 0.078, 0.005), Rh, Uh, Fh, [0.066, 0.042, 0.077], kl.haar, 7);
+  }
+  // assen van romp, bekken en hoofd (zoals in de volle shader)
+  function spelerAssen(sk) {
+    const r = norm(min3(sk[7], sk[4]));
+    const U = norm(min3(sk[2], sk[0]));
+    const F = norm(kruis(r, U));
+    const R = kruis(U, F);
+    const Rp = norm(min3(sk[14], sk[10]));
+    const Up = norm(min3(U, keer(Rp, dot(U, Rp))));
+    const Fp = kruis(Rp, Up);
+    const Uh = norm(min3(sk[3], sk[2]));
+    const Fh = norm(min3(F, keer(Uh, dot(F, Uh))));
+    const Rh = kruis(Uh, Fh);
+    return { R, U, F, Rp, Up, Fp, Rh, Uh, Fh };
+  }
+  const MS_LAMPEN = [[-26, 29, -16], [26, 29, -16], [-46, 30, 20], [46, 30, 20], [-46, 30, 62], [46, 30, 62]];
+
+  // bouwt de GPU-buffers van de mesh-variant; geeft { teken(...), weg() }
+  function maakMeshScene(G) {
+    const gl = G.gl;
+    const buf = (data, idx) => {
+      const b = gl.createBuffer();
+      gl.bindBuffer(idx ? gl.ELEMENT_ARRAY_BUFFER : gl.ARRAY_BUFFER, b);
+      gl.bufferData(idx ? gl.ELEMENT_ARRAY_BUFFER : gl.ARRAY_BUFFER, data, data ? gl.STATIC_DRAW : gl.DYNAMIC_DRAW);
+      return b;
+    };
+    const alle = [];
+    const vaos = [];
+    // instanced vormen: een basismesh en een instance-buffer
+    const vormVao = (mesh) => {
+      const vao = gl.createVertexArray();
+      gl.bindVertexArray(vao);
+      const vb = buf(mesh.v), ib = buf(mesh.i, true), inst = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, vb);
+      gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 28, 0);
+      gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 28, 12);
+      gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 28, 24);
+      gl.bindBuffer(gl.ARRAY_BUFFER, inst);
+      for (let k = 0; k < 5; k++) {
+        gl.enableVertexAttribArray(3 + k);
+        gl.vertexAttribPointer(3 + k, 4, gl.FLOAT, false, 80, k * 16);
+        gl.vertexAttribDivisor(3 + k, 1);
+      }
+      gl.bindVertexArray(null);
+      alle.push(vb, ib, inst);
+      vaos.push(vao);
+      return { vao, inst, n: mesh.i.length };
+    };
+    const capV = vormVao(capsuleMesh());
+    const ellV = vormVao(capsuleMesh());
+    const doosV = vormVao(doosMesh());
+    const simpel = (data, stride, layout) => {
+      const vao = gl.createVertexArray();
+      gl.bindVertexArray(vao);
+      const b = data ? buf(data) : gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, b);
+      let off = 0;
+      layout.forEach((n, k) => {
+        gl.enableVertexAttribArray(k);
+        gl.vertexAttribPointer(k, n, gl.FLOAT, false, stride * 4, off * 4);
+        off += n;
+      });
+      gl.bindVertexArray(null);
+      alle.push(b);
+      vaos.push(vao);
+      return { vao, b, n: data ? data.length / stride : 0 };
+    };
+    const vlak = simpel(vlakkenData(), 6, [3, 3]);
+    const net = simpel(netData(), 3, [3]);
+    const add = simpel(null, 10, [3, 3, 4]);
+    const vul = (v, arr) => {
+      gl.bindBuffer(gl.ARRAY_BUFFER, v.inst);
+      gl.bufferData(gl.ARRAY_BUFFER, arr, gl.DYNAMIC_DRAW);
+    };
+    function weg() {
+      try {
+        alle.forEach((b) => gl.deleteBuffer(b));
+        vaos.forEach((v) => gl.deleteVertexArray(v));
+      } catch (e) {
+        /* niets */
+      }
+    }
+    // c: { pr, VP, pos, R, U, tanF, H (hoogte in px), t, S, inv, tl, W, kleuren, getalTex, flits, spoorKleur, spoorS, netBol }
+    function teken(c) {
+      const { pr, S, kl } = c;
+      const cap = [], ell = [];
+      const asA = spelerAssen(S.sch), asB = spelerAssen(S.kp);
+      meshSpeler(S.sch, 0, kl[0], cap, ell, asA);
+      meshSpeler(S.kp, 1, kl[1], cap, ell, asB);
+      // doel: palen, lat en de schuine steunen achter
+      const wit = [0.92, 0.92, 0.92], don = [0.12, 0.12, 0.12];
+      const capG = (a, b, r, k) => cap.push(...a, r, ...b, r, 0, 0, 0, 0, 0, 0, 0, 0, ...k, 0);
+      capG([-3.72, 0, 0], [-3.72, 2.5, 0], 0.062, wit);
+      capG([3.72, 0, 0], [3.72, 2.5, 0], 0.062, wit);
+      capG([-3.72, 2.5, 0], [3.72, 2.5, 0], 0.062, wit);
+      capG([-3.72, 2.5, 0], [-3.72, 0, -2], 0.025, don);
+      capG([3.72, 2.5, 0], [3.72, 0, -2], 0.025, don);
+      capG([-3.72, 0.02, -2], [3.72, 0.02, -2], 0.025, don);
+      // de bal (draait mee via uBalRot in de shader)
+      const bp = S.bal.p;
+      ell.push(...bp, 0, 0.11, 0, 0, 0, 0, 0.11, 0, 0, 0, 0, 0.11, 0, 1, 1, 1, 9);
+      // camera-masten van de lampen: dozen
+      const doos = [];
+      MS_LAMPEN.forEach((L) => doos.push(L[0], L[1] - 0.8, L[2], 0, 6, 0, 0, 0, 0, 0.9, 0, 0, 0, 0, 0.5, 0, 0.02, 0.022, 0.03, 0));
+      vul(capV, new Float32Array(cap));
+      vul(ellV, new Float32Array(ell));
+      vul(doosV, new Float32Array(doos));
+
+      // ── vlakken ──
+      gl.enable(gl.DEPTH_TEST);
+      gl.depthFunc(gl.LEQUAL);
+      gl.depthMask(true);
+      gl.disable(gl.CULL_FACE);
+      gl.disable(gl.BLEND);
+      gl.clearColor(0.007, 0.01, 0.02, 1);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      const Vl = pr.Vl;
+      gl.useProgram(Vl.p);
+      gl.uniformMatrix4fv(Vl.u('uVP'), false, c.VP);
+      Vl.f3('uCam', c.pos);
+      Vl.f1('uTime', c.t);
+      Vl.f1('uFlits', c.flits);
+      Vl.f1('uVeld', c.veld);
+      Vl.f3('uGras', c.gras);
+      Vl.f4('uPubliek', c.publiek);
+      Vl.f3('uPubA', c.pubA);
+      Vl.f3('uPubB', c.pubB);
+      // schaduwen: langs het licht achter het doel geprojecteerd op het gras
+      const Ls = MS_LAMPEN[0];
+      const proj = (p) => {
+        const d = norm(min3(p, Ls));
+        const k = p[1] / Math.max(-d[1], 0.2);
+        return [p[0] + d[0] * k, p[2] + d[2] * k];
+      };
+      const sa = new Float32Array(44), sb = new Float32Array(22);
+      let ns = 0;
+      const stuk = (a, b, r, s) => {
+        sa.set([a[0], a[1], b[0], b[1]], ns * 4);
+        sb.set([r, s], ns * 2);
+        ns++;
+      };
+      [S.sch, S.kp].forEach((sk) => {
+        stuk(proj(sk[0]), proj(sk[3]), 0.26, 0.55);
+        stuk(proj(sk[10]), proj(sk[12]), 0.13, 0.5);
+        stuk(proj(sk[14]), proj(sk[16]), 0.13, 0.5);
+        stuk([sk[12][0], sk[12][2]], [sk[13][0], sk[13][2]], 0.16 * (1 - klem(sk[12][1] - 0.1, 0, 0.5) * 1.6), 0.45);
+        stuk([sk[16][0], sk[16][2]], [sk[17][0], sk[17][2]], 0.16 * (1 - klem(sk[16][1] - 0.1, 0, 0.5) * 1.6), 0.45);
+      });
+      stuk([bp[0], bp[2]], [bp[0], bp[2]], 0.16 + bp[1] * 0.2, 0.6 * (1 - sm(bp[1], 0.3, 1.5)));
+      Vl.f4('uSa', sa);
+      gl.uniform2fv(Vl.u('uSb'), sb);
+      gl.bindVertexArray(vlak.vao);
+      gl.drawArrays(gl.TRIANGLES, 0, vlak.n);
+
+      // ── vormen ──
+      const O = pr.O;
+      gl.useProgram(O.p);
+      gl.uniformMatrix4fv(O.u('uVP'), false, c.VP);
+      O.f3('uCam', c.pos);
+      O.f3('uTor', new Float32Array([S.sch[0], asA.R, asA.U, asA.F, S.kp[0], asB.R, asB.U, asB.F].flat()));
+      O.f3('uHd', new Float32Array([S.sch[3], asA.Rh, asA.Uh, asA.Fh, S.kp[3], asB.Rh, asB.Uh, asB.Fh].flat()));
+      O.f3('uRim', c.rim);
+      O.f3('uHaar', new Float32Array([...kl[0].haar, ...kl[1].haar]));
+      O.f3('uAcc', new Float32Array([...kl[0].acc, ...kl[1].acc]));
+      O.f4('uBal', [...bp, 1]);
+      O.m3('uBalRot', c.balRot);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, c.getalTex);
+      O.i1('uGetal', 0);
+      O.i1('uModus', 0);
+      gl.bindVertexArray(capV.vao);
+      gl.drawElementsInstanced(gl.TRIANGLES, capV.n, gl.UNSIGNED_SHORT, 0, cap.length / 20);
+      O.i1('uModus', 1);
+      gl.bindVertexArray(ellV.vao);
+      gl.drawElementsInstanced(gl.TRIANGLES, ellV.n, gl.UNSIGNED_SHORT, 0, ell.length / 20);
+      gl.bindVertexArray(doosV.vao);
+      gl.drawElementsInstanced(gl.TRIANGLES, doosV.n, gl.UNSIGNED_SHORT, 0, doos.length / 20);
+
+      // ── het net (doorzichtig) ──
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      gl.depthMask(false);
+      const N = pr.N;
+      gl.useProgram(N.p);
+      gl.uniformMatrix4fv(N.u('uVP'), false, c.VP);
+      N.f3('uCam', c.pos);
+      N.f4('uNet', c.net);
+      gl.bindVertexArray(net.vao);
+      gl.drawArrays(gl.TRIANGLES, 0, net.n);
+
+      // ── additief: lampen, bundels, balstaart ──
+      const a = [];
+      const R = c.R, Uc = c.U;
+      const pxW = (2 * c.tanF) / c.H; // meter per beeldpunt per meter afstand
+      const kaart = (p0, p1, p2, p3, u, kind, kl0, kl1) => {
+        const P = [p0, p1, p2, p3];
+        [0, 1, 2, 1, 3, 2].forEach((k) => a.push(...P[k], ...u[k], kind, ...(k === 2 || k === 3 ? kl1 : kl0)));
+      };
+      MS_LAMPEN.forEach((L, li) => {
+        const kl0 = li < 2 ? [1, 0.96, 0.9, 1] : [0.86, 0.92, 1, 1];
+        const naar = norm(min3(L, c.pos));
+        const as = norm(kruis(naar, [0, 1, 0]));
+        for (let j = -3; j <= 3; j++) {
+          const q = plus(L, keer(as, j * 1.6));
+          const s = 16 * pxW * lengte(min3(q, c.pos));
+          const r = keer(R, s), u = keer(Uc, s);
+          kaart(min3(min3(q, r), u), min3(plus(q, r), u), plus(min3(q, r), u), plus(plus(q, r), u), [[-16, -16], [16, -16], [-16, 16], [16, 16]], 0, kl0, kl0);
+        }
+        // bundel naar het strafschopgebied
+        const doel = [L[0] * 0.25, 0, 14 + (L[2] - 14) * 0.25];
+        const ax = min3(doel, L);
+        const mid = lerp3(L, doel, 0.5);
+        const zij = norm(kruis(ax, min3(c.pos, mid)));
+        const w0 = keer(zij, 0.8), w1 = keer(zij, lengte(ax) * 0.2);
+        const bk = [...kl0.slice(0, 3), 0.05];
+        kaart(min3(L, w0), plus(L, w0), min3(doel, w1), plus(doel, w1), [[-1, 0], [1, 0], [-1, 1], [1, 1]], 1, bk, bk);
+      });
+      if (c.spoorS > 0.001) {
+        let prev = bp;
+        c.spoor.forEach((b, k) => {
+          const ba = min3(b, prev);
+          if (lengte(ba) < 1e-4) return;
+          const mid = lerp3(prev, b, 0.5);
+          const zij = norm(kruis(ba, min3(c.pos, mid)));
+          const w0 = 0.07 * (1 - k / 8) + 0.015, w1 = 0.07 * (1 - (k + 1) / 8) + 0.015;
+          const i0 = (1 - k / 7.5) * c.spoorS * 0.6, i1 = (1 - (k + 1) / 7.5) * c.spoorS * 0.6;
+          kaart(min3(prev, keer(zij, w0 * 1.6)), plus(prev, keer(zij, w0 * 1.6)), min3(b, keer(zij, w1 * 1.6)), plus(b, keer(zij, w1 * 1.6)), [[-1, 0], [1, 0], [-1, 0.5], [1, 0.5]], 2, [...c.spoorKleur, i0], [...c.spoorKleur, Math.max(0, i1)]);
+          prev = b;
+        });
+      }
+      gl.blendFunc(gl.ONE, gl.ONE);
+      const A = pr.A;
+      gl.useProgram(A.p);
+      gl.uniformMatrix4fv(A.u('uVP'), false, c.VP);
+      gl.bindVertexArray(add.vao);
+      gl.bindBuffer(gl.ARRAY_BUFFER, add.b);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(a), gl.DYNAMIC_DRAW);
+      gl.drawArrays(gl.TRIANGLES, 0, a.length / 10);
+      gl.depthMask(true);
+      gl.disable(gl.BLEND);
+      gl.disable(gl.DEPTH_TEST);
+      gl.bindVertexArray(G.vao);
+    }
+    return { teken, weg };
+  }
+
   // ═════════════════════════ Start ═════════════════════════
   function start(invoer) {
     const inv = maakInvoer(invoer);
@@ -1901,13 +2634,15 @@ void main(){
         /* localStorage kan ontbreken */
       }
     };
-    const markeerLicht = () => {
+    // SL_LICHT onthoudt de zwaarste variant die nog werkt: '1' = LITE, '2' = mesh
+    const markeerLicht = (n = 1) => {
       if (!logica) return;
-      lsZet(SL_LICHT, '1');
+      const oud = parseInt(lsGet(SL_LICHT), 10) || 0;
+      lsZet(SL_LICHT, String(Math.max(oud, n)));
       lsZet(SL_LICHT_TS, String(Date.now()));
     };
     let vlag = null; // eerdere poging { variant, ts }
-    let startLicht = false, geefMeteenOp = false;
+    let startLicht = false, startMesh = false, geefMeteenOp = false;
     if (logica) {
       try {
         const raw = lsGet(SL_POGING);
@@ -1920,12 +2655,23 @@ void main(){
       }
       if (vlag) {
         // vorige poging is nooit afgerond: de volle variant → nu licht; de lichte → helemaal niet meer proberen
-        markeerLicht();
-        if (vlag.variant === 'licht') geefMeteenOp = true;
-        else startLicht = true;
-      } else if (lsGet(SL_LICHT) === '1') {
+        // vorige poging is nooit afgerond: vol → licht, licht → mesh, mesh → helemaal niet meer proberen
+        if (vlag.variant === 'mesh') {
+          markeerLicht(2);
+          geefMeteenOp = true;
+        } else if (vlag.variant === 'licht') {
+          markeerLicht(2);
+          startMesh = true;
+        } else {
+          markeerLicht(1);
+          startLicht = true;
+        }
+      } else if (lsGet(SL_LICHT) === '1' || lsGet(SL_LICHT) === '2') {
         const ts = parseInt(lsGet(SL_LICHT_TS), 10);
-        if (Number.isFinite(ts) && Date.now() - ts < 7 * 24 * 3600 * 1000) startLicht = true;
+        if (Number.isFinite(ts) && Date.now() - ts < 7 * 24 * 3600 * 1000) {
+          if (lsGet(SL_LICHT) === '2') startMesh = true;
+          else startLicht = true;
+        }
         else {
           lsZet(SL_LICHT, null);
           lsZet(SL_LICHT_TS, null);
@@ -1933,8 +2679,14 @@ void main(){
       }
     }
     let volledigGevraagd = !!(invoer && invoer.volledig);
+    // mesh=1 forceert de mesh-variant; lite=1 staat LITE toe waar we anders meteen mesh nemen (D3D, laag)
+    let meshGevraagd = !!(invoer && (invoer.mesh === true || invoer.mesh === 1 || invoer.mesh === '1'));
+    let liteGevraagd = !!(invoer && (invoer.lite === true || invoer.lite === 1 || invoer.lite === '1'));
     try {
-      if (new URLSearchParams(location.search).get('volledig') === '1') volledigGevraagd = true;
+      const qs = new URLSearchParams(location.search);
+      if (qs.get('volledig') === '1') volledigGevraagd = true;
+      if (qs.get('mesh') === '1') meshGevraagd = true;
+      if (qs.get('lite') === '1') liteGevraagd = true;
     } catch (e) {
       /* niets */
     }
@@ -1958,11 +2710,23 @@ void main(){
       } catch (e) {
         /* niets */
       }
-      if (d3d && !volledigGevraagd && logica) startLicht = true;
+      if (d3d && !volledigGevraagd && logica) startMesh = true;
     }
-    // ketting van varianten: volledig → licht. Elke fout schuift een stap op; faalt ook de laatste, dan geven we netjes op.
-    const VARIANTEN = ['vol', 'licht'];
-    let vi = inv.laag || startLicht ? 1 : 0;
+    if (inv.laag) startMesh = true;
+    // lite=1: LITE in plaats van mesh (tenzij de zelfherstel-vlag al naar mesh wees)
+    if (liteGevraagd && startMesh && !(vlag && vlag.variant === 'licht') && lsGet(SL_LICHT) !== '2') {
+      startMesh = false;
+      startLicht = true;
+    }
+    if (liteGevraagd && inv.laag) {
+      startMesh = false;
+      startLicht = true;
+    }
+    if (meshGevraagd) startMesh = true;
+    // ketting van varianten: volledig → licht → mesh. Elke fout schuift een stap op; faalt ook de laatste, dan geven we netjes op.
+    const VARIANTEN = ['vol', 'licht', 'mesh'];
+    const MESH = 2;
+    let vi = startMesh ? MESH : startLicht ? 1 : 0;
     let stand = null; // { v, pr: {S,H,V,C}, wacht }
     let pS = null, pH = null, pV = null, pC = null;
     let opgegeven = false, verloren = false, verlorenTimer = 0, fouten = 0;
@@ -1972,8 +2736,15 @@ void main(){
         if (inv.forceerfout > vi) throw new Error('link: (geforceerd)');
         const lite = vi >= 1;
         if (logica) lsZet(SL_POGING, JSON.stringify({ variant: VARIANTEN[vi], ts: Date.now() }));
-        const pr = { S: G.prog(FS_SCENE_F(lite)), H: G.prog(FS_HELDER), V: G.prog(FS_VAAG), C: G.prog(FS_SAMEN) };
-        stand = { v: vi, pr, wacht: performance.now(), gereed: false };
+        let pr, mesh = null;
+        if (vi === MESH) {
+          pr = { O: G.prog(FS_OBJ, VS_OBJ), Vl: G.prog(FS_VLAK, VS_VLAK), N: G.prog(FS_NET, VS_NET), A: G.prog(FS_ADD, VS_ADD), C: G.prog(FS_MSAMEN) };
+          stand = { v: vi, pr, wacht: performance.now(), gereed: false, mesh };
+          stand.mesh = maakMeshScene(G);
+        } else {
+          pr = { S: G.prog(FS_SCENE_F(lite)), H: G.prog(FS_HELDER), V: G.prog(FS_VAAG), C: G.prog(FS_SAMEN) };
+          stand = { v: vi, pr, wacht: performance.now(), gereed: false };
+        }
       } catch (e) {
         mislukt(e);
       }
@@ -1984,7 +2755,7 @@ void main(){
       if (!stand) bouwStand();
       if (!stand) return false;
       if (stand.gereed) return true;
-      const alle = [stand.pr.S, stand.pr.H, stand.pr.V, stand.pr.C];
+      const alle = Object.values(stand.pr);
       try {
         if (!blok) {
           if (!alle.every((x) => x.klaar())) {
@@ -2009,12 +2780,13 @@ void main(){
       if (inv.debug) console.error('[strafschop] variant ' + VARIANTEN[vi] + ' mislukt:', e && e.message ? e.message : e);
       if (stand) {
         Object.values(stand.pr).forEach((x) => x.weg());
+        if (stand.mesh) stand.mesh.weg();
         stand = null;
       }
-      markeerLicht();
+      markeerLicht(Math.min(vi + 1, MESH));
       if (vi + 1 < VARIANTEN.length && !opgegeven) {
         vi++;
-        kwaliteit = Math.max(kwaliteit, 2);
+        kwaliteit = vi === MESH ? 1 : Math.max(kwaliteit, 2);
         laatsteFrame = performance.now();
         frames = 0;
         pS = pH = pV = pC = null;
@@ -2024,7 +2796,7 @@ void main(){
       if (opgegeven) return;
       opgegeven = true;
       clearInterval(waker);
-      markeerLicht();
+      markeerLicht(MESH);
       pS = pH = pV = pC = null;
       try {
         const m = document.createElement('div');
@@ -2054,9 +2826,9 @@ void main(){
           G.init();
           doelen = null;
           getalTex = null;
-          markeerLicht();
-          vi = VARIANTEN.length - 1; // na een verlies: meteen de lichte variant
-          kwaliteit = Math.max(kwaliteit, 2);
+          markeerLicht(MESH);
+          vi = MESH; // na een verlies: meteen de lichtste variant
+          kwaliteit = 1;
           verloren = false;
         } catch (e) {
           geefOp();
@@ -2108,9 +2880,12 @@ void main(){
       }, 1000);
     }
     let doelen = null; // { scene, half1, half2, w, h }
-    let kwaliteit = inv.laag ? 3 : 0;
+    let kwaliteit = vi === MESH ? 1 : inv.laag ? 3 : 0;
     const SCHAAL = [1, 0.8, 0.62, 0.5];
+    // de mesh-variant begint op ~0,7 (zwakke iGPU's) en past zich aan op de gemeten beeldtijd
+    const SCHAAL_M = [0.85, 0.72, 0.6, 0.5];
     const schaalNu = () => {
+      if (vi === MESH) return SCHAAL_M[kwaliteit];
       const b = SCHAAL[kwaliteit];
       return vi >= 1 && d3d ? Math.max(0.35, b * 0.6) : b; // LITE op D3D: ~0,6
     };
@@ -2123,9 +2898,59 @@ void main(){
       canvas.width = W0;
       canvas.height = H0;
       const hw = Math.max(1, W0 >> 2), hh = Math.max(1, H0 >> 2);
-      doelen = { scene: G.doel(W0, H0), a: G.doel(hw, hh), b: G.doel(hw, hh), w: W0, h: H0, hw, hh };
+      doelen = { scene: G.doel(W0, H0, true), a: G.doel(hw, hh), b: G.doel(hw, hh), w: W0, h: H0, hw, hh };
     }
 
+    // de mesh-variant: scène in driehoeken, dan één samenstelpass (geen bloom)
+    const kleurM = (k, kit, i) => ({
+      shirt: kit.shirt, broek: kit.broek, acc: kit.acc,
+      huid: Array.from(huid.slice(i * 3, i * 3 + 3)), haar: Array.from(haar.slice(i * 3, i * 3 + 3)),
+      sok: lerp3(kit.shirt, [0.9, 0.9, 0.9], 0.25), schoen: lerp3([0.03, 0.03, 0.03], kit.acc, 0.18), zool: lerp3([0.12, 0.12, 0.12], kit.acc, 0.35),
+      hand: lerp3(kit.acc, [0.9, 0.9, 0.9], 0.4),
+    });
+    const KLM = [kleurM(inv.schutter, { shirt: KA.shirt, broek: KA.broek, acc: KA.acc }, 0), kleurM(inv.keeper, { shirt: keer(KB.shirt, 0.9), broek: KB.broek, acc: KB.acc }, 1)];
+    function tekenMesh(t, cam, S, pos, F, R, U, rot, spoorS, netBol) {
+      const pr = stand.pr;
+      const asp = doelen.w / doelen.h;
+      const tanF = Math.tan((cam.fov * Math.PI) / 360);
+      const n = 0.05, f = 400, A = (f + n) / (f - n), B = (-2 * f * n) / (f - n);
+      const sx = 1 / (tanF * asp), sy = 1 / tanF;
+      const VP = new Float32Array([
+        R[0] * sx, U[0] * sy, F[0] * A, F[0],
+        R[1] * sx, U[1] * sy, F[1] * A, F[1],
+        R[2] * sx, U[2] * sy, F[2] * A, F[2],
+        -dot(R, pos) * sx, -dot(U, pos) * sy, -dot(F, pos) * A + B, -dot(F, pos),
+      ]);
+      if (!getalTex) getalTex = maakGetalTex(gl, inv);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, doelen.scene.fb);
+      gl.viewport(0, 0, doelen.w, doelen.h);
+      const flits = inv.uitkomst === 'goal' && !cam.replay ? Math.exp(-Math.max(0, t - tl.tI) * 1.2) * (t > tl.tI ? 1 : 0) : 0;
+      stand.mesh.teken({
+        pr, VP, pos, R, U, tanF, H: doelen.h, t, S, kl: KLM, getalTex, flits,
+        veld: TH ? TH.veld : 0, gras: grasArr, publiek: publiek ? [...publiek, 1] : [0, 0, 0, 0], pubA: KA.shirt, pubB: keer(KB.shirt, 0.9),
+        rim: new Float32Array([...rimA, ...rimB]), balRot: rot, spoor: S.spoor, spoorS, spoorKleur,
+        net: [W.bp.E[0], W.bp.E[1], netBol, S.s - tl.sI],
+      });
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.viewport(0, 0, doelen.w, doelen.h);
+      const pC = pr.C;
+      gl.useProgram(pC.p);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, doelen.scene.tex);
+      pC.i1('uTex', 0);
+      pC.f1('uTime', t);
+      pC.f1('uFlits', inv.uitkomst === 'goal' && !cam.replay ? 0.12 * Math.exp(-Math.max(0, t - tl.tI) * 10) * (t > tl.tI ? 1 : 0) : 0);
+      pC.f1('uZwart', klem(1 - sm(t, 0, 0.6) + sm(t, tl.EIND - 0.6, tl.EIND), 0, 1));
+      const focusSch = [2, 3, 5, 6, 9].includes(cam.shot) && !(cam.shot === 9 && inv.uitkomst === 'redding');
+      const focusKp = [4, 8].includes(cam.shot) || (cam.shot === 9 && inv.uitkomst === 'redding');
+      const vl = (inv.schutter.vloek ? (focusSch ? 1 : 0.35) : 0) + (inv.keeper.vloek ? (focusKp ? 1 : 0.35) : 0);
+      pC.f1('uGlitch', klem(vl, 0, 1) * (0.2 + 0.4 * sm(t, 2, 8)));
+      pC.f3('uGlitchK', [0.7, 0.2, 1.0]);
+      pC.f1('uWipe', t > tl.tR - 0.35 && t < tl.tR + 0.35 ? ramp(t, tl.tR - 0.35, tl.tR + 0.35) : t > tl.tRE - 0.35 && t < tl.tRE + 0.35 ? ramp(t, tl.tRE - 0.35, tl.tRE + 0.35) : 0);
+      pC.f1('uBalk', 0.11 * venster(t, tl.tS3a, tl.tDoelcam, 0.25, 0.2));
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      zetOverlay(ov, t, W, inv, cam);
+    }
     function teken(t, blok) {
       const cam = camera(t, W, inv);
       const S = cam.S;
@@ -2173,6 +2998,10 @@ void main(){
 
       const kw = kwaliteit;
       if (gl.isContextLost()) return cam;
+      if (stand.v === MESH) {
+        tekenMesh(t, cam, S, pos, F, R, U, rot, spoorS, netBol);
+        return cam;
+      }
       gl.bindVertexArray(G.vao);
       gl.disable(gl.BLEND);
       // ── scène ──
@@ -2279,7 +3108,7 @@ void main(){
     const audio = maakGeluid(inv.stil);
     const cues = geluidCues(W, inv);
     let t0 = null, raf = 0, vorigeT = -1, dood = false, gepauzeerd = !!invoer.pauze;
-    let trage = 0, laatsteStap = 0;
+    let trage = 0, laatsteStap = 0, snel = 0;
     let gezocht = null;
     function lus(nu) {
       if (dood) return;
@@ -2315,6 +3144,15 @@ void main(){
       if (vorigeT >= 0 && nu - (lus.vorig || nu) > 40) trage++;
       else trage = Math.max(0, trage - 1);
       lus.vorig = nu;
+      // mesh: lang genoeg ruim binnen de tijd → een stap omhoog
+      if (vi === MESH && nu - (lus.vorig2 || nu) < 22) snel++;
+      else snel = 0;
+      lus.vorig2 = nu;
+      if (vi === MESH && snel > 90 && kwaliteit > 0 && nu - laatsteStap > 2500) {
+        kwaliteit--;
+        snel = 0;
+        laatsteStap = nu;
+      }
       if (trage > 12 && kwaliteit < 3 && nu - laatsteStap > 900) {
         kwaliteit++;
         trage = 0;
