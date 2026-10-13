@@ -9,6 +9,7 @@
  *   spo_dagelijks   { laatste:'JJJJ-MM-DD', reeks:1..7, dagen }     dagelijkse beloning
  *   spo_winkel      { gekocht:[itemId], gebruik:{somtoday, titel, bg} }
  *   spo_profiel     { bijnaam, deel }
+ *   (v3.0) spo_munten_ids bevat ook 'dm:<kaart>' (mythische kaart gemeld) en 'ar:<dag>:<nr>' / 'arw:<dag>:<nr>' (arcade gestart / uitbetaald)
  *   spo_voetbal     { v:1, avatar, stadion }                       je voetballer en je stadion (zie voetbal.js)
  * De munten hebben nooit invloed op cijfers: het zijn alleen cosmetische dingen.
  */
@@ -278,6 +279,65 @@
       return { ok: true, item: t.it.id, dubbel: t.dubbel, terug: t.terug, munten: TROOST_MUNTEN, saldo: s.munten.saldo };
     });
   }
+  // ───────── Wekelijkse drop (v3.0) ─────────
+  // Een mythische kaart telt één keer mee voor de teller van alle spelers (sleutel 'dm:<kaart>' in spo_munten_ids, dus ook mee in de back-up).
+  async function dropGemeld(kaartId) {
+    const r = await leesAlles([K.ids]);
+    return !!obj(r[K.ids])['dm:' + String(kaartId).slice(0, 60)];
+  }
+  function dropMarkeer(kaartId) {
+    return werk((s) => { const sl = 'dm:' + String(kaartId).slice(0, 60); if (s.ids[sl]) return false; s.ids[sl] = 1; return true; });
+  }
+
+  // ───────── Arcade (v3.0): vier mini-games met munten ─────────
+  // Elk spel kost ARCADE_INZET munten en betaalt na afloop hoogstens `max` terug. Bij elk spel hoort een vaste kans- of puntentabel
+  // (zie arcadelib.js) waarmee je gemiddeld iets minder terugkrijgt dan je inzet: de arcade is een muntensink, geen geldmachine.
+  //   - Hoogstens ARCADE_PER_DAG spellen per dag (lokale dag). Dat staat in spo_munten_ids (sleutels 'ar:<dag>:<nr>'), net als het troostpakje,
+  //     dus het gaat mee in de back-up en je kunt de limiet niet omzeilen door een back-up terug te zetten.
+  //   - De uitbetaling hoort bij een gestart spel (sleutel 'arw:<dag>:<nr>') en kan maar één keer, nooit meer dan `max`.
+  //   - Stop je halverwege (pagina dicht), dan is de inzet weg en is het spel gespeeld.
+  const ARCADE_PER_DAG = 10;
+  const ARCADE_INZET = 5;
+  const ARCADE = { memory: { naam: 'Memory', max: 12 }, hoger: { naam: 'Hoger of lager', max: 16 }, kras: { naam: 'Kraslot', max: 50 }, rad: { naam: 'Rad van fortuin', max: 20 } };
+  const SLOT = /^ar:\d{4}-\d{2}-\d{2}:\d{1,2}$/;
+  const arcadeGespeeld = (s, nu) => { let n = 0; for (let i = 1; i <= ARCADE_PER_DAG; i++) if (s.ids['ar:' + nu + ':' + i]) n++; return n; };
+  // Hoeveel spellen heb je vandaag nog?
+  async function arcadeStatus() {
+    const r = await leesAlles([K.ids, K.munten]);
+    const s = { ids: obj(r[K.ids]) };
+    const g = arcadeGespeeld(s, vandaag());
+    return { gespeeld: g, over: Math.max(0, ARCADE_PER_DAG - g), max: ARCADE_PER_DAG, inzet: ARCADE_INZET, saldo: schoonMunten(r[K.munten]).saldo };
+  }
+  // Betaalt de inzet en geeft een slot terug: { ok:true, slot, saldo, over } of { ok:false, reden: 'onbekend' | 'dagmax' | 'te-weinig' }.
+  function arcadeStart(spel) {
+    return werk((s) => {
+      const sp = ARCADE[spel];
+      if (!sp || !Object.prototype.hasOwnProperty.call(ARCADE, spel)) return { ok: false, reden: 'onbekend' };
+      const nu = vandaag();
+      let nr = 0;
+      for (let i = 1; i <= ARCADE_PER_DAG; i++) if (!s.ids['ar:' + nu + ':' + i]) { nr = i; break; }
+      if (!nr) return { ok: false, reden: 'dagmax' };
+      if (s.munten.saldo < ARCADE_INZET) return { ok: false, reden: 'te-weinig' };
+      const slot = 'ar:' + nu + ':' + nr;
+      s.ids[slot] = 1;
+      boek(s, -ARCADE_INZET, 'Arcade: ' + sp.naam, slot);
+      return { ok: true, slot, saldo: s.munten.saldo, over: ARCADE_PER_DAG - arcadeGespeeld(s, nu) };
+    });
+  }
+  // Betaalt de winst van een gestart spel uit (0 mag). Geeft { ok:true, winst, saldo } of { ok:false, reden: 'onbekend' | 'ongeldig' | 'al-betaald' }.
+  function arcadeKlaar(slot, spel, winst) {
+    return werk((s) => {
+      const sp = Object.prototype.hasOwnProperty.call(ARCADE, spel) ? ARCADE[spel] : null;
+      if (!sp || typeof slot !== 'string' || !SLOT.test(slot) || !s.ids[slot]) return { ok: false, reden: 'onbekend' };
+      if (!Number.isFinite(winst) || winst < 0 || winst > sp.max || Math.floor(winst) !== winst) return { ok: false, reden: 'ongeldig' };
+      const sl = 'arw' + slot.slice(2);
+      if (s.ids[sl]) return { ok: false, reden: 'al-betaald' };
+      s.ids[sl] = 1;
+      if (winst > 0) boek(s, winst, 'Arcade gewonnen: ' + sp.naam, sl);
+      return { ok: true, winst, saldo: s.munten.saldo };
+    });
+  }
+
   // ───────── Beloningen van vrienden (v3.0: uitnodigen en aartsrivaal) ─────────
   // Een gratis pakje. `id` zorgt dat het maar één keer telt (spo_munten_ids, sleutel 'gp:<id>').
   function gratisPakje(pakId, reden, id) {
@@ -438,7 +498,7 @@
 
   globalThis.SPOEco = {
     K, ITEMS, PER_ID, SOORTEN, ZELD, PAKJES, TERUG, DAG_BELONING, TIERNAMEN,
-    waarde, cijferMunten, verdienCijfer, sweep, koop, openPakje, gratisPakje, bonusMunten, gebruik, claimDagelijks, dagStatus, troostPakje, TROOST_PER_DAG, lees, registreerThemas, leesVoetbal, bewaarVoetbal, duelUiterlijk,
+    waarde, cijferMunten, verdienCijfer, sweep, koop, openPakje, gratisPakje, bonusMunten, gebruik, claimDagelijks, dagStatus, troostPakje, TROOST_PER_DAG, dropGemeld, dropMarkeer, ARCADE, ARCADE_PER_DAG, ARCADE_INZET, arcadeStatus, arcadeStart, arcadeKlaar, lees, registreerThemas, leesVoetbal, bewaarVoetbal, duelUiterlijk,
     maakProfiel, schoonProfiel, mijnProfielDeelbaar, bewaarProfiel, schoonBijnaam, schoonWinkel, schoonMunten, vandaag,
   };
 })();

@@ -19,7 +19,7 @@
         'Geheime prestaties met een raadsel erbij, een troostpakje na een tegenvallend cijfer en op maandag een weekoverzicht.',
         'Maak je eigen voetballer en je eigen stadion. Kies huid, haar, tenue, rugnummer en juichstijl, en geef je stadion een naam. Vrienden zien ze ook, en je voetballer schiet de strafschoppen.',
         'Schrijf een tijdcapsule aan jezelf bij een kaart, kies een aartsrivaal en nodig vrienden uit met een link.',
-        'Nieuw: de knoppen Wat is nieuw en Feedback bovenin. Zo vertel je ons wat beter kan.',
+        'Opgeheven vloeken (haal een voldoende in hetzelfde vak), een Arcade-hoek met vier spelletjes, een teller met mythische kaarten van alle spelers en de knoppen Wat is nieuw en Feedback.',
       ],
     },
     {

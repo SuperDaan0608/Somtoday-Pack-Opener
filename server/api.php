@@ -14,7 +14,7 @@ const IP_BAN_MAX = 604800; // een ip-ban duurt hoogstens 7 dagen en is nooit voo
 const MELD_REDENEN = ['naam', 'tekst', 'pesten', 'spam', 'anders'];
 const FB_SOORTEN = ['fout', 'idee', 'anders'];
 const TABELLEN = ['users', 'friendships', 'blobs', 'ratelimit', 'berichten', 'bans', 'accounts', 'acc_codes', 'acc_sessies', 'acc_backup', 'user_versie',
-  'blokkades', 'meldingen', 'waarschuwingen', 'ban_email', 'ban_ip', 'acc_ip', 'acc_koppel', 'beheer_mail', 'feedback']; // v3: vanaf 'blokkades'
+  'blokkades', 'meldingen', 'waarschuwingen', 'ban_email', 'ban_ip', 'acc_ip', 'acc_koppel', 'beheer_mail', 'feedback', 'week_teller']; // v3: vanaf 'blokkades'
 
 // Uitnodigingspagina (v3): api.php?uitnodiging=CODE. Statisch: geen database, geen cookies, geen scripts en geen tracking.
 function uitnodigingPagina(string $code): void {
@@ -201,6 +201,8 @@ function tel(PDO $db, string $sleutel, int $venster, int $max, string $tekst = '
   if ($a > $max) { header('Retry-After: 60'); fout(429, $tekst); }
 }
 $nu = time();
+// Weekteller van de wekelijkse drop (v3): de UTC ISO-week als 'JJJJ-Www' (bijv. 2026-W42), altijd 8 tekens.
+function weekVan(int $ts): string { return gmdate('o-\WW', $ts); }
 $ipHash = hash('sha256', maskIp((string)($_SERVER['REMOTE_ADDR'] ?? '')) . ($cfg['zout'] ?? ''));
 // Per ip-adres ruim (een school deelt vaak één adres); de strengere grenzen per gebruiker staan hieronder na het inloggen.
 tel($db, hash('sha256', $ipHash . ':req'), intdiv($nu, 60), (int)($cfg['limiet_per_min'] ?? 6000));
@@ -230,7 +232,8 @@ if (random_int(1, 100) === 1) {
   q($db, 'DELETE FROM accounts WHERE geverifieerd = 0 AND gemaakt < ?', [$nu - 7 * 86400]);
   // v3: ip-geheugen hoogstens 30 dagen; verlopen bans en gelezen waarschuwingen weg.
   foreach ([['DELETE FROM acc_ip WHERE laatst < ?', $nu - IP_MAX_DAGEN * 86400], ['DELETE FROM ban_ip WHERE tot <= ?', $nu], ['DELETE FROM ban_email WHERE tot > 0 AND tot <= ?', $nu],
-    ['DELETE FROM waarschuwingen WHERE gezien = 1 AND ts < ?', $nu - 90 * 86400]] as $o) {
+    ['DELETE FROM waarschuwingen WHERE gezien = 1 AND ts < ?', $nu - 90 * 86400],
+    ['DELETE FROM week_teller WHERE week < ?', weekVan($nu - 56 * 86400)]] as $o) { // weekteller: hoogstens 8 weken bewaard
     try { q($db, $o[0], [$o[1]]); } catch (Throwable $e) { if (!tabelOntbreekt($e)) throw $e; }
   }
   $oud = q($db, 'SELECT id FROM users WHERE last_seen < ?', [$nu - 365 * 86400])->fetchAll(PDO::FETCH_COLUMN);
@@ -1025,6 +1028,23 @@ switch ($actie) {
     if (q($db, 'SELECT 1 FROM waarschuwingen WHERE id = ? AND account = ?', [$id, $ik])->fetchColumn() === false) fout(404, 'Deze waarschuwing bestaat niet (meer).');
     q($db, 'UPDATE waarschuwingen SET gezien = 1 WHERE id = ? AND account = ?', [$id, $ik]);
     uit(200, ['ok' => true]);
+  }
+  // Wekelijkse drop (v3): hoeveel mythische kaarten zijn er deze week (UTC ISO-week) geopend door alle spelers samen. Alleen een teller:
+  // geen namen, geen kaarten, geen account-id in de tabel. Je moet wel ingelogd zijn (vrienden aan), zodat een anoniem script de teller niet kan vullen.
+  case 'dropMelden': {
+    tel($db, hash('sha256', $ik . ':drop'), intdiv($nu, 86400), (int)($cfg['limiet_drop_per_dag'] ?? 5), 'Je hebt vandaag al vaak een mythische kaart gemeld. Probeer het morgen opnieuw.');
+    tel($db, hash('sha256', $ipHash . ':drop'), intdiv($nu, 86400), (int)($cfg['limiet_drop_ip_per_dag'] ?? 30), 'Vanaf dit netwerk zijn er vandaag al veel mythische kaarten gemeld. Probeer het morgen opnieuw.');
+    $week = weekVan($nu);
+    if (q($db, 'UPDATE week_teller SET aantal = aantal + 1 WHERE week = ?', [$week])->rowCount() === 0) {
+      try { q($db, 'INSERT INTO week_teller (week, aantal) VALUES (?, 1)', [$week]); }
+      catch (Throwable $e) { if (tabelOntbreekt($e)) throw $e; q($db, 'UPDATE week_teller SET aantal = aantal + 1 WHERE week = ?', [$week]); } // een ander verzoek was eerder
+    }
+    uit(200, ['ok' => true, 'week' => $week, 'aantal' => (int)q($db, 'SELECT aantal FROM week_teller WHERE week = ?', [$week])->fetchColumn()]);
+  }
+  case 'dropTelling': {
+    $week = weekVan($nu);
+    $n = q($db, 'SELECT aantal FROM week_teller WHERE week = ?', [$week])->fetchColumn();
+    uit(200, ['week' => $week, 'aantal' => $n === false ? 0 : (int)$n]);
   }
   case 'deleteAccount': {
     $db->beginTransaction();

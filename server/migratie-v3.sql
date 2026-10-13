@@ -73,3 +73,8 @@ CREATE TABLE IF NOT EXISTS feedback (
   info VARCHAR(300) NOT NULL,
   status VARCHAR(10) NOT NULL
 );
+-- Wekelijkse drop (v3): hoeveel mythische kaarten er in een UTC ISO-week zijn geopend, door alle spelers samen. Alleen weeknummer en aantal: geen namen, geen id's.
+CREATE TABLE IF NOT EXISTS week_teller (
+  week CHAR(8) NOT NULL PRIMARY KEY,
+  aantal INT NOT NULL
+);

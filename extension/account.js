@@ -26,7 +26,7 @@
     'spo_galerij', 'spo_geopend', 'spo_dicht', 'spo_instellingen', 'spo_munten', 'spo_munten_log', 'spo_munten_ids',
     'spo_dagelijks', 'spo_winkel', 'spo_profiel', 'spo_prestaties', 'spo_prestaties_gezien', 'spo_stats', 'spo_team',
     'spo_gevechten', 'spo_vrienden', 'spo_vrienden_sec', 'spo_uitval_gezien', 'spo_huisdier', 'spo_rondleiding',
-    'spo_capsules', 'spo_weekoverzicht',
+    'spo_capsules', 'spo_weekoverzicht', 'spo_heel',
     'spo_voetbal', 'spo_rivaal', 'spo_uitnodigingen', 'spo_blokkades', 'spo_nieuw_gezien',
   ];
   const ITERATIES = 250000;
@@ -168,7 +168,16 @@
       case 'spo_galerij': {
         if (!Array.isArray(hier) || !Array.isArray(daar)) return hier;
         const ids = new Set(hier.map((e) => e && e.id));
-        return hier.concat(daar.filter((e) => e && !ids.has(e.id))).sort((a, b) => (b.ts || 0) - (a.ts || 0)).slice(0, 150);
+        // een opgeheven vloek (heel.js) gaat nooit verloren: heeft een van beide kanten `heel` voor deze kaart, dan krijgt de samengevoegde kaart dat ook
+        const heelDaar = new Map(daar.filter((e) => e && e.heel > 0).map((e) => [e.id, e.heel]));
+        const hierMet = hier.map((e) => (e && heelDaar.has(e.id) && !(e.heel > 0) ? Object.assign({}, e, { heel: heelDaar.get(e.id) }) : e));
+        return hierMet.concat(daar.filter((e) => e && !ids.has(e.id))).sort((a, b) => (b.ts || 0) - (a.ts || 0)).slice(0, 150);
+      }
+      case 'spo_heel': {
+        // welke vloeken zijn opgeheven: de unie van allebei, per kaart het oudste tijdstip
+        const u = Object.assign({}, obj(daar));
+        for (const [id, w] of Object.entries(obj(hier))) u[id] = u[id] && obj(u[id]).ts < obj(w).ts ? u[id] : w;
+        return u;
       }
       case 'spo_prestaties': {
         const u = Object.assign({}, obj(daar));

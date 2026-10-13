@@ -151,7 +151,7 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
       const vak = tekstVeld(k.vak, GRENS.vak, 0);
       if (vak === null || !getal(k.cijfer, 1, 10) || !Number.isInteger(k.tier)) return null;
       const t = Number.isInteger(k.t) ? Math.max(0, Math.min(4, k.t)) : k.z === true ? 1 : 0;
-      kaarten.push({ vak, cijfer: rond2(k.cijfer), tier: Math.max(0, Math.min(4, k.tier)), z: t >= 1, t, v: k.v === true });
+      kaarten.push({ vak, cijfer: rond2(k.cijfer), tier: Math.max(0, Math.min(4, k.tier)), z: t >= 1, t, v: k.v === true, h: k.v !== true && k.h === true });
     }
     if (!kaarten.length) return null;
     const uit = { kaarten };
@@ -680,9 +680,9 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
   }
   // Wat vrienden van mijn team zien: vak, cijfer, niveau en zeldzaam. Geen id's, geen namen.
   function teamMomentopname(kaarten) {
-    const uit = { kaarten: kaarten.map((e) => ({ vak: String(e.vak || '').slice(0, 24), cijfer: Math.round(e.cijfer * 100) / 100, tier: Math.max(0, Math.min(4, e.tier | 0)), z: e.zeldzaam === true || (e.trede | 0) >= 1, t: Math.max(0, Math.min(4, e.trede | 0)) || (e.zeldzaam === true ? 1 : 0), v: e.vloek === true })) };
+    const uit = { kaarten: kaarten.map((e) => ({ vak: String(e.vak || '').slice(0, 24), cijfer: Math.round(e.cijfer * 100) / 100, tier: Math.max(0, Math.min(4, e.tier | 0)), z: e.zeldzaam === true || (e.trede | 0) >= 1, t: Math.max(0, Math.min(4, e.trede | 0)) || (e.zeldzaam === true ? 1 : 0), v: e.vloek === true && !(e.heel > 0), h: e.vloek === true && e.heel > 0 })) };
     const G = globalThis.SPOGevecht;
-    if (G && G.chemie && uit.kaarten.length) uit.ch = G.chemie(G.ordenTeam(uit.kaarten.map((k) => ({ vak: k.vak, cijfer: k.cijfer, tier: k.tier, z: k.z, v: k.v })), 0)).score;
+    if (G && G.chemie && uit.kaarten.length) uit.ch = G.chemie(G.ordenTeam(uit.kaarten.map((k) => ({ vak: k.vak, cijfer: k.cijfer, tier: k.tier, z: k.z, v: k.v, h: k.h })), 0)).score;
     return uit;
   }
   async function mijnTeamDeelbaar(galerij) {
@@ -796,6 +796,15 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
     for (const v of kijkOntvangers(st)) { try { await stuurBericht(st, v, m); n++; } catch (e) { /* die vriend slaan we over */ } }
     return n;
   }
+  // ---- Wekelijkse drop (v3): hoeveel mythische kaarten er deze week (UTC ISO-week) zijn geopend door alle spelers samen ----
+  // De server telt alleen: geen namen, geen kaarten. dropMeld stuurt niets mee behalve dat er er één bij is; je moet ingelogd zijn (vrienden aan).
+  function schoonDrop(r) {
+    if (!r || typeof r !== 'object' || Array.isArray(r) || !/^\d{4}-W\d{2}$/.test(String(r.week)) || !Number.isInteger(r.aantal) || r.aantal < 0 || r.aantal > 1e9) return null;
+    return { week: r.week, aantal: r.aantal };
+  }
+  const dropTekst = (n) => `Deze week: ${n} ${n === 1 ? 'mythische kaart' : 'mythische kaarten'} door alle spelers`;
+  async function dropTelling(st) { return schoonDrop(await clientVan(st).roep('dropTelling')); }
+  async function dropMeld(st) { return schoonDrop(await clientVan(st).roep('dropMelden')); }
   async function stuurKijkEmoji(st, vriendId, emoji) {
     const v = st.vrienden.find((x) => x.id === vriendId && x.status === 'vriend');
     const e = KIJK_EMOJI.find((x) => x === String(emoji || '').replace(/\uFE0F/g, ''));
@@ -989,7 +998,7 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
     TEAM, GEVECHTEN, schoonTeam, leesTeam, bewaarTeam, teamKaarten, teamMomentopname, mijnTeamDeelbaar, leesGevechten, bewaarUitslag, stuurBericht, haalBerichten, maakLive, zichtbaar, lees, schrijf, wis, heeftOpslag,
     // reacties en 'voorspel mijn cijfer'
     REACTIES, GRENS, eigen, deelbareKaarten, schoonBlob, schoonKaarten, schoonReacties, schoonRonden, schoonGokken, maakInhoud, zetBlobs, haalOp, zetReactie,
-    KIJK_EMOJI, schoonGG, schoonKijk, schoonKijkEmoji, stuurGG, leesGG, bewaarGG, kijkOntvangers, stuurKijk, stuurKijkEmoji,
+    KIJK_EMOJI, schoonGG, schoonKijk, schoonKijkEmoji, stuurGG, leesGG, bewaarGG, kijkOntvangers, stuurKijk, stuurKijkEmoji, schoonDrop, dropTekst, dropTelling, dropMeld,
     reactiesOpMijnKaarten, maakRid, leesGok, startRonde, stopRonde, ranglijst, deelUitslag, slaGokOp, ruimOp, leesDicht, opOpslagWijziging,
   };
   globalThis.SPOVrienden = lib;

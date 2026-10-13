@@ -47,7 +47,7 @@ De server ziet en toont alleen id's, tijden, aantallen en groottes; de inhoud bl
 ## Bijwerken naar v3 (blokkeren, melden, waarschuwingen, extra bans)
 
 1. Upload de nieuwe `api.php` (vervangt de oude; `config.php` blijft staan).
-2. Voer `migratie-v3.sql` uit in phpMyAdmin (herhaalbaar; maakt alleen de nieuwe tabellen: `blokkades`, `meldingen`, `waarschuwingen`, `ban_email`, `ban_ip`, `acc_ip`, `acc_koppel`, `beheer_mail`, `feedback`). Ook `schema.sql` bevat ze nu.
+2. Voer `migratie-v3.sql` uit in phpMyAdmin (herhaalbaar; maakt alleen de nieuwe tabellen: `blokkades`, `meldingen`, `waarschuwingen`, `ban_email`, `ban_ip`, `acc_ip`, `acc_koppel`, `beheer_mail`, `feedback`, `week_teller`). Ook `schema.sql` bevat ze nu.
 3. Optioneel: zet `'beheer_mail' => 'jij@voorbeeld.nl'` in `config.php` (zie `config.example.php`). Zonder die regel komt er geen mail.
 4. Controleer met `api.php?status=1` en met de beheerpagina (die meldt ontbrekende tabellen).
 
@@ -63,6 +63,13 @@ Zolang stap 2 nog niet is gedaan, werkt de rest van de server gewoon; de nieuwe 
 - Een geblokkeerd e-mailadres of netwerk geeft bij `register`, `accRegistreer`, `accVerifieer`, `accLogin`, `accReset` een 403 (`{fout}`); `accCodeOpnieuw` en `accVergeten` geven stil 200 zonder mail. Een al ingelogd ander account merkt niets van een ip-ban.
 
 Beheeracties (header `X-Beheer`): `beheerMeldingen` -> `{nu, meldingen:[{id, ts, van, tegen, reden, uitleg, heeftBewijs, aantalTegen, waarschuwingen, ipBekend, ipAccounts, banStatus (null of {tot,reden,ookEmail,ookIp}), status, uitkomst}]}` (nieuw eerst, max. 300); `beheerBewijs {id}` -> `{bewijs}`; `beheerMeldingKlaar {id, uitkomst}`; `beheerWaarschuw {id, reden}`; `beheerBan {id, tot (0 = voorgoed), reden, ook_email, ook_ip}` -> `{ok, tot, reden, emailGeblokkeerd, ipGeblokkeerd, ipTot}`; `beheerOnban {id}` ruimt ook `ban_email`/`ban_ip` op (ook als het account er niet meer is). `beheerStats` toont nu ook `nieuweMeldingen` en `ontbrekendeTabellen`. De IP-ban is altijd hoogstens 7 dagen en nooit voorgoed, wat er ook gevraagd wordt.
+
+### Wekelijkse drop (v3)
+
+- `dropMelden` (geen velden nodig; alles wat je meestuurt wordt genegeerd) telt één mythische kaart bij voor de huidige UTC ISO-week -> `200 {ok:true, week:'2026-W42', aantal}`. `dropTelling` -> `200 {week, aantal}` (0 als er deze week nog niets is). Beide vragen `X-Id` en `X-Token` van een vrienden-account: zonder (of met een fout token) is het `401`, zodat een anoniem script de teller niet kan vullen. Verbannen accounts krijgen 403.
+- Limieten: `dropMelden` hoogstens 5 per dag per account en 30 per dag per ip-hash (429 met `{fout}`); config `limiet_drop_per_dag` en `limiet_drop_ip_per_dag`. De gewone limiet per gebruiker en per ip geldt ook. Lezen heeft geen eigen limiet.
+- Tabel `week_teller` (week CHAR(8) = 'JJJJ-Www', aantal): alleen een weeknummer en een aantal, dus geen namen, geen kaarten en geen account-id. Weken ouder dan 8 weken worden opgeruimd. Zonder tabel: 503 ("nog niet bijgewerkt"; voer `migratie-v3.sql` uit).
+- De client meldt elke mythische kaart hoogstens één keer (sleutel `dm:<kaart>` in `spo_munten_ids`). De server controleert niet of de kaart echt bestaat: de teller is een gezelligheidsgetal, geen beloning.
 
 ### Feedback (v3)
 

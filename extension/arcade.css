@@ -1,0 +1,84 @@
+@font-face { font-family: 'SPO Display'; src: url('fonts/unbounded.woff2') format('woff2'); font-weight: 200 900; }
+@font-face { font-family: 'SPO Text'; src: url('fonts/inter.woff2') format('woff2'); font-weight: 100 900; }
+:root {
+  color-scheme: dark; --bg: #080a14; --paneel: rgba(255,255,255,.045); --lijn: rgba(255,255,255,.09); --lijn-2: rgba(255,255,255,.17);
+  --tekst: #eef1f8; --tekst-2: #a5aec4; --tekst-3: #8790a8; --goud: linear-gradient(135deg,#fff0b3 0%,#ffd24a 40%,#ff7a3d 100%); --geel: #ffd24a;
+  --display: 'SPO Display', system-ui, sans-serif;
+  --z0: #a5aec4; --z1: #5fd0ff; --z2: #c58bff; --z3: #ffb020;
+}
+* { box-sizing: border-box; }
+html { background: var(--bg); }
+body { margin: 0; min-height: 100vh; padding: 28px 16px 48px; font: 14px/1.45 'SPO Text', system-ui, sans-serif; color: var(--tekst); background: radial-gradient(90% 40% at 50% -8%, rgba(255,204,51,.14), transparent 70%), var(--bg); -webkit-font-smoothing: antialiased; }
+body > .kop, body > main { max-width: 900px; margin-left: auto; margin-right: auto; }
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--geel); outline-offset: 2px; }
+[hidden] { display: none !important; }
+.skip { position: absolute; left: -999px; } .skip:focus { left: 16px; top: 8px; background: #000; padding: 6px 10px; border-radius: 8px; z-index: 9; }
+h1 { font: 800 clamp(28px,5vw,40px)/1 var(--display); margin: 0; letter-spacing: -.02em; background: var(--goud); -webkit-background-clip: text; background-clip: text; color: transparent; }
+h2 { font: 700 18px/1.2 var(--display); margin: 26px 0 8px; }
+.onder { margin: 8px 0 0; color: var(--tekst-3); }
+.uitleg { margin: 0 0 12px; color: var(--tekst-2); font-size: 13px; }
+.kop { margin-bottom: 18px; }
+
+.saldo-balk { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; justify-content: space-between; padding: 14px 18px; border: 1px solid var(--lijn-2); border-radius: 16px; background: rgba(255,210,74,.08); }
+.saldo-label { display: block; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--tekst-3); }
+#saldo { font: 800 30px/1.1 var(--display); color: var(--geel); }
+.dag-info { color: var(--tekst-2); font-size: 13px; }
+.melding { min-height: 20px; margin: 10px 0 0; color: var(--geel); }
+.melding.fout { color: #ff8a8a; }
+
+.knop { min-height: 40px; padding: 0 18px; border-radius: 999px; border: 1px solid var(--lijn-2); background: rgba(255,255,255,.07); font-weight: 650; }
+.knop:hover:not(:disabled) { background: rgba(255,255,255,.14); }
+.knop:disabled { opacity: .5; cursor: default; }
+.knop.goud { border: 0; color: #241703; background: var(--goud); font-weight: 800; }
+.knop.zeker { background: #b3261e; border-color: #ff8a8a; color: #fff; }
+
+.spelkeuze { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); margin: 16px 0 8px; }
+.spelknop { display: flex; flex-direction: column; gap: 3px; text-align: left; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--lijn); background: var(--paneel); min-height: 64px; }
+.spelknop small { color: var(--tekst-3); font-size: 12px; }
+.spelknop:hover { background: rgba(255,255,255,.09); }
+.spelknop[aria-pressed="true"] { border-color: var(--geel); background: rgba(255,210,74,.1); }
+.spel { padding: 4px 0 16px; }
+.spelrij { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin: 4px 0 14px; }
+.stand { color: var(--tekst-2); font-weight: 650; }
+
+/* Memory */
+.memory { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; max-width: 520px; }
+.mem { position: relative; aspect-ratio: 3 / 4; padding: 0; border-radius: 12px; border: 1px solid var(--lijn-2); background: repeating-linear-gradient(45deg, #1d2547 0 8px, #141a36 8px 16px); overflow: hidden; perspective: 600px; }
+.mem .voor { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 4px; background: #10163a; font-weight: 800; text-align: center; }
+.mem .voor img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.mem .voor .cj { font: 800 22px var(--display); color: var(--geel); }
+.mem .voor .vk { font-size: 12px; color: var(--tekst-2); overflow-wrap: anywhere; }
+.mem.open .voor, .mem.klaar .voor { display: flex; }
+.mem.open { border-color: var(--geel); animation: draai .25s ease; }
+.mem.klaar { border-color: #7be39a; box-shadow: 0 0 0 2px rgba(123,227,154,.35); }
+.mem:disabled { cursor: default; }
+@keyframes draai { from { transform: rotateY(90deg); } to { transform: none; } }
+
+/* Hoger of lager */
+.hoger { max-width: 420px; padding: 18px; border: 1px solid var(--lijn); border-radius: 16px; background: var(--paneel); text-align: center; }
+.hoger-cijfer { font: 800 64px/1.1 var(--display); color: var(--geel); min-height: 74px; }
+.hoger-knoppen { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 8px; }
+.hoger-kans { margin: 10px 0 0; color: var(--tekst-2); font-size: 13px; min-height: 20px; }
+
+/* Kraslot */
+.kraslot { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; max-width: 360px; }
+.kras { aspect-ratio: 1; border-radius: 14px; border: 1px solid var(--lijn-2); font-size: 38px; line-height: 1; display: grid; place-items: center; padding: 0;
+  background: repeating-linear-gradient(135deg, #8d94a8 0 6px, #aab1c4 6px 12px); color: #1b1f33; font-weight: 800; }
+.kras span { font-size: 13px; }
+.kras.open { background: #10163a; color: var(--tekst); animation: onthul .3s ease; }
+.kras.win { border-color: #7be39a; box-shadow: 0 0 0 2px rgba(123,227,154,.4); }
+.kras:disabled { cursor: default; }
+@keyframes onthul { from { transform: scale(.85); opacity: .4; } to { transform: none; opacity: 1; } }
+
+/* Rad */
+.rad-wrap { position: relative; width: min(280px, 80vw); margin: 8px 0 0; }
+.rad-pijl { position: absolute; left: 50%; top: -6px; width: 0; height: 0; transform: translateX(-50%); border: 10px solid transparent; border-top: 18px solid var(--geel); z-index: 2; }
+.rad { width: 100%; height: auto; display: block; transition: transform 3.2s cubic-bezier(.12,.7,.15,1); }
+.rad text { font: 800 13px 'SPO Text', system-ui, sans-serif; fill: #10122a; text-anchor: middle; dominant-baseline: middle; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mem.open, .kras.open { animation: none; }
+  .rad { transition: none; }
+}
+@media (max-width: 480px) { .memory { grid-template-columns: repeat(3, minmax(0, 1fr)); } .hoger-cijfer { font-size: 52px; } }

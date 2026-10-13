@@ -49,7 +49,10 @@
   const VLOEK_KLIK = 1.3;      // en elke klik in een duel ook een beetje
   const VLOEK_KANS = 0.2;      // kans per duel dat de vloek toeslaat
   const isVloek = (k) => !!k && k.v === true;
-  function sterkte(k) { return (k.cijfer + 0.4 * (k.tier | 0) + TREDE_STERKTE[tredeVan(k)]) * (isVloek(k) ? VLOEK_STERKTE : 1); }
+  // v3.0: een opgeheven vloek (k.h, zie heel.js) telt als één trede hoger (hoogstens mythisch) voor sterkte en kliks. De vloek keert zich dan niet meer (k.v is dan onwaar).
+  const isHeel = (k) => !!k && k.h === true && k.v !== true;
+  const duelTrede = (k) => Math.min(4, tredeVan(k) + (isHeel(k) ? 1 : 0));
+  function sterkte(k) { return (k.cijfer + 0.4 * (k.tier | 0) + TREDE_STERKTE[duelTrede(k)]) * (isVloek(k) ? VLOEK_STERKTE : 1); }
   // Slaat de vloek toe in duel `nr` van deze wedstrijd? Hangt alleen af van de seed, het duelnummer en de plek van de kaart,
   // dus beide spelers zien precies hetzelfde. Een kaart zonder vloek keert zich nooit.
   function vloekKeert(seed, nr, kant, plek, kaart) {
@@ -62,7 +65,7 @@
   // `ch` is de teamchemie (0 tot 100) en geeft hooguit +8% extra.
   const CHEMIE_MAX_BONUS = 0.08;
   const chemieBonus = (ch) => CHEMIE_MAX_BONUS * Math.max(0, Math.min(100, ch | 0)) / 100;
-  function klikFactor(k, ch, aura) { return (0.8 + 0.05 * k.cijfer) * (1 + chemieBonus(ch)) * TREDE_KLIK[tredeVan(k)] * AURA_KLIK[aura | 0] * (isVloek(k) ? VLOEK_KLIK : 1); }
+  function klikFactor(k, ch, aura) { return (0.8 + 0.05 * k.cijfer) * (1 + chemieBonus(ch)) * TREDE_KLIK[duelTrede(k)] * AURA_KLIK[aura | 0] * (isVloek(k) ? VLOEK_KLIK : 1); }
 
   // ---- Teamchemie ----
   // Vakken die bij elkaar horen vormen een groep. Hoe meer kaarten uit dezelfde groep, en hoe vaker ze naast elkaar staan, hoe hoger de chemie.
@@ -302,7 +305,7 @@
 
   const lib = {
     MAX_MIN, STAPPEN, KLIK_MAX, maakRng, seedUitTekst, seedUitHash, sterkte, klikFactor, GROEPEN, groepVan, chemie, chemieBonus, CHEMIE_MAX_BONUS, lijnen, lijnVan, posities, ordenTeam,
-    maakSim, duelUitslag, vloekKeert, isVloek, VLOEK_STERKTE, VLOEK_KLIK, VLOEK_KANS, schoonKlik, maakComputerTeam, computerKliks, TREDE_STERKTE, TREDE_KLIK, AURA_KLIK, tredeVan, auraVan,
+    maakSim, duelUitslag, vloekKeert, isVloek, isHeel, duelTrede, VLOEK_STERKTE, VLOEK_KLIK, VLOEK_KANS, schoonKlik, maakComputerTeam, computerKliks, TREDE_STERKTE, TREDE_KLIK, AURA_KLIK, tredeVan, auraVan,
   };
   globalThis.SPOGevecht = lib;
   if (typeof module !== 'undefined' && module.exports) module.exports = lib;

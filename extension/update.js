@@ -214,6 +214,17 @@
     return true;
   });
 
+  // v3: een mythische kaart is geopend: één bij op de wekelijkse teller (alleen met een account; er gaat verder niets mee).
+  chrome.runtime.onMessage.addListener((m, _afz, antwoord) => {
+    if (!m || m.type !== 'spo-drop-meld') return;
+    (async () => {
+      const st = await L.laad();
+      if (!st) return { ok: false };
+      return { ok: !!(await L.dropMeld(st)) };
+    })().then(antwoord, () => antwoord({ ok: false }));
+    return true;
+  });
+
   chrome.runtime.onMessage.addListener((m, _afz, antwoord) => {
     if (!m || m.type !== 'spo-meldingen') return;
     // Meerdere tabbladen tegelijk: hoogstens één keer per 4 seconden echt bij de server kijken.

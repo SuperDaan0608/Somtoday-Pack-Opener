@@ -59,10 +59,11 @@
       if (tr) { const b = el('i', 'mk-z mk-t' + tr, globalThis.SPOLadder.KORT[tr]); b.title = globalThis.SPOLadder.label(tr); d.append(b); }
     }
     if (k.v) { d.classList.add('vloek'); d.append(el('i', 'vloek-badge', 'VLOEK')); }
+    else if (k.h) d.append(el('i', 'heel-badge', 'HEEL'));
     if (naam) d.setAttribute('aria-label', naam);
     return d;
   }
-  const mijnKaart = (e) => ({ vak: e.vak, cijfer: e.cijfer, tier: e.tier | 0, z: e.zeldzaam === true || (e.trede | 0) >= 1, t: Math.max(0, Math.min(4, e.trede | 0)) || (e.zeldzaam === true ? 1 : 0), kaart: e.kaart, id: e.id, v: e.vloek === true });
+  const mijnKaart = (e) => ({ vak: e.vak, cijfer: e.cijfer, tier: e.tier | 0, z: e.zeldzaam === true || (e.trede | 0) >= 1, t: Math.max(0, Math.min(4, e.trede | 0)) || (e.zeldzaam === true ? 1 : 0), kaart: e.kaart, id: e.id, v: e.vloek === true && !(e.heel > 0), h: e.vloek === true && e.heel > 0 });
 
   // ---- prestaties: reddingen onthouden en een melding bij een nieuwe badge ----
   async function nieuweBadges(reddingen) {
@@ -219,7 +220,8 @@
       b.style.setProperty('--gl', GLOED[e.tier | 0]);
       const img = new Image(); img.src = e.kaart; img.alt = ''; img.loading = 'lazy'; img.draggable = false;
       b.append(img, el('span', 'kies-cj', fmt(e.cijfer)));
-      if (e.vloek) { b.classList.add('vloek'); b.append(el('i', 'vloek-badge', 'VLOEK')); b.setAttribute('aria-label', b.getAttribute('aria-label') + ', vervloekt'); }
+      if (e.vloek && !(e.heel > 0)) { b.classList.add('vloek'); b.append(el('i', 'vloek-badge', 'VLOEK')); b.setAttribute('aria-label', b.getAttribute('aria-label') + ', vervloekt'); }
+      else if (e.vloek) { b.append(el('i', 'heel-badge', 'HEEL')); b.setAttribute('aria-label', b.getAttribute('aria-label') + ', vloek opgeheven'); }
       if (aan) b.append(el('i', 'kies-vink', team.ids[0] === e.id ? 'K' : '✓'));
       b.addEventListener('click', () => {
         if (aan) { team.ids = team.ids.filter((x) => x !== e.id); if (!team.ids.length) team = null; }
@@ -684,6 +686,7 @@
       $('duel-rol').textContent = ikSchiet ? 'Jij schiet! Klik zo snel als je kunt.' : 'Jij verdedigt! Klik zo snel als je kunt.';
       const mf = G.klikFactor(mijnKaartD, mijnChem, G.auraVan ? G.auraVan(teams[ik]) : 0), hf = G.klikFactor(hunKaartD, hunChem, G.auraVan ? G.auraVan(teams[ik === 'A' ? 'B' : 'A']) : 0);
       $('duel-bonus').textContent = `Jouw ${ikSchiet ? 'schutter' : 'keeper'} (${fmt(mijnKaartD.cijfer)}): elke klik telt ×${fmtFlex(mf)}${mijnChem ? ` (chemie ${mijnChem})` : ''}. Bij ${o.hunNaam} ×${fmtFlex(hf)}${hunChem ? ` (chemie ${hunChem})` : ''}.`;
+      if (mijnKaartD.h || hunKaartD.h) $('duel-bonus').textContent += ` ${mijnKaartD.h ? 'Jouw kaart is heel gemaakt: een trede sterker.' : ''}${hunKaartD.h ? ` De kaart van ${o.hunNaam} is heel gemaakt.` : ''}`;
       if (mijnKaartD.v || hunKaartD.v) $('duel-bonus').textContent += ` ${mijnKaartD.v ? 'Jouw kaart is vervloekt: sterker, maar de vloek kan toeslaan.' : ''}${hunKaartD.v ? ` De kaart van ${o.hunNaam} is vervloekt.` : ''}`;
       $('kl-mijn').textContent = '0'; $('kl-hun').textContent = '0';
       $('meter-mijn').style.width = '50%'; $('meter-hun').style.width = '50%';

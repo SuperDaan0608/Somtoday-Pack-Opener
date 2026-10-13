@@ -216,7 +216,7 @@
     J[0] = [0, 0, 0];
     J[1] = romp([0, 0.3, 0]);
     J[2] = romp([0, 0.54, 0]);
-    J[3] = plus(J[2], rotY(rotX([0, 0.15, 0.01], h.lean + h.headP), h.twist));
+    J[3] = plus(J[2], rotY(rotX([0, 0.138, 0.012], h.lean + h.headP), h.twist));
     const arm = (zij, s, e, eA, i0) => {
       const sch = romp([zij * 0.19, 0.47, 0]);
       const boven = romp(ledRicht(s[0], s[1], zij));
@@ -274,7 +274,8 @@
       const sn = Math.sin(fase);
       const zw = klem(s / 0.35, 0, 1); // de eerste pas zet in
       const loop = houding({
-        x, z, yaw: mix(yawStart, Math.PI - 0.32, sm(s, 0, 0.5)), lean: 0.18 * zw + 0.06, headP: -0.1,
+        // het bekken draait mee met het voorste been, de romp en armen draaien tegen
+        x, z, yaw: mix(yawStart, Math.PI - 0.32, sm(s, 0, 0.5)) + 0.09 * sn * zw, twist: -0.2 * sn * zw, roll: 0.035 * Math.cos(fase) * zw, lean: 0.18 * zw + 0.06, headP: -0.1,
         hL: [0.1 + 0.62 * sn * zw, 0.05], kL: 0.25 + 0.95 * zw * Math.max(0, Math.sin(fase - 2.0)) + 0.15 * zw,
         hR: [0.1 - 0.62 * sn * zw, 0.05], kR: 0.25 + 0.95 * zw * Math.max(0, Math.sin(fase + Math.PI - 2.0)) + 0.15 * zw,
         fL: 0.3 * zw, fR: 0.3 * zw,
@@ -286,9 +287,9 @@
     const P = (x, z, o) => houding(Object.assign({ x, z, yaw: Math.PI - 0.12 }, o));
     const keys = [
       [-0.38, P(SCH_TRAP[0] + 0.3, SCH_TRAP[1] + 0.72, { lean: 0.2, hL: [0.55, 0.05], kL: 0.35, hR: [-0.45, 0.05], kR: 0.9, fR: 0.4, sL: [0.4, 0.5], eL: 1.0, sR: [-0.5, 0.25], eR: 1.1, yaw: Math.PI - 0.3 })],
-      [-0.13, P(SCH_TRAP[0] + 0.08, SCH_TRAP[1] + 0.22, { lean: 0.02, roll: -0.12, hL: [0.3, 0.1], kL: 0.3, hR: [-0.85, 0.1], kR: 1.75, fR: 0.7, sL: [0.35, 1.25], eL: 0.4, sR: [-0.55, 0.55], eR: 0.6, headP: 0.25 })],
-      [0, P(SCH_TRAP[0], SCH_TRAP[1], { lean: 0.22, roll: -0.08, hL: [0.15, 0.08], kL: 0.4, hR: [0.4, -0.06], kR: 0.3, fR: 1.0, sL: [0.2, 1.4], eL: 0.3, sR: [-0.4, 0.75], eR: 0.5, headP: 0.35 })],
-      [0.12, P(SCH_TRAP[0] - 0.05, SCH_TRAP[1] - 0.25, { lean: 0.08, roll: -0.05, hL: [0.0, 0.08], kL: 0.25, hR: [1.25, -0.05], kR: 0.2, fR: 0.9, sL: [0.0, 1.2], eL: 0.4, sR: [0.2, 0.7], eR: 0.6, headP: 0.1 })],
+      [-0.13, P(SCH_TRAP[0] + 0.08, SCH_TRAP[1] + 0.22, { lean: 0.02, roll: -0.12, hL: [0.3, 0.1], kL: 0.3, hR: [-0.85, 0.1], kR: 1.75, fR: 0.7, sL: [0.35, 1.3], eL: 0.4, sR: [-0.55, 0.55], eR: 0.6, headP: 0.25, yaw: Math.PI + 0.06, twist: -0.24 })],
+      [0, P(SCH_TRAP[0], SCH_TRAP[1], { lean: 0.22, roll: -0.08, hL: [0.15, 0.08], kL: 0.4, hR: [0.4, -0.06], kR: 0.3, fR: 1.0, sL: [0.2, 1.4], eL: 0.3, sR: [-0.4, 0.75], eR: 0.5, headP: 0.35, twist: -0.05 })],
+      [0.12, P(SCH_TRAP[0] - 0.05, SCH_TRAP[1] - 0.25, { lean: 0.08, roll: -0.05, hL: [0.0, 0.08], kL: 0.25, hR: [1.25, -0.05], kR: 0.2, fR: 0.9, sL: [-0.1, 1.1], eL: 0.5, sR: [0.35, 0.6], eR: 0.6, headP: 0.1, yaw: Math.PI - 0.28, twist: 0.2 })],
       [0.36, P(SCH_TRAP[0] - 0.1, SCH_TRAP[1] - 0.7, { lean: 0.12, hL: [-0.35, 0.06], kL: 0.7, hR: [0.35, 0.06], kR: 0.35, sL: [0.3, 0.5], eL: 0.9, sR: [-0.2, 0.4], eR: 0.9, headP: -0.05 })],
       [0.7, P(SCH_TRAP[0] - 0.12, SCH_TRAP[1] - 1.05, { lean: 0.05, hL: [0.05, 0.08], kL: 0.12, hR: [0.08, 0.08], kR: 0.12, sL: [0.1, 0.25], eL: 0.6, sR: [0.1, 0.25], eR: 0.6, headP: -0.12 })],
     ];
@@ -664,79 +665,183 @@ float sdRBox(vec3 p, vec3 b, float r){ vec3 q = abs(p) - b; return length(max(q,
 float sdEll(vec3 p, vec3 r){ float k0 = length(p / r); float k1 = length(p / (r * r)); return k0 * (k0 - 1.) / k1; }
 float smin(float a, float b, float k){ float h = clamp(.5 + .5 * (b - a) / k, 0., 1.); return mix(b, a, h) - k * h * (1. - h); }
 
-// materialen: 1 shirt, 2 huid, 3 broek, 4 sok, 5 schoen, 6 handschoen, 7 haar
+// materialen: 1 shirt, 2 huid, 3 broek, 4 sok, 5 schoen, 6 handschoen, 7 haar, 8 oog, 9 zool
 vec2 kies(vec2 a, float d, float m){ return d < a.x ? vec2(d, m) : a; }
+float smax(float a, float b, float k){ return -smin(-a, -b, k); }
+// ledemaat: taps toelopend met een spierbuik halverwege
+float sdLid(vec3 p, vec3 a, vec3 b, float ra, float rb, float buik){
+  vec3 pa = p - a, ba = b - a; float h = clamp(dot(pa, ba) / dot(ba, ba), 0., 1.);
+  return length(pa - ba * h) - mix(ra, rb, h) - buik * 4. * h * (1. - h);
+}
+// assen van het hoofd (het kan kantelen ten opzichte van de romp)
+void hoofdAssen(int i, out vec3 Rh, out vec3 Uh, out vec3 Fh){
+  int o = i * 18;
+  vec3 F = uTB[i * 3 + 2];
+  Uh = normalize(uJ[o + 3] - uJ[o + 2]);
+  Fh = normalize(F - Uh * dot(F, Uh));
+  Rh = cross(Uh, Fh);
+}
+// assen van het bekken (volgt de heupen, niet de romp)
+void bekkenAssen(int i, out vec3 Rp, out vec3 Up, out vec3 Fp){
+  int o = i * 18;
+  Rp = normalize(uJ[o + 14] - uJ[o + 10]);
+  vec3 U = uTB[i * 3 + 1];
+  Up = normalize(U - Rp * dot(U, Rp));
+  Fp = cross(Rp, Up);
+}
 
 vec2 speler(vec3 p, int i){
   int o = i * 18;
-  vec3 P0 = uJ[o], CH = uJ[o + 1], NK = uJ[o + 2], HD = uJ[o + 3];
+  vec3 P0 = uJ[o], NK = uJ[o + 2], HD = uJ[o + 3];
   // grove begrenzing
   float bnd = length(p - P0) - 1.35;
   if (bnd > .25) return vec2(bnd, 0.);
+  bool kp = i == 1;
   vec3 R = uTB[i * 3], U = uTB[i * 3 + 1], F = uTB[i * 3 + 2];
-  // romp: een afgeronde, naar boven bredere doos in het lichaamsassenstelsel
-  vec3 q = p - (P0 + U * .3);
+  vec3 Rp, Up, Fp; bekkenAssen(i, Rp, Up, Fp);
+  vec3 q = p - P0;
   vec3 l = vec3(dot(q, R), dot(q, U), dot(q, F));
-  float w = mix(.13, .175, clamp(l.y / .4 + .5, 0., 1.));
-  float dep = mix(.075, .085, clamp(l.y / .4 + .5, 0., 1.)) + .015 * smoothstep(-.1, .2, l.y);
-  float dT = sdRBox(l, vec3(w - .06, .19, dep - .05), .06);
-  // schouders
-  dT = smin(dT, sdCap(p, uJ[o + 4], uJ[o + 7], .065), .07);
-  // broek: om het bekken
-  vec3 qb = p - (P0 - U * .03);
-  vec3 lb = vec3(dot(qb, R), dot(qb, U), dot(qb, F));
-  float dB = sdRBox(lb + vec3(0., 0., .01), vec3(.08, .045, .028), .06);
-  vec2 r = vec2(dT, 1.);
-  r = kies(r, dB, 3.);
-  // nek en hoofd
-  r = kies(r, sdCap(p, NK - U * .04, NK + (HD - NK) * .45, .052), 2.);
-  // het hoofd heeft eigen assen (het kan voorover of achterover kantelen ten opzichte van de romp)
-  vec3 Uh = normalize(HD - NK);
-  vec3 Fh = normalize(F - Uh * dot(F, Uh));
-  vec3 Rh = cross(Uh, Fh);
-  vec3 hq = p - HD;
-  vec3 hl = vec3(dot(hq, Rh), dot(hq, Uh), dot(hq, Fh));
-  float dH = sdEll(hl - vec3(0., .0, .0), vec3(.08, .105, .095));
-  dH = smin(dH, sdEll(hl - vec3(0., -.058, .03), vec3(.058, .048, .062)), .03);       // kaak en kin
-  dH = smin(dH, sdEll(hl - vec3(0., .028, .078), vec3(.058, .014, .022)), .012);      // wenkbrauwen
-  dH = smin(dH, sdEll(hl - vec3(0., -.008, .097), vec3(.014, .03, .02)), .008);       // neus
-  vec3 ho = vec3(abs(hl.x), hl.yz);
-  dH = smin(dH, sdEll(ho - vec3(.08, -.002, -.005), vec3(.014, .028, .02)), .006);    // oren
-  dH = max(dH, -(length(ho - vec3(.032, .01, .09)) - .017));                          // oogkassen
-  r = kies(r, dH, 2.);
-  r = kies(r, length(ho - vec3(.032, .01, .079)) - .012, 8.);                         // ogen
-  float haar = sdEll(hl - vec3(0., .022, -.01), vec3(.086, .1, .097));
-  if (haar < r.x + .004 && hl.y > mix(-.07, .05, smoothstep(-.03, .07, hl.z))) r = vec2(min(r.x, haar), 7.);
-  // armen
+  vec3 lp = vec3(dot(q, Rp), dot(q, Up), dot(q, Fp));
+  // ── romp: borstkas (V-vorm), taille en de zoom van het shirt over de broek ──
+  float dT = sdCap(p, P0 + U * .02, NK - U * .02, .27);
+  if (dT < .03) {
+  dT = sdEll(l - vec3(0., .36, -.005), vec3(.152, .165, .1));
+  dT = smin(dT, sdEll(l - vec3(0., .19, -.004), vec3(.13, .13, .088)), .06);
+  dT = smin(dT, sdEll(l - vec3(0., .045, -.002), vec3(.152, .1, .108)), .05);
+  dT = smin(dT, sdEll(vec3(abs(l.x), l.yz) - vec3(.065, .39, .035), vec3(.07, .055, .05)), .06); // borstspieren
+  // nek-schouderlijn (trapezius) en schouderkoppen
+  vec3 SL = uJ[o + 4], SR = uJ[o + 7];
+  dT = smin(dT, sdCapT(p, NK - U * .015, SL + U * .01, .06, .052), .06);
+  dT = smin(dT, sdCapT(p, NK - U * .015, SR + U * .01, .06, .052), .06);
+  // kraag: een randje rond de hals
+  vec3 kq = l - vec3(0., .515, .01);
+  dT = smin(dT, length(vec2(length(kq.xz * vec2(1., 1.15)) - .058, kq.y)) - .012, .01);
+  dT = max(dT, -max(length(l.xz * vec2(1., 1.15) - vec2(0., .012)) - .048, .49 - l.y)); // halsopening
+  }
+  // ── broek: om het bekken, met zitvlak; de pijpen komen bij de benen ──
+  float dB = length(p - P0 + U * .04) - .25;
+  if (dB < .03) {
+  dB = sdEll(lp - vec3(0., -.04, -.008), vec3(.158, .118, .106));
+  dB = smin(dB, sdEll(vec3(abs(lp.x), lp.yz) - vec3(.055, -.07, -.035), vec3(.08, .08, .07)), .05);
+  }
+  // ── armen ──
+  float dS = dT, dHuid = 1e5, dHand = 1e5;
   for (int k = 0; k < 2; k++) {
     int a = o + 4 + k * 3;
+    float zij = k == 0 ? -1. : 1.;
     vec3 S = uJ[a], E = uJ[a + 1], H = uJ[a + 2];
-    float mouw = i == 1 ? 1. : 0.; // de keeper heeft lange mouwen
-    float dUp = sdCapT(p, S, E, .058, .047);
-    vec3 mid = mix(S, E, .5);
-    float dMouw = sdCapT(p, S, mid + (E - S) * .05, .066, .056);
-    r = kies(r, smin(dUp, r.x, .02), 2.);
-    r = kies(r, dMouw, 1.);
-    float dLow = sdCapT(p, E, H, .046, .036);
-    r = kies(r, dLow, mouw > .5 ? 1. : 2.);
-    float dHand = sdEll(p - H - (H - E) * .18, vec3(.045) * (i == 1 ? 1.35 : 1.));
-    r = kies(r, dHand, i == 1 ? 6. : 2.);
+    if (min(sdCap(p, S, E, .1), sdCap(p, E, H, kp ? .28 : .2)) > min(min(dS, dHuid), dHand)) continue;
+    // mouw (de keeper: tot de pols)
+    vec3 mEind = kp ? H - (H - E) * .08 : mix(S, E, .46);
+    float dM = kp ? smin(sdLid(p, S - (E - S) * .1, E, .066, .052, .006), sdCapT(p, E, mEind, .052, .045), .02)
+                  : sdCapT(p, S - (E - S) * .1, mEind, .066, .059);
+    dS = smin(dS, dM, .045);
+    // bovenarm (biceps) en onderarm (dik bij de elleboog, smal bij de pols)
+    float dArm = smin(sdLid(p, S, E, .052, .041, .007), sdLid(p, E, H, .043, .029, .005), .02);
+    dHuid = min(dHuid, dArm);
+    // de hand: handpalm, vier vingers en een duim (de keeper: grote handschoenen)
+    float bh = length(p - H - (H - E) * .3) - (kp ? .19 : .13); bh = max(bh, .03);
+    if (bh > .02) dHand = min(dHand, bh);
+    else if (bh < min(dHand, min(dHuid, dS))) {
+      vec3 ax = normalize(H - E);
+      vec3 ref = abs(dot(ax, F)) > .92 ? U : F;
+      vec3 hx = normalize(ref - ax * dot(ref, ax));
+      vec3 pv = zij * cross(ax, hx); // naar de handpalm
+      float g = kp ? 1.4 : 1.;
+      vec3 c = H + ax * .045 * g;
+      vec3 hl = vec3(dot(p - c, hx), dot(p - c, ax), dot(p - c, pv));
+      float dh = sdEll(hl, vec3(.041, .05, .019) * g);
+      float vr = .0092 * g;
+      for (int v = 0; v < 4; v++) {
+        float fv = float(v);
+        float off = (.027 - .018 * fv) * g;
+        float len = (v == 1 ? .085 : v == 3 ? .065 : .078) * g;
+        vec3 b0 = H + ax * .085 * g + hx * off;
+        float krul = kp ? .45 : .7;
+        vec3 b1 = b0 + ax * len * .55 + pv * len * .1 * krul + hx * off * .15;
+        vec3 b2 = b1 + ax * len * .3 + pv * len * .5 * krul;
+        dh = smin(dh, min(sdCapT(p, b0, b1, vr * 1.05, vr), sdCapT(p, b1, b2, vr, vr * .85)), .008);
+      }
+      vec3 d0 = H + ax * .025 * g + hx * .032 * g + pv * .008;
+      vec3 d1 = d0 + ax * .04 * g + hx * .022 * g + pv * .018 * g;
+      dh = smin(dh, sdCapT(p, d0, d1, .014 * g, .01 * g), .012);
+      if (kp) dh = smin(dh, sdCapT(p, H - ax * .03, H + ax * .03, .05, .052), .015); // manchet
+      else dh = smin(dh, dArm, .015);
+      dHand = min(dHand, dh);
+    }
   }
-  // benen
+  // ── benen ──
+  float dSok = 1e5, dSchoen = 1e5, zool = 0.;
   for (int k = 0; k < 2; k++) {
     int a = o + 10 + k * 4;
     vec3 Hp = uJ[a], K = uJ[a + 1], A = uJ[a + 2], T = uJ[a + 3];
-    float dDij = sdCapT(p, Hp, K, .085, .058);
-    r = kies(r, smin(dDij, dB, .04), 2.);
-    vec3 bk = mix(Hp, K, .42);
-    float dPijp = sdCapT(p, Hp - (K - Hp) * .02, bk, .093, .085);
-    r = kies(r, dPijp, 3.);
-    float dScheen = sdCapT(p, K, A, .056, .038);
-    vec3 kous = mix(K, A, .18);
-    r = kies(r, dScheen, 4.);
-    if (dot(p - kous, A - K) < 0.) { if (dScheen <= r.x + .001) r.y = 2.; }
-    float dVoet = sdCapT(p, A - (T - A) * .12, T, .045, .038);
-    r = kies(r, dVoet, 5.);
+    float lb = min(min(sdCap(p, Hp, K, .13), sdCap(p, K, A, .085)), length(p - mix(A, T, .45)) - .18);
+    if (lb > min(min(min(dS, dB), min(dHuid, dHand)), min(dSok, dSchoen))) continue;
+    vec3 dDij = normalize(K - Hp), dSch = normalize(A - K);
+    vec3 vf = Fp - dSch * dot(Fp, dSch);
+    vf = length(vf) > .05 ? normalize(vf) : F;
+    // dijbeen (met spierbuik), knie, scheen met kuit
+    float dD = sdLid(p, Hp - dDij * .03, K, .082, .052, .01);
+    float dO = smin(sdCapT(p, K, A, .049, .032), sdCapT(p, mix(K, A, .12) - vf * .018, mix(K, A, .62) - vf * .008, .05, .034), .035);
+    dHuid = min(dHuid, smin(dD, dO, .03));
+    // broekspijp: wijd, tot ~40% van het dijbeen
+    float dP = sdCapT(p, Hp - dDij * .02 + Rp * (k == 0 ? -.008 : .008), mix(Hp, K, .4), .1, .097);
+    dB = smin(dB, dP, .035);
+    // kous: over de scheen tot net onder de knie, met een rand bovenaan
+    vec3 kTop = mix(K, A, .14);
+    float ds = max(dO - .005, -dot(p - kTop, dSch));
+    ds = min(ds, max(sdCapT(p, kTop, kTop + dSch * .03, .056, .054), -dot(p - kTop, dSch)));
+    dSok = min(dSok, ds);
+    // voetbalschoen: hiel, wreef, neus; platte zool
+    float bs = length(p - mix(A, T, .45)) - .18;
+    if (bs > .02) dSchoen = min(dSchoen, bs);
+    else if (bs < min(dSok, dSchoen)) {
+      vec3 vF = normalize(T - A);
+      vec3 vU = -dSch - vF * dot(-dSch, vF);
+      vU = length(vU) > .05 ? normalize(vU) : U;
+      vec3 hiel = A - vF * .035 - vU * .02;
+      float dV = sdCapT(p, hiel, T + vF * .028 - vU * .014, .04, .032);
+      dV = smin(dV, length(p - A) - .04, .025);
+      float h0 = dot(p - A, vU);
+      dV = smax(dV, -(h0 + .062), .006);
+      if (dV < dSchoen) { dSchoen = dV; zool = h0 < -.054 ? 1. : 0.; }
+    }
+  }
+  vec2 r = vec2(dS, 1.);
+  r = kies(r, dB, 3.);
+  r = kies(r, dHuid, 2.);
+  r = kies(r, dSok, 4.);
+  r = kies(r, dSchoen, zool > .5 ? 9. : 5.);
+  r = kies(r, dHand, kp ? 6. : 2.);
+  // ── nek en hoofd ──
+  float bh = length(p - HD) - .16;
+  if (min(bh, length(p - NK) - .12) > r.x) return r;
+  vec3 Rh, Uh, Fh; hoofdAssen(i, Rh, Uh, Fh);
+  float dN = sdCapT(p, NK - U * .07, HD - Uh * .045 - Fh * .012, .06, .054);
+  r = kies(r, dN, 2.);
+  if (bh > .02) r = kies(r, bh, 2.);
+  else if (bh < r.x) {
+    vec3 hq = p - HD;
+    vec3 hl = vec3(dot(hq, Rh), dot(hq, Uh), dot(hq, Fh));
+    vec3 ho = vec3(abs(hl.x), hl.yz);
+    float dH = sdEll(hl - vec3(0., .016, -.006), vec3(.077, .094, .09));                // schedel
+    dH = smin(dH, sdEll(hl - vec3(0., -.045, .026), vec3(.056, .06, .064)), .03);         // gezicht en kaak
+    dH = smin(dH, sdEll(hl - vec3(0., -.086, .055), vec3(.028, .02, .024)), .02);        // kin
+    dH = smin(dH, sdEll(ho - vec3(.04, -.012, .064), vec3(.018, .013, .016)), .015);      // jukbeenderen
+    dH = smin(dH, sdEll(hl - vec3(0., .03, .077), vec3(.056, .013, .02)), .014);         // wenkbrauwboog
+    dH = smin(dH, sdCapT(hl, vec3(0., .016, .088), vec3(0., -.02, .099), .008, .012), .012); // neus
+    dH = smin(dH, sdEll(ho - vec3(.011, -.026, .093), vec3(.009, .007, .008)), .006);    // neusvleugels
+    dH = smin(dH, sdEll(hl - vec3(0., -.05, .086), vec3(.024, .011, .012)), .01);        // lippen
+    dH = smin(dH, sdEll(ho - vec3(.078, .0, -.006), vec3(.012, .026, .018)), .006);      // oren
+    dH = smax(dH, -sdEll(ho - vec3(.03, .011, .093), vec3(.015, .009, .012)), .007);                  // oogkassen
+    r = kies(r, dH, 2.);
+    r = kies(r, length(ho - vec3(.03, .011, .079)) - .0115, 8.);                         // ogen
+    // kort haar met wat volume bovenop, een nette haarlijn en bakkebaarden
+    float haar = smin(sdEll(hl - vec3(0., .024, -.012), vec3(.083, .098, .095)), sdEll(hl - vec3(0., .078, .005), vec3(.064, .04, .075)), .03);
+    float lijn = mix(-.075, .052, smoothstep(-.035, .065, hl.z)) - .03 * smoothstep(.06, .075, ho.x) * smoothstep(.07, .02, hl.z);
+    haar += .0012 * sin(hl.x * 210. + hl.z * 60.) * sin(hl.z * 190. - hl.y * 70.);
+    haar = smax(haar, lijn + .006 * sin(hl.x * 90.) - hl.y, .01);
+    r = kies(r, haar, 7.);
   }
   return r;
 }
@@ -1019,32 +1124,92 @@ vec3 kleedSpeler(vec3 p, vec3 n, vec3 rd, float mat){
   vec3 R = uTB[i * 3], U = uTB[i * 3 + 1], F = uTB[i * 3 + 2];
   vec3 q = p - uJ[i * 18];
   vec3 l = vec3(dot(q, R), dot(q, U), dot(q, F));
+  float wrap = 0.;
   if (m < 1.5) {
     alb = kit;
-    // naad en kraag in de accentkleur, dunne verticale streepjes als stofpatroon
-    alb *= .9 + .1 * sin(l.x * 120.);
-    alb = mix(alb, acc, smoothstep(.02, .0, abs(l.y - .56)) * .8);
+    // stofstructuur en zachte plooien (vooral bij de taille en onder de armen)
+    alb *= .95 + .05 * sin(l.x * 160.);
+    alb *= .9 + .14 * vn(vec2(l.x * 9. + l.y * 3., l.y * 16. + l.z * 6.)) - .1 * smoothstep(.2, .02, l.y);
+    // kraag en mouwzomen in de accentkleur
+    alb = mix(alb, acc, smoothstep(.016, .01, abs(l.y - .515)) * smoothstep(.1, .075, length(l.xz)) * .9);
+    for (int k = 0; k < 2; k++) {
+      vec3 S = uJ[i * 18 + 4 + k * 3], E = uJ[i * 18 + 5 + k * 3], H = uJ[i * 18 + 6 + k * 3];
+      vec3 A = i == 1 ? E : S, B = i == 1 ? H : E;
+      float h = dot(p - A, B - A) / dot(B - A, B - A);
+      float zoom = i == 1 ? .86 : .4;
+      float bij = smoothstep(.09, .075, length(p - mix(A, B, clamp(h, 0., 1.))));
+      alb = mix(alb, acc, smoothstep(.06, .03, abs(h - zoom)) * bij * .85);
+    }
     // het cijfer op de rug
     if (l.z < -.02) {
-      vec2 uv = vec2(-l.x / .34 + .5, (l.y - .3) / .26 + .5);
+      vec2 uv = vec2(-l.x / .32 + .5, (l.y - .32) / .24 + .5);
       if (uv.x > 0. && uv.x < 1. && uv.y > 0. && uv.y < 1.) {
         vec4 g = texture(uGetal, vec2((uv.x + float(i)) * .5, 1. - uv.y));
         alb = mix(alb, g.rgb, g.a);
       }
     }
-    spec = .12; glans = 18.;
-  } else if (m < 2.5) { alb = uHuid[i]; spec = .22; glans = 26.; }
-  else if (m < 3.5) { alb = broek; }
-  else if (m < 4.5) { alb = mix(kit, vec3(.9), .25); }
-  else if (m < 5.5) { alb = vec3(.04); spec = .6; glans = 60.; }
+    spec = .1; glans = 14.;
+  } else if (m < 2.5) {
+    alb = uHuid[i]; spec = .16; glans = 20.; wrap = .45;
+    // gezicht: lippen iets donkerder/roder, wenkbrauwen in de haarkleur
+    vec3 Rh, Uh, Fh; hoofdAssen(i, Rh, Uh, Fh);
+    vec3 hq = p - uJ[i * 18 + 3];
+    vec3 hl = vec3(dot(hq, Rh), dot(hq, Uh), dot(hq, Fh));
+    if (length(hl) < .14) {
+      float lip = smoothstep(.026, .016, abs(hl.x)) * smoothstep(.012, .004, abs(hl.y + .05)) * step(.07, hl.z);
+      alb = mix(alb, alb * vec3(.8, .6, .58), lip * .6);
+      alb = mix(alb, alb * .5, smoothstep(.0025, .0, abs(hl.y + .05)) * smoothstep(.024, .012, abs(hl.x)) * step(.08, hl.z));
+      float wb = smoothstep(.006, .002, abs(hl.y - .034 + .05 * (abs(hl.x) - .03) * (abs(hl.x) - .03) * 30.)) * smoothstep(.052, .04, abs(hl.x)) * smoothstep(.01, .02, abs(hl.x)) * step(.07, hl.z);
+      alb = mix(alb, uHaar[i], wb * .85);
+      alb *= 1. + .12 * smoothstep(.03, .0, length(vec2(abs(hl.x) - .042, hl.y + .03))) * step(.05, hl.z); // blos
+    }
+  }
+  else if (m < 3.5) {
+    alb = broek;
+    alb *= .9 + .14 * vn(vec2(l.x * 12., l.y * 18.));
+    // zoom van de pijpen in de accentkleur
+    for (int k = 0; k < 2; k++) {
+      vec3 Hp = uJ[i * 18 + 10 + k * 4], K = uJ[i * 18 + 11 + k * 4];
+      float h = dot(p - Hp, K - Hp) / dot(K - Hp, K - Hp);
+      float bij = smoothstep(.13, .11, length(p - mix(Hp, K, clamp(h, 0., 1.))));
+      alb = mix(alb, acc, smoothstep(.035, .015, abs(h - .375)) * bij * .8);
+    }
+  }
+  else if (m < 4.5) {
+    alb = mix(kit, vec3(.9), .25);
+    // twee ringen bovenaan de kous en ribbels
+    for (int k = 0; k < 2; k++) {
+      vec3 K = uJ[i * 18 + 11 + k * 4], A = uJ[i * 18 + 12 + k * 4];
+      float h = dot(p - K, A - K) / dot(A - K, A - K);
+      if (h > .1 && h < 1.05) alb = mix(alb, acc, smoothstep(.02, .01, abs(h - .22)) * .9);
+    }
+    alb *= .92 + .08 * sin(dot(p, vec3(1.)) * 900.);
+  }
+  else if (m < 5.5) { alb = mix(vec3(.03), acc, .18); spec = .7; glans = 70.; }
   else if (m < 6.5) { alb = mix(acc, vec3(.9), .4); spec = .3; }
-  else if (m < 7.5) { alb = uHaar[i]; spec = .25; glans = 40.; }
-  else { alb = vec3(.015); spec = 1.2; glans = 90.; }
+  else if (m < 7.5) {
+    alb = uHaar[i]; spec = .3; glans = 36.;
+    vec3 Rh, Uh, Fh; hoofdAssen(i, Rh, Uh, Fh);
+    vec3 hq = p - uJ[i * 18 + 3];
+    alb *= .8 + .35 * vn(vec2(dot(hq, Rh) * 260., dot(hq, Fh) * 60. + dot(hq, Uh) * 60.));
+  }
+  else if (m < 8.5) {
+    // oog: wit, iris, pupil en een glimlichtje
+    vec3 Rh, Uh, Fh; hoofdAssen(i, Rh, Uh, Fh);
+    vec3 hq = p - uJ[i * 18 + 3];
+    vec3 hl = vec3(dot(hq, Rh), dot(hq, Uh), dot(hq, Fh));
+    vec2 e = vec2(abs(hl.x) - .03, hl.y - .011);
+    float ir = length(e);
+    alb = mix(vec3(.5, .48, .45), vec3(.07, .04, .022), smoothstep(.0082, .0072, ir));
+    alb = mix(alb, vec3(.005), smoothstep(.0034, .0026, ir));
+    spec = 1.; glans = 120.;
+  }
+  else { alb = mix(vec3(.12), acc, .35); spec = .2; }
   vec3 col = vec3(0.);
   // hoofdlichten: twee kanten (achter het doel en de overkant), met schaduw
   vec3 L1 = normalize(lichtPos(0) - p), L2 = normalize(lichtPos(5) - p), L3 = normalize(lichtPos(3) - p);
   float s1 = uKw < 2.5 ? schaduw(p + n * .01, L1) : 1.;
-  float d1 = max(dot(n, L1), 0.), d2 = max(dot(n, L2), 0.), d3 = max(dot(n, L3), 0.);
+  float d1 = max((dot(n, L1) + wrap) / (1. + wrap), 0.), d2 = max((dot(n, L2) + wrap) / (1. + wrap), 0.), d3 = max(dot(n, L3), 0.);
   col += alb * (d1 * s1 * 1.25 * vec3(1., .95, .88) + d2 * .42 * vec3(.85, .9, 1.) + d3 * .22) * uLicht;
   vec3 hv = normalize(L1 - rd);
   col += spec * pow(max(dot(n, hv), 0.), glans) * s1 * uLicht;
@@ -1684,7 +1849,7 @@ void main(){
       return HUID[h % HUID.length];
     };
     const huid = new Float32Array([...huidVan(inv.schutter.vak, 1, inv.schutter.av), ...huidVan(inv.keeper.vak, 7, inv.keeper.av)]);
-    const haarKl = (k) => (k.av && k.av.haar ? lin(hexRgb(k.av.haar)) : [0.02, 0.015, 0.012]);
+    const haarKl = (k) => (k.av && k.av.haar ? lin(hexRgb(k.av.haar)) : [0.04, 0.024, 0.014]);
     const haar = new Float32Array([...haarKl(inv.schutter), ...haarKl(inv.keeper)]);
     // eigen stadion: tribunekleur (het publiek draagt die kleur), gras en maaipatroon. Zonder thema precies zoals het was.
     const TH = inv.thema;

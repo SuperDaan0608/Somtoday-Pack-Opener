@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="rondleiding.css" />
   <link rel="stylesheet" href="nieuw.css" />
   <link rel="stylesheet" href="feedback.css" />
+  <link rel="stylesheet" href="drop.css" />
 </head>
 <body>
   <!-- Pictogrammen (Lucide, ISC): één keer hier, overal met <use> -->
@@ -29,6 +30,7 @@
     <symbol id="i-speler" viewBox="0 0 24 24"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/></symbol>
     <symbol id="i-sluiten" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
     <symbol id="i-pijl" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="i-arcade" viewBox="0 0 24 24"><line x1="6" x2="10" y1="12" y2="12"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="15" x2="15.01" y1="13" y2="13"/><line x1="18" x2="18.01" y1="11" y2="11"/><rect width="20" height="12" x="2" y="6" rx="2"/></symbol>
     <symbol id="i-nieuw" viewBox="0 0 24 24"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></symbol>
     <symbol id="i-feedback" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
   </svg>
@@ -57,6 +59,7 @@
         <button type="button" role="tab" id="tab-team" data-tab="team" aria-controls="paneel-team"><svg class="ico" aria-hidden="true"><use href="#i-team"/></svg><span>Team</span></button>
         <button type="button" role="tab" id="tab-vrienden" data-tab="vrienden" aria-controls="paneel-vrienden"><svg class="ico" aria-hidden="true"><use href="#i-vrienden"/></svg><span>Vrienden</span></button>
         <button type="button" role="tab" id="tab-prestaties" data-tab="prestaties" aria-controls="paneel-prestaties"><svg class="ico" aria-hidden="true"><use href="#i-prestaties"/></svg><span>Prestaties</span></button>
+        <button type="button" role="tab" id="tab-arcade" data-tab="arcade" aria-controls="paneel-arcade"><svg class="ico" aria-hidden="true"><use href="#i-arcade"/></svg><span>Arcade</span></button>
         <div class="groep" role="presentation">Shop</div>
         <button type="button" role="tab" id="tab-winkel" data-tab="winkel" aria-controls="paneel-winkel"><svg class="ico" aria-hidden="true"><use href="#i-winkel"/></svg><span>Winkel</span></button>
         <button type="button" role="tab" id="tab-profiel" data-tab="profiel" aria-controls="paneel-profiel"><svg class="ico" aria-hidden="true"><use href="#i-profiel"/></svg><span>Profiel</span></button>
@@ -96,6 +99,7 @@
         </dl>
         <p class="leeg-tekst" id="st-leeg" hidden>Nog geen kaarten. Open een nieuw cijfer en je kaart verschijnt hier.</p>
         <ul class="laatste" id="laatste" aria-label="Laatste kaarten" hidden></ul>
+        <p class="drop-week" id="drop-week" role="status" aria-live="polite" hidden></p>
 
         <h3 class="sectie">Jouw speler en stadion</h3>
         <div class="speler-blok" id="speler-blok">
@@ -136,6 +140,7 @@
       <section class="paneel kader" id="paneel-profiel" role="tabpanel" aria-labelledby="tab-profiel" hidden data-src="profiel.html?embed=1" data-titel="Profiel" data-allow="clipboard-write"><p class="laden" aria-hidden="true">Laden…</p></section>
       <section class="paneel kader" id="paneel-speler" role="tabpanel" aria-labelledby="tab-speler" hidden data-src="speler.html?embed=1" data-titel="Speler en stadion"><p class="laden" aria-hidden="true">Laden…</p></section>
       <section class="paneel kader" id="paneel-winkel" role="tabpanel" aria-labelledby="tab-winkel" hidden data-src="winkel.html?embed=1" data-titel="Winkel"><p class="laden" aria-hidden="true">Laden…</p></section>
+      <section class="paneel kader" id="paneel-arcade" role="tabpanel" aria-labelledby="tab-arcade" hidden data-src="arcade.html?embed=1" data-titel="Arcade-hoek"><p class="laden" aria-hidden="true">Laden…</p></section>
       <section class="paneel kader" id="paneel-prestaties" role="tabpanel" aria-labelledby="tab-prestaties" hidden data-src="prestaties.html?embed=1" data-titel="Prestaties"><p class="laden" aria-hidden="true">Laden…</p></section>
       <section class="paneel kader" id="paneel-rekenen" role="tabpanel" aria-labelledby="tab-rekenen" hidden data-src="rekenen.html?embed=1" data-titel="Cijfercalculator" data-allow="clipboard-write"><p class="laden" aria-hidden="true">Laden…</p></section>
       <section class="paneel kader" id="paneel-geluiden" role="tabpanel" aria-labelledby="tab-geluiden" hidden data-src="geluiden.html?embed=1" data-titel="Geluiden"><p class="laden" aria-hidden="true">Laden…</p></section>
@@ -282,6 +287,7 @@
   <script src="nieuw-data.js"></script>
   <script src="nieuw.js"></script>
   <script src="feedback.js"></script>
+  <script src="drop.js"></script>
   <script src="hub-munten.js"></script>
   <script src="voetbal.js"></script>
   <script src="hub-speler.js"></script>
