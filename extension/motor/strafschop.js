@@ -1883,17 +1883,86 @@ void main(){
     canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block';
     host.appendChild(canvas);
     document.body.appendChild(host);
-    let G = null, geenGL = false;
+    // ── zelfherstel: een vlag in localStorage onthoudt een poging; blijft hij staan dan is de browser (GPU) vastgelopen ──
+    const SL_POGING = 'spo_strafschop_poging', SL_LICHT = 'spo_strafschop_licht', SL_LICHT_TS = 'spo_strafschop_licht_ts';
+    const logica = !inv.debug || inv.laag; // bij debug=1 (seek-tests) geen auto-LITE en geen vlaglogica, tenzij laag
+    const lsGet = (k) => {
+      try {
+        return localStorage.getItem(k);
+      } catch (e) {
+        return null;
+      }
+    };
+    const lsZet = (k, v) => {
+      try {
+        if (v === null) localStorage.removeItem(k);
+        else localStorage.setItem(k, v);
+      } catch (e) {
+        /* localStorage kan ontbreken */
+      }
+    };
+    const markeerLicht = () => {
+      if (!logica) return;
+      lsZet(SL_LICHT, '1');
+      lsZet(SL_LICHT_TS, String(Date.now()));
+    };
+    let vlag = null; // eerdere poging { variant, ts }
+    let startLicht = false, geefMeteenOp = false;
+    if (logica) {
+      try {
+        const raw = lsGet(SL_POGING);
+        if (raw) {
+          const o = JSON.parse(raw);
+          if (o && typeof o.ts === 'number' && Date.now() - o.ts < 10 * 60 * 1000 && Date.now() - o.ts > -60000) vlag = o;
+        }
+      } catch (e) {
+        /* kapotte vlag */
+      }
+      if (vlag) {
+        // vorige poging is nooit afgerond: de volle variant → nu licht; de lichte → helemaal niet meer proberen
+        markeerLicht();
+        if (vlag.variant === 'licht') geefMeteenOp = true;
+        else startLicht = true;
+      } else if (lsGet(SL_LICHT) === '1') {
+        const ts = parseInt(lsGet(SL_LICHT_TS), 10);
+        if (Number.isFinite(ts) && Date.now() - ts < 7 * 24 * 3600 * 1000) startLicht = true;
+        else {
+          lsZet(SL_LICHT, null);
+          lsZet(SL_LICHT_TS, null);
+        }
+      }
+    }
+    let volledigGevraagd = !!(invoer && invoer.volledig);
     try {
-      G = maakGL(canvas);
+      if (new URLSearchParams(location.search).get('volledig') === '1') volledigGevraagd = true;
     } catch (e) {
-      geenGL = true;
-      if (inv.debug) console.error('[strafschop]', e);
+      /* niets */
+    }
+    let G = null, geenGL = false, d3d = false;
+    if (geefMeteenOp) geenGL = true;
+    else {
+      try {
+        G = maakGL(canvas);
+      } catch (e) {
+        geenGL = true;
+        if (inv.debug) console.error('[strafschop]', e);
+      }
     }
     const gl = G ? G.gl : null;
+    if (gl) {
+      try {
+        const ext = gl.getExtension('WEBGL_debug_renderer_info');
+        const rn = String((ext && gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)) || '');
+        d3d = /Direct3D/i.test(rn) || (/ANGLE \(/.test(rn) && /D3D/i.test(rn));
+        if (inv.debug) console.log('[strafschop] renderer:', rn, 'd3d:', d3d);
+      } catch (e) {
+        /* niets */
+      }
+      if (d3d && !volledigGevraagd && logica) startLicht = true;
+    }
     // ketting van varianten: volledig → licht. Elke fout schuift een stap op; faalt ook de laatste, dan geven we netjes op.
     const VARIANTEN = ['vol', 'licht'];
-    let vi = inv.laag ? 1 : 0;
+    let vi = inv.laag || startLicht ? 1 : 0;
     let stand = null; // { v, pr: {S,H,V,C}, wacht }
     let pS = null, pH = null, pV = null, pC = null;
     let opgegeven = false, verloren = false, verlorenTimer = 0, fouten = 0;
@@ -1902,6 +1971,7 @@ void main(){
       try {
         if (inv.forceerfout > vi) throw new Error('link: (geforceerd)');
         const lite = vi >= 1;
+        if (logica) lsZet(SL_POGING, JSON.stringify({ variant: VARIANTEN[vi], ts: Date.now() }));
         const pr = { S: G.prog(FS_SCENE_F(lite)), H: G.prog(FS_HELDER), V: G.prog(FS_VAAG), C: G.prog(FS_SAMEN) };
         stand = { v: vi, pr, wacht: performance.now(), gereed: false };
       } catch (e) {
@@ -1941,15 +2011,20 @@ void main(){
         Object.values(stand.pr).forEach((x) => x.weg());
         stand = null;
       }
+      markeerLicht();
       if (vi + 1 < VARIANTEN.length && !opgegeven) {
         vi++;
         kwaliteit = Math.max(kwaliteit, 2);
+        laatsteFrame = performance.now();
+        frames = 0;
         pS = pH = pV = pC = null;
       } else geefOp();
     }
     function geefOp() {
       if (opgegeven) return;
       opgegeven = true;
+      clearInterval(waker);
+      markeerLicht();
       pS = pH = pV = pC = null;
       try {
         const m = document.createElement('div');
@@ -1979,6 +2054,7 @@ void main(){
           G.init();
           doelen = null;
           getalTex = null;
+          markeerLicht();
           vi = VARIANTEN.length - 1; // na een verlies: meteen de lichte variant
           kwaliteit = Math.max(kwaliteit, 2);
           verloren = false;
@@ -2016,14 +2092,33 @@ void main(){
     const publiek = TH && TH.tribune ? lin(hexRgb(TH.tribune)) : null;
     const grasArr = new Float32Array([...grasA, ...grasB]);
 
+    let laatsteFrame = performance.now(), frames = 0, waker = 0;
+    // watchdog: leeft de pagina nog maar komt er >6 s geen voltooid beeld, dan schakelen we naar licht of geven we op
+    if (logica) {
+      waker = setInterval(() => {
+        if (opgegeven || dood || gezocht !== null || gepauzeerd || document.hidden) {
+          laatsteFrame = performance.now();
+          return;
+        }
+        if (performance.now() - laatsteFrame > 6000) {
+          laatsteFrame = performance.now();
+          frames = 0;
+          mislukt(new Error('watchdog: geen beeld'));
+        }
+      }, 1000);
+    }
     let doelen = null; // { scene, half1, half2, w, h }
     let kwaliteit = inv.laag ? 3 : 0;
     const SCHAAL = [1, 0.8, 0.62, 0.5];
+    const schaalNu = () => {
+      const b = SCHAAL[kwaliteit];
+      return vi >= 1 && d3d ? Math.max(0.35, b * 0.6) : b; // LITE op D3D: ~0,6
+    };
     function maat() {
       if (!G) return;
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const W0 = Math.max(2, Math.round(host.clientWidth * dpr * SCHAAL[kwaliteit]));
-      const H0 = Math.max(2, Math.round(host.clientHeight * dpr * SCHAAL[kwaliteit]));
+      const W0 = Math.max(2, Math.round(host.clientWidth * dpr * schaalNu()));
+      const H0 = Math.max(2, Math.round(host.clientHeight * dpr * schaalNu()));
       if (doelen && doelen.w === W0 && doelen.h === H0) return;
       canvas.width = W0;
       canvas.height = H0;
@@ -2092,8 +2187,8 @@ void main(){
       pS.i1('uN4', 4);
       pS.i1('uN7', 7);
       pS.i1('uNL', stand.v >= 1 ? 2 : 6);
-      pS.i1('uMaxM', stand.v >= 1 ? 32 : 96);
-      pS.i1('uMaxS', 22);
+      pS.i1('uMaxM', stand.v >= 1 ? 24 : 96);
+      pS.i1('uMaxS', stand.v >= 1 ? 10 : 22);
       const flits = inv.uitkomst === 'goal' && !cam.replay ? Math.exp(-Math.max(0, t - tl.tI) * 1.2) * (t > tl.tI ? 1 : 0) : 0;
       pS.f1('uFlits', flits);
       pS.f1('uLicht', 1.0);
@@ -2203,6 +2298,11 @@ void main(){
       try {
         teken(Math.min(t, tl.EIND));
         fouten = 0;
+        if (stand && stand.gereed) {
+          laatsteFrame = performance.now();
+          // 2e beeld van deze variant gelukt (of de film speelt 1,5 s): de poging is geslaagd
+          if (++frames >= 2 || t > 1.5) lsZet(SL_POGING, null);
+        }
       } catch (e) {
         if (inv.debug) console.error('[strafschop]', e);
         if (++fouten >= 3) {
@@ -2226,6 +2326,7 @@ void main(){
     }
     function sluit() {
       dood = true;
+      clearInterval(waker);
       cancelAnimationFrame(raf);
       audio.stop();
       if (typeof invoer.opKlaar === 'function') {
