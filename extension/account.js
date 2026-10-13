@@ -27,7 +27,7 @@
     'spo_dagelijks', 'spo_winkel', 'spo_profiel', 'spo_prestaties', 'spo_prestaties_gezien', 'spo_stats', 'spo_team',
     'spo_gevechten', 'spo_vrienden', 'spo_vrienden_sec', 'spo_uitval_gezien', 'spo_huisdier', 'spo_rondleiding',
     'spo_capsules', 'spo_weekoverzicht',
-    'spo_rivaal', 'spo_uitnodigingen', 'spo_blokkades', 'spo_nieuw_gezien',
+    'spo_voetbal', 'spo_rivaal', 'spo_uitnodigingen', 'spo_blokkades', 'spo_nieuw_gezien',
   ];
   const ITERATIES = 250000;
 

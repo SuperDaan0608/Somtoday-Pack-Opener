@@ -16,8 +16,8 @@
       punten: [
         'Veiliger voor iedereen: alles wat je typt gaat eerst door een streng filter, en scheldwoorden en persoonlijke gegevens komen er niet meer door.',
         'Je kunt vrienden blokkeren en melden. De beheerder kan iemand waarschuwen, en je ziet netjes een melding als dat gebeurt.',
-        'Geheime prestaties met een raadsel erbij. Kun jij ze vinden?',
-        'Een troostpakje na een tegenvallend cijfer, en op maandag een weekoverzicht van je vorige week.',
+        'Geheime prestaties met een raadsel erbij, een troostpakje na een tegenvallend cijfer en op maandag een weekoverzicht.',
+        'Maak je eigen voetballer en je eigen stadion. Kies huid, haar, tenue, rugnummer en juichstijl, en geef je stadion een naam. Vrienden zien ze ook, en je voetballer schiet de strafschoppen.',
         'Schrijf een tijdcapsule aan jezelf bij een kaart, kies een aartsrivaal en nodig vrienden uit met een link.',
         'Nieuw: de knoppen Wat is nieuw en Feedback bovenin. Zo vertel je ons wat beter kan.',
       ],

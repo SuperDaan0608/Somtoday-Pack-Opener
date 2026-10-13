@@ -9,13 +9,17 @@
  *   spo_dagelijks   { laatste:'JJJJ-MM-DD', reeks:1..7, dagen }     dagelijkse beloning
  *   spo_winkel      { gekocht:[itemId], gebruik:{somtoday, titel, bg} }
  *   spo_profiel     { bijnaam, deel }
+ *   spo_voetbal     { v:1, avatar, stadion }                       je voetballer en je stadion (zie voetbal.js)
  * De munten hebben nooit invloed op cijfers: het zijn alleen cosmetische dingen.
  */
 (function () {
   'use strict';
   const api = typeof browser !== 'undefined' && browser.runtime ? browser : globalThis.chrome;
   const heeftOpslag = !!(api && api.storage && api.storage.local);
-  const K = { munten: 'spo_munten', log: 'spo_munten_log', ids: 'spo_munten_ids', dag: 'spo_dagelijks', winkel: 'spo_winkel', profiel: 'spo_profiel', galerij: 'spo_galerij', gev: 'spo_gevechten', prest: 'spo_prestaties', inst: 'spo_instellingen' };
+  const K = { munten: 'spo_munten', log: 'spo_munten_log', ids: 'spo_munten_ids', dag: 'spo_dagelijks', winkel: 'spo_winkel', profiel: 'spo_profiel', galerij: 'spo_galerij', gev: 'spo_gevechten', prest: 'spo_prestaties', inst: 'spo_instellingen', voetbal: 'spo_voetbal' };
+  // v3.0: avatar en eigen stadion (voetbal.js). Zonder dat bestand werkt de rest gewoon, alleen zonder die items.
+  if (!globalThis.SPOVoetbal && typeof require === 'function') { try { require('./voetbal.js'); } catch (e) { /* niet beschikbaar */ } }
+  const VB = globalThis.SPOVoetbal || null;
 
   async function leesAlles(sleutels) {
     if (heeftOpslag) return api.storage.local.get(sleutels);
@@ -57,8 +61,9 @@
     { id: 'bg-goud', soort: 'bg', naam: 'Goudglans', prijs: 100, zeld: 3, uitleg: 'Achtergrond van je profielkaart: goud.' },
     { id: 'bg-regenboog', soort: 'bg', naam: 'Regenboog', prijs: null, zeld: 3, uitleg: 'Achtergrond van je profielkaart. Alleen te winnen.' },
   ];
+  if (VB) ITEMS.push(...VB.ITEMS);
   const PER_ID = new Map(ITEMS.map((i) => [i.id, i]));
-  const SOORTEN = { somtoday: 'Somtoday-thema', kaartthema: 'Kaartkleuren', rand: 'Kaartrand', titel: 'Profieltitel', bg: 'Profielachtergrond' };
+  const SOORTEN = Object.assign({ somtoday: 'Somtoday-thema', kaartthema: 'Kaartkleuren', rand: 'Kaartrand', titel: 'Profieltitel', bg: 'Profielachtergrond' }, VB ? VB.SOORTEN : {});
   const PAKJES = [
     { id: 'klein', naam: 'Klein pakje', prijs: 40, kans: [72, 24, 4, 0], kleur: '#e08a4a' },
     { id: 'normaal', naam: 'Gewoon pakje', prijs: 100, kans: [40, 38, 19, 3], kleur: '#cfd9e6' },
@@ -301,6 +306,35 @@
     });
   }
 
+  // ───────── Voetballer en stadion (v3.0) ─────────
+  // Keuzes die je niet (meer) hebt gekocht vallen terug op de standaard. Zonder voetbal.js is er niets te bewaren.
+  async function leesVoetbal() {
+    if (!VB) return null;
+    const r = await leesAlles([K.voetbal, K.winkel]);
+    const gekocht = schoonWinkel(r[K.winkel]).gekocht;
+    const t = obj(r[K.voetbal]);
+    return { staat: VB.schoonToestand(t, gekocht), gekocht, gekozen: { avatar: !!t.avatar, stadion: !!t.stadion } };
+  }
+  // wijzig: { avatar?: {...}, stadion?: {...} }; wat je meegeeft wordt over het oude heen gelegd en schoongemaakt.
+  async function bewaarVoetbal(wijzig) {
+    if (!VB) return null;
+    const r = await leesAlles([K.voetbal, K.winkel]);
+    const gekocht = schoonWinkel(r[K.winkel]).gekocht;
+    const oud = obj(r[K.voetbal]);
+    const w = obj(wijzig);
+    const nu = { v: 1 };
+    if (w.avatar || oud.avatar) nu.avatar = VB.schoonAvatar(Object.assign({}, obj(oud.avatar), obj(w.avatar)), gekocht);
+    if (w.stadion || oud.stadion) nu.stadion = VB.schoonStadion(Object.assign({}, obj(oud.stadion), obj(w.stadion)), gekocht);
+    await schrijfAlles({ [K.voetbal]: nu });
+    return VB.schoonToestand(nu, gekocht);
+  }
+  // Mijn uiterlijk voor de strafschop (motor/strafschop.js): SPO.strafschop.start({ schutter: Object.assign({ vak, cijfer }, { av: u.av }), thema: u.thema }).
+  // Zo kan een duel mijn voetballer als schutter en mijn stadion als thuisstadion laten zien. Zonder voetbal.js: null.
+  async function duelUiterlijk() {
+    const r = await leesVoetbal();
+    return r ? { av: VB.naarSchutter(r.staat.avatar), thema: VB.naarThema(r.staat.stadion) } : null;
+  }
+
   // ───────── Dagelijkse beloning ─────────
   const dagTekst = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const vandaag = () => dagTekst(new Date());
@@ -367,7 +401,11 @@
     const gem = wsom ? som / wsom : 0;
     const w = schoonWinkel(winkel).gebruik;
     const m = schoonMunten(munten);
-    return { bn: schoonBijnaam(obj(profiel).bijnaam), s: stats, ovr: Math.round(gem * 10), niv: wsom ? tierVan(gem) : 0, z: Math.min(999, zeldz), k: Math.min(9999, (galerij || []).length), w: m.gev.w, g: m.gev.g, l: m.gev.v, t: w.titel || '', bg: w.bg || 'standaard' };
+    const vb = VB ? VB.deelbaar(obj(profiel).voetbal, schoonWinkel(winkel).gekocht) : { av: null, sd: null };
+    const uit = { bn: schoonBijnaam(obj(profiel).bijnaam), s: stats, ovr: Math.round(gem * 10), niv: wsom ? tierVan(gem) : 0, z: Math.min(999, zeldz), k: Math.min(9999, (galerij || []).length), w: m.gev.w, g: m.gev.g, l: m.gev.v, t: w.titel || '', bg: w.bg || 'standaard' };
+    if (vb.av) uit.av = vb.av;
+    if (vb.sd) uit.sd = vb.sd;
+    return uit;
   }
   // Wat een vriend stuurt, streng schoongemaakt (alleen vaste vormen en lengtes).
   function schoonProfiel(p) {
@@ -376,15 +414,19 @@
     const id = (v) => (typeof v === 'string' && /^[a-z0-9-]{1,24}$/.test(v) ? v : '');
     const s = (Array.isArray(p.s) ? p.s : []).slice(0, 6).filter((x) => x && typeof x.v === 'string' && Number.isFinite(x.n))
       .map((x) => ({ v: x.v.replace(/[^A-Za-zÀ-ÿ?]/g, '').slice(0, 3).toUpperCase() || '?', n: getal(x.n, 100) }));
-    return { bn: schoonBijnaam(p.bn), s, ovr: getal(p.ovr, 100), niv: Math.min(4, getal(p.niv, 4)), z: getal(p.z, 999), k: getal(p.k, 9999), w: getal(p.w, 99999), g: getal(p.g, 99999), l: getal(p.l, 99999), t: id(p.t), bg: id(p.bg) || 'standaard' };
+    const uit = { bn: schoonBijnaam(p.bn), s, ovr: getal(p.ovr, 100), niv: Math.min(4, getal(p.niv, 4)), z: getal(p.z, 999), k: getal(p.k, 9999), w: getal(p.w, 99999), g: getal(p.g, 99999), l: getal(p.l, 99999), t: id(p.t), bg: id(p.bg) || 'standaard' };
+    // v3.0: voetballer en stadion van de vriend (oudere versies sturen ze niet mee)
+    if (VB && p.av && typeof p.av === 'object' && !Array.isArray(p.av)) uit.av = VB.schoonAvatar(p.av);
+    if (VB && p.sd && typeof p.sd === 'object' && !Array.isArray(p.sd)) uit.sd = VB.schoonStadion(p.sd);
+    return uit;
   }
   // Wat er naar vrienden gaat (of null als de gebruiker niet deelt of nog niets heeft).
   async function mijnProfielDeelbaar(galerij) {
-    const r = await leesAlles([K.munten, K.winkel, K.profiel]);
+    const r = await leesAlles([K.munten, K.winkel, K.profiel, K.voetbal]);
     const prof = schoonEigenProfiel(r[K.profiel]);
     if (!prof.deel) return null;
-    const p = maakProfiel(galerij, r[K.munten], r[K.winkel], prof);
-    return p.k || p.bn || p.w || p.g || p.l ? schoonProfiel(p) : null;
+    const p = maakProfiel(galerij, r[K.munten], r[K.winkel], Object.assign({}, prof, { voetbal: r[K.voetbal] }));
+    return p.k || p.bn || p.w || p.g || p.l || p.av || p.sd ? schoonProfiel(p) : null;
   }
   async function bewaarProfiel(wijzig) {
     const r = await leesAlles([K.profiel]);
@@ -396,7 +438,7 @@
 
   globalThis.SPOEco = {
     K, ITEMS, PER_ID, SOORTEN, ZELD, PAKJES, TERUG, DAG_BELONING, TIERNAMEN,
-    waarde, cijferMunten, verdienCijfer, sweep, koop, openPakje, gratisPakje, bonusMunten, gebruik, claimDagelijks, dagStatus, troostPakje, TROOST_PER_DAG, lees, registreerThemas,
+    waarde, cijferMunten, verdienCijfer, sweep, koop, openPakje, gratisPakje, bonusMunten, gebruik, claimDagelijks, dagStatus, troostPakje, TROOST_PER_DAG, lees, registreerThemas, leesVoetbal, bewaarVoetbal, duelUiterlijk,
     maakProfiel, schoonProfiel, mijnProfielDeelbaar, bewaarProfiel, schoonBijnaam, schoonWinkel, schoonMunten, vandaag,
   };
 })();

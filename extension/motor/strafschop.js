@@ -14,7 +14,10 @@
  * window.__somPackDebug.seek(t) gebruiken, net als bij de rest van de motor.
  *
  * Invoer (zie maakInvoer):
- *   schutter, keeper: { vak, cijfer, tier 0..4 (kit-kleur; zonder tier volgt hij uit het cijfer), trede 0..4, vloek }
+ *   schutter, keeper: { vak, cijfer, tier 0..4 (kit-kleur; zonder tier volgt hij uit het cijfer), trede 0..4, vloek,
+ *                       av?: { huid, haar, shirt, broek, acc (hex-kleuren), nummer 1..99, juich } }   (v3.0: eigen voetballer, optioneel;
+ *                       zie SPOVoetbal.naarSchutter. Juichen na een goal: knie | armen | wijd | vuist | dans | salto.)
+ *   thema?: { tribune (hex), gras: [hex, hex], veld: 0 strepen | 1 ruiten | 2 diagonaal }   (v3.0: eigen stadion, optioneel; zie SPOVoetbal.naarThema)
  *   uitkomst: 'goal' | 'redding' | 'paal' | 'over';  richting: 'links' | 'midden' | 'rechts';  hoogte: 'laag' | 'hoog'
  *   kracht: 0..1;  stil: geen geluid;  debug
  * Links/rechts is gezien vanuit de schutter.
@@ -68,6 +71,23 @@
 
   // ═════════════════════════ Invoer ═════════════════════════
   const tierVan = (g) => (g >= 9.95 ? 4 : g >= 9 ? 3 : g >= 7 ? 2 : g >= 5.5 ? 1 : 0);
+  const HEX = /^#[0-9a-fA-F]{6}$/;
+  const JUICHSTIJLEN = ['knie', 'armen', 'wijd', 'vuist', 'dans', 'salto'];
+  // Eigen uiterlijk van een speler (optioneel): alleen vaste vormen, anders null (dan blijft alles zoals het was).
+  function schoonAv(a) {
+    if (!a || typeof a !== 'object') return null;
+    const kl = (v) => (typeof v === 'string' && HEX.test(v) ? v : null);
+    const nr = parseInt(a.nummer, 10);
+    const uit = { huid: kl(a.huid), haar: kl(a.haar), shirt: kl(a.shirt), broek: kl(a.broek), acc: kl(a.acc), nummer: Number.isFinite(nr) && nr >= 1 && nr <= 99 ? nr : 0, juich: JUICHSTIJLEN.includes(a.juich) ? a.juich : 'knie' };
+    return uit.huid || uit.haar || uit.shirt || uit.nummer ? uit : null;
+  }
+  function schoonThema(t) {
+    if (!t || typeof t !== 'object') return null;
+    const kl = (v) => (typeof v === 'string' && HEX.test(v) ? v : null);
+    const g = Array.isArray(t.gras) ? [kl(t.gras[0]), kl(t.gras[1])] : [null, null];
+    const uit = { tribune: kl(t.tribune), gras: g[0] && g[1] ? g : null, veld: klem(parseInt(t.veld, 10) || 0, 0, 2) };
+    return uit.tribune || uit.gras || uit.veld ? uit : null;
+  }
   function kaart(k, standaardVak, standaardCijfer) {
     k = k || {};
     const n = parseFloat(String(k.cijfer == null ? standaardCijfer : k.cijfer).replace(',', '.'));
@@ -80,6 +100,7 @@
       tier: Number.isFinite(t) ? klem(t, 0, 4) : tierVan(g),
       trede: klem(parseInt(k.trede, 10) || 0, 0, 4),
       vloek: k.vloek === true || k.vloek === 'true' || k.vloek === '1' || k.vloek === 1,
+      av: schoonAv(k.av),
     };
   }
   function maakInvoer(o) {
@@ -94,6 +115,7 @@
     return {
       schutter: kaart(o.schutter, 'Wiskunde', 8.6),
       keeper: kaart(o.keeper, 'Engels', 6.2),
+      thema: schoonThema(o.thema),
       uitkomst,
       richting,
       hoogte: hoogte === 'hoog' ? 'hoog' : 'laag',
@@ -294,7 +316,9 @@
         hL: [0.15, 0.22], kL: 1.75, hR: [0.15, 0.22], kR: 1.75, fL: -0.3, fR: -0.3,
         sL: [2.55 + pomp, 0.62], eL: 0.25 + pomp, sR: [2.55 - pomp, 0.62], eR: 0.25 - pomp,
       });
-      if (r > 0.1) h = meng(meng(h, loop, sm(r, 0.1, 0.45)), knie, glij);
+      const stijl = inv.schutter.av ? inv.schutter.av.juich : 'knie';
+      const eind = stijl === 'knie' ? knie : juichHouding(stijl, xs, zs, r);
+      if (r > 0.1) h = meng(meng(h, loop, sm(r, 0.1, 0.45)), eind, glij);
     } else {
       // handen op het hoofd, daarna gebukt met de handen op de knieën
       const kop = houding({
@@ -308,6 +332,19 @@
       if (r > 0.1) h = meng(meng(h, kop, sm(r, 0.1, 0.55)), buk, sm(r, 2.1, 2.8));
     }
     return h;
+  }
+
+  // De juichstijlen van de eigen voetballer na een goal (x, z: waar hij staat; r: seconden sinds de inslag).
+  function juichHouding(stijl, x, z, r) {
+    const basis = { x, z, yaw: -0.5, headP: -0.05, lean: -0.05, hL: [0.05, 0.14], kL: 0.08, hR: [0.05, 0.14], kR: 0.08 };
+    const wiebel = Math.sin(r * 9);
+    if (stijl === 'armen') return houding(Object.assign(basis, { sL: [2.85, 0.45], eL: 0.2, sR: [2.85, 0.45], eR: 0.2, ph: 0.98 + 0.05 * Math.abs(wiebel) }));
+    if (stijl === 'wijd') return houding(Object.assign(basis, { sL: [0.15, 1.55], eL: 0.05, sR: [0.15, 1.55], eR: 0.05, roll: 0.12 * Math.sin(r * 3), lean: 0.12 }));
+    if (stijl === 'vuist') return houding(Object.assign(basis, { sL: [0.05, 0.2], eL: 0.4, sR: [2.95, 0.15], eR: 0.15, ph: 0.98 + 0.08 * Math.max(0, wiebel) }));
+    if (stijl === 'dans') return houding(Object.assign(basis, { sL: [2.2 + 0.6 * wiebel, 0.5], eL: 0.4, sR: [1.0 - 0.6 * wiebel, 0.5], eR: 0.4, hL: [0.1 + 0.3 * Math.max(0, wiebel), 0.14], hR: [0.1 + 0.3 * Math.max(0, -wiebel), 0.14], twist: 0.35 * wiebel, ph: 0.98 + 0.04 * Math.abs(wiebel) }));
+    // salto: een sprong met een rondje om de dwarsas
+    const u = klem((r - 1.7) / 0.9, 0, 1);
+    return houding(Object.assign(basis, { pitch: -2 * Math.PI * glad(u), grond: 1 - sm(u, 0.05, 0.2) * (1 - sm(u, 0.8, 0.95)), ph: 0.98 + 0.9 * 4 * u * (1 - u), hL: [1.1, 0.15], kL: 1.6, hR: [1.1, 0.15], kR: 1.6, sL: [2.2, 0.3], eL: 0.2, sR: [2.2, 0.3], eR: 0.2 }));
   }
 
   // ── de keeper ──
@@ -601,6 +638,10 @@ uniform vec3 uTB[6];
 uniform vec3 uKit[6];      // per speler: shirt, broek, accent
 uniform vec3 uRim[2];      // rim-licht per speler
 uniform vec3 uHuid[2];     // huidskleur per speler
+uniform vec3 uHaar[2];     // haarkleur per speler
+uniform vec3 uGras[2];     // twee maaistroken (eigen stadion)
+uniform vec4 uPubliek;     // eigen tribunekleur (w = 1 als hij gebruikt wordt)
+uniform float uVeld;       // maaipatroon: 0 strepen, 1 ruiten, 2 diagonaal
 uniform vec4 uBal;         // positie, zichtbaar
 uniform mat3 uBalRot;
 uniform vec3 uSpoor[7];
@@ -794,7 +835,7 @@ vec3 tribune(vec3 ro, vec3 rd, out float tHit){
   vec2 id = floor(c);
   vec2 f = fract(c) - .5;
   float hh = h21(id + float(wie) * 17.);
-  vec3 shirt = hh < .4 ? uKit[0] : hh < .75 ? uKit[3] : vec3(.35, .36, .4);
+  vec3 shirt = hh < .4 ? (uPubliek.w > .5 ? uPubliek.xyz : uKit[0]) : hh < .75 ? (uPubliek.w > .5 ? uPubliek.xyz * .6 : uKit[3]) : vec3(.35, .36, .4);
   shirt = mix(shirt, vec3(.08), step(.82, hh) * .8);
   float pers = smoothstep(.5, .15, length(f * vec2(1.1, .8) + vec2(0., .05)));
   float detail = clamp(1.8 - fp / .25, 0., 1.) * .7;
@@ -902,7 +943,9 @@ vec3 gras(vec3 p, float afst, out float verf){
   // maaistroken van 5,5 m dwars op het doel, en een fijnere textuur
   float band = mod(floor(p.z / 5.5), 2.);
   float band2 = mod(floor(p.x / 5.5), 2.) * .25;
-  vec3 g = mix(vec3(.028, .085, .03), vec3(.04, .12, .042), band);
+  if (uVeld > 1.5) { band = mod(floor((p.x + p.z) / 5.5), 2.); band2 = 0.; }
+  else if (uVeld > .5) { band = mod(floor(p.z / 5.5) + floor(p.x / 5.5), 2.); band2 = 0.; }
+  vec3 g = mix(uGras[0], uGras[1], band);
   g *= .92 + band2 * .3;
   float n = fbm(p.xz * 3.) * .5 + fbm(p.xz * .3) * .5;
   g *= .8 + .45 * n;
@@ -995,7 +1038,7 @@ vec3 kleedSpeler(vec3 p, vec3 n, vec3 rd, float mat){
   else if (m < 4.5) { alb = mix(kit, vec3(.9), .25); }
   else if (m < 5.5) { alb = vec3(.04); spec = .6; glans = 60.; }
   else if (m < 6.5) { alb = mix(acc, vec3(.9), .4); spec = .3; }
-  else if (m < 7.5) { alb = vec3(.02, .015, .012); spec = .25; glans = 40.; }
+  else if (m < 7.5) { alb = uHaar[i]; spec = .25; glans = 40.; }
   else { alb = vec3(.015); spec = 1.2; glans = 90.; }
   vec3 col = vec3(0.);
   // hoofdlichten: twee kanten (achter het doel en de overkant), met schaduw
@@ -1346,7 +1389,7 @@ void main(){
       x.textAlign = 'center';
       x.textBaseline = 'middle';
       x.font = '800 150px "SPO Sport", "Arial Black", sans-serif';
-      const tekst = k.tekst;
+      const tekst = k.av && k.av.nummer ? String(k.av.nummer) : k.tekst; // de eigen voetballer draagt zijn rugnummer
       let w = x.measureText(tekst).width;
       const sc = Math.min(1, 230 / w);
       x.scale(sc, 1);
@@ -1382,6 +1425,11 @@ void main(){
   ];
   const TIER_GLOED = ['#e08a4a', '#dbe8ff', '#ffc933', '#34dcff', '#ffe27a'];
   function kitVan(k) {
+    if (k.av && k.av.shirt) {
+      const a = k.av, sh = lin(hexRgb(a.shirt));
+      const pal0 = (SPO.TIERS && SPO.TIERS[k.tier] && SPO.TIERS[k.tier].gloed) || TIER_GLOED[k.tier];
+      return { shirt: keer(sh, 0.85), broek: lin(hexRgb(a.broek || '#22252b')), acc: lin(hexRgb(a.acc || '#ffffff')), gloed: lin(hexRgb(pal0)) };
+    }
     const pal = (SPO.TIERS && SPO.TIERS[k.tier] && SPO.TIERS[k.tier].pal) || TIER_PAL[k.tier];
     const [d, m, l] = pal.map(hexRgb).map(lin);
     // shirt in de middelste kleur, broek donker, accent licht
@@ -1629,12 +1677,21 @@ void main(){
     const rimA = rimVan(inv.schutter, KA), rimB = rimVan(inv.keeper, KB);
     // huidskleur: vast per vak, zodat dezelfde kaart er steeds hetzelfde uitziet
     const HUID = [[0.42, 0.25, 0.16], [0.22, 0.12, 0.075], [0.56, 0.37, 0.27], [0.11, 0.06, 0.04], [0.33, 0.19, 0.12]];
-    const huidVan = (vak, extra) => {
+    const huidVan = (vak, extra, av) => {
+      if (av && av.huid) return lin(hexRgb(av.huid)).map((v) => v * 0.8);
       let h = extra;
       for (const ch of vak) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
       return HUID[h % HUID.length];
     };
-    const huid = new Float32Array([...huidVan(inv.schutter.vak, 1), ...huidVan(inv.keeper.vak, 7)]);
+    const huid = new Float32Array([...huidVan(inv.schutter.vak, 1, inv.schutter.av), ...huidVan(inv.keeper.vak, 7, inv.keeper.av)]);
+    const haarKl = (k) => (k.av && k.av.haar ? lin(hexRgb(k.av.haar)) : [0.02, 0.015, 0.012]);
+    const haar = new Float32Array([...haarKl(inv.schutter), ...haarKl(inv.keeper)]);
+    // eigen stadion: tribunekleur (het publiek draagt die kleur), gras en maaipatroon. Zonder thema precies zoals het was.
+    const TH = inv.thema;
+    const grasA = TH && TH.gras ? lin(hexRgb(TH.gras[0])).map((v) => v * 0.55) : [0.028, 0.085, 0.03];
+    const grasB = TH && TH.gras ? lin(hexRgb(TH.gras[1])).map((v) => v * 0.55) : [0.04, 0.12, 0.042];
+    const publiek = TH && TH.tribune ? lin(hexRgb(TH.tribune)) : null;
+    const grasArr = new Float32Array([...grasA, ...grasB]);
 
     let doelen = null; // { scene, half1, half2, w, h }
     let kwaliteit = inv.laag ? 3 : 0;
@@ -1718,6 +1775,10 @@ void main(){
       pS.f3('uKit', kitArr);
       pS.f3('uRim', new Float32Array([...rimA, ...rimB]));
       pS.f3('uHuid', huid);
+      pS.f3('uHaar', haar);
+      pS.f3('uGras', grasArr);
+      pS.f4('uPubliek', publiek ? [...publiek, 1] : [0, 0, 0, 0]);
+      pS.f1('uVeld', TH ? TH.veld : 0);
       pS.f4('uBal', [...S.bal.p, 1]);
       pS.m3('uBalRot', rot);
       pS.f3('uSpoor', sp);

@@ -7,6 +7,7 @@
   const el = (tag, klas, tekst) => { const e = document.createElement(tag); if (klas) e.className = klas; if (tekst != null) e.textContent = tekst; return e; };
   const ZK = ['#a5aec4', '#5fd0ff', '#c58bff', '#ffb020'];
   let staat = null;
+  let voetbal = null; // { staat: { avatar, stadion }, gekocht } (voetbal.js), of null
   let inst = {};
   let wacht = new Map();
   let melTimer = 0;
@@ -15,14 +16,29 @@
 
   async function laad() {
     staat = await E.lees();
+    try { voetbal = await E.leesVoetbal(); } catch (e) { voetbal = null; }
     try { inst = (await chrome.storage.local.get('spo_instellingen')).spo_instellingen || {}; } catch (e) { inst = {}; }
     teken();
     const d = await E.dagStatus();
     $('dag-info').textContent = d.gehaald ? `Dagelijkse beloning gehaald. Reeks: dag ${d.reeks} van 7.` : 'Je dagelijkse beloning is nog niet gehaald. Open Somtoday om hem te pakken.';
   }
 
+  // Voorbeeld van een haarstijl, tenue, juichstijl, stadionthema, veldstijl of vlag: de eigen voetballer of het eigen stadion met dit item erop.
+  function voetbalVoorbeeld(it, v) {
+    const VB = globalThis.SPOVoetbal;
+    const cv = document.createElement('canvas');
+    cv.setAttribute('aria-hidden', 'true');
+    const [groep, veld] = VB.VELD_VAN[it.soort];
+    const basis = voetbal ? voetbal.staat[groep] : groep === 'avatar' ? VB.STANDAARD_AVATAR : VB.STANDAARD_STADION;
+    const mix = Object.assign({}, basis, { [veld]: it.sleutel });
+    if (groep === 'avatar') { VB.tekenAvatar(cv, mix, { pose: it.soort === 'juich' ? it.sleutel : 'staan', schaal: 0.5 }); v.style.background = 'rgba(255,255,255,.05)'; }
+    else VB.tekenStadion(cv, mix, { schaal: 0.4 });
+    cv.style.height = '100%';
+    v.append(cv);
+  }
   function voorbeeld(it) {
     const v = el('div', 'voorbeeld');
+    if (globalThis.SPOVoetbal && globalThis.SPOVoetbal.VELD_VAN[it.soort]) { voetbalVoorbeeld(it, v); return v; }
     if (it.soort === 'somtoday') {
       v.style.background = it.kleuren[0];
       const m = el('div', 'mini'); m.style.background = it.kleuren[1]; m.style.boxShadow = `inset 0 3px 0 ${it.kleuren[2]}`; v.append(m);
@@ -69,6 +85,7 @@
   }
   const inGebruik = (it) => {
     const g = staat.winkel.gebruik;
+    if (globalThis.SPOVoetbal && globalThis.SPOVoetbal.VELD_VAN[it.soort]) { const [gr, vl] = globalThis.SPOVoetbal.VELD_VAN[it.soort]; return !!voetbal && voetbal.staat[gr][vl] === it.sleutel; }
     if (it.soort === 'somtoday') return g.somtoday === it.id;
     if (it.soort === 'titel') return g.titel === it.id;
     if (it.soort === 'bg') return g.bg === it.id;
@@ -118,6 +135,7 @@
         g.addEventListener('click', async () => {
           try {
             if (it.gratis) await it.zet();
+            else if (globalThis.SPOVoetbal && globalThis.SPOVoetbal.VELD_VAN[it.soort]) { const [gr, vl] = globalThis.SPOVoetbal.VELD_VAN[it.soort]; await E.bewaarVoetbal({ [gr]: { [vl]: it.sleutel } }); }
             else if (it.soort === 'kaartthema' || it.soort === 'rand') await gebruikKaart(it);
             else await E.gebruik(it.soort, it.id);
             meld(`${it.naam} staat aan.`);
@@ -152,11 +170,16 @@
     const gratis = {
       somtoday: [{ id: 'st-standaard', soort: 'somtoday', naam: 'Standaard', zeld: 0, uitleg: 'Het gewone uiterlijk van Somtoday.', kleuren: ['#ffffff', '#eaedf0', '#0068cc'], gratis: true, aan: () => staat.winkel.gebruik.somtoday === 'standaard', zet: () => E.gebruik('somtoday', null) }],
       kaartthema: [], rand: [],
+      haar: [], kitkleur: [], juich: [], stadion: [], veld: [], vlag: [],
       titel: [{ id: 'ti-geen', soort: 'titel', naam: 'Geen titel', zeld: 0, uitleg: 'Je kaart zegt gewoon "Speler".', gratis: true, aan: () => !staat.winkel.gebruik.titel, zet: () => E.gebruik('titel', null) }],
       bg: [{ id: 'bg-standaard', soort: 'bg', naam: 'Standaard', zeld: 0, uitleg: 'Blauw met paars.', gratis: true, aan: () => staat.winkel.gebruik.bg === 'standaard', zet: () => E.gebruik('bg', null) }],
     };
     const koppen = { somtoday: "Somtoday-thema's", kaartthema: 'Kaartkleuren', rand: 'Kaartranden', titel: 'Profieltitels', bg: 'Profielachtergronden' };
     const uitleg = { somtoday: 'Hertekent de hele Somtoday-pagina. Uitzetten kan altijd: kies Standaard.', kaartthema: 'Extra kleuren voor je kaarten. Fijn afstellen per niveau kan bij Kaart ontwerpen.', rand: 'De gewone rand en Dun zijn gratis. Deze zijn extra.', titel: 'Staat op je profielkaart.', bg: 'Achter je profielkaart.' };
+    if (globalThis.SPOVoetbal) {
+      Object.assign(koppen, { haar: 'Haarstijlen', kitkleur: 'Tenues', juich: 'Juichstijlen', stadion: "Stadionthema's", veld: 'Veldstijlen', vlag: 'Vlaggen' });
+      Object.assign(uitleg, { haar: 'Voor je eigen voetballer. De gewone haarstijlen zijn gratis.', kitkleur: 'De kleuren van je voetballer.', juich: 'Hoe je voetballer juicht na een doelpunt.', stadion: 'Voor je eigen stadion. Je naam en tribune kies je bij Speler en stadion.', veld: 'Het gras van je stadion.', vlag: 'Vlaggen boven je tribune.' });
+    }
     const r = $('rijen'); r.replaceChildren();
     for (const soort of Object.keys(koppen)) {
       r.append(el('h2', '', koppen[soort]), el('p', 'uitleg', uitleg[soort]));
@@ -204,7 +227,7 @@
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('overlay').hidden && !$('ov-sluit').hidden) { e.preventDefault(); e.stopPropagation(); sluitOv(); } }, true);
 
   try {
-    chrome.storage.onChanged.addListener((w, g) => { if (g === 'local' && (w.spo_munten || w.spo_winkel || w.spo_instellingen) && $('overlay').hidden) laad(); });
+    chrome.storage.onChanged.addListener((w, g) => { if (g === 'local' && (w.spo_munten || w.spo_winkel || w.spo_instellingen || w.spo_voetbal) && $('overlay').hidden) laad(); });
   } catch (e) { /* geen opslag */ }
   E.sweep().catch(() => {}).then(laad);
 })();

@@ -369,6 +369,16 @@
     return blok;
   }
 
+  // v3.0: de voetballer van een vriend (uit de versleutelde blob, al schoongemaakt door SPOEco.schoonProfiel)
+  function voetbalFiguur(av, naam) {
+    const cv = document.createElement('canvas');
+    cv.className = 'v-figuur';
+    cv.style.cssText = 'width:40px;height:60px;flex:none;border-radius:10px;background:rgba(255,255,255,.06)';
+    cv.setAttribute('role', 'img');
+    cv.setAttribute('aria-label', `Voetballer van ${naam}`);
+    globalThis.SPOVoetbal.tekenAvatar(cv, av, { pose: 'staan', schaal: 0.6 });
+    return cv;
+  }
   function vriendItem(v) {
     const li = el('li', 'vriend');
     li.dataset.id = v.id;
@@ -376,7 +386,7 @@
     const gek = vriendKaarten[v.id];
     const kop = el('div', 'v-kop');
     const wie = el('div', 'v-wie');
-    wie.append(el('span', 'v-avatar', eersteLetter(naam)));
+    wie.append(gek && gek.profiel && gek.profiel.av && globalThis.SPOVoetbal ? voetbalFiguur(gek.profiel.av, naam) : el('span', 'v-avatar', eersteLetter(naam)));
     const tekst = el('div', 'v-tekst');
     const h = el('h3', 'v-naam', naam);
     h.append(el('span', 'badge' + (v.status === 'weggevallen' || v.andereVersie ? ' weg' : ''),
@@ -437,6 +447,14 @@
         cv.setAttribute('aria-label', `Profielkaart van ${naam}: ${gek.profiel.bn || 'speler'}, niveau ${gek.profiel.ovr}`);
         det.append(cv);
         globalThis.SPOEco.tekenProfiel(cv, gek.profiel);
+        if (gek.profiel.sd && globalThis.SPOVoetbal) { // het thuisstadion van de vriend
+          const sv = document.createElement('canvas');
+          sv.style.cssText = 'display:block;width:min(320px,100%);height:auto;border-radius:12px;margin-top:10px';
+          sv.setAttribute('role', 'img');
+          sv.setAttribute('aria-label', `Stadion van ${naam}. ${globalThis.SPOVoetbal.beschrijfStadion(gek.profiel.sd)}`);
+          globalThis.SPOVoetbal.tekenStadion(sv, gek.profiel.sd, { schaal: 1 });
+          det.append(sv);
+        }
       });
       li.append(det);
     }
