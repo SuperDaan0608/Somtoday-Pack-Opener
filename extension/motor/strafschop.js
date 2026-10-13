@@ -708,7 +708,7 @@ vec2 speler(vec3 p, int i){
   dT = sdEll(l - vec3(0., .36, -.005), vec3(.152, .165, .1));
   dT = smin(dT, sdEll(l - vec3(0., .19, -.004), vec3(.13, .13, .088)), .06);
   dT = smin(dT, sdEll(l - vec3(0., .045, -.002), vec3(.152, .1, .108)), .05);
-  dT = smin(dT, sdEll(vec3(abs(l.x), l.yz) - vec3(.065, .39, .035), vec3(.07, .055, .05)), .06); // borstspieren
+  dT = smin(dT, sdEll(l - vec3(0., .38, .02), vec3(.13, .06, .07)), .07); // borstkas voor
   // nek-schouderlijn (trapezius) en schouderkoppen
   vec3 SL = uJ[o + 4], SR = uJ[o + 7];
   dT = smin(dT, sdCapT(p, NK - U * .015, SL + U * .01, .06, .052), .06);
@@ -1123,7 +1123,7 @@ vec2 marcheer(vec3 ro, vec3 rd, float tmax, int stappen){
 }
 
 // licht op een speler
-vec3 kleedSpeler(vec3 p, vec3 n, vec3 rd, float mat){
+vec3 kleedSpeler(vec3 p, vec3 n, vec3 rd, float mat, float s1){
   int i = mat > 9.5 ? 1 : 0;
   float m = mat - float(i) * 10.;
   vec3 kit = uKit[i * 3], broek = uKit[i * 3 + 1], acc = uKit[i * 3 + 2];
@@ -1215,7 +1215,6 @@ vec3 kleedSpeler(vec3 p, vec3 n, vec3 rd, float mat){
   vec3 col = vec3(0.);
   // hoofdlichten: twee kanten (achter het doel en de overkant), met schaduw
   vec3 L1 = normalize(lichtPos(0) - p), L2 = normalize(lichtPos(5) - p), L3 = normalize(lichtPos(3) - p);
-  float s1 = uKw < 2.5 ? schaduw(p + n * .01, L1) : 1.;
   float d1 = max((dot(n, L1) + wrap) / (1. + wrap), 0.), d2 = max((dot(n, L2) + wrap) / (1. + wrap), 0.), d3 = max(dot(n, L3), 0.);
   col += alb * (d1 * s1 * 1.25 * vec3(1., .95, .88) + d2 * .42 * vec3(.85, .9, 1.) + d3 * .22) * uLicht;
   vec3 hv = normalize(L1 - rd);
@@ -1278,7 +1277,7 @@ void main(){
       float sh = 1.;
       float nabij = min(length(p.xz - uJ[0].xz), length(p.xz - uJ[18].xz));
       vec3 L1 = normalize(lichtPos(0) - p), L2 = normalize(lichtPos(5) - p);
-      if (nabij < 4.5 && uKw < 2.5) { sh = schaduw(p + n * .01, L1) * .6 + schaduw(p + n * .01, L2) * .4; }
+      if (nabij < 4.5 && uKw < 2.5) { sh = 0.; for (int k = 0; k < 2; k++) sh += schaduw(p + n * .01, k == 0 ? L1 : L2) * (k == 0 ? .6 : .4); }
       else if (nabij < 4.5) sh = 1.;
       // de bal: een klein donker vlekje eronder
       float bs = smoothstep(.0, .25, length(p.xz - uBal.xz) - .02 - uBal.y * .2) ;
@@ -1298,7 +1297,7 @@ void main(){
       vec3 refl = achtergrond(p, rr, Tr) * .7;
       if (uKw < 1.5) {
         vec2 rs = marcheer(p + n * .01, rr, 6., 40);
-        if (rs.x > 0.) { vec3 pp = p + rr * rs.x; refl = kleedSpeler(pp, normaal(pp), rr, rs.y) * .8; }
+        if (rs.x > 0.) { vec3 pp = p + rr * rs.x; refl = kleedSpeler(pp, normaal(pp), rr, rs.y, 1.) * .8; }
       }
       // de bal spiegelt ook
       vec2 rb = bolIn(p, rr, uBal.xyz, .11);
@@ -1328,7 +1327,8 @@ void main(){
       col += pow(1. - max(dot(n, -rd), 0.), 3.) * vec3(.5, .55, .7) * .6;
     } else {
       vec3 n = normaal(p);
-      col = kleedSpeler(p, n, rd, spMat);
+      float s1 = uKw < 2.5 ? schaduw(p + n * .01, normalize(lichtPos(0) - p)) : 1.;
+      col = kleedSpeler(p, n, rd, spMat, s1);
     }
   }
 
