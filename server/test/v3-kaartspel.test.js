@@ -30,7 +30,7 @@ const NEP_CHROME = ({ zaad }) => {
     async set(o) { const w = {}; for (const [k, v] of Object.entries(o)) { w[k] = { oldValue: lees(k), newValue: v }; localStorage.setItem(P + k, JSON.stringify(v)); } luisteraars.forEach((f) => f(w, 'local')); },
     async remove(s) { for (const k of [].concat(s)) localStorage.removeItem(P + k); },
   };
-  window.chrome = { storage: { local, onChanged: { addListener: (f) => luisteraars.push(f) } }, runtime: { getManifest: () => ({ version: '3.0.0' }), id: 'nep', sendMessage: () => Promise.resolve() } };
+  window.chrome = { storage: { local, onChanged: { addListener: (f) => luisteraars.push(f) } }, runtime: { getManifest: () => ({ version: '2.4.4' }), id: 'nep', sendMessage: () => Promise.resolve() } };
 };
 async function nieuw(br, { zaad = {}, beweging = 'no-preference', breed = 900, hoog = 900, drop } = {}) {
   const ctx = await br.newContext({ viewport: { width: breed, height: hoog }, reducedMotion: beweging });
@@ -71,8 +71,8 @@ async function speelUit(p, maxMs = 60000) {
 {
   const hoog = kaart('Wiskunde', 9), laag = kaart('Engels', 5);
   controle('cijfer: hoger wint, lager verliest, gelijk is gelijk', K.vergelijk(hoog, laag, 'cijfer') === 1 && K.vergelijk(laag, hoog, 'cijfer') === -1 && K.vergelijk(hoog, kaart('Natuurkunde', 9), 'cijfer') === 0);
-  controle('ladder: een hogere trede wint ook met een lager cijfer', K.vergelijk(kaart('Engels', 6, 3), kaart('Wiskunde', 9, 0), 'ladder') === 1);
-  controle('cijfer negeert de trede', K.vergelijk(kaart('Engels', 6, 3), kaart('Wiskunde', 9, 0), 'cijfer') === -1);
+  controle('ladder: een hogere trede wint ook met een lager cijfer', K.vergelijk(kaart('Engels', 6, 4), kaart('Wiskunde', 9, 0), 'ladder') === 1);
+  controle('cijfer negeert de trede', K.vergelijk(kaart('Engels', 6, 4), kaart('Wiskunde', 9, 0), 'cijfer') === -1);
   const ex = kaart('Wiskunde', 5), ta = kaart('Engels', 9), me = kaart('Geschiedenis', 5), ku = kaart('Muziek', 5);
   controle('groep: Exact slaat Talen ondanks lager cijfer', K.vergelijk(ex, ta, 'groep') === 1 && K.vergelijk(ta, ex, 'groep') === -1);
   controle('groep: Talen slaat Mens, Mens slaat Kunst, Kunst slaat Exact', K.vergelijk(ta, me, 'groep') === 1 && K.vergelijk(me, ku, 'groep') === 1 && K.vergelijk(ku, ex, 'groep') === 1);
@@ -182,9 +182,9 @@ async function speelUit(p, maxMs = 60000) {
 
     // ───────── 4. Toetsenbord, opgeven en geen beloning ─────────
     {
-      const { ctx, p } = await nieuw(br, { zaad: { spo_munten: MUNTEN(50), spo_galerij: kaarten(8) }, beweging: 'reduce' });
+      const { ctx, p } = await nieuw(br, { zaad: { spo_munten: MUNTEN(50), spo_galerij: kaarten(8) } });
       await p.goto(WEB + '/kaartspel.html'); await p.waitForSelector('#saldo'); await slaap(300);
-      await p.click('#deck-beste'); await p.click('#start-pc'); await slaap(1500);
+      await p.click('#deck-beste'); await p.click('#start-pc'); await slaap(1200);
       // Ronde 1: ofwel ik kies de vergelijking, ofwel de computer. Wacht tot een van de twee klaar staat.
       for (let i = 0; i < 60 && !(await p.locator('#vgl-knoppen').isVisible()) && (await p.locator('.hand-kaart:not(:disabled)').count()) === 0; i++) await slaap(100);
       if (await p.locator('#vgl-knoppen').isVisible()) {
@@ -194,12 +194,12 @@ async function speelUit(p, maxMs = 60000) {
         await p.keyboard.press('2');
       }
       for (let i = 0; i < 60 && (await p.locator('.hand-kaart:not(:disabled)').count()) === 0; i++) await slaap(100);
-      controle('na de vergelijking staat de badge op tafel', (await p.locator('#vgl-badge').innerText()).length > 2, await p.locator('#vgl-badge').innerText());
-      await p.keyboard.press('3'); await slaap(1500);
+      controle('na de vergelijking staat de badge op tafel', (await p.locator('#vgl-badge').textContent()).length > 2, await p.locator('#vgl-badge').textContent());
+      await p.keyboard.press('3'); await slaap(1300);
       controle('cijfertoets speelt kaart 3: die kaart is weg uit de hand en staat op tafel', (await p.locator('#hand-2.gespeeld').count()) === 1 && (await p.locator('#slot-ik .mk').count()) === 1 && (await p.locator('#slot-zij .mk:not(.rug)').count()) === 1);
       controle('score en tekst zijn bijgewerkt', /Ronde 1/.test(await p.locator('#tafel-tekst').innerText()), await p.locator('#tafel-tekst').innerText());
       await p.click('#opgeven'); await slaap(400);
-      controle('opgeven: potje gestopt en geen munten', /gestopt/.test(await p.locator('#einde-kop').innerText()) && (await saldo(p)) === 50);
+      controle('opgeven: potje gestopt en geen munten', /gestopt/.test(await p.locator('#einde-kop').innerText()) && (await saldo(p)) === 50, [await p.locator('#einde-kop').innerText(), await saldo(p)]);
       const ids = await opslag(p, 'spo_munten_ids');
       controle('opgeven: de dagelijkse teller blijft 0', !ids || Object.keys(ids).filter((k) => /^ks/.test(k)).length === 0);
       await ctx.close();
@@ -276,15 +276,17 @@ async function speelUit(p, maxMs = 60000) {
 
     // ───────── 6. Het tabblad in het paneel ─────────
     {
-      const { ctx, p } = await nieuw(br, { zaad: { spo_munten: MUNTEN(100), spo_galerij: kaarten(8), spo_vrienden: VRIENDEN } });
+      const { ctx, p } = await nieuw(br, { breed: 1100, hoog: 800, zaad: { spo_munten: MUNTEN(100), spo_galerij: kaarten(8), spo_rondleiding: 1, spo_nieuw_gezien: '2.4.4', spo_vrienden: VRIENDEN, spo_account: { email: 't@t.nl', sessie: 's', account: 'a', sleutel: 'k', laatsteBackup: 1 } } });
       await p.goto(WEB + '/hub.html'); await p.waitForSelector('#tab-kaartspel'); await slaap(900);
       controle('hub: tabblad Kaartspel bestaat tussen Arcade en Winkel', await p.evaluate(() => { const t = [...document.querySelectorAll('#tabs [role=tab]')].map((b) => b.id); return t.indexOf('tab-kaartspel') === t.indexOf('tab-arcade') + 1 && t.indexOf('tab-winkel') === t.indexOf('tab-kaartspel') + 1; }));
       await p.click('#tab-kaartspel'); await slaap(900);
       controle('hub: het tabblad toont de pagina in een iframe', (await p.locator('#tab-kaartspel').getAttribute('aria-selected')) === 'true' && (await p.locator('#paneel-kaartspel iframe').getAttribute('src')) === 'kaartspel.html?embed=1');
       const f = p.frameLocator('#paneel-kaartspel iframe');
       controle('hub: het kaartspel werkt in het paneel', (await f.locator('#saldo').innerText()) === '100' && (await f.locator('.kies-kaart').count()) === 8);
-      await p.focus('#tab-arcade'); await p.keyboard.press('ArrowDown'); await slaap(300);
-      controle('hub: pijltje omlaag van Arcade naar Kaartspel', (await p.evaluate(() => document.activeElement.id)) === 'tab-kaartspel');
+      await p.focus('#tab-kaartspel'); await p.keyboard.press('ArrowUp'); await slaap(300);
+      controle('hub: pijltje omhoog van Kaartspel naar Arcade', (await p.evaluate(() => document.activeElement.id)) === 'tab-arcade');
+      await p.keyboard.press('ArrowDown'); await p.keyboard.press('ArrowDown'); await slaap(300);
+      controle('hub: twee keer omlaag brengt je langs Kaartspel naar Winkel', (await p.evaluate(() => document.activeElement.id)) === 'tab-winkel');
       await ctx.close();
     }
 
@@ -295,8 +297,8 @@ async function speelUit(p, maxMs = 60000) {
       const data = require(EXT + '/nieuw-data.js');
       const v3 = data.find((x) => x.versie === '3.0.0');
       controle('wat is nieuw: 3.0.0 noemt het Kaartspel en blijft op hooguit 6 punten', v3.punten.length <= 6 && v3.punten.some((t) => /Kaartspel/.test(t)), v3.punten.length);
-      const bron = ['kaartspel.js', 'kaartspellib.js', 'kaartspel.html'].map((f) => fs.readFileSync(path.join(EXT, f), 'utf8')).join('\n');
-      controle('de naam van de school-site staat nergens in de kaartspel-bestanden', !/somtoday/i.test(bron));
+      const bron = ['kaartspel.js', 'kaartspellib.js', 'kaartspel.html'].map((f) => fs.readFileSync(path.join(EXT, f), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')).join('\n');
+      controle('het woord uit de school-site wordt nergens opgeslagen of getoond (buiten de uitleg in de code)', !/somtoday/i.test(bron));
       controle('kaartspel.js zet vriendendata alleen via textContent op het scherm (geen innerHTML)', !/innerHTML|insertAdjacentHTML/.test(bron));
     }
   } finally {

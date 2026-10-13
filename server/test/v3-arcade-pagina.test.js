@@ -234,7 +234,7 @@ const meldingTekst = (p) => p.locator('#melding').innerText();
       controle('hub: tabblad Arcade toont de pagina in een iframe', (await p.locator('#tab-arcade').getAttribute('aria-selected')) === 'true' && (await p.locator('#paneel-arcade iframe').count()) === 1 && (await p.locator('#paneel-arcade iframe').getAttribute('src')) === 'arcade.html?embed=1', await p.locator('#paneel-arcade iframe').count());
       const f = p.frameLocator('#paneel-arcade iframe');
       controle('hub: de arcade werkt in het paneel (saldo en spelknoppen)', (await f.locator('#saldo').innerText()) === '100' && (await f.locator('.spelknop').count()) === 4);
-      controle('hub: tab-volgorde met pijltjestoets: van Arcade naar Winkel', await (async () => { await p.focus('#tab-arcade'); await p.keyboard.press('ArrowDown'); await slaap(300); return (await p.evaluate(() => document.activeElement.id)) === 'tab-winkel'; })());
+      controle('hub: tab-volgorde met pijltjestoets: van Arcade naar Kaartspel', await (async () => { await p.focus('#tab-arcade'); await p.keyboard.press('ArrowDown'); await slaap(300); return (await p.evaluate(() => document.activeElement.id)) === 'tab-kaartspel'; })());
       controle('hub: geen paginafouten', fouten.length === 0, fouten);
       await ctx.close();
     }

@@ -102,8 +102,8 @@
       b.setAttribute('aria-pressed', String(aan));
       b.setAttribute('aria-label', kaartNaam(mijnKaart(e)) + (aan ? ', in je deck' : ''));
       b.disabled = !aan && vol;
-      const img = new Image(); img.src = e.kaart; img.alt = ''; img.loading = 'lazy'; img.draggable = false;
-      b.append(img);
+      if (e.kaart) { const img = new Image(); img.src = e.kaart; img.alt = ''; img.loading = 'lazy'; img.draggable = false; b.append(img); }
+      else { const c = kaartEl(mijnKaart(e)); c.style.setProperty('--kw', '78px'); c.style.width = '100%'; b.append(c); }
       if (aan) b.append(el('i', 'kies-vink', String(deckIds.indexOf(e.id) + 1)));
       b.addEventListener('click', () => { deckIds = aan ? deckIds.filter((x) => x !== e.id) : deckIds.concat(e.id); bewaar(); tekenDeck(); });
       li.append(b); ul.append(li);
@@ -218,7 +218,7 @@
     sp.ontvang = (s) => {
       if (s.t === 'ks_vgl' && K.kiezer(sp.p, s.r) !== 'ik' && sp.ontv.vgl[s.r] === undefined) sp.ontv.vgl[s.r] = s.v;
       else if (s.t === 'ks_kaart' && sp.ontv.kaart[s.r] === undefined) sp.ontv.kaart[s.r] = s.i;
-      else if (s.t === 'ks_stop') sp.stop(new Error(`${sp.naam} heeft het potje verlaten.`));
+      else if (s.t === 'ks_stop') { const m = `${sp.naam} heeft het potje verlaten.`; sp.stop(new Error(m)); afronden(sp, true, m); }
       sp.ping();
     };
     return sp;
@@ -302,6 +302,7 @@
     const p = sp.p;
     try {
       while (!K.eind(p)) {
+        if (sp.dood) throw sp.dood;
         const r = p.r, kz = K.kiezer(p);
         sp.pcKeuze = null; sp.keuze = { vgl: null, kaart: null };
         $('ronde-info').textContent = `Ronde ${r + 1} van ${K.DECK}`;
@@ -330,6 +331,7 @@
         if (sp.tegen === 'pc') { j = kz === 'zij' && sp.pcKeuze ? sp.pcKeuze.j : K.computerAntwoordt(p, vgl, Math.random); }
         else j = await sp.wacht(() => sp.ontv.kaart[r], 90000);
         await onthul(sp, r, i, j, vgl);
+        if (sp.dood) throw sp.dood;
       }
       await afronden(sp, false);
     } catch (e) {
@@ -417,6 +419,7 @@
     const sp = spel; sp.eigenStop = true;
     if (sp.tegen === 'vriend') await stuur0(sp, { t: 'ks_stop' });
     sp.stop(new Error('Je hebt het potje opgegeven.'));
+    await afronden(sp, true, 'Je hebt het potje opgegeven.');
   });
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && spel && !spel.klaar) { e.preventDefault(); e.stopPropagation(); return; }
