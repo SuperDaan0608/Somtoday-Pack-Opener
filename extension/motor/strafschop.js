@@ -847,16 +847,23 @@ vec2 speler(vec3 p, int i){
 }
 
 vec2 spelers(vec3 p){
-  vec2 a = speler(p, 0);
-  vec2 b = speler(p, 1);
-  vec2 r = a.x < b.x ? a : b;
-  return vec2(r.x, r.y + (a.x < b.x ? 0. : 10.));
+  // één aanroepplek per lus houdt de shader klein (de functie wordt anders vele keren ingevoegd)
+  vec2 r = vec2(1e5, 0.);
+  for (int i = 0; i < 2; i++) {
+    vec2 h = speler(p, i);
+    if (h.x < r.x) r = vec2(h.x, h.y + float(i) * 10.);
+  }
+  return r;
 }
-float spelersD(vec3 p){ return min(speler(p, 0).x, speler(p, 1).x); }
+float spelersD(vec3 p){ return spelers(p).x; }
 
 vec3 normaal(vec3 p){
-  const vec2 e = vec2(.0012, -.0012);
-  return normalize(e.xyy * spelersD(p + e.xyy) + e.yyx * spelersD(p + e.yyx) + e.yxy * spelersD(p + e.yxy) + e.xxx * spelersD(p + e.xxx));
+  vec3 n = vec3(0.);
+  for (int k = 0; k < 4; k++) {
+    vec3 e = .5773 * (2. * vec3(float(((k + 3) >> 1) & 1), float((k >> 1) & 1), float(k & 1)) - 1.);
+    n += e * spelersD(p + e * .0012);
+  }
+  return normalize(n);
 }
 
 // straal tegen bol: [t in, t uit] of (-1)
