@@ -155,7 +155,7 @@
   const STAND = {
     x: 0, z: 0, ph: 0.98, yaw: 0, roll: 0, pitch: 0, lean: 0.04, headP: 0, twist: 0,
     hL: [0.02, 0.07], kL: 0.06, fL: 0, hR: [0.02, 0.07], kR: 0.06, fR: 0,
-    sL: [0.05, 0.16], eL: 0.2, sR: [0.05, 0.16], eR: 0.2, grond: 1,
+    sL: [0.05, 0.16], eL: 0.2, sR: [0.05, 0.16], eR: 0.2, grond: 1, eAL: null, eAR: null,
   };
   const houding = (o) => Object.assign({}, STAND, o, {
     hL: (o && o.hL) || STAND.hL, hR: (o && o.hR) || STAND.hR, sL: (o && o.sL) || STAND.sL, sR: (o && o.sR) || STAND.sR,
@@ -166,7 +166,12 @@
     const u = {};
     for (const k in a) {
       const x = a[k], y = b[k];
-      u[k] = Array.isArray(x) ? [mix(x[0], y[0], p), mix(x[1], y[1], p)] : mix(x, y, p);
+      if (k === 'eAL' || k === 'eAR') {
+        // een eigen onderarmstand mengt met de stand van de bovenarm
+        const za = k === 'eAL' ? 'sL' : 'sR';
+        const xa = x == null ? a[za][1] : x, ya = y == null ? b[za][1] : y;
+        u[k] = x == null && y == null ? null : mix(xa, ya, p);
+      } else u[k] = Array.isArray(x) ? [mix(x[0], y[0], p), mix(x[1], y[1], p)] : mix(x, y, p);
     }
     return u;
   }
@@ -190,16 +195,17 @@
     J[1] = romp([0, 0.3, 0]);
     J[2] = romp([0, 0.54, 0]);
     J[3] = plus(J[2], rotY(rotX([0, 0.15, 0.01], h.lean + h.headP), h.twist));
-    const arm = (zij, s, e, i0) => {
+    const arm = (zij, s, e, eA, i0) => {
       const sch = romp([zij * 0.19, 0.47, 0]);
       const boven = romp(ledRicht(s[0], s[1], zij));
-      const onder = romp(ledRicht(s[0] + e, s[1], zij));
+      // de onderarm volgt de bovenarm, of heeft een eigen zijwaartse stand (eA, bv. handen op het hoofd)
+      const onder = romp(ledRicht(s[0] + e, eA == null ? s[1] : eA, zij));
       J[i0] = sch;
       J[i0 + 1] = plus(sch, keer(boven, 0.29));
       J[i0 + 2] = plus(J[i0 + 1], keer(onder, 0.27));
     };
-    arm(-1, h.sL, h.eL, 4);
-    arm(1, h.sR, h.eR, 7);
+    arm(-1, h.sL, h.eL, h.eAL, 4);
+    arm(1, h.sR, h.eR, h.eAR, 7);
     const been = (zij, hp, kn, vo, i0) => {
       const heup = [zij * 0.1, -0.03, 0];
       const dij = ledRicht(hp[0], hp[1], zij);
@@ -293,7 +299,7 @@
       // handen op het hoofd, daarna gebukt met de handen op de knieën
       const kop = houding({
         x: h.x, z: h.z + 0.05, yaw: Math.PI - 0.1, lean: 0.18, headP: -0.25,
-        sL: [2.35, 0.95], eL: 2.35, sR: [2.35, 0.95], eR: 2.35, hL: [0.05, 0.1], kL: 0.1, hR: [0.02, 0.1], kR: 0.1,
+        sL: [0.2, 2.45], eL: 0.2, eAL: -1.85, sR: [0.2, 2.45], eR: 0.2, eAR: -1.85, hL: [0.05, 0.1], kL: 0.1, hR: [0.02, 0.1], kR: 0.1,
       });
       const buk = houding({
         x: h.x + 0.05, z: h.z + 0.1, yaw: Math.PI + 0.25, lean: 0.75, headP: -0.2, hL: [0.55, 0.12], kL: 0.55, hR: [0.55, 0.12], kR: 0.55,
@@ -533,10 +539,11 @@
       // (5) doelcamera achter het net, de bal komt op ons af
       shot = 8;
       const u = ramp(t, tl.tDoelcam, tl.tReactie);
-      const zx = W.bp.E[0] * 0.55;
-      pos = [zx, 0.95, -3.3 + 0.2 * u];
-      doel = lerp3([W.bp.E[0] * 0.15, 0.85, 8], [W.bp.E[0] * 0.45, 0.8, 4], glad(u));
-      fov = 36;
+      const E = W.bp.E;
+      // recht achter het punt waar de bal het net raakt: de bal komt op ons af
+      pos = [E[0] * 0.8, Math.max(0.7, E[1] * 0.8 + 0.35), -3.7 + 0.2 * u];
+      doel = lerp3([E[0] * 0.3, 0.8, 7], [E[0] * 0.45, 0.75, 5], glad(u));
+      fov = 42;
     } else if (t < tl.tR) {
       // (6) reactie: juichende schutter (goal), juichende keeper (redding) of baalende schutter
       shot = 9;
@@ -637,7 +644,7 @@ vec2 speler(vec3 p, int i){
   // broek: om het bekken
   vec3 qb = p - (P0 - U * .03);
   vec3 lb = vec3(dot(qb, R), dot(qb, U), dot(qb, F));
-  float dB = sdRBox(lb, vec3(.085, .045, .035), .062);
+  float dB = sdRBox(lb + vec3(0., 0., .01), vec3(.08, .045, .028), .06);
   vec2 r = vec2(dT, 1.);
   r = kies(r, dB, 3.);
   // nek en hoofd
@@ -795,7 +802,7 @@ vec3 tribune(vec3 ro, vec3 rd, out float tHit){
   // grote, langzame vlekken: vlaggen en sjaals
   publiek *= .55 + .75 * vn(vec2(u * .08, v * .2) + float(wie) * 3.);
   // belichting: de bovenring is donkerder
-  float lichtTrib = .11 * (1. - .6 * smoothstep(4., 24., v)) * uLicht;
+  float lichtTrib = .2 * (1. - .6 * smoothstep(4., 24., v)) * uLicht;
   col = publiek * lichtTrib;
   col = mix(col, vec3(.012, .014, .02), balkon);
   // lichtjes: telefoons en flitsen, als zachte schijfjes (bokeh) die groter worden met de afstand
@@ -850,11 +857,11 @@ vec3 strooi(vec3 ro, vec3 rd, float T){
     vec3 as = normalize(vec3(0., 0., 14.) - L);
     vec3 dichtst = ro + rd * clamp(-b, 0., T);
     vec3 nl = normalize(dichtst - L);
-    float kegel = smoothstep(.82, .97, dot(nl, as));
+    float kegel = smoothstep(.9, .985, dot(nl, as));
     float rook = .6 + .8 * fbm(dichtst.xz * .12 + dichtst.y * .1 + vec2(uTime * .05, 0.));
-    s += lichtKleur(k) * I * (.05 + 3.5 * kegel * rook * rook);
+    s += lichtKleur(k) * I * (.03 + 3.5 * kegel * rook * rook);
   }
-  return s * .45;
+  return s * .3;
 }
 
 // de lampen zelf (felle punten op de daken)
@@ -1146,11 +1153,13 @@ void main(){
         vec2 g = uv / .12;
         vec2 fw = fwidth(g);
         float pw = max(max(fw.x, fw.y), 1e-4);
-        float blur = pw + .3 * smoothstep(2.6, .9, t); // dichtbij de lens: onscherp
+        // dichtbij de lens onscherp, behalve waar de bal in het net hangt (daar ligt de focus)
+        float bij = k == 0 ? exp(-dot(pp.xy - uNet.xy, pp.xy - uNet.xy) / .35) * smoothstep(.0, .08, uNet.z) : 0.;
+        float blur = pw + .3 * smoothstep(2.6, .9, t) * (1. - bij);
         vec2 dd = abs(fract(g + .5) - .5);
         float dmin = min(dd.x, dd.y);
         float cov = clamp(.05 / blur, 0., 1.) * smoothstep(blur * .5 + .025, 0., dmin);
-        float a = mix(cov, .1, smoothstep(.3, .8, pw)) * mix(.22, .6, smoothstep(.9, 2.6, t));
+        float a = mix(cov, .1, smoothstep(.3, .8, pw)) * max(mix(.22, .6, smoothstep(.9, 2.6, t)), .8 * bij);
         vec3 L2 = normalize(lichtPos(5) - pp);
         vec3 nc = vec3(.85, .88, .92) * (.25 + .4 * max(L2.y, 0.)) * uLicht;
         netC = mix(netC, nc, a * (1. - netA));
@@ -1377,7 +1386,7 @@ void main(){
     const [d, m, l] = pal.map(hexRgb).map(lin);
     // shirt in de middelste kleur, broek donker, accent licht
     const shirt = k.tier === 4 ? lin(hexRgb('#f2e6c4')) : m;
-    const broek = k.tier === 1 ? lin(hexRgb('#2a3140')) : k.tier === 4 ? lin(hexRgb('#c99a3a')) : d;
+    const broek = k.tier === 1 ? lin(hexRgb('#2a3140')) : k.tier === 4 ? lin(hexRgb('#c99a3a')) : keer(d, 0.45);
     return { shirt: keer(shirt, 0.85), broek, acc: l, gloed: lin(hexRgb((SPO.TIERS && SPO.TIERS[k.tier] && SPO.TIERS[k.tier].gloed) || TIER_GLOED[k.tier])) };
   }
 
@@ -1764,7 +1773,7 @@ void main(){
       const focusSch = [2, 3, 5, 6, 9].includes(cam.shot) && !(cam.shot === 9 && inv.uitkomst === 'redding');
       const focusKp = [4, 8].includes(cam.shot) || (cam.shot === 9 && inv.uitkomst === 'redding');
       const vl = (inv.schutter.vloek ? (focusSch ? 1 : 0.35) : 0) + (inv.keeper.vloek ? (focusKp ? 1 : 0.35) : 0);
-      pC.f1('uGlitch', klem(vl, 0, 1) * (0.35 + 0.65 * sm(t, 2, 6)));
+      pC.f1('uGlitch', klem(vl, 0, 1) * (0.2 + 0.4 * sm(t, 2, 8)));
       pC.f3('uGlitchK', [0.7, 0.2, 1.0]);
       const wipe = t > tl.tR - 0.35 && t < tl.tR + 0.35 ? ramp(t, tl.tR - 0.35, tl.tR + 0.35) : t > tl.tRE - 0.35 && t < tl.tRE + 0.35 ? ramp(t, tl.tRE - 0.35, tl.tRE + 0.35) : 0;
       pC.f1('uWipe', wipe);
@@ -1842,6 +1851,9 @@ void main(){
         return { shot: cam.shot, s: cam.s };
       },
       status: () => ({ kwaliteit, breedte: canvas.width, hoogte: canvas.height }),
+      get beginMs() {
+        return t0;
+      },
       zetKwaliteit(k) {
         kwaliteit = klem(k | 0, 0, 3);
       },
