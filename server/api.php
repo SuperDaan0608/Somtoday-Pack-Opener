@@ -12,8 +12,9 @@ const MAX_WACHTRIJ = 300; // hoogstens zoveel berichten tegelijk van één afzen
 const IP_MAX_DAGEN = 30;  // een ip-hash wordt hoogstens zo lang onthouden
 const IP_BAN_MAX = 604800; // een ip-ban duurt hoogstens 7 dagen en is nooit voorgoed
 const MELD_REDENEN = ['naam', 'tekst', 'pesten', 'spam', 'anders'];
+const FB_SOORTEN = ['fout', 'idee', 'anders'];
 const TABELLEN = ['users', 'friendships', 'blobs', 'ratelimit', 'berichten', 'bans', 'accounts', 'acc_codes', 'acc_sessies', 'acc_backup', 'user_versie',
-  'blokkades', 'meldingen', 'waarschuwingen', 'ban_email', 'ban_ip', 'acc_ip', 'acc_koppel', 'beheer_mail']; // v3: vanaf 'blokkades'
+  'blokkades', 'meldingen', 'waarschuwingen', 'ban_email', 'ban_ip', 'acc_ip', 'acc_koppel', 'beheer_mail', 'feedback']; // v3: vanaf 'blokkades'
 
 // Uitnodigingspagina (v3): api.php?uitnodiging=CODE. Statisch: geen database, geen cookies, geen scripts en geen tracking.
 function uitnodigingPagina(string $code): void {
@@ -213,7 +214,7 @@ function verwijderGebruiker(PDO $db, string $id): void {
   q($db, 'DELETE FROM user_versie WHERE id = ?', [$id]);
   q($db, 'DELETE FROM users WHERE id = ?', [$id]);
   // v3-tabellen: een server zonder migratie-v3.sql blijft gewoon werken. Meldingen blijven bewaard (de beheerder heeft ze nodig).
-  foreach (['DELETE FROM blokkades WHERE van = ? OR tegen = ?', 'DELETE FROM waarschuwingen WHERE account = ?', 'DELETE FROM acc_ip WHERE account = ?', 'DELETE FROM acc_koppel WHERE user_id = ?'] as $sql) {
+  foreach (['DELETE FROM blokkades WHERE van = ? OR tegen = ?', 'DELETE FROM waarschuwingen WHERE account = ?', 'DELETE FROM acc_ip WHERE account = ?', 'DELETE FROM acc_koppel WHERE user_id = ?', 'UPDATE feedback SET van = NULL WHERE van = ?'] as $sql) {
     try { q($db, $sql, substr_count($sql, '?') === 2 ? [$id, $id] : [$id]); } catch (Throwable $e) { if (!tabelOntbreekt($e)) throw $e; }
   }
 }
@@ -304,7 +305,7 @@ function beheerMailBundel(PDO $db, array $cfg, int $nu, ?string $cat): void {
     if (q($db, 'SELECT 1 FROM beheer_mail WHERE id = 1')->fetchColumn() === false) {
       try { q($db, 'INSERT INTO beheer_mail (id, laatst, wachtend, redenen) VALUES (1, 0, 0, ?)', ['']); } catch (Throwable $e) { /* een ander verzoek was eerder */ }
     }
-    if ($cat !== null && in_array($cat, MELD_REDENEN, true)) {
+    if ($cat !== null && (in_array($cat, MELD_REDENEN, true) || in_array($cat, ['fb-fout', 'fb-idee', 'fb-anders'], true))) {
       $lijst = array_values(array_filter(explode(',', (string)q($db, 'SELECT redenen FROM beheer_mail WHERE id = 1')->fetchColumn())));
       if (!in_array($cat, $lijst, true)) $lijst[] = $cat;
       q($db, 'UPDATE beheer_mail SET wachtend = wachtend + 1, redenen = ? WHERE id = 1', [implode(',', $lijst)]);
@@ -314,9 +315,13 @@ function beheerMailBundel(PDO $db, array $cfg, int $nu, ?string $cat): void {
     if ($n < 1 || $nu - (int)$r['laatst'] < 600) return;
     // Claimen: alleen het verzoek dat de tijd als eerste bijwerkt, verstuurt de mail.
     if (q($db, 'UPDATE beheer_mail SET laatst = ?, wachtend = wachtend - ?, redenen = ? WHERE id = 1 AND laatst = ?', [$nu, $n, '', (int)$r['laatst']])->rowCount() !== 1) return;
-    $redenen = array_values(array_filter(explode(',', (string)$r['redenen']), fn($x) => in_array($x, MELD_REDENEN, true)));
-    $kop = $n === 1 ? 'Er is een nieuwe melding' : $n . ' nieuwe meldingen';
-    $tekst = $kop . ".\n\nReden: " . ($redenen ? implode(', ', $redenen) : 'onbekend') . "\n\nOpen je beheerpagina.\n";
+    $alle = explode(',', (string)$r['redenen']);
+    $redenen = array_values(array_filter($alle, fn($x) => in_array($x, MELD_REDENEN, true)));
+    $soorten = array_values(array_map(fn($x) => substr($x, 3), array_filter($alle, fn($x) => in_array($x, ['fb-fout', 'fb-idee', 'fb-anders'], true))));
+    // Alleen aantallen en categorieën, nooit de tekst van een melding of van feedback.
+    if (!$soorten) { $kop = $n === 1 ? 'Er is een nieuwe melding' : $n . ' nieuwe meldingen'; $tekst = $kop . ".\n\nReden: " . ($redenen ? implode(', ', $redenen) : 'onbekend') . "\n\nOpen je beheerpagina.\n"; }
+    elseif (!$redenen) { $kop = $n === 1 ? 'Er is nieuwe feedback' : 'Er is nieuwe feedback (' . $n . 'x)'; $tekst = $kop . ".\n\nSoort: " . implode(', ', $soorten) . "\n\nOpen je beheerpagina.\n"; }
+    else { $kop = $n . ' nieuwe berichten (meldingen en feedback)'; $tekst = $kop . ".\n\nReden: " . implode(', ', $redenen) . "\nFeedback: " . implode(', ', $soorten) . "\n\nOpen je beheerpagina.\n"; }
     if (verstuurMail($cfg, $aan, 'Pack Opener: ' . $kop, $tekst, ['soort' => 'beheer', 'tekst' => $tekst]) !== 0)
       q($db, 'UPDATE beheer_mail SET wachtend = wachtend + ?, redenen = ? WHERE id = 1', [$n, (string)$r['redenen']]); // later opnieuw (over 10 minuten)
   } catch (Throwable $e) { /* mail is bijzaak: een fout hier mag een melding of beheerverzoek nooit laten mislukken */ }
@@ -358,6 +363,8 @@ if (strncmp($actie, 'beheer', 6) === 0) {
       foreach (TABELLEN as $t) { try { q($db, 'SELECT 1 FROM ' . $t . ' LIMIT 1'); } catch (Throwable $e) { $ontbreekt[] = $t; } }
       $nieuweMeldingen = 0;
       if (!in_array('meldingen', $ontbreekt, true)) $nieuweMeldingen = $n('SELECT COUNT(*) FROM meldingen WHERE status = ?', ['nieuw']);
+      $nieuweFeedback = 0;
+      if (!in_array('feedback', $ontbreekt, true)) $nieuweFeedback = $n('SELECT COUNT(*) FROM feedback WHERE status = ?', ['nieuw']);
       uit(200, ['nu' => $nu,
         'gebruikers' => $n('SELECT COUNT(*) FROM users'),
         'actief24u' => $n('SELECT COUNT(*) FROM users WHERE last_seen >= ?', [$nu - 86400]),
@@ -370,6 +377,7 @@ if (strncmp($actie, 'beheer', 6) === 0) {
         'berichten' => $n('SELECT COUNT(*) FROM berichten'),
         'verbannen' => $n('SELECT COUNT(*) FROM bans WHERE tot = 0 OR tot > ?', [$nu]),
         'nieuweMeldingen' => $nieuweMeldingen,
+        'nieuweFeedback' => $nieuweFeedback,
         'ontbrekendeTabellen' => $ontbreekt]);
     }
     case 'beheerMeldingen': {
@@ -397,6 +405,31 @@ if (strncmp($actie, 'beheer', 6) === 0) {
           'ipBekend' => $ip[0], 'ipAccounts' => $ip[1], 'banStatus' => $b, 'status' => $x['status'], 'uitkomst' => (string)$x['uitkomst']];
       }
       uit(200, ['nu' => $nu, 'meldingen' => $lijst]);
+    }
+    case 'beheerFeedback': {
+      $alleenNieuw = ($in['alleenNieuw'] ?? false) === true;
+      $rijen = q($db, 'SELECT id, ts, van, ip_hash, soort, tekst, info, status FROM feedback' . ($alleenNieuw ? ' WHERE status = ?' : '') . ' ORDER BY (CASE WHEN status = ? THEN 0 ELSE 1 END), ts DESC, id DESC LIMIT 300',
+        $alleenNieuw ? ['nieuw', 'nieuw'] : ['nieuw'])->fetchAll();
+      $perVan = []; $perIp = [];
+      foreach (q($db, 'SELECT van, COUNT(*) AS n FROM feedback WHERE van IS NOT NULL GROUP BY van')->fetchAll() as $x) $perVan[$x['van']] = (int)$x['n'];
+      foreach (q($db, 'SELECT ip_hash, COUNT(*) AS n FROM feedback WHERE van IS NULL GROUP BY ip_hash')->fetchAll() as $x) $perIp[$x['ip_hash']] = (int)$x['n'];
+      $lijst = [];
+      foreach ($rijen as $x) {
+        $lijst[] = ['id' => (int)$x['id'], 'ts' => (int)$x['ts'], 'van' => $x['van'], 'soort' => $x['soort'], 'tekst' => (string)$x['tekst'], 'info' => (string)$x['info'],
+          'status' => $x['status'], 'aantalVanZelfde' => $x['van'] !== null ? ($perVan[$x['van']] ?? 1) : ($perIp[$x['ip_hash']] ?? 1)];
+      }
+      uit(200, ['nu' => $nu, 'feedback' => $lijst]);
+    }
+    case 'beheerFeedbackKlaar': {
+      if (!is_int($bid) || $bid < 1) fout(400, 'Ongeldige id.');
+      $n = q($db, 'UPDATE feedback SET status = ? WHERE id = ?', ['klaar', $bid])->rowCount();
+      if ($n === 0 && q($db, 'SELECT 1 FROM feedback WHERE id = ?', [$bid])->fetchColumn() === false) fout(404, 'Deze feedback bestaat niet (meer).');
+      uit(200, ['ok' => true]);
+    }
+    case 'beheerFeedbackWis': {
+      if (!is_int($bid) || $bid < 1) fout(400, 'Ongeldige id.');
+      if (q($db, 'DELETE FROM feedback WHERE id = ?', [$bid])->rowCount() === 0) fout(404, 'Deze feedback bestaat niet (meer).');
+      uit(200, ['ok' => true]);
     }
     case 'beheerBewijs': {
       if (!is_int($bid) || $bid < 1) fout(400, 'Ongeldige id.');
@@ -720,6 +753,42 @@ if ($actie === 'register') {
     [$id, $pub, hash('sha256', $token), $nu, $nu]);
   ipOnthoud($db, $id, $ipHash, $nu, true);
   uit(200, ['id' => $id, 'token' => $token]);
+}
+
+// ---- Feedback (v3): een gebruiker stuurt een fout, idee of opmerking. Het vrienden-account is de afzender als het er is; zonder account telt alleen het netwerk. ----
+// Verbannen accounts mogen niet; een geblokkeerd netwerk (ban_ip) wel (onschuldigen op school). De tekst is gewone tekst die de afzender zelf kiest te sturen.
+if ($actie === 'feedback') {
+  $soort = $in['soort'] ?? null;
+  $tekst = $in['tekst'] ?? null;
+  $info = $in['info'] ?? '';
+  if (!is_string($soort) || !in_array($soort, FB_SOORTEN, true) || !is_string($tekst) || !(is_string($info) || $info === null)) fout(400, 'Ongeldige feedback.');
+  // Besturingstekens eruit (alleen een nieuwe regel blijft in de tekst), ook de tekens die tekst omdraaien; dan afkappen.
+  $schoon = function (string $t, bool $regels): string {
+    $t = (string)preg_replace('/\r\n?/u', "\n", $t);
+    $t = (string)preg_replace($regels ? '/[^\P{Cc}\n]|[\x{202A}-\x{202E}\x{2066}-\x{2069}]/u' : '/\p{Cc}|[\x{202A}-\x{202E}\x{2066}-\x{2069}]/u', $regels ? '' : ' ', $t);
+    return $t;
+  };
+  $tekst = knip($schoon($tekst, true), 500);
+  $info = knip($schoon((string)$info, false), 300);
+  if ($tekst === '') fout(400, 'Schrijf eerst je feedback.');
+  $g = gebruikerUitHeaders($db);
+  $van = $g ? $g['id'] : null;
+  if ($van !== null) {
+    $ban = q($db, 'SELECT tot, reden FROM bans WHERE id = ?', [$van])->fetch();
+    if ($ban && ((int)$ban['tot'] === 0 || (int)$ban['tot'] > $nu)) uit(403, ['fout' => 'Je bent verbannen', 'verbannen' => true, 'tot' => (int)$ban['tot'], 'reden' => (string)$ban['reden']]);
+    tel($db, hash('sha256', $van . ':fb'), intdiv($nu, 86400), (int)($cfg['limiet_feedback_per_dag'] ?? 3), 'Je hebt vandaag al 3 keer feedback gestuurd. Probeer het morgen opnieuw.');
+  }
+  tel($db, hash('sha256', $ipHash . ':fb'), intdiv($nu, 86400), (int)($cfg['limiet_feedback_ip_per_dag'] ?? 20), 'Vanaf dit netwerk is er vandaag al veel feedback gestuurd. Probeer het morgen opnieuw.');
+  for ($poging = 0; ; $poging++) {
+    try { q($db, 'INSERT INTO feedback (id, ts, van, ip_hash, soort, tekst, info, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [nieuwId(), $nu, $van, $ipHash, $soort, $tekst, $info, 'nieuw']); break; }
+    catch (Throwable $e) { if ($poging >= 2 || tabelOntbreekt($e)) throw $e; }
+  }
+  // Antwoord eerst afleveren; de mail aan de beheerder (zonder de tekst) gaat daarna.
+  http_response_code(200);
+  echo json_encode(['ok' => true]);
+  if (function_exists('fastcgi_finish_request')) fastcgi_finish_request();
+  beheerMailBundel($db, $cfg, $nu, 'fb-' . $soort);
+  exit;
 }
 
 // Authenticatie voor alle andere acties.

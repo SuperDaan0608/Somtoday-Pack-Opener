@@ -32,5 +32,7 @@ return [
   'limiet_mail_email_per_uur' => 5,  // mails met codes per e-mailadres
   'limiet_login_per_min' => 120,     // inlogpogingen per ip-adres
   // 'limiet_nieuw_verzoek_per_dag' => 3, // vriendverzoeken per dag voor accounts van minder dan 24 uur oud
+  // 'limiet_feedback_per_dag' => 3,      // feedback per account per dag
+  // 'limiet_feedback_ip_per_dag' => 20,  // feedback per netwerk (ip-hash) per dag
   // 'limiet_beheer_per_min' => 30, // beheerverzoeken per ip-adres (ook foute sleutels tellen mee)
 ];

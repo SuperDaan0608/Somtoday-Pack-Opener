@@ -385,6 +385,142 @@ async function v3Tests() {
     controle('zonder beheer_mail: melden werkt en er komt geen mail', gm.s === 200 && !fs.existsSync(path.join(TMP, 'v3-geen.jsonl')));
     controle('zonder beheer_mail: beheerverzoeken werken gewoon', (await beh({ a: 'beheerMeldingen' }, URLG)).s === 200);
 
+    // ===== Feedback (v3) =====
+    {
+      sql(DBV, 'DELETE FROM beheer_mail'); sql(DBV, 'DELETE FROM ratelimit');
+      const fbIp = (n) => '127.0.2.' + n; // elk geval een eigen "netwerk", zodat de ip-limiet elkaar niet raakt
+      const stuur = (u, body, ip) => ruwVan(ip, URLV, Object.assign({ a: 'feedback' }, body), u ? h(u) : {});
+      const fbU = await maakOud();
+      const geldigFb = { soort: 'fout', tekst: 'De knop doet niets.', info: 'v3.0 chrome 130' };
+      const f1 = await stuur(fbU, geldigFb, fbIp(1));
+      controle('feedback: geldig geeft 200 {ok:true}', f1.s === 200 && f1.j.ok === true, f1);
+      const fr = sql(DBV, 'SELECT * FROM feedback')[0];
+      controle('feedback: opgeslagen met afzender, soort, tekst, info, status nieuw', fr.van === fbU.id && fr.soort === 'fout' && fr.tekst === geldigFb.tekst && fr.info === geldigFb.info && fr.status === 'nieuw' && Number(fr.ts) > 0);
+      controle('feedback: ip alleen als hash, geen ruw adres in de rij', fr.ip_hash === ipHashVan('127.0.2.1') && !JSON.stringify(fr).includes('127.0.2.1'));
+      for (const soort of ['idee', 'anders']) controle('feedback: soort ' + soort + ' mag', (await stuur(await maakOud(), { soort, tekst: 'ok' }, fbIp(2))).s === 200);
+      controle('feedback: zonder info mag', aantal('feedback', "tekst = 'ok' AND info = ''") === 2);
+      // Ongeldig
+      const naV = aantal('feedback');
+      const slecht = [
+        ['onbekende soort', { soort: 'spam', tekst: 'x' }], ['soort ontbreekt', { tekst: 'x' }], ['soort is getal', { soort: 1, tekst: 'x' }], ['soort is injectie', { soort: INJ, tekst: 'x' }],
+        ['tekst ontbreekt', { soort: 'fout' }], ['tekst leeg', { soort: 'fout', tekst: '' }], ['tekst alleen spaties en besturingstekens', { soort: 'fout', tekst: '  \u0000\u0007 \n ' }],
+        ['tekst is getal', { soort: 'fout', tekst: 5 }], ['tekst is lijst', { soort: 'fout', tekst: ['x'] }], ['info is object', { soort: 'fout', tekst: 'x', info: { a: 1 } }], ['info is getal', { soort: 'fout', tekst: 'x', info: 7 }],
+      ];
+      for (const [naam, b] of slecht) controle('feedback: ' + naam + ' geeft 400', (await stuur(fbU, b, fbIp(3))).s === 400);
+      controle('feedback: na ongeldige verzoeken niets opgeslagen', aantal('feedback') === naV);
+      // Lengtes en besturingstekens
+      const lang = await maakOud();
+      const fl = await stuur(lang, { soort: 'idee', tekst: 'a'.repeat(900) + 'ZZZ', info: 'i'.repeat(700) }, fbIp(4));
+      const rl = sql(DBV, 'SELECT tekst, info FROM feedback WHERE van = ?', [lang.id])[0];
+      controle('feedback: te lange tekst en info worden afgekapt (500 en 300)', fl.s === 200 && rl.tekst.length === 500 && !rl.tekst.includes('ZZZ') && rl.info.length === 300);
+      const bt = await maakOud();
+      await stuur(bt, { soort: 'fout', tekst: 'regel1\r\nregel2\u0000\u001b[31m\u202eomgekeerd\u0007', info: 'a\nb\tc\u0000d\u202e' }, fbIp(5));
+      const rb = sql(DBV, 'SELECT tekst, info FROM feedback WHERE van = ?', [bt.id])[0];
+      controle('feedback: besturingstekens eruit (nieuwe regel in tekst blijft), info op een regel', rb.tekst === 'regel1\nregel2[31momgekeerd' && rb.info === 'a b c d', rb);
+      const meerbyte = await maakOud();
+      await stuur(meerbyte, { soort: 'idee', tekst: '\u00e9'.repeat(600) }, fbIp(5));
+      controle('feedback: afkappen telt tekens, niet bytes', sql(DBV, 'SELECT tekst FROM feedback WHERE van = ?', [meerbyte.id])[0].tekst.length === 500);
+      // Injectie en XSS
+      const xs = await maakOud();
+      const XSS = '<script>alert(1)</script><img src=x onerror=alert(2)>';
+      const inj = await stuur(xs, { soort: 'fout', tekst: "'); DROP TABLE feedback;-- " + XSS, info: "' OR '1'='1'; DROP TABLE users;-- " + XSS }, fbIp(6));
+      const rx = sql(DBV, 'SELECT tekst, info FROM feedback WHERE van = ?', [xs.id])[0];
+      controle('feedback: sql-injectie en xss staan letterlijk als tekst, tabellen bestaan nog', inj.s === 200 && rx.tekst.includes('DROP TABLE feedback') && rx.tekst.includes(XSS) && rx.info.includes(XSS) && aantal('feedback') > 0 && aantal('users') > 0);
+      controle('feedback: antwoord bevat de tekst niet terug', !inj.t.includes('script'));
+      // Afzender en identiteit
+      controle('feedback: veld "van" in het verzoek telt niet', await (async () => { const z = await maakOud(); await stuur(z, { soort: 'fout', tekst: 'idor', van: fbU.id }, fbIp(7)); return sql(DBV, 'SELECT van FROM feedback WHERE tekst = ?', ['idor'])[0].van === z.id; })());
+      const anon = await stuur(null, { soort: 'idee', tekst: 'zonder account' }, fbIp(8));
+      controle('feedback: zonder vrienden-identiteit toch toegestaan (van is NULL)', anon.s === 200 && sql(DBV, 'SELECT van FROM feedback WHERE tekst = ?', ['zonder account'])[0].van === null);
+      const kapot = await ruwVan(fbIp(8), URLV, { a: 'feedback', soort: 'idee', tekst: 'foute token' }, { 'X-Id': fbU.id, 'X-Token': 'verkeerd' });
+      controle('feedback: ongeldige token telt als zonder account (geen 401), niet als dat account', kapot.s === 200 && sql(DBV, 'SELECT van FROM feedback WHERE tekst = ?', ['foute token'])[0].van === null);
+      // Limieten
+      const lim = await maakOud();
+      const codes = []; for (let i = 0; i < 5; i++) codes.push((await stuur(lim, { soort: 'idee', tekst: 'limiet ' + i }, fbIp(9))).s);
+      controle('feedback: 3 per dag per account, daarna 429', JSON.stringify(codes) === '[200,200,200,429,429]', codes);
+      controle('feedback: 429 heeft nette melding', typeof (await stuur(lim, geldigFb, fbIp(9))).j.fout === 'string');
+      controle('feedback: een ander account op hetzelfde netwerk kan nog wel', (await stuur(await maakOud(), geldigFb, fbIp(9))).s === 200);
+      controle('feedback: geweigerde feedback is niet opgeslagen', aantal('feedback', 'van = ?', [lim.id]) === 3);
+      // Per ip-hash (zonder account): 20 per dag
+      const ipc = []; for (let i = 0; i < 22; i++) ipc.push((await stuur(null, { soort: 'idee', tekst: 'ip ' + i }, fbIp(10))).s);
+      controle('feedback: 20 per dag per netwerk-hash zonder account, daarna 429', ipc.slice(0, 20).every((c) => c === 200) && ipc[20] === 429 && ipc[21] === 429, ipc);
+      controle('feedback: ander netwerk blijft werken', (await stuur(null, geldigFb, fbIp(11))).s === 200);
+      const ipa = []; for (let i = 0; i < 8; i++) ipa.push((await stuur(await maakOud(), geldigFb, fbIp(12))).s);
+      controle('feedback: meerdere accounts op een netwerk mogen (onder de netwerk-limiet)', ipa.filter((c) => c === 200).length === 8);
+      sql(DBV, 'DELETE FROM ratelimit'); const ipb = []; for (let i = 0; i < 22; i++) ipb.push((await stuur(await maakOud(), geldigFb, fbIp(21))).s);
+      controle('feedback: de netwerk-limiet (20 per dag) geldt ook voor accounts', ipb.filter((c) => c === 200).length === 20 && ipb[20] === 429, ipb);
+      // Verbannen account geweigerd, netwerkban niet
+      const vb = await maakOud();
+      await beh({ a: 'beheerBan', id: vb.id, tot: 0, reden: 'test' });
+      const vbR = await stuur(vb, geldigFb, fbIp(13));
+      controle('feedback: verbannen account geweigerd (403 verbannen)', vbR.s === 403 && vbR.j.verbannen === true, vbR);
+      await beh({ a: 'beheerOnban', id: vb.id });
+      controle('feedback: na opheffen weer toegestaan', (await stuur(vb, geldigFb, fbIp(13))).s === 200);
+      const nb2 = await maakOud();
+      sql(DBV, 'INSERT INTO ban_ip (ip_hash, bron, tot, gemaakt) VALUES (?, ?, ?, ?)', [ipHashVan('127.0.2.14'), nb2.id, Math.floor(Date.now() / 1000) + 3600, 1]);
+      controle('feedback: geblokkeerd netwerk mag nog wel feedback sturen (school)', (await stuur(nb2, geldigFb, fbIp(14))).s === 200 && (await stuur(null, geldigFb, fbIp(14))).s === 200);
+      // Account verwijderen: afzender niet bewaard
+      const wd = await maakOud();
+      await stuur(wd, { soort: 'idee', tekst: 'verwijder mij' }, fbIp(15));
+      await roepV(wd, { a: 'deleteAccount' });
+      const rwd = sql(DBV, 'SELECT van FROM feedback WHERE tekst = ?', ['verwijder mij'])[0];
+      controle('feedback: na account verwijderen blijft de tekst, maar zonder id van de afzender', rwd && rwd.van === null);
+      // Mail aan de beheerder: gebundeld, geen tekst
+      sql(DBV, 'DELETE FROM feedback'); sql(DBV, 'DELETE FROM beheer_mail'); sql(DBV, 'DELETE FROM meldingen');
+      const mv = mailRegels().length;
+      const GEHEIM = 'GEHEIME-FEEDBACK-TEKST-4242', GEHEIMI = 'GEHEIME-INFO-9999';
+      await stuur(null, { soort: 'fout', tekst: GEHEIM, info: GEHEIMI }, fbIp(16));
+      let fm = mailRegels().slice(mv);
+      controle('feedback: eerste feedback geeft meteen 1 mail', fm.length === 1 && fm[0].aan === 'beheer@voorbeeld.nl', fm);
+      controle('feedback-mail: "Er is nieuwe feedback", soort, geen tekst, geen info, geen id', /Er is nieuwe feedback/.test(fm[0].tekst) && /fout/.test(fm[0].tekst) && /Open je beheerpagina/.test(fm[0].tekst) && !fm[0].tekst.includes(GEHEIM) && !fm[0].tekst.includes(GEHEIMI), fm[0].tekst);
+      await stuur(null, { soort: 'idee', tekst: GEHEIM }, fbIp(17)); await stuur(null, { soort: 'idee', tekst: GEHEIM }, fbIp(18)); await stuur(null, { soort: 'anders', tekst: GEHEIM }, fbIp(19));
+      controle('feedback: binnen 10 minuten geen tweede mail, wachtend bijgehouden', mailRegels().slice(mv).length === 1 && sql(DBV, 'SELECT wachtend FROM beheer_mail')[0].wachtend == 3);
+      sql(DBV, 'UPDATE beheer_mail SET laatst = laatst - 700');
+      await beh({ a: 'beheerStats' });
+      fm = mailRegels().slice(mv);
+      controle('feedback: na 10 minuten 1 gebundelde mail met aantal en soorten, zonder tekst', fm.length === 2 && /3/.test(fm[1].tekst) && /idee/.test(fm[1].tekst) && /anders/.test(fm[1].tekst) && !fm[1].tekst.includes(GEHEIM), fm[1]);
+      // Gemengd met een melding
+      const mm1 = await maakOud(), mm2 = await maakOud();
+      sql(DBV, 'UPDATE beheer_mail SET laatst = ?', [Math.floor(Date.now() / 1000)]);
+      await roepV(mm1, { a: 'meld', tegen: mm2.id, reden: 'spam', uitleg: 'u' });
+      await stuur(null, { soort: 'fout', tekst: GEHEIM }, fbIp(20));
+      sql(DBV, 'UPDATE beheer_mail SET laatst = laatst - 700'); await beh({ a: 'beheerStats' });
+      fm = mailRegels().slice(mv);
+      controle('feedback en meldingen samen: 1 mail die beide noemt, zonder inhoud', fm.length === 3 && /2 nieuwe berichten/.test(fm[2].tekst) && /spam/.test(fm[2].tekst) && /fout/.test(fm[2].tekst) && !fm[2].tekst.includes(GEHEIM), fm[2]);
+      // Zonder beheer_mail: werkt gewoon
+      const gf = await maak(URLG); sql(DBG, 'UPDATE users SET created = created - 200000');
+      const gfR = await ruwVan('127.0.0.1', URLG, { a: 'feedback', soort: 'idee', tekst: 'zonder mail' }, h(gf));
+      controle('feedback zonder beheer_mail: werkt en geen mail', gfR.s === 200 && !fs.existsSync(path.join(TMP, 'v3-geen.jsonl')));
+      // Beheeracties
+      sql(DBV, 'DELETE FROM feedback'); sql(DBV, 'DELETE FROM ratelimit');
+      const b1 = await maakOud(), b2 = await maakOud();
+      await stuur(b1, { soort: 'fout', tekst: 'eerste', info: 'v3.0' }, fbIp(30));
+      await stuur(b1, { soort: 'idee', tekst: 'tweede' }, fbIp(30));
+      await stuur(b2, { soort: 'anders', tekst: 'derde' }, fbIp(31));
+      await stuur(null, { soort: 'idee', tekst: 'vierde' }, fbIp(32)); await stuur(null, { soort: 'fout', tekst: 'vijfde' }, fbIp(32));
+      for (const a of ['beheerFeedback', 'beheerFeedbackKlaar', 'beheerFeedbackWis']) {
+        controle(a + ' zonder sleutel: 403', (await ruwVan('127.0.0.1', URLV, { a, id: 1 })).s === 403);
+        controle(a + ' met foute sleutel: 403', (await ruwVan('127.0.0.1', URLV, { a, id: 1 }, { 'X-Beheer': 'nee-nee-nee-nee-nee-nee' })).s === 403);
+        controle(a + ' met gewone gebruiker (geen sleutel): 403', (await ruwVan('127.0.0.1', URLV, { a, id: 1 }, h(b1))).s === 403);
+      }
+      const bl2 = await beh({ a: 'beheerFeedback' });
+      const fbl = bl2.j.feedback;
+      controle('beheerFeedback: 5 stuks met de juiste velden', bl2.s === 200 && Array.isArray(fbl) && fbl.length === 5 && fbl.every((x) => typeof x.id === 'number' && typeof x.ts === 'number' && ['fout', 'idee', 'anders'].includes(x.soort) && typeof x.tekst === 'string' && typeof x.info === 'string' && x.status === 'nieuw' && typeof x.aantalVanZelfde === 'number' && !('ip_hash' in x) && !('ipHash' in x)), bl2.j);
+      controle('beheerFeedback: aantalVanZelfde per account en per netwerk (zonder account)', fbl.find((x) => x.tekst === 'eerste').aantalVanZelfde === 2 && fbl.find((x) => x.tekst === 'derde').aantalVanZelfde === 1 && fbl.find((x) => x.tekst === 'vierde').aantalVanZelfde === 2 && fbl.find((x) => x.tekst === 'vierde').van === null);
+      const ide = fbl.find((x) => x.tekst === 'derde').id;
+      const kl = await beh({ a: 'beheerFeedbackKlaar', id: ide });
+      controle('beheerFeedbackKlaar: ok en status klaar', kl.s === 200 && kl.j.ok === true && sql(DBV, 'SELECT status FROM feedback WHERE id = ?', [ide])[0].status === 'klaar');
+      const na2 = (await beh({ a: 'beheerFeedback' })).j.feedback;
+      controle('beheerFeedback: nieuw eerst, klaar daarna', na2.length === 5 && na2[4].id === ide && na2.slice(0, 4).every((x) => x.status === 'nieuw'), na2.map((x) => x.status));
+      const alleenN = (await beh({ a: 'beheerFeedback', alleenNieuw: true })).j.feedback;
+      controle('beheerFeedback alleenNieuw: zonder de klare', alleenN.length === 4 && alleenN.every((x) => x.status === 'nieuw'));
+      controle('beheerStats: nieuweFeedback telt de nieuwe', (await beh({ a: 'beheerStats' })).j.nieuweFeedback === 4);
+      controle('beheerFeedbackKlaar: onbekende id 404, ongeldige id 400', (await beh({ a: 'beheerFeedbackKlaar', id: 123 })).s === 404 && (await beh({ a: 'beheerFeedbackKlaar', id: 'x' })).s === 400 && (await beh({ a: 'beheerFeedbackKlaar', id: INJ })).s === 400);
+      controle('beheerFeedbackWis: ongeldige id 400, onbekende 404', (await beh({ a: 'beheerFeedbackWis', id: INJ })).s === 400 && (await beh({ a: 'beheerFeedbackWis' })).s === 400 && (await beh({ a: 'beheerFeedbackWis', id: 123 })).s === 404);
+      const w2 = await beh({ a: 'beheerFeedbackWis', id: ide });
+      controle('beheerFeedbackWis: weg uit de database', w2.s === 200 && aantal('feedback', 'id = ?', [ide]) === 0 && aantal('feedback') === 4);
+      controle('beheerFeedback geeft de tekst terug als gewone json-tekst (geen html)', /application\/json/.test((await ruwVan('127.0.0.1', URLV, { a: 'beheerFeedback' }, { 'X-Beheer': SLV })).h['content-type']));
+    }
+
     // ===== Uitnodigingspagina =====
     const pub = (await L.maakSleutelpaar()).pub;
     const code = L.maakCode('0123456789abcdef0123456789abcdef', pub);
@@ -425,14 +561,18 @@ async function v3Tests() {
     controle('beheerStats meldt de ontbrekende tabellen', stO.s === 200 && stO.j.ontbrekendeTabellen.includes('meldingen') && stO.j.ontbrekendeTabellen.includes('ban_ip') && !stO.j.ontbrekendeTabellen.includes('users'), stO.j);
     controle('beheerBan zonder v3-tabellen werkt gewoon (zonder vinkjes)', (await beh({ a: 'beheerBan', id: o2.id, tot: 0, reden: 'x' }, URLO)).j.ok === true && (await beh({ a: 'beheerOnban', id: o2.id }, URLO)).j.ok === true);
     controle('beheerWisAccount zonder v3-tabellen werkt', (await beh({ a: 'beheerWisAccount', id: o2.id }, URLO)).j.ok === true);
+    const fo = await ruwVan('127.0.0.1', URLO, { a: 'feedback', soort: 'idee', tekst: 'hallo' }, h(o1));
+    controle('zonder feedback-tabel: feedback geeft een nette 503', fo.s === 503 && /bijgewerkt/.test(fo.j.fout || ''), fo);
+    controle('zonder feedback-tabel: beheerStats meldt hem en nieuweFeedback is 0', stO.j.ontbrekendeTabellen.includes('feedback') && stO.j.nieuweFeedback === 0 && (await beh({ a: 'beheerFeedback' }, URLO)).s === 503);
     const stat = await fetch(URLO + '?status=1');
     controle('?status=1 noemt de ontbrekende tabel', stat.status === 500 && /blokkades/.test((await stat.json()).fout));
     // Migratie uitvoeren (twee keer: herhaalbaar) en daarna werkt alles
     fs.writeFileSync(path.join(TMP, 'migreer.php'), `<?php $d=new PDO('sqlite:'.$argv[1]); $d->exec(file_get_contents($argv[2])); $d->exec(file_get_contents($argv[2]));`);
     execFileSync('php', [path.join(TMP, 'migreer.php'), DBO, path.join(MAP, 'migratie-v3.sql')]);
+    controle('na migratie-v3.sql (2x uitgevoerd) werkt feedback', (await ruwVan('127.0.0.1', URLO, { a: 'feedback', soort: 'idee', tekst: 'na migratie' }, h(o1))).s === 200);
     controle('na migratie-v3.sql (2x uitgevoerd) werkt melden en is de status in orde', (await roepV(o1, { a: 'meld', tegen: (await maak(URLO)).id, reden: 'spam', uitleg: 'u' }, URLO)).s === 200 && (await (await fetch(URLO + '?status=1')).json()).ok === true);
     const migInh = fs.readFileSync(path.join(MAP, 'migratie-v3.sql'), 'utf8');
-    controle('migratie-v3.sql bevat alleen nieuwe tabellen (CREATE TABLE IF NOT EXISTS)', !/DROP|DELETE|ALTER|INSERT|UPDATE/i.test(migInh.replace(/--.*$/gm, '')) && (migInh.replace(/--.*$/gm, '').match(/CREATE TABLE IF NOT EXISTS/g) || []).length === 8 && !/CREATE TABLE (?!IF NOT EXISTS)/.test(migInh) && !/\b(users|friendships|accounts|bans)\b\s*\(/.test(migInh));
+    controle('migratie-v3.sql bevat alleen nieuwe tabellen (CREATE TABLE IF NOT EXISTS)', !/DROP|DELETE|ALTER|INSERT|UPDATE/i.test(migInh.replace(/--.*$/gm, '')) && (migInh.replace(/--.*$/gm, '').match(/CREATE TABLE IF NOT EXISTS/g) || []).length === 9 && !/CREATE TABLE (?!IF NOT EXISTS)/.test(migInh) && !/\b(users|friendships|accounts|bans)\b\s*\(/.test(migInh));
     controle('geheimen ontbreken in git-bestanden (config.example heeft geen echte sleutel)', !/beheer_sleutel' => '[^V]/.test(fs.readFileSync(path.join(MAP, 'config.example.php'), 'utf8').replace(/\/\/ 'beheer_sleutel' => 'VERVANG[^\n]*/, '')));
   } finally {
     pv.kill(); po.kill(); pg.kill();

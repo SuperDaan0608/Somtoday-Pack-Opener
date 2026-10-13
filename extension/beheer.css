@@ -90,3 +90,21 @@ dialog#bevestig .knop { width: auto; }
   .meld-filters, .meld-gegevens { grid-template-columns: 1fr; }
   .meld-gegevens dt { margin-top: 6px; }
 }
+
+/* Feedback */
+.fb-filters { grid-template-columns: 1fr 1fr auto; }
+.fb-tekst { margin: 0 0 10px; color: var(--tekst); font-size: 15px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.fb-info { margin: 0 0 10px; font-size: 13px; color: var(--tekst-2); }
+.fb-info summary { cursor: pointer; padding: 4px 0; }
+.fb-info pre { margin: 6px 0 0; padding: 8px 12px; border-radius: 10px; background: rgba(0,0,0,.25); white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.5 ui-monospace, monospace; }
+.badge.soort-fout { color: #ffb3b3; border-color: #ff5b5b; }
+.badge.soort-idee { color: #9fe0b0; border-color: #5bd68a; }
+.badge.soort-anders { color: var(--tekst); border-color: var(--lijn-2); background: rgba(255,255,255,.07); }
+.fb-meer { color: var(--tekst-3); font-size: 12px; }
+.fb-acties { display: flex; flex-wrap: wrap; gap: 6px; }
+.fb-acties .knop { width: auto; padding: 5px 12px; font-size: 12px; }
+@media (max-width: 760px) {
+  .fb-filters { grid-template-columns: 1fr; }
+  .tab { padding: 10px 12px; }
+  .tabs { overflow-x: auto; }
+}

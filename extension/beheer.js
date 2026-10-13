@@ -19,6 +19,8 @@
   let meldingen = [];    // meldingen van gebruikers (nieuw eerst)
   let meldFout = '';     // tekst als de server nog geen meldingen kent
   const bewijsOpen = new Map(); // meldingsid -> bewijs (alleen na klikken opgehaald)
+  let feedback = [];     // feedback van gebruikers (nieuw eerst)
+  let fbFout = '';
   let meldForm = null;   // { id, soort } van de melding met een open formulier
 
   function melding(tekst, fout) {
@@ -60,7 +62,7 @@
     if (!stats) return;
     const items = [
       ['Gebruikers', nl(stats.gebruikers)], ['Actief 24 uur', nl(stats.actief24u)], ['Actief 7 dagen', nl(stats.actief7d)], ['Nieuw 24 uur', nl(stats.nieuw24u)],
-      ['Vriendschappen', nl(stats.vriendschappen)], ['Open verzoeken', nl(stats.verzoeken)], ['Kaartblobs', nl(stats.blobs)], ['Data', grootte(stats.blobBytes)], ['Verbannen', nl(stats.verbannen)], ['Nieuwe meldingen', nl(stats.nieuweMeldingen || 0)],
+      ['Vriendschappen', nl(stats.vriendschappen)], ['Open verzoeken', nl(stats.verzoeken)], ['Kaartblobs', nl(stats.blobs)], ['Data', grootte(stats.blobBytes)], ['Verbannen', nl(stats.verbannen)], ['Nieuwe meldingen', nl(stats.nieuweMeldingen || 0)], ['Nieuwe feedback', nl(stats.nieuweFeedback || 0)],
     ];
     for (const [l, w] of items) { const d = el('div', 'stat'); d.append(el('b', '', w), el('span', '', l)); s.append(d); }
   }
@@ -163,8 +165,9 @@
   }
 
   // ---- tabbladen ----
+  const TABS = ['gebruikers', 'meldingen', 'feedback'];
   function kiesTab(naam, focus) {
-    for (const t of ['gebruikers', 'meldingen']) {
+    for (const t of TABS) {
       const knop = $('tab-' + t), actief = t === naam;
       knop.setAttribute('aria-selected', actief ? 'true' : 'false');
       knop.tabIndex = actief ? 0 : -1;
@@ -172,10 +175,14 @@
       if (actief && focus) knop.focus();
     }
   }
-  for (const t of ['gebruikers', 'meldingen']) {
+  for (const t of TABS) {
     $('tab-' + t).addEventListener('click', () => kiesTab(t));
     $('tab-' + t).addEventListener('keydown', (ev) => {
-      if (ev.key === 'ArrowRight' || ev.key === 'ArrowLeft') { ev.preventDefault(); kiesTab(t === 'gebruikers' ? 'meldingen' : 'gebruikers', true); }
+      const i = TABS.indexOf(t);
+      if (ev.key === 'ArrowRight') { ev.preventDefault(); kiesTab(TABS[(i + 1) % TABS.length], true); }
+      else if (ev.key === 'ArrowLeft') { ev.preventDefault(); kiesTab(TABS[(i + TABS.length - 1) % TABS.length], true); }
+      else if (ev.key === 'Home') { ev.preventDefault(); kiesTab(TABS[0], true); }
+      else if (ev.key === 'End') { ev.preventDefault(); kiesTab(TABS[TABS.length - 1], true); }
     });
   }
 
@@ -329,6 +336,47 @@
     $('meld-status').classList.toggle('fout-tekst', !!meldFout);
   }
 
+  // ---- feedback ----
+  const SOORT = { fout: 'Fout', idee: 'Idee', anders: 'Anders' };
+  function fbKaart(f) {
+    const li = el('li', 'meld' + (f.status === 'klaar' ? ' klaar' : ''));
+    li.dataset.id = String(f.id);
+    const kop = el('div', 'meld-kop');
+    kop.append(el('span', 'badge soort-' + (SOORT[f.soort] ? f.soort : 'anders'), SOORT[f.soort] || f.soort));
+    const tijd = el('span', 'nu', datum(f.ts)); tijd.title = geleden(f.ts);
+    kop.append(tijd, el('span', 'badge' + (f.status === 'klaar' ? '' : ' nieuw'), f.status === 'klaar' ? 'Klaar' : 'Nieuw'));
+    li.append(kop);
+    li.append(el('p', 'fb-tekst', f.tekst)); // altijd als tekst, nooit als html
+    if (f.info) {
+      const d = el('details', 'fb-info'); d.append(el('summary', '', 'Technische gegevens'), el('pre', '', f.info));
+      li.append(d);
+    }
+    const wie = f.van ? 'Van ' + f.van + (namen.has(f.van) ? ' (' + namen.get(f.van) + ')' : '') : 'Zonder account';
+    li.append(el('p', 'fb-meer', wie + (f.aantalVanZelfde > 1 ? ' - ' + f.aantalVanZelfde + ' keer feedback van dezelfde afzender' : '')));
+    const ac = el('div', 'fb-acties');
+    if (f.status !== 'klaar') {
+      const k = el('button', 'knop klein', 'Klaar'); k.type = 'button';
+      k.addEventListener('click', () => doe(() => beheer('beheerFeedbackKlaar', { id: f.id }), 'Feedback op klaar gezet.'));
+      ac.append(k);
+    }
+    const w = el('button', 'knop klein gevaar', 'Wissen'); w.type = 'button';
+    tweestaps(w, 'Wissen', 'Zeker weten?', () => doe(() => beheer('beheerFeedbackWis', { id: f.id }), 'Feedback gewist.'));
+    ac.append(w);
+    li.append(ac);
+    return li;
+  }
+  function tekenFeedback() {
+    const fl = $('fb-filter').value, so = $('fb-soort').value;
+    const l = feedback.filter((f) => (fl === 'alle' || (fl === 'nieuw' ? f.status !== 'klaar' : f.status === 'klaar')) && (so === 'alle' || f.soort === so));
+    const ul = $('fb-lijst'); ul.textContent = '';
+    for (const f of l) ul.append(fbKaart(f));
+    const nieuw = feedback.filter((f) => f.status !== 'klaar').length;
+    $('fb-teller').hidden = nieuw === 0; $('fb-teller').textContent = String(nieuw);
+    $('fb-leeg').hidden = l.length > 0 || !!fbFout;
+    $('fb-status').textContent = fbFout || `${nl(l.length)} van ${nl(feedback.length)} feedbackberichten.`;
+    $('fb-status').classList.toggle('fout-tekst', !!fbFout);
+  }
+
   async function doe(fn, ok) {
     if (bezig) return;
     bezig = true;
@@ -343,17 +391,20 @@
 
   async function laadAlles() {
     $('status').textContent = 'Laden...';
-    const [lijst, s, ml] = await Promise.all([beheer('beheerLijst'), beheer('beheerStats'), beheer('beheerMeldingen').catch((e) => { if (e.status === 403) throw e; return { fout: e }; })]);
+    const zacht = (e) => { if (e.status === 403) throw e; return { fout: e }; };
+    const [lijst, s, ml, fb] = await Promise.all([beheer('beheerLijst'), beheer('beheerStats'), beheer('beheerMeldingen').catch(zacht), beheer('beheerFeedback').catch(zacht)]);
     gebruikers = lijst.gebruikers || []; nuServer = lijst.nu || Math.floor(Date.now() / 1000); stats = s;
     if (ml.fout) { meldingen = []; meldFout = ml.fout.status === 503 ? 'De server mist nog tabellen: voer migratie-v3.sql uit.' : ml.fout.status === 400 || ml.fout.status === 404 ? 'De server kent nog geen meldingen: upload de nieuwe api.php.' : 'Meldingen laden lukte niet: ' + ml.fout.message; }
     else { meldFout = ''; meldingen = ml.meldingen || []; }
+    if (fb.fout) { feedback = []; fbFout = fb.fout.status === 503 ? 'De server mist nog tabellen: voer migratie-v3.sql uit.' : fb.fout.status === 400 || fb.fout.status === 404 ? 'De server kent nog geen feedback: upload de nieuwe api.php.' : 'Feedback laden lukte niet: ' + fb.fout.message; }
+    else { fbFout = ''; feedback = fb.feedback || []; }
     // Bewijs dat open stond blijft alleen open voor meldingen die er nog zijn
     for (const id of [...bewijsOpen.keys()]) if (!meldingen.some((m) => m.id === id)) bewijsOpen.delete(id);
     const tf = $('tabel-fout');
     const mist = (s.ontbrekendeTabellen || []);
     tf.hidden = mist.length === 0;
     tf.textContent = mist.length ? 'De server mist tabellen: ' + mist.join(', ') + '. Voer migratie-v3.sql uit in phpMyAdmin.' : '';
-    tekenStats(); teken(); tekenMeldingen();
+    tekenStats(); teken(); tekenMeldingen(); tekenFeedback();
   }
 
   async function leesNamen() {
@@ -391,6 +442,8 @@
   $('ververs').addEventListener('click', () => doe(async () => { await leesNamen(); }, ''));
   for (const id of ['zoek', 'filter', 'sorteer']) $(id).addEventListener('input', () => teken());
   $('meld-filter').addEventListener('input', () => tekenMeldingen());
+  for (const id of ['fb-filter', 'fb-soort']) $(id).addEventListener('input', () => tekenFeedback());
+  $('fb-ververs').addEventListener('click', () => doe(async () => { await leesNamen(); }, ''));
   $('meld-ververs').addEventListener('click', () => doe(async () => { await leesNamen(); }, ''));
 
   async function init() {

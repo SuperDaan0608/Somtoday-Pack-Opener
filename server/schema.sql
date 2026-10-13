@@ -138,3 +138,14 @@ CREATE TABLE IF NOT EXISTS beheer_mail (
   wachtend INT NOT NULL,
   redenen VARCHAR(100) NOT NULL
 );
+-- Feedback van gebruikers (gewone tekst die de afzender zelf stuurt). van = account-id of NULL; ip_hash alleen als hash. soort: fout, idee of anders. status: nieuw of klaar.
+CREATE TABLE IF NOT EXISTS feedback (
+  id BIGINT NOT NULL PRIMARY KEY,
+  ts INT NOT NULL,
+  van CHAR(32) NULL,
+  ip_hash CHAR(64) NOT NULL,
+  soort VARCHAR(10) NOT NULL,
+  tekst VARCHAR(500) NOT NULL,
+  info VARCHAR(300) NOT NULL,
+  status VARCHAR(10) NOT NULL
+);

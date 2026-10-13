@@ -1,4 +1,4 @@
-// Beheerpagina-test in headless Chromium tegen een lokale php-server (beheer aan): ban, melding bij de gebruiker, opheffen, wissen, tabblad Meldingen (v3).
+// Beheerpagina-test in headless Chromium tegen een lokale php-server (beheer aan): ban, melding bij de gebruiker, opheffen, wissen, tabblad Meldingen en Feedback (v3).
 // Gebruik: export NODE_PATH=$(npm root -g); node server/test/beheer.test.js
 const { spawn, execFileSync } = require('node:child_process');
 const fs = require('node:fs');
@@ -12,8 +12,8 @@ const MAP = path.resolve(__dirname, '..');
 const TMP = process.env.SPO_TMP || '/tmp/vrienden-scratch';
 fs.mkdirSync(TMP, { recursive: true });
 const DB = path.join(TMP, 'beheerpagina.sqlite');
-const API = 'http://localhost:8160/api.php';
-const WEB = 'http://localhost:8162';
+const API = 'http://localhost:8180/api.php';
+const WEB = 'http://localhost:8182';
 const SL = 'pagina-test-beheersleutel-0123456789';
 let ok = 0, mis = 0;
 function controle(naam, waar, extra) { if (waar) ok++; else { mis++; console.log('MIS:', naam, extra === undefined ? '' : extra); } }
@@ -26,8 +26,8 @@ const slaap = (ms) => new Promise((r) => setTimeout(r, ms));
     fs.writeFileSync(f, `<?php $d=new PDO('sqlite:'.$argv[1]); $d->exec(file_get_contents($argv[2]));`);
     spawn('php', [f, DB, path.join(MAP, 'schema.sql')]).on('exit', (c) => (c ? rej(new Error('schema')) : res()));
   });
-  const php = spawn('php', ['-S', 'localhost:8160', '-t', MAP], { env: Object.assign({}, process.env, { SPO_CONFIG: path.join(MAP, 'test/config.test.php'), SPO_TESTDB: DB, SPO_BEHEER: SL, SPO_LIMIET_BEHEER: '1000' }), stdio: 'ignore' });
-  const web = spawn('http-server', ['-p', '8162', '-s', '-c-1', path.resolve(MAP, '../extension')], { stdio: 'ignore' });
+  const php = spawn('php', ['-S', 'localhost:8180', '-t', MAP], { env: Object.assign({}, process.env, { SPO_CONFIG: path.join(MAP, 'test/config.test.php'), SPO_TESTDB: DB, SPO_BEHEER: SL, SPO_LIMIET_BEHEER: '1000' }), stdio: 'ignore' });
+  const web = spawn('http-server', ['-p', '8182', '-s', '-c-1', path.resolve(MAP, '../extension')], { stdio: 'ignore' });
   const br = await chromium.launch();
   try {
     for (let i = 0; i < 50; i++) { try { await fetch(API, { method: 'OPTIONS' }); await fetch(WEB + '/beheer.html'); break; } catch (e) { await slaap(100); } }
@@ -169,7 +169,7 @@ const slaap = (ms) => new Promise((r) => setTimeout(r, ms));
       const kaart = (id) => p.locator('#meldlijst .meld', { hasText: id });
       controle('5 nieuwe meldingen getoond (nieuw eerst)', (await p.locator('#meldlijst .meld').count()) === 5);
       const tekstK = await kaart(t1.id).first().textContent();
-      controle('kaart toont reden, ids en aantal meldingen tegen dit id', /Pesten|Naam/.test(tekstK) && tekstK.includes(r1.id) && tekstK.includes(t1.id) && /Meldingen tegen dit id2/.test(tekstK), tekstK);
+      controle('kaart toont reden, ids en aantal meldingen tegen dit id', /Pesten|Naam/.test(tekstK) && (tekstK.includes(r1.id) || tekstK.includes(r2.id)) && tekstK.includes(t1.id) && /Meldingen tegen dit id2/.test(tekstK), tekstK);
       controle('bewijs staat niet in de pagina voor het klikken', !(await p.content()).includes('GEHEIM-BEWIJS') && (await kaart(t1.id).locator('blockquote.bewijs:visible').count()) === 0);
       controle('melding zonder bewijs: geen knop, wel tekst', (await kaart(t2.id).locator('button', { hasText: 'Toon bewijs' }).count()) === 0 && (await kaart(t2.id).textContent()).includes('Geen bewijs meegestuurd'));
       controle('rode IP-waarschuwing bij veel accounts', /Dit IP is de laatste 30 dagen door \d+ accounts gebruikt: waarschijnlijk een school of gedeeld wifi/.test(await kaart(t2.id).locator('.ip-waarschuwing').textContent()) && (await kaart(t2.id).locator('.ip-waarschuwing').getAttribute('role')) === 'alert');
@@ -266,6 +266,72 @@ const slaap = (ms) => new Promise((r) => setTimeout(r, ms));
       await p.click('#tab-meldingen'); await p.selectOption('#meld-filter', 'alle');
       controle('mobiel: geen horizontale scroll in het meldingenpaneel', await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), await p.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]));
       await p.screenshot({ path: path.join(TMP, 'beheer-8-mobiel.png'), fullPage: true });
+      await p.setViewportSize({ width: 1280, height: 900 });
+      await p.click('#tab-gebruikers');
+    }
+
+    // ===== v3: tabblad Feedback =====
+    {
+      const sqlDb = (q, par) => JSON.parse(execFileSync('php', ['-r', '$d=new PDO("sqlite:".$argv[1]);$s=$d->prepare($argv[2]);$s->execute(json_decode($argv[3],true));echo json_encode($s->columnCount()?$s->fetchAll(PDO::FETCH_ASSOC):[]);', '--', DB, q, JSON.stringify(par || [])]).toString() || '[]');
+      sqlDb('DELETE FROM ratelimit');
+      const [f1, f2, f3] = [await maak(), await maak(), await maak()];
+      const XSS = '<img src=x onerror=window.__xss=1><b>vet</b> & "quotes"';
+      const sturen = (u, b) => L.clientVan(u).roep('feedback', b);
+      await sturen(f1, { soort: 'fout', tekst: 'De knop Openen doet niets na het klikken. ' + XSS, info: 'versie 3.0 | chrome 130 | geluid aan | thema donker' });
+      await sturen(f1, { soort: 'idee', tekst: 'Maak een dagelijkse opdracht.\nMet een beloning.' });
+      await sturen(f2, { soort: 'anders', tekst: 'Leuk spel, bedankt!' });
+      await sturen(f3, { soort: 'fout', tekst: 'Mijn kaarten laden niet bij een vriend.', info: 'versie 3.0 | firefox 128' });
+      await p.click('#ververs');
+      await p.waitForFunction(() => document.getElementById('fb-teller') && !document.getElementById('fb-teller').hidden);
+      controle('teller bij tabblad Feedback', (await p.textContent('#fb-teller')) === '4');
+      controle('stats toont nieuwe feedback', /4\s*Nieuwe feedback/.test(await p.textContent('#stats')));
+      await p.click('#tab-gebruikers'); await p.click('#tab-meldingen');
+      await p.keyboard.press('ArrowRight');
+      controle('pijltje rechts van Meldingen gaat naar Feedback', (await p.getAttribute('#tab-feedback', 'aria-selected')) === 'true' && await p.locator('#paneel-feedback').isVisible() && !(await p.locator('#paneel-meldingen').isVisible()));
+      await p.keyboard.press('ArrowRight');
+      controle('en rond naar Gebruikers (cyclisch)', await p.locator('#paneel-gebruikers').isVisible());
+      await p.keyboard.press('ArrowLeft');
+      controle('pijltje links terug naar Feedback', await p.locator('#paneel-feedback').isVisible());
+      controle('tab Feedback: role=tab, aria-controls, tabindex', (await p.getAttribute('#tab-feedback', 'role')) === 'tab' && (await p.getAttribute('#tab-feedback', 'aria-controls')) === 'paneel-feedback' && (await p.getAttribute('#tab-meldingen', 'tabindex')) === '-1');
+      const fk = (t) => p.locator('#fb-lijst .meld', { hasText: t });
+      controle('4 nieuwe feedbackberichten', (await p.locator('#fb-lijst .meld').count()) === 4);
+      controle('xss staat als tekst, niet als html', (await fk('De knop Openen').locator('.fb-tekst').textContent()).includes(XSS) && (await p.locator('#fb-lijst img, #fb-lijst b').count()) === 0 && (await p.evaluate(() => window.__xss)) === undefined);
+      controle('soort-label en datum zichtbaar', (await fk('De knop Openen').locator('.badge.soort-fout').textContent()) === 'Fout' && (await fk('dagelijkse opdracht').locator('.badge.soort-idee').textContent()) === 'Idee' && (await fk('Leuk spel').locator('.badge.soort-anders').textContent()) === 'Anders' && /\d{4}/.test(await fk('Leuk spel').locator('.meld-kop .nu').textContent()));
+      controle('nieuwe regel in de tekst blijft zichtbaar (pre-wrap)', await fk('dagelijkse opdracht').locator('.fb-tekst').evaluate((e) => getComputedStyle(e).whiteSpace === 'pre-wrap'));
+      controle('technische info is ingeklapt', (await fk('De knop Openen').locator('details').getAttribute('open')) === null && !(await fk('De knop Openen').locator('details pre').isVisible()));
+      controle('geen info: geen uitklapper', (await fk('Leuk spel').locator('details').count()) === 0);
+      controle('afzender en aantal van dezelfde afzender', (await fk('De knop Openen').textContent()).includes(f1.id) && /2 keer feedback van dezelfde afzender/.test(await fk('De knop Openen').textContent()));
+      await fk('De knop Openen').locator('summary').click();
+      controle('uitklappen toont de info als tekst', await fk('De knop Openen').locator('details pre').isVisible() && (await fk('De knop Openen').locator('details pre').textContent()).includes('chrome 130'));
+      await p.screenshot({ path: path.join(TMP, 'beheer-9-feedback.png'), fullPage: true });
+      // Filters
+      await p.selectOption('#fb-soort', 'fout');
+      controle('filter soort fout: 2 stuks', (await p.locator('#fb-lijst .meld').count()) === 2);
+      await p.selectOption('#fb-soort', 'idee');
+      controle('filter soort idee: 1 stuk', (await p.locator('#fb-lijst .meld').count()) === 1);
+      await p.selectOption('#fb-soort', 'alle');
+      // Klaar
+      await fk('Leuk spel').locator('button', { hasText: /^Klaar$/ }).click();
+      await p.waitForFunction(() => document.querySelectorAll('#fb-lijst .meld').length === 3);
+      controle('klaar: uit de lijst Nieuw en teller 3', (await p.textContent('#fb-teller')) === '3' && sqlDb("SELECT COUNT(*) AS n FROM feedback WHERE status = 'klaar'")[0].n == 1);
+      await p.selectOption('#fb-filter', 'alle');
+      controle('Alles toont 4, klare staat gedempt en zonder Klaar-knop', (await p.locator('#fb-lijst .meld').count()) === 4 && (await fk('Leuk spel').getAttribute('class')).includes('klaar') && (await fk('Leuk spel').locator('button', { hasText: /^Klaar$/ }).count()) === 0);
+      await p.selectOption('#fb-filter', 'klaar');
+      controle('filter Klaar: 1 stuk', (await p.locator('#fb-lijst .meld').count()) === 1);
+      await p.selectOption('#fb-filter', 'nieuw');
+      // Wissen met bevestiging
+      const wis = fk('Mijn kaarten laden niet').locator('button', { hasText: /^Wissen$/ });
+      await wis.click();
+      controle('wissen vraagt eerst bevestiging, er is nog niets gewist', (await fk('Mijn kaarten laden niet').locator('button.zeker').count()) === 1 && sqlDb('SELECT COUNT(*) AS n FROM feedback')[0].n == 4);
+      await fk('Mijn kaarten laden niet').locator('button.zeker').click();
+      await p.waitForFunction(() => document.querySelectorAll('#fb-lijst .meld').length === 2);
+      controle('na bevestigen gewist uit lijst en database', sqlDb('SELECT COUNT(*) AS n FROM feedback')[0].n == 3 && (await p.textContent('#fb-teller')) === '2');
+      // Mobiel
+      await p.setViewportSize({ width: 390, height: 800 });
+      await p.selectOption('#fb-filter', 'alle');
+      controle('mobiel: geen horizontale scroll in het feedbackpaneel', await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), await p.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]));
+      controle('mobiel: alle drie de tabs bereikbaar', await p.evaluate(() => ['tab-gebruikers', 'tab-meldingen', 'tab-feedback'].every((id) => { const r = document.getElementById(id).getBoundingClientRect(); return r.width > 0; })));
+      await p.screenshot({ path: path.join(TMP, 'beheer-10-feedback-mobiel.png'), fullPage: true });
       await p.setViewportSize({ width: 1280, height: 900 });
       await p.click('#tab-gebruikers');
     }
