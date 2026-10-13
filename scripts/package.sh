@@ -17,6 +17,11 @@ case "$MANIFEST_VERSIE" in
   *) echo "manifest.json heeft versie $MANIFEST_VERSIE, maar de tag is $VERSIE" >&2; exit 1 ;;
 esac
 
+# "Wat is nieuw" (v3.0): voor de versie in manifest.json moet een blok in extension/nieuw-data.js staan, anders ziet niemand wat er veranderd is.
+if ! grep -q "versie: '$MANIFEST_VERSIE'" "$ROOT/extension/nieuw-data.js"; then
+  echo "WAARSCHUWING: extension/nieuw-data.js heeft geen blok voor versie $MANIFEST_VERSIE (de teksten voor Wat is nieuw). Voeg dat blok toe en probeer het opnieuw." >&2; exit 1
+fi
+
 WERK="$(mktemp -d)"
 trap 'rm -rf "$WERK"' EXIT
 cp -R "$ROOT/extension" "$WERK/$NAAM"

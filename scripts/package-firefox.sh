@@ -10,6 +10,12 @@ ZIP="$UIT/somtoday-pack-opener-$VERSIE-firefox.zip"
 WERK="$(mktemp -d)"
 trap 'rm -rf "$WERK"' EXIT
 
+# "Wat is nieuw" (v3.0): voor de versie in manifest.json moet een blok in extension/nieuw-data.js staan, anders ziet niemand wat er veranderd is.
+MANIFEST_VERSIE="$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$ROOT/extension/manifest.json")"
+if ! grep -q "versie: '$MANIFEST_VERSIE'" "$ROOT/extension/nieuw-data.js"; then
+  echo "WAARSCHUWING: extension/nieuw-data.js heeft geen blok voor versie $MANIFEST_VERSIE (de teksten voor Wat is nieuw). Voeg dat blok toe en probeer het opnieuw." >&2; exit 1
+fi
+
 cp -R "$ROOT/extension/." "$WERK/"
 # Alleen voor ontwikkelaars: horen niet in de zip.
 # De beheerpagina is alleen voor de eigenaar (scripts/package-owner.sh).

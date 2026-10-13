@@ -7,6 +7,8 @@
   <link rel="icon" href="icons/icon-32.png" />
   <link rel="stylesheet" href="hub.css" />
   <link rel="stylesheet" href="rondleiding.css" />
+  <link rel="stylesheet" href="nieuw.css" />
+  <link rel="stylesheet" href="feedback.css" />
 </head>
 <body>
   <!-- Pictogrammen (Lucide, ISC): één keer hier, overal met <use> -->
@@ -26,6 +28,8 @@
     <symbol id="i-pakket" viewBox="0 0 24 24"><path d="m7.5 4.27 9 5.15M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/></symbol>
     <symbol id="i-sluiten" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
     <symbol id="i-pijl" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="i-nieuw" viewBox="0 0 24 24"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></symbol>
+    <symbol id="i-feedback" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
   </svg>
 
   <div class="hub" id="hub">
@@ -33,6 +37,10 @@
       <div class="merk">
         <img src="icons/icon-48.png" width="30" height="30" alt="" />
         <div><small>Somtoday</small><strong>Pack Opener</strong></div>
+      </div>
+      <div class="kop-acties">
+        <button type="button" class="kop-knop" id="b-nieuw" aria-haspopup="dialog"><svg class="ico" aria-hidden="true"><use href="#i-nieuw"/></svg><span>Wat is nieuw</span><span class="nv-sr" id="nieuw-sr"></span><i class="nieuw-bol" id="nieuw-bol" aria-hidden="true" hidden></i></button>
+        <button type="button" class="kop-knop" id="b-feedback" aria-haspopup="dialog"><svg class="ico" aria-hidden="true"><use href="#i-feedback"/></svg><span>Feedback</span></button>
       </div>
       <button type="button" class="munten" id="munten" data-ga="winkel" aria-label="Je munten, naar de winkel"><svg class="munt" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8.5" fill="#ffd24a" stroke="#b8860b" stroke-width="1.5"/><circle cx="10" cy="10" r="5.2" fill="none" stroke="#b8860b" stroke-width="1.2"/></svg><b id="munt-saldo">0</b><span>munten</span></button>
     </header>
@@ -257,6 +265,10 @@
   <script src="ladder.js"></script>
   <script src="hub.js"></script>
   <script src="rondleiding.js"></script>
+  <script src="vriendenlib.js"></script>
+  <script src="nieuw-data.js"></script>
+  <script src="nieuw.js"></script>
+  <script src="feedback.js"></script>
   <script src="hub-munten.js"></script>
   <script src="capsule.js"></script>
   <script src="updatemelding.js"></script>

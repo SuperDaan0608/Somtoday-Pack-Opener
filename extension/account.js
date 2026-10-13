@@ -27,7 +27,7 @@
     'spo_dagelijks', 'spo_winkel', 'spo_profiel', 'spo_prestaties', 'spo_prestaties_gezien', 'spo_stats', 'spo_team',
     'spo_gevechten', 'spo_vrienden', 'spo_vrienden_sec', 'spo_uitval_gezien', 'spo_huisdier', 'spo_rondleiding',
     'spo_capsules', 'spo_weekoverzicht',
-    'spo_rivaal', 'spo_uitnodigingen', 'spo_blokkades',
+    'spo_rivaal', 'spo_uitnodigingen', 'spo_blokkades', 'spo_nieuw_gezien',
   ];
   const ITERATIES = 250000;
 
@@ -225,6 +225,13 @@
       }
       case 'spo_weekoverzicht':
         return String(hier || '') > String(daar || '') ? hier : daar; // de laatste datum wint: zo komt het overzicht niet dubbel
+      case 'spo_nieuw_gezien': {
+        // Wat is nieuw (v3.0): de hoogste versie wint, numeriek vergeleken (2.10.0 is nieuwer dan 2.9.0)
+        const dl = (v) => String(v == null ? '' : v).replace(/^v/i, '').split('-')[0].split('.').map((n) => parseInt(n, 10) || 0);
+        const x = dl(hier), y = dl(daar);
+        for (let i = 0; i < Math.max(x.length, y.length, 3); i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d > 0 ? hier : daar; }
+        return hier;
+      }
       case 'spo_rondleiding':
         return Math.max(Number(hier) || 0, Number(daar) || 0); // eenmaal gezien blijft gezien
       case 'spo_huisdier': {

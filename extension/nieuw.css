@@ -1,0 +1,65 @@
+/* "Wat is nieuw" en de knoppen in de kop (nieuw.js). Gebruikt de kleuren en knoppen van hub.css. Minder beweging: hub.css zet alle animaties uit. */
+
+/* Knoppen in de kop: staan vóór de muntenteller */
+.kop-acties { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.kop-acties + .munten { margin-left: 10px; }
+.kop-knop {
+  position: relative; display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 13px 0 10px;
+  border: 1px solid var(--lijn-2); border-radius: 999px; background: rgba(255, 255, 255, 0.05); color: var(--tekst);
+  font-size: 12.5px; font-weight: 600; white-space: nowrap; transition: background 0.15s;
+}
+.kop-knop:hover { background: rgba(255, 255, 255, 0.13); }
+.kop-knop .ico { width: 17px; height: 17px; color: var(--geel); }
+.nieuw-bol {
+  position: absolute; top: -2px; right: -2px; width: 11px; height: 11px; border-radius: 50%;
+  background: #ff5b6e; border: 2px solid var(--bg); box-sizing: content-box;
+}
+.nv-sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (max-width: 760px) {
+  .kop-knop { width: 36px; height: 36px; padding: 0; justify-content: center; }
+  .kop-knop > span:not(.nv-sr) { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; } /* de naam blijft voor schermlezers */
+  .kop-acties { gap: 6px; }
+}
+
+/* Het venster */
+.nv { position: fixed; inset: 0; z-index: 800; display: grid; place-items: center; padding: 16px; background: rgba(4, 6, 14, 0.78); backdrop-filter: blur(3px); }
+.nv-kaart {
+  display: flex; flex-direction: column; width: min(560px, 100%); max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px);
+  border-radius: 22px; border: 1px solid rgba(255, 255, 255, 0.2);
+  background: radial-gradient(120% 80% at 0% 0%, rgba(124, 131, 255, 0.26), transparent 60%), linear-gradient(160deg, #161c4a, #1f1446);
+  box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.75); animation: nv-in 0.22s ease both;
+}
+.nv-kaart:focus { outline: none; }
+@keyframes nv-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.nv-kop { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 20px 20px 4px 24px; }
+.nv-kop h2 { font: 700 22px/1.2 var(--display); letter-spacing: -0.015em; color: #fff; }
+.nv-x { display: grid; place-items: center; flex: none; width: 38px; height: 38px; padding: 0; border: 1px solid var(--lijn-2); border-radius: 50%; background: rgba(255, 255, 255, 0.07); }
+.nv-x:hover { background: rgba(255, 255, 255, 0.16); }
+.nv-x .ico { width: 18px; height: 18px; stroke-width: 2.2; }
+.nv-inhoud { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 8px 24px 8px; overscroll-behavior: contain; }
+.nv-voet { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 24px 20px; border-top: 1px solid var(--lijn); }
+.nv-voet .knop { min-height: 42px; padding: 0 20px; }
+.nv-intro { margin: 0 0 14px; font-size: 14px; line-height: 1.5; color: var(--tekst-2); }
+.nv-leeg { color: var(--tekst-2); }
+
+.nv-versie { margin: 0 0 14px; padding: 14px 16px 12px; border-radius: 16px; border: 1px solid var(--lijn); background: rgba(0, 0, 0, 0.2); }
+.nv-versie.is-nieuw { border-color: rgba(255, 210, 74, 0.45); background: rgba(255, 210, 74, 0.06); }
+.nv-versie h3 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; font-size: 15px; line-height: 1.3; }
+.nv-nr { font: 800 13px var(--display); letter-spacing: 0.02em; color: var(--geel); }
+.nv-vtitel { font-weight: 700; color: #fff; }
+.nv-tag { padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #241703; background: var(--geel); }
+.nv-datum { margin: 2px 0 0; font-size: 12px; color: var(--tekst-3); }
+.nv-punten { margin: 10px 0 0; padding: 0 0 0 18px; display: grid; gap: 6px; font-size: 14px; line-height: 1.5; color: rgba(255, 255, 255, 0.86); }
+.nv-punten li::marker { color: var(--geel); }
+
+/* Smal scherm: het venster vult de breedte */
+@media (max-width: 560px) {
+  .nv { padding: 10px; align-items: end; }
+  .nv-kaart { border-radius: 20px; max-height: calc(100dvh - 20px); }
+  .nv-kop { padding: 16px 14px 2px 18px; }
+  .nv-kop h2 { font-size: 19px; }
+  .nv-inhoud { padding: 8px 18px; }
+  .nv-voet { padding: 12px 18px 16px; }
+  .nv-voet .knop { flex: 1; }
+  .nv-versie { padding: 12px 14px 10px; }
+}
