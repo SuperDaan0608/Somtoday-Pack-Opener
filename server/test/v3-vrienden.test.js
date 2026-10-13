@@ -215,6 +215,7 @@ async function logicaTests() {
     await bevriend(A, C, 'Cas', 'Daan');
     await sec(A, 'vrienden'); await sec(B, 'vrienden'); await sec(C, 'vrienden');
     controle('zonder rivaal en zonder verzoek: geen rivalenkaart', await A.p.locator('#rivaal-sectie').isHidden());
+    await A.p.waitForFunction(() => document.querySelectorAll('.vriend').length >= 2).catch(() => {}); await A.p.waitForTimeout(500);
     controle('A ziet bij elke vriend de knop Maak rivaal', (await A.p.getByRole('button', { name: /als aartsrivaal$/ }).count()) === 2);
 
     // --- rivaalverzoek -> accepteren ---
