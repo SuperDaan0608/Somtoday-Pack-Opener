@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="nieuw.css" />
   <link rel="stylesheet" href="feedback.css" />
   <link rel="stylesheet" href="drop.css" />
+  <link rel="stylesheet" href="jaar.css" />
 </head>
 <body>
   <!-- Pictogrammen (Lucide, ISC): één keer hier, overal met <use> -->
@@ -104,6 +105,11 @@
         <p class="leeg-tekst" id="st-leeg" hidden>Nog geen kaarten. Open een nieuw cijfer en je kaart verschijnt hier.</p>
         <ul class="laatste" id="laatste" aria-label="Laatste kaarten" hidden></ul>
         <p class="drop-week" id="drop-week" role="status" aria-live="polite" hidden></p>
+        <div class="jaar-blok" id="jaar-aanbod" role="region" aria-label="Jouw jaar" hidden>
+          <p id="jaar-aanbod-tekst"></p>
+          <div class="jaar-acties"><button type="button" class="knop goud" id="jaar-aanbod-open">Bekijk jouw jaar</button><button type="button" class="knop" id="jaar-aanbod-later">Later</button></div>
+        </div>
+        <p class="jaar-rij"><button type="button" class="knop" id="b-jaar">Jaar bekijken</button></p>
 
         <h3 class="sectie">Jouw speler en stadion</h3>
         <div class="speler-blok" id="speler-blok">
@@ -290,6 +296,8 @@
   <script src="hub.js"></script>
   <script src="rondleiding.js"></script>
   <script src="vriendenlib.js"></script>
+  <script src="gevecht.js"></script>
+  <script src="jaar.js"></script>
   <script src="nieuw-data.js"></script>
   <script src="nieuw.js"></script>
   <script src="feedback.js"></script>

@@ -27,7 +27,7 @@
     'spo_dagelijks', 'spo_winkel', 'spo_profiel', 'spo_prestaties', 'spo_prestaties_gezien', 'spo_stats', 'spo_team',
     'spo_gevechten', 'spo_vrienden', 'spo_vrienden_sec', 'spo_uitval_gezien', 'spo_huisdier', 'spo_rondleiding',
     'spo_capsules', 'spo_weekoverzicht', 'spo_heel', 'spo_campagne',
-    'spo_voetbal', 'spo_rivaal', 'spo_uitnodigingen', 'spo_blokkades', 'spo_nieuw_gezien',
+    'spo_voetbal', 'spo_jaar', 'spo_tweeling', 'spo_rivaal', 'spo_uitnodigingen', 'spo_blokkades', 'spo_nieuw_gezien',
   ];
   const ITERATIES = 250000;
 
@@ -205,6 +205,27 @@
         const h = obj(hier), d = obj(daar), u = Object.assign({}, d, h);
         for (const [id, w] of Object.entries(u)) if (obj(w) && !obj(w).alias && obj(d[id]).alias) u[id] = Object.assign({}, w, { alias: d[id].alias });
         return u;
+      }
+      case 'spo_jaar': {
+        // terugblikken (v3.0): welke schooljaren je al zag (het oudste tijdstip) en wanneer je 'later' koos (het nieuwste)
+        const h = obj(hier), d = obj(daar), gezien = Object.assign({}, obj(d.gezien));
+        for (const [j, ts] of Object.entries(obj(h.gezien))) gezien[j] = gezien[j] ? Math.min(gezien[j], ts) : ts;
+        return { v: 1, gezien, uitgesteld: Math.max(Number(h.uitgesteld) || 0, Number(d.uitgesteld) || 0) };
+      }
+      case 'spo_tweeling': {
+        // tweelingkaarten (v3.0): een actieve tweeling gaat nooit verloren; beloond blijft beloond; verzoeken en tellers van allebei
+        const h = obj(hier), d = obj(daar), kaarten = Object.assign({}, obj(d.kaarten));
+        for (const [id, k] of Object.entries(obj(h.kaarten))) {
+          const o = kaarten[id];
+          if (!o) { kaarten[id] = k; continue; }
+          const hoog = (obj(k).status === 'actief' && obj(o).status !== 'actief') ? k : o;
+          kaarten[id] = Object.assign({}, obj(o), obj(hoog), { beloond: obj(o).beloond === true || obj(k).beloond === true, bevestigd: obj(o).bevestigd === true || obj(k).bevestigd === true, status: obj(o).status === 'actief' || obj(k).status === 'actief' ? 'actief' : obj(hoog).status });
+        }
+        const seq = Object.assign({}, obj(d.seq));
+        for (const [id, n] of Object.entries(obj(h.seq))) seq[id] = Math.max(Number(seq[id]) || 0, Number(n) || 0);
+        const betaald = Object.assign({}, obj(d.betaald));
+        for (const [dag, n] of Object.entries(obj(h.betaald))) betaald[dag] = Math.max(Number(betaald[dag]) || 0, Number(n) || 0);
+        return { v: 1, kaarten, verzoeken: Object.assign({}, obj(d.verzoeken), obj(h.verzoeken)), seq, betaald };
       }
       case 'spo_munten_ids':
       case 'spo_uitval_gezien':
