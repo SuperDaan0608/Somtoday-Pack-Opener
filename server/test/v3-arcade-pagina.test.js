@@ -72,11 +72,13 @@ const meldingTekst = (p) => p.locator('#melding').innerText();
       controle('spelkeuze: vier knoppen met aria-pressed, Memory actief', (await p.locator('.spelknop').count()) === 4 && (await p.locator('.spelknop[aria-pressed="true"]').count()) === 1 && (await p.locator('#spel-memory').isVisible()) && (await p.locator('#spel-hoger').isHidden()));
       const naamloos = await p.evaluate(() => [...document.querySelectorAll('button')].filter((b) => !(b.textContent || '').trim() && !b.getAttribute('aria-label')).length);
       controle('alle knoppen hebben een naam', naamloos === 0, naamloos);
-      controle('geen tekstvelden op de pagina', (await p.locator('input, textarea, [contenteditable]').count()) === 0);
+      controle('geen tekstvelden op de pagina', (await p.locator('input:not([type=checkbox]), textarea, [contenteditable]').count()) === 0);
       controle('het rad is verborgen voor schermlezers (de tekst staat er al)', (await p.locator('.rad-wrap').getAttribute('aria-hidden')) === 'true');
       // toetsenbord: Tab komt langs de skip-link en de spelknoppen; spatie kiest een spel
       await p.keyboard.press('Tab');
       controle('Tab 1: skip-link', await p.evaluate(() => document.activeElement.className) === 'skip');
+      await p.keyboard.press('Tab');
+      controle('Tab 2: tabblad Muntenspellen (Snelspel staat er pijltjesgewijs naast)', await p.evaluate(() => document.activeElement.id) === 'dtab-munten');
       await p.keyboard.press('Tab'); await p.keyboard.press('Tab');
       controle('Tab 3: tweede spelknop (Hoger of lager)', await p.evaluate(() => document.activeElement.dataset.spel) === 'hoger');
       await p.keyboard.press('Space');
