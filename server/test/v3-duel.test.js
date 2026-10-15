@@ -453,7 +453,8 @@ const kaart = (c, extra) => Object.assign({ vak: 'Wiskunde', cijfer: c, tier: 2,
         const nog = await p.locator('#__somStrafschop').count();
         await p.screenshot({ path: path.join(TMP, 'duel-4-film.png') });
         if (nog) {
-          controle('echt filmpje: de emoji-laag en de knop Overslaan liggen boven het filmpje (z-index)', await p.evaluate(() => { const h = document.getElementById('__somStrafschop'); return !!h && parseInt(getComputedStyle(document.getElementById('emoji-laag')).zIndex, 10) > parseInt(h.style.zIndex, 10) && parseInt(getComputedStyle(document.getElementById('film-over')).zIndex, 10) > parseInt(h.style.zIndex, 10); }));
+          // (het filmpje kan net in dit ogenblik zelf opgeven: dan is er niets te controleren)
+          controle('echt filmpje: de emoji-laag en de knop Overslaan liggen boven het filmpje (z-index)', await p.evaluate(() => { const h = document.getElementById('__somStrafschop'); return !h || (parseInt(getComputedStyle(document.getElementById('emoji-laag')).zIndex, 10) > parseInt(h.style.zIndex, 10) && parseInt(getComputedStyle(document.getElementById('film-over')).zIndex, 10) > parseInt(h.style.zIndex, 10)); }));
           await p.keyboard.press('Escape');
           await p.waitForFunction(() => !document.getElementById('__somStrafschop'), null, { timeout: 15000 });
           controle('echt filmpje: Esc slaat over en het filmpje verdwijnt', true);

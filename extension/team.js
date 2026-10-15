@@ -37,7 +37,6 @@
   const vriendNaam = (id) => { const v = st && st.vrienden.find((x) => x.id === id); return v ? L.naam(v) : 'Vriend'; };
 
   // ---- geluid en trillen ----
-  const geluiden = {};
   function speel(naam, vol, herhaal) {
     if (!geluidAan) return null;
     try {
@@ -47,7 +46,6 @@
       return a;
     } catch (e) { return null; }
   }
-  function stopGeluid(a) { try { if (a) { a.pause(); a.currentTime = 0; } } catch (e) { /* niets */ } }
   function trilVoor(p) { try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) { /* geen trilling */ } }
 
   // ---- kaartjes ----
