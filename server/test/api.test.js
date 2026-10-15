@@ -572,7 +572,7 @@ async function v3Tests() {
     controle('na migratie-v3.sql (2x uitgevoerd) werkt feedback', (await ruwVan('127.0.0.1', URLO, { a: 'feedback', soort: 'idee', tekst: 'na migratie' }, h(o1))).s === 200);
     controle('na migratie-v3.sql (2x uitgevoerd) werkt melden en is de status in orde', (await roepV(o1, { a: 'meld', tegen: (await maak(URLO)).id, reden: 'spam', uitleg: 'u' }, URLO)).s === 200 && (await (await fetch(URLO + '?status=1')).json()).ok === true);
     const migInh = fs.readFileSync(path.join(MAP, 'migratie-v3.sql'), 'utf8');
-    controle('migratie-v3.sql bevat alleen nieuwe tabellen (CREATE TABLE IF NOT EXISTS)', !/DROP|DELETE|ALTER|INSERT|UPDATE/i.test(migInh.replace(/--.*$/gm, '')) && (migInh.replace(/--.*$/gm, '').match(/CREATE TABLE IF NOT EXISTS/g) || []).length === 10 && !/CREATE TABLE (?!IF NOT EXISTS)/.test(migInh) && !/\b(users|friendships|accounts|bans)\b\s*\(/.test(migInh));
+    controle('migratie-v3.sql bevat alleen nieuwe tabellen (CREATE TABLE IF NOT EXISTS)', !/DROP|DELETE|ALTER|INSERT|UPDATE/i.test(migInh.replace(/--.*$/gm, '')) && (migInh.replace(/--.*$/gm, '').match(/CREATE TABLE IF NOT EXISTS/g) || []).length === 12 && !/CREATE TABLE (?!IF NOT EXISTS)/.test(migInh) && !/\b(users|friendships|accounts|bans)\b\s*\(/.test(migInh));
     controle('geheimen ontbreken in git-bestanden (config.example heeft geen echte sleutel)', !/beheer_sleutel' => '[^V]/.test(fs.readFileSync(path.join(MAP, 'config.example.php'), 'utf8').replace(/\/\/ 'beheer_sleutel' => 'VERVANG[^\n]*/, '')));
   } finally {
     pv.kill(); po.kill(); pg.kill();

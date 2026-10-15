@@ -23,6 +23,15 @@ return [
   // 'smtp_poort' => 465,
   // 'smtp_gebruiker' => 'jouwnaam@gmail.com',
   // 'smtp_wachtwoord' => 'abcd efgh ijkl mnop',
+  // Jaaroverzicht met AI (v3, optioneel): de terugblik 'Jouw jaar' wordt dan door Groq geschreven, op basis van een paar getallen (geen namen, geen vaknamen,
+  // geen tekst) die de gebruiker na uitdrukkelijke toestemming laat versturen. Zonder groq_sleutel (of leeg) gebruikt de extensie de lokale terugblik zonder AI.
+  // Maak een sleutel op https://console.groq.com/keys en zet hem ALLEEN hier in config.php op de server. Nooit in git, nooit in de extensie.
+  'groq_sleutel' => '',                          // bijv. 'gsk_...'
+  // 'groq_model' => 'llama-3.3-70b-versatile',  // een snel Groq-model
+  // 'groq_url' => 'https://api.groq.com/openai/v1/chat/completions', // alleen veranderen voor tests
+  // 'limiet_jaar_per_dag' => 150,               // hoeveel jaaroverzichten er per dag in totaal gemaakt mogen worden
+  // 'limiet_jaar_per_account_per_dag' => 1,     // per account per dag
+  // 'jaar_gelijktijdig' => 2,                   // hoeveel aanvragen tegelijk naar Groq mogen
   // Limieten (mogen weg; dit zijn de standaardwaarden).
   'limiet_per_min' => 6000,       // per ip-adres (een school deelt vaak één adres)
   'limiet_user_per_min' => 180,   // per gebruiker: 1 sync per seconde past ruim

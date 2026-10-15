@@ -47,7 +47,7 @@ De server ziet en toont alleen id's, tijden, aantallen en groottes; de inhoud bl
 ## Bijwerken naar v3 (blokkeren, melden, waarschuwingen, extra bans)
 
 1. Upload de nieuwe `api.php` (vervangt de oude; `config.php` blijft staan).
-2. Voer `migratie-v3.sql` uit in phpMyAdmin (herhaalbaar; maakt alleen de nieuwe tabellen: `blokkades`, `meldingen`, `waarschuwingen`, `ban_email`, `ban_ip`, `acc_ip`, `acc_koppel`, `beheer_mail`, `feedback`, `week_teller`). Ook `schema.sql` bevat ze nu.
+2. Voer `migratie-v3.sql` uit in phpMyAdmin (herhaalbaar; maakt alleen de nieuwe tabellen: `blokkades`, `meldingen`, `waarschuwingen`, `ban_email`, `ban_ip`, `acc_ip`, `acc_koppel`, `beheer_mail`, `feedback`, `week_teller`, `jaar_wachtrij`, `jaar_teller`). Ook `schema.sql` bevat ze nu.
 3. Optioneel: zet `'beheer_mail' => 'jij@voorbeeld.nl'` in `config.php` (zie `config.example.php`). Zonder die regel komt er geen mail.
 4. Controleer met `api.php?status=1` en met de beheerpagina (die meldt ontbrekende tabellen).
 
@@ -87,3 +87,17 @@ Voor het hashen wordt het adres gelijkgetrokken: kleine letters, `googlemail.com
 ### Privacy
 
 De server bewaart alleen hashes en id's: geen e-mailadressen, geen ruwe IP-adressen. IP-adressen worden gehasht met het geheime `zout` (IPv6 per /64). Het ip-geheugen (`acc_ip`) wordt na 30 dagen opgeruimd; een ip-ban duurt hoogstens 7 dagen. De mail aan de beheerder bevat nooit inhoud: alleen dat er een melding of feedback is en de reden-categorie (bij feedback de soort), hoogstens 1 mail per 10 minuten. De beheerder ziet bij een melding wel de uitleg en het bewijs die de melder zelf meestuurde (bewijs pas na apart ophalen); dat is niet versleuteld. Meldingen blijven bewaard tot je ze zelf verwijdert. Feedback is gewone tekst die de afzender zelf kiest te sturen (niet versleuteld, geen persoonsgegevens vragen); ook die blijft bewaard tot je hem wist, zonder id van de afzender als het account is verwijderd.
+
+### Jaaroverzicht met AI (v3, optioneel)
+
+De knop 'Jaar bekijken' in de Pack Opener kan de terugblik door een AI-dienst (Groq) laten schrijven. Dat gaat zo: de gebruiker geeft per aanvraag uitdrukkelijk toestemming (vinkje, plus een voorbeeld van precies wat er wordt verstuurd); de extensie stuurt dan **alleen getallen** naar deze server (gemiddelde per vakgroep exact/talen/mens/kunst, verandering per vakgroep, aantal kaarten per ladder, hoogste en laagste cijfer, aantal pakjes en prestaties, en het nummer van de maand van de slechtste week). Geen namen, geen vaknamen, geen school, geen tekst, geen datums. De server controleert dat strikt (`jaarInvoer`: vaste velden, alleen getallen binnen grenzen, onbekende velden = 400) en bouwt de prompt zelf uit die getallen. Daardoor kan een gebruiker er geen instructies in stoppen. De server stuurt de prompt via cURL naar Groq.
+
+**Wat jij op de server moet doen**
+1. Voer `migratie-v3.sql` uit in phpMyAdmin (herhaalbaar; voegt `jaar_wachtrij` en `jaar_teller` toe) en upload de nieuwe `api.php`. Controleer met `api.php?status=1`.
+2. Maak een API-sleutel op https://console.groq.com/keys en zet in `config.php` op de server: `'groq_sleutel' => 'gsk_...',`. Zet die sleutel nooit in git, nooit in de extensie en deel hem niet. `config.example.php` bevat de sleutel alleen leeg. Zonder `groq_sleutel` geeft `jaarAanvraag` een 503 en gebruikt de extensie de lokale terugblik zonder AI.
+3. Optioneel in `config.php`: `groq_model` (standaard `llama-3.3-70b-versatile`), `limiet_jaar_per_dag` (150 in totaal), `limiet_jaar_per_account_per_dag` (1), `jaar_gelijktijdig` (2). PHP moet cURL hebben (staat bij Strato standaard aan).
+
+**Acties** (headers `X-Id` en `X-Token`): `jaarAanvraag {d: {v:1, gem:{exact,talen,mens,kunst}, stijg:{...}, lad:[5 aantallen], hoog, laag, pak, prest, slecht}}` en `jaarStatus` (zonder velden). Antwoord altijd `200 {status}` met status `wacht` (en `positie`: 1 is de volgende), `bezig`, `klaar` (met `tekst`), `limiet` (met `soort`: `dag` of `account`), `fout`, `tijd` of `geen`. De client pollt `jaarStatus` om de paar seconden. 400 bij ongeldige gegevens, 503 zonder sleutel of zonder tabellen.
+- **Wachtrij**: verzoeken worden één voor één (hoogstens `jaar_gelijktijdig` tegelijk) naar Groq gestuurd; elke aanvraag of statusvraag helpt de rij vooruit (er draait geen achtergrondproces). Wacht een verzoek langer dan 2 minuten, dan wordt het status `tijd`; duurt een verwerking langer dan 60 seconden of geeft Groq een fout, dan wordt het `fout`. In beide gevallen telt de aanvraag niet mee voor de limiet.
+- **Limieten**: globaal (`limiet_jaar_per_dag`) en per account (`limiet_jaar_per_account_per_dag`), per UTC-dag. Is er een op, dan is de status `limiet` en toont de client: 'Helaas is de dagelijkse limiet van het jaaroverzicht maken op. Probeer het morgen opnieuw, sorry voor het ongemak.'
+- **Privacy**: de server logt geen inhoud. De getallen staan alleen in `jaar_wachtrij.invoer` tot de verwerking klaar is (dan leeg), de geschreven tekst staat er alleen tot de client hem ophaalt (dan wordt de rij gewist) en uiterlijk 10 minuten. De tekst van Groq wordt aan de serverkant begrensd (800 tekens, geen tags, geen links) en de client controleert hem nog eens met het tekstfilter. De dagtellers (`jaar_teller`) bevatten alleen een hash en een aantal. Bij het verwijderen van een account wordt zijn rij gewist.

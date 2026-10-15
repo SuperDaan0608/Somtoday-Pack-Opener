@@ -17,5 +17,11 @@ return [
   'vrienden_zelfde_versie' => getenv('SPO_VERSIECHECK') === '1',
   'beheer_mail' => getenv('SPO_BEHEERMAIL') ?: null,
   'limiet_nieuw_verzoek_per_dag' => getenv('SPO_NIEUWLIMIET') ? (int)getenv('SPO_NIEUWLIMIET') : 3,
+  'groq_sleutel' => getenv('SPO_GROQ_SLEUTEL') ?: '',
+  'groq_url' => getenv('SPO_GROQ_URL') ?: 'http://127.0.0.1:9/geen-groq',
+  'groq_timeout' => (int)(getenv('SPO_GROQ_TIMEOUT') ?: 5),
+  'limiet_jaar_per_dag' => (int)(getenv('SPO_JAAR_DAG') ?: 150),
+  'limiet_jaar_per_account_per_dag' => (int)(getenv('SPO_JAAR_ACC') ?: 1),
+  'jaar_gelijktijdig' => (int)(getenv('SPO_JAAR_GELIJK') ?: 2),
   'limiet_beheer_per_min' => (int)(getenv('SPO_LIMIET_BEHEER') ?: 30),
 ];

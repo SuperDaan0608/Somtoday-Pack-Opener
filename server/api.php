@@ -14,7 +14,7 @@ const IP_BAN_MAX = 604800; // een ip-ban duurt hoogstens 7 dagen en is nooit voo
 const MELD_REDENEN = ['naam', 'tekst', 'pesten', 'spam', 'anders'];
 const FB_SOORTEN = ['fout', 'idee', 'anders'];
 const TABELLEN = ['users', 'friendships', 'blobs', 'ratelimit', 'berichten', 'bans', 'accounts', 'acc_codes', 'acc_sessies', 'acc_backup', 'user_versie',
-  'blokkades', 'meldingen', 'waarschuwingen', 'ban_email', 'ban_ip', 'acc_ip', 'acc_koppel', 'beheer_mail', 'feedback', 'week_teller']; // v3: vanaf 'blokkades'
+  'blokkades', 'meldingen', 'waarschuwingen', 'ban_email', 'ban_ip', 'acc_ip', 'acc_koppel', 'beheer_mail', 'feedback', 'week_teller', 'jaar_wachtrij', 'jaar_teller']; // v3: vanaf 'blokkades'
 
 // Uitnodigingspagina (v3): api.php?uitnodiging=CODE. Statisch: geen database, geen cookies, geen scripts en geen tracking.
 function uitnodigingPagina(string $code): void {
@@ -216,7 +216,7 @@ function verwijderGebruiker(PDO $db, string $id): void {
   q($db, 'DELETE FROM user_versie WHERE id = ?', [$id]);
   q($db, 'DELETE FROM users WHERE id = ?', [$id]);
   // v3-tabellen: een server zonder migratie-v3.sql blijft gewoon werken. Meldingen blijven bewaard (de beheerder heeft ze nodig).
-  foreach (['DELETE FROM blokkades WHERE van = ? OR tegen = ?', 'DELETE FROM waarschuwingen WHERE account = ?', 'DELETE FROM acc_ip WHERE account = ?', 'DELETE FROM acc_koppel WHERE user_id = ?', 'UPDATE feedback SET van = NULL WHERE van = ?'] as $sql) {
+  foreach (['DELETE FROM blokkades WHERE van = ? OR tegen = ?', 'DELETE FROM waarschuwingen WHERE account = ?', 'DELETE FROM acc_ip WHERE account = ?', 'DELETE FROM acc_koppel WHERE user_id = ?', 'UPDATE feedback SET van = NULL WHERE van = ?', 'DELETE FROM jaar_wachtrij WHERE account = ?'] as $sql) {
     try { q($db, $sql, substr_count($sql, '?') === 2 ? [$id, $id] : [$id]); } catch (Throwable $e) { if (!tabelOntbreekt($e)) throw $e; }
   }
 }
@@ -233,6 +233,7 @@ if (random_int(1, 100) === 1) {
   // v3: ip-geheugen hoogstens 30 dagen; verlopen bans en gelezen waarschuwingen weg.
   foreach ([['DELETE FROM acc_ip WHERE laatst < ?', $nu - IP_MAX_DAGEN * 86400], ['DELETE FROM ban_ip WHERE tot <= ?', $nu], ['DELETE FROM ban_email WHERE tot > 0 AND tot <= ?', $nu],
     ['DELETE FROM waarschuwingen WHERE gezien = 1 AND ts < ?', $nu - 90 * 86400],
+    ['DELETE FROM jaar_teller WHERE dag < ?', intdiv($nu, 86400) - 2], ['DELETE FROM jaar_wachtrij WHERE verloopt < ?', $nu],
     ['DELETE FROM week_teller WHERE week < ?', weekVan($nu - 56 * 86400)]] as $o) { // weekteller: hoogstens 8 weken bewaard
     try { q($db, $o[0], [$o[1]]); } catch (Throwable $e) { if (!tabelOntbreekt($e)) throw $e; }
   }
@@ -845,6 +846,149 @@ function bestaat(PDO $db, string $id): bool {
   return q($db, 'SELECT 1 FROM users WHERE id = ?', [$id])->fetchColumn() !== false;
 }
 
+// ---- Jaaroverzicht (v3): een AI-terugblik via Groq, met een wachtrij en dagelijkse limieten ----
+// De client stuurt alleen getallen (gemiddelde per vakgroep, aantallen, maandnummer): geen namen, geen vaknamen, geen school, geen tekst.
+// De server valideert streng (alleen getallen in vaste velden) en bouwt de prompt zelf uit die getallen, dus er is geen plek voor prompt-injectie.
+// Er wordt niets gelogd en niets blijvend bewaard: de rij wordt gewist zodra de client de tekst heeft opgehaald (of na 10 minuten).
+const JAAR_GROEPEN = ['exact', 'talen', 'mens', 'kunst'];
+const JAAR_GROEPNAAM = ['exact' => 'exacte vakken', 'talen' => 'talen', 'mens' => 'mens en maatschappij', 'kunst' => 'kunst en sport'];
+const JAAR_MAANDEN = ['', 'januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
+const JAAR_LADDER = ['gewoon', 'zeldzaam', 'glim', 'kosmisch', 'mythisch'];
+const JAAR_WACHT_MAX = 120;   // seconden in de wachtrij voordat het 'tijd' wordt
+const JAAR_BEZIG_MAX = 60;    // een verwerking die langer duurt, geldt als mislukt
+const JAAR_BEWAAR = 600;      // een klaar resultaat verdwijnt na 10 minuten
+function jaarGetal($v, float $min, float $max, bool $nullMag): array { // [geldig, waarde]
+  if ($v === null) return [$nullMag, null];
+  if (!(is_int($v) || is_float($v)) || !is_finite((float)$v) || $v < $min || $v > $max) return [false, null];
+  return [true, round((float)$v, 1)];
+}
+function jaarHeel($v, int $min, int $max, bool $nullMag): array {
+  if ($v === null) return [$nullMag, null];
+  if (!is_int($v) || $v < $min || $v > $max) return [false, null];
+  return [true, $v];
+}
+// Geeft de schone gegevens of null. Geen onbekende velden, geen tekst.
+function jaarInvoer($d): ?array {
+  if (!is_array($d) || array_is_list($d)) return null;
+  $toegestaan = ['v', 'gem', 'stijg', 'lad', 'hoog', 'laag', 'pak', 'prest', 'slecht'];
+  if (array_diff(array_keys($d), $toegestaan) || array_diff($toegestaan, array_keys($d)) || $d['v'] !== 1) return null;
+  $uit = ['v' => 1, 'gem' => [], 'stijg' => []];
+  foreach (['gem' => [1.0, 10.0], 'stijg' => [-9.0, 9.0]] as $veld => $grens) {
+    $x = $d[$veld];
+    if (!is_array($x) || array_is_list($x) || array_diff(array_keys($x), JAAR_GROEPEN) || array_diff(JAAR_GROEPEN, array_keys($x))) return null;
+    foreach (JAAR_GROEPEN as $g) { [$ok, $w] = jaarGetal($x[$g], $grens[0], $grens[1], true); if (!$ok) return null; $uit[$veld][$g] = $w; }
+  }
+  if (!is_array($d['lad']) || !array_is_list($d['lad']) || count($d['lad']) !== 5) return null;
+  $uit['lad'] = [];
+  foreach ($d['lad'] as $n) { [$ok, $w] = jaarHeel($n, 0, 9999, false); if (!$ok) return null; $uit['lad'][] = $w; }
+  foreach (['hoog' => [1.0, 10.0], 'laag' => [1.0, 10.0]] as $veld => $grens) { [$ok, $w] = jaarGetal($d[$veld], $grens[0], $grens[1], true); if (!$ok) return null; $uit[$veld] = $w; }
+  foreach (['pak' => [0, 99999, false], 'prest' => [0, 999, false], 'slecht' => [1, 12, true]] as $veld => $g) { [$ok, $w] = jaarHeel($d[$veld], $g[0], $g[1], $g[2]); if (!$ok) return null; $uit[$veld] = $w; }
+  return $uit;
+}
+function jaarGetalTekst(float $x): string { return str_replace('.', ',', number_format($x, 1, '.', '')); }
+// De prompt komt volledig uit getallen en vaste woorden van de server.
+function jaarPrompt(array $i): array {
+  $r = [];
+  foreach (JAAR_GROEPEN as $g) {
+    $r[] = 'Gemiddeld cijfer ' . JAAR_GROEPNAAM[$g] . ': ' . ($i['gem'][$g] === null ? 'geen cijfers' : jaarGetalTekst($i['gem'][$g]))
+      . ($i['stijg'][$g] === null ? '' : '; verandering over het jaar: ' . ($i['stijg'][$g] > 0 ? '+' : '') . jaarGetalTekst($i['stijg'][$g]));
+  }
+  $lad = [];
+  foreach (JAAR_LADDER as $k => $naam) $lad[] = $naam . ' ' . $i['lad'][$k];
+  $r[] = 'Aantal kaarten per ladder: ' . implode(', ', $lad);
+  if ($i['hoog'] !== null) $r[] = 'Hoogste cijfer: ' . jaarGetalTekst($i['hoog']);
+  if ($i['laag'] !== null) $r[] = 'Laagste cijfer: ' . jaarGetalTekst($i['laag']);
+  $r[] = 'Geopende pakjes: ' . $i['pak'];
+  $r[] = 'Behaalde prestaties: ' . $i['prest'];
+  if ($i['slecht'] !== null) $r[] = 'De slechtste week was in ' . JAAR_MAANDEN[$i['slecht']];
+  $systeem = 'Je schrijft in eenvoudig Nederlands een korte, vriendelijke terugblik op een schooljaar van een leerling, op basis van de getallen die de gebruiker geeft. '
+    . 'Schrijf 5 tot 8 korte zinnen, samen hoogstens 700 tekens. Gebruik alleen deze getallen en verzin geen vakken, namen, scholen of andere feiten. '
+    . 'Wees positief en eerlijk, ook bij tegenvallende cijfers. Geen opmaak, geen lijstjes, geen links, geen emoji.';
+  return [['role' => 'system', 'content' => $systeem], ['role' => 'user', 'content' => implode("\n", $r)]];
+}
+// De tekst van de AI wordt niet vertrouwd: tags, links en opmaak eruit, begrensd op 800 tekens (liefst op een zinseinde).
+function jaarSchoon(string $t): ?string {
+  $t = preg_replace('~<(script|style)\b.*?</\1\s*>~isu', ' ', $t) ?? '';
+  $t = strip_tags($t);
+  $t = preg_replace('~(?:https?://|www\.)\S*~iu', '', $t) ?? '';
+  $t = preg_replace('/[\x00-\x1F\x7F\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2060}-\x{2069}\x{FEFF}<>*#_`\[\]{}|\\\\]/u', ' ', $t) ?? '';
+  $t = trim(preg_replace('/\s+/u', ' ', $t) ?? '');
+  if (function_exists('mb_strlen') && mb_strlen($t) > 800) {
+    $k = mb_substr($t, 0, 800);
+    $p = max(mb_strrpos($k, '. ') ?: 0, mb_strrpos($k, '! ') ?: 0, mb_strrpos($k, '? ') ?: 0);
+    $t = $p > 300 ? mb_substr($k, 0, $p + 1) : $k;
+  } elseif (!function_exists('mb_strlen') && strlen($t) > 800) $t = substr($t, 0, 800);
+  return strlen($t) >= 40 ? $t : null;
+}
+// Eén keer naar Groq (chat completions). Geeft de tekst of null bij elke fout. Er wordt niets gelogd.
+function jaarGroq(array $cfg, array $berichten): ?string {
+  $sleutel = (string)($cfg['groq_sleutel'] ?? '');
+  if ($sleutel === '' || !function_exists('curl_init')) return null;
+  $url = (string)($cfg['groq_url'] ?? 'https://api.groq.com/openai/v1/chat/completions');
+  $body = json_encode(['model' => (string)($cfg['groq_model'] ?? 'llama-3.3-70b-versatile'), 'messages' => $berichten, 'max_tokens' => 400, 'temperature' => 0.7], JSON_UNESCAPED_UNICODE);
+  $c = curl_init($url);
+  curl_setopt_array($c, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $body, CURLOPT_RETURNTRANSFER => true, CURLOPT_CONNECTTIMEOUT => 5, CURLOPT_TIMEOUT => (int)($cfg['groq_timeout'] ?? 25),
+    CURLOPT_FOLLOWLOCATION => false, CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'Authorization: Bearer ' . $sleutel]]);
+  $r = curl_exec($c);
+  $code = (int)curl_getinfo($c, CURLINFO_HTTP_CODE);
+  curl_close($c);
+  if (!is_string($r) || $code !== 200) return null;
+  $j = json_decode($r, true);
+  $t = is_array($j) ? ($j['choices'][0]['message']['content'] ?? null) : null;
+  return is_string($t) ? jaarSchoon($t) : null;
+}
+function jaarTelSleutel(string $wat, array $cfg): string { return substr(hash('sha256', $wat . ':jaar:' . ($cfg['zout'] ?? '')), 0, 40); }
+// Telt een aanvraag bij; geeft false (en telt niet mee) als de limiet is bereikt. $soort komt in 'limiet' terug: 'dag' of 'account'.
+function jaarTelBij(PDO $db, array $cfg, string $account, int $dag): ?string {
+  $limieten = [[jaarTelSleutel('g', $cfg), (int)($cfg['limiet_jaar_per_dag'] ?? 150), 'dag'], [jaarTelSleutel('a' . $account, $cfg), (int)($cfg['limiet_jaar_per_account_per_dag'] ?? 1), 'account']];
+  $gedaan = [];
+  foreach ($limieten as [$k, $max, $soort]) {
+    if (q($db, 'UPDATE jaar_teller SET aantal = aantal + 1 WHERE k = ? AND dag = ?', [$k, $dag])->rowCount() === 0) {
+      try { q($db, 'INSERT INTO jaar_teller (k, dag, aantal) VALUES (?, ?, 1)', [$k, $dag]); }
+      catch (Throwable $e) { if (tabelOntbreekt($e)) throw $e; q($db, 'UPDATE jaar_teller SET aantal = aantal + 1 WHERE k = ? AND dag = ?', [$k, $dag]); }
+    }
+    $gedaan[] = $k;
+    if ((int)q($db, 'SELECT aantal FROM jaar_teller WHERE k = ? AND dag = ?', [$k, $dag])->fetchColumn() > $max) {
+      foreach ($gedaan as $g) q($db, 'UPDATE jaar_teller SET aantal = aantal - 1 WHERE k = ? AND dag = ? AND aantal > 0', [$g, $dag]);
+      return $soort;
+    }
+  }
+  return null;
+}
+function jaarTerug(PDO $db, array $cfg, string $account, int $dag): void {
+  foreach ([jaarTelSleutel('g', $cfg), jaarTelSleutel('a' . $account, $cfg)] as $k) q($db, 'UPDATE jaar_teller SET aantal = aantal - 1 WHERE k = ? AND dag = ? AND aantal > 0', [$k, $dag]);
+}
+// Ruimt op en verwerkt hoogstens één wachtende aanvraag (de oudste) als er een plek vrij is. Wie een status opvraagt of aanvraagt helpt dus de rij vooruit.
+function jaarWerk(PDO $db, array $cfg, int $nu): void {
+  q($db, 'DELETE FROM jaar_wachtrij WHERE verloopt > 0 AND verloopt < ?', [$nu]);
+  foreach (q($db, "SELECT id, account, dag FROM jaar_wachtrij WHERE (status = 'wacht' AND ts < ?) OR (status = 'bezig' AND start < ?)", [$nu - JAAR_WACHT_MAX, $nu - JAAR_BEZIG_MAX])->fetchAll() as $r) {
+    if (q($db, "UPDATE jaar_wachtrij SET status = 'tijd', invoer = '', verloopt = ? WHERE id = ? AND status IN ('wacht', 'bezig')", [$nu + JAAR_BEWAAR, $r['id']])->rowCount() === 1) jaarTerug($db, $cfg, (string)$r['account'], (int)$r['dag']);
+  }
+  if ((int)q($db, "SELECT COUNT(*) FROM jaar_wachtrij WHERE status = 'bezig'")->fetchColumn() >= max(1, (int)($cfg['jaar_gelijktijdig'] ?? 2))) return;
+  $kop = q($db, "SELECT id, account, dag, invoer FROM jaar_wachtrij WHERE status = 'wacht' ORDER BY ts, id LIMIT 1")->fetch();
+  if (!$kop) return;
+  if (q($db, "UPDATE jaar_wachtrij SET status = 'bezig', start = ? WHERE id = ? AND status = 'wacht'", [$nu, $kop['id']])->rowCount() !== 1) return; // een ander verzoek was eerder
+  $i = json_decode((string)$kop['invoer'], true);
+  $tekst = is_array($i) ? jaarGroq($cfg, jaarPrompt($i)) : null;
+  if ($tekst !== null) q($db, "UPDATE jaar_wachtrij SET status = 'klaar', invoer = '', uitvoer = ?, verloopt = ? WHERE id = ? AND status = 'bezig'", [$tekst, time() + JAAR_BEWAAR, $kop['id']]);
+  elseif (q($db, "UPDATE jaar_wachtrij SET status = 'fout', invoer = '', verloopt = ? WHERE id = ? AND status = 'bezig'", [time() + JAAR_BEWAAR, $kop['id']])->rowCount() === 1) jaarTerug($db, $cfg, (string)$kop['account'], (int)$kop['dag']);
+}
+// Antwoord voor de client over de laatste aanvraag van deze gebruiker. 'klaar', 'fout' en 'tijd' worden één keer teruggegeven en daarna gewist.
+function jaarAntwoord(PDO $db, string $account): void {
+  $r = q($db, 'SELECT id, ts, status, uitvoer FROM jaar_wachtrij WHERE account = ? ORDER BY ts DESC, id DESC LIMIT 1', [$account])->fetch();
+  if (!$r) uit(200, ['status' => 'geen']);
+  $st = (string)$r['status'];
+  if ($st === 'wacht') {
+    $voor = (int)q($db, "SELECT COUNT(*) FROM jaar_wachtrij WHERE status = 'wacht' AND (ts < ? OR (ts = ? AND id < ?))", [$r['ts'], $r['ts'], $r['id']])->fetchColumn();
+    uit(200, ['status' => 'wacht', 'positie' => $voor + 1]);
+  }
+  if ($st === 'bezig') uit(200, ['status' => 'bezig', 'positie' => 0]);
+  $tekst = (string)$r['uitvoer'];
+  q($db, 'DELETE FROM jaar_wachtrij WHERE id = ?', [$r['id']]);
+  if ($st === 'klaar') uit(200, ['status' => 'klaar', 'tekst' => $tekst]);
+  uit(200, ['status' => $st === 'tijd' ? 'tijd' : 'fout']);
+}
+
 switch ($actie) {
   case 'request': {
     $to = $in['to'] ?? null;
@@ -1045,6 +1189,27 @@ switch ($actie) {
     $week = weekVan($nu);
     $n = q($db, 'SELECT aantal FROM week_teller WHERE week = ?', [$week])->fetchColumn();
     uit(200, ['week' => $week, 'aantal' => $n === false ? 0 : (int)$n]);
+  }
+  // Jaaroverzicht (v3): zie de hulpfuncties hierboven. Vraagt X-Id en X-Token; de gegevens zijn alleen getallen (jaarInvoer) en de tekst wordt niet bewaard na het ophalen.
+  case 'jaarAanvraag': {
+    if (trim((string)($cfg['groq_sleutel'] ?? '')) === '') fout(503, 'Het jaaroverzicht is nu niet beschikbaar.');
+    $inv = jaarInvoer($in['d'] ?? null);
+    if ($inv === null) fout(400, 'Ongeldige gegevens.');
+    jaarWerk($db, $cfg, $nu);
+    $nog = q($db, "SELECT status FROM jaar_wachtrij WHERE account = ? AND status IN ('wacht', 'bezig', 'klaar') LIMIT 1", [$ik])->fetchColumn();
+    if ($nog === false) {
+      $dag = intdiv($nu, 86400);
+      $lim = jaarTelBij($db, $cfg, $ik, $dag);
+      if ($lim !== null) uit(200, ['status' => 'limiet', 'soort' => $lim]);
+      q($db, 'DELETE FROM jaar_wachtrij WHERE account = ?', [$ik]);
+      q($db, "INSERT INTO jaar_wachtrij (id, account, ts, dag, status, start, verloopt, invoer, uitvoer) VALUES (?, ?, ?, ?, 'wacht', 0, ?, ?, '')", [nieuwId(), $ik, $nu, $dag, $nu + 600, json_encode($inv)]);
+      jaarWerk($db, $cfg, $nu);
+    }
+    jaarAntwoord($db, $ik);
+  }
+  case 'jaarStatus': {
+    jaarWerk($db, $cfg, $nu);
+    jaarAntwoord($db, $ik);
   }
   case 'deleteAccount': {
     $db->beginTransaction();

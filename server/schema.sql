@@ -154,3 +154,25 @@ CREATE TABLE IF NOT EXISTS week_teller (
   week CHAR(8) NOT NULL PRIMARY KEY,
   aantal INT NOT NULL
 );
+
+-- Jaaroverzicht (v3): wachtrij voor de AI-terugblik. Alleen tijdelijk: de rij verdwijnt zodra de client het resultaat heeft opgehaald (en uiterlijk 10 minuten na het klaarkomen).
+-- invoer = alleen gevalideerde getallen (JSON, geen namen, geen vaknamen, geen tekst) en wordt gewist zodra de aanvraag is verwerkt. uitvoer = de geschreven tekst, tot hij is opgehaald.
+-- status: wacht, bezig, klaar, fout of tijd. ts, start en verloopt zijn tijden in seconden.
+CREATE TABLE IF NOT EXISTS jaar_wachtrij (
+  id BIGINT NOT NULL PRIMARY KEY,
+  account CHAR(32) NOT NULL,
+  ts INT NOT NULL,
+  dag INT NOT NULL,
+  status VARCHAR(6) NOT NULL,
+  start INT NOT NULL,
+  verloopt INT NOT NULL,
+  invoer VARCHAR(700) NOT NULL,
+  uitvoer VARCHAR(1500) NOT NULL
+);
+-- Dagtellers voor het jaaroverzicht: k = een hash (globaal of per account), dag = dagnummer (UTC), aantal = hoeveel aanvragen er die dag zijn aangenomen. Zonder namen of id's.
+CREATE TABLE IF NOT EXISTS jaar_teller (
+  k CHAR(40) NOT NULL,
+  dag INT NOT NULL,
+  aantal INT NOT NULL,
+  PRIMARY KEY (k, dag)
+);
