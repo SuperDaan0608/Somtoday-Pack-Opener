@@ -13,7 +13,7 @@ VERSIE="${1:-v$MANIFEST_VERSIE}"
 NAAM="somtoday-pack-opener"
 UIT="$ROOT/dist"
 DBG="$ROOT/scripts/debug"
-for f in debug.html debug.css debug.js debug-somtoday.js; do [ -f "$DBG/$f" ] || { echo "$f ontbreekt in scripts/debug/" >&2; exit 1; }; done
+for f in debug.html debug.css debug.js debug-somtoday.js debug-nep.js; do [ -f "$DBG/$f" ] || { echo "$f ontbreekt in scripts/debug/" >&2; exit 1; }; done
 
 WERK="$(mktemp -d)"
 trap 'rm -rf "$WERK"' EXIT
@@ -27,7 +27,7 @@ bouw() {
   rm -f "$D/motor/openingen/proef.js" "$D/motor/openingen/LEESMIJ.md"
   sed -i '/openingen\/proef\.js/d' "$D/stage.html"
   find "$D" -name '.DS_Store' -delete
-  cp "$DBG/debug.html" "$DBG/debug.css" "$DBG/debug.js" "$DBG/debug-somtoday.js" "$D/"
+  cp "$DBG/debug.html" "$DBG/debug.css" "$DBG/debug.js" "$DBG/debug-somtoday.js" "$DBG/debug-nep.js" "$D/"
   python3 - "$D" "$DOEL" <<'PY'
 import sys, re, json
 d, doel = sys.argv[1], sys.argv[2]
@@ -48,6 +48,14 @@ vervang('content.js', '      direct: true, // de klik in het paneel is er al gew
         '      direct: true, // de klik in het paneel is er al geweest\n'
         '      valsAlarm: d.valsAlarm, upgrade: d.upgrade, // debug-build: vals alarm en upgrade vastzetten\n'
         '      opOnthuld() { if (d.vloek === true) setTimeout(toonVloek, 450); }, // debug-build: de vloek-glitch\n')
+# Wekelijkse drop (v3.0): met een lokale teller uit het testmenu (spo_debug.dropTeller) vraagt het Overzicht de server niet.
+vervang('drop.js', '  let laatst = 0;\n',
+        '  let laatst = 0;\n'
+        "  try { (globalThis.browser || globalThis.chrome).storage.onChanged.addListener((w) => { if (w.spo_debug) { laatst = 0; ververs(); } }); } catch (e) { /* geen opslag */ } // debug-build\n")
+vervang('drop.js', '      const d = st ? await L.dropTelling(st) : null;\n',
+        '      let d = null;\n'
+        "      { const dbg = (await (globalThis.browser || globalThis.chrome).storage.local.get('spo_debug')).spo_debug; if (dbg && Number.isInteger(dbg.dropTeller)) d = { aantal: dbg.dropTeller }; } // debug-build: lokale teller\n"
+        '      if (!d) d = st ? await L.dropTelling(st) : null;\n')
 # Debugkaarten (id 'debug:...') gaan niet naar vrienden, tenzij het vinkje in het testmenu dat toestaat.
 vervang('vriendenlib.js', '  async function zetBlob(st, vriend, galerij) {\n',
         '  async function zetBlob(st, vriend, galerij) {\n'
@@ -104,6 +112,7 @@ Somtoday Pack Opener $VERSIE DEBUG-BUILD
 Alleen voor de eigenaar. Niet delen, niet uploaden, niet in een release zetten.
 Bevat het testmenu (tab "Testmenu" in de hub, of debug.html in een los tabblad).
 Debugkaarten krijgen het id "debug:..." en worden standaard niet met vrienden gedeeld.
+De veiligheids- en feedbackvensters in het testmenu sturen niets naar de server (nep-server in debug-nep.js).
 
 Installeren: chrome://extensions, Ontwikkelaarsmodus aan, "Uitgepakte extensie laden" en kies deze map.
 Haal de gewone versie eerst weg (zelfde opslag), of gebruik een apart Chrome-profiel.
