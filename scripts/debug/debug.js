@@ -278,7 +278,7 @@
       const li = document.createElement('li');
       const s = document.createElement('span'); const ja = !!nu[b.id];
       s.className = ja ? 'ja' : 'nee'; s.textContent = ja ? 'ontgrendeld' : 'vergrendeld';
-      li.append(s, document.createTextNode(' ' + b.naam + (b.id === AURA ? ' (Pure Aura)' : '')));
+      li.append(s, document.createTextNode(' ' + b.naam));
       ul.append(li);
     }
   }
