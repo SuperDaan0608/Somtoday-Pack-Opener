@@ -613,23 +613,45 @@ void main(){
   float seal = smoothstep(.085, .065, vUv.y) + smoothstep(.915, .935, vUv.y);
   float rib = sin(vUv.x * 230.);
   N = normalize(N + vec3(rib * .45 * seal, 0., 0.));
-  // folie-reliëf: zachte kreukels in het materiaal (alleen in de normaal, het artwork blijft scherp)
-  vec2 kr = vec2(vn(vUv * vec2(9., 14.) + uSeed), vn(vUv * vec2(9., 14.) + uSeed + 7.)) - .5;
-  N = normalize(N + vec3(kr * .09 * (1. - seal), 0.));
-  float diff = .58 + .42 * max(dot(N, L), 0.);
+  // folie-reliëf: grove kreukels (scherpe vouwlijnen) en fijne kreukels, alleen in de normaal: het artwork blijft scherp
+  vec2 kp = vUv * vec2(5., 7.5) + uSeed;
+  float k1 = vn(kp), k2 = vn(kp + vec2(5.2, 1.3)), k3 = vn(vUv * vec2(16., 24.) + uSeed * 2.);
+  vec2 kr = vec2(1. - abs(2. * k1 - 1.), 1. - abs(2. * k2 - 1.)) - .5; // 'ridged': geknikte vouwen in plaats van zachte bobbels
+  kr += (vec2(k3, vn(vUv * vec2(24., 16.) + 3.)) - .5) * .5;
+  float binnen = (1. - seal) * smoothstep(0., .05, vUv.x) * smoothstep(1., .95, vUv.x);
+  N = normalize(N + vec3(kr * .16 * binnen, 0.));
+  // geperste zijnaden links en rechts: smalle verticale ribbels
+  float zij = smoothstep(.045, .025, vUv.x) + smoothstep(.955, .975, vUv.x);
+  N = normalize(N + vec3(0., sin(vUv.y * 260.) * .35 * zij, 0.));
+  float diff = .55 + .45 * max(dot(N, L), 0.);
   vec3 col = t.rgb * diff;
-  // folie: scherpe weerspiegeling en een regenboog-glans die met de hoek meebeweegt (subtiel en vlekkerig, zoals echte holofolie)
+  vec3 Rv = reflect(-V, N);
+  // folie: anisotrope glans (geborsteld metaal, verticale strepen) die met de hoek over het zakje schuift
+  vec3 Hh = normalize(L + V);
+  vec3 Tg = normalize(vec3(0., 1., 0.) - N * N.y);
+  float th = dot(Tg, Hh);
+  float aniso = pow(max(sqrt(max(1. - th * th, 0.)), 0.), mix(60., 180., metaal)) * (.25 + .9 * metaal);
   float spec = pow(max(dot(reflect(-L, N), V), 0.), mix(40., 120., metaal)) * (.15 + .7 * metaal);
   float spec2 = pow(max(dot(reflect(-normalize(vec3(-.6, .2, 1.)), N), V), 0.), 18.) * .12; // zacht tegenlicht
-  float band = dot(N.xy, vec2(.8, .6)) * 3.2 + vUv.y * 1.8 + uTime * .12 + uKantel.x * .6 + fbm(vUv * 5.) * .8;
+  // studiolicht: twee lange lichtbakken die als strepen in de folie spiegelen en meelopen als het pakje draait
+  float bak = smoothstep(.1, .0, abs(Rv.x - .32 - uKantel.x * .25)) * smoothstep(-.2, .5, Rv.y) + smoothstep(.06, .0, abs(Rv.x + .45 - uKantel.x * .25)) * .55;
+  float band = dot(N.xy, vec2(.8, .6)) * 3.2 + vUv.y * 1.8 + uTime * .12 + uKantel.x * .6 + (k1 + k2) * .5;
   vec3 regenboog = .5 + .5 * cos(6.2831853 * (band + vec3(0., .33, .67)));
-  col += regenboog * (.05 + .16 * metaal) * (.4 + 1.6 * length(N.xy)) * (1. + seal);
-  col += vec3(1., .97, .92) * (spec + spec2) * (1. + .6 * seal);
-  // de ribbels van de seal vangen het licht in strepen
-  col += vec3(1.) * seal * pow(max(rib, 0.), 6.) * .08;
+  col += regenboog * (.04 + .13 * metaal) * (.4 + 1.6 * length(N.xy)) * (1. + seal);
+  col += vec3(1., .97, .92) * (spec + spec2 + aniso * .35) + vec3(1., .98, .95) * bak * (.1 + .35 * metaal);
+  // holografische strip langs de linkerkant: diffractie, verandert sterk van kleur met de kijkhoek
+  float strip = smoothstep(.052, .058, vUv.x) * smoothstep(.085, .079, vUv.x) * (1. - seal);
+  float dph = Rv.x * 4. + Rv.y * 2. + vUv.y * 9. + uKantel.x * 2.;
+  vec3 dif = .5 + .5 * cos(6.2831853 * (dph + vec3(0., .33, .67)));
+  float lijn = .75 + .25 * sin(vUv.y * 420. + Rv.x * 30.);
+  dif = mix(vec3(.8, .82, .88), dif, .6);
+  col = mix(col, dif * (.55 + .6 * lijn) + spec, strip * .55);
+  // de seal: zilverfolie met geperste ribbels die het licht in streepjes breken
+  col = mix(col, col * .55 + vec3(.75, .78, .85) * (.35 + .65 * pow(max(rib, 0.), 2.)) + aniso * .4, seal * .35);
+  col += vec3(1.) * seal * pow(max(rib, 0.), 6.) * .1;
   // glanzende veeg die over het pakje trekt
   float veeg = exp(-pow((vUv.x * .7 + vUv.y * .5 - uGlans) * 7., 2.));
-  col += vec3(1.) * veeg * (.12 + .3 * metaal);
+  col += vec3(1.) * veeg * (.1 + .28 * metaal);
   // de randen van het zakje lopen donkerder weg (volume), zodat het niet vlak oogt
   float randD = smoothstep(0., .07, vUv.x) * smoothstep(1., .93, vUv.x);
   col *= .72 + .28 * randD;
@@ -770,7 +792,18 @@ void main(){
   // diepte: donkerder naar de rand, rijkere tinten en een zachte lichtvlek die met je muis meebeweegt
   float vgn = smoothstep(.0, .95, 1. - length((uv - .5) * vec2(1.25, 1.) * 1.45));
   col *= .8 + .22 * vgn;
-  col = pow(max(col, 0.), vec3(1.08)) * 1.04;
+  // meer diepte in het metaal: iets meer contrast en verzadiging, zodat de kaart niet bleek uitvalt in het licht
+  float lc = dot(col, vec3(.299, .587, .114));
+  col = mix(vec3(lc), col, 1.12);
+  col = pow(max(col, 0.), vec3(1.16)) * 1.02;
+  // kantlicht: de dikke rand van de kaart vangt een dun randje licht dat meeloopt met de kanteling
+  vec2 ap = px * 3.;
+  float aR = texture(uBG, uv + vec2(ap.x, 0.)).a, aL = texture(uBG, uv - vec2(ap.x, 0.)).a;
+  float aU = texture(uBG, uv + vec2(0., ap.y)).a, aD = texture(uBG, uv - vec2(0., ap.y)).a;
+  vec2 rg = vec2(aL - aR, aD - aU);
+  float kant = clamp(length(rg), 0., 1.);
+  float kl = .35 + .65 * max(dot(normalize(rg + 1e-5), normalize(vec2(-.5 + t.x, .8 - t.y))), 0.);
+  col += mix(vec3(1., .96, .88), uCol, .35) * kant * kl * .55;
   vec2 lp = vec2(.5 + t.x * -.45, .35 + t.y * .35);
   col += vec3(1., .96, .85) * exp(-dot(uv - lp, uv - lp) * 7.) * .07 * bg.a;
   float fres = pow(1. - abs(dot(N, V)), 3.);
