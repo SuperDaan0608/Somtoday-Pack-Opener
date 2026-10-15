@@ -31,6 +31,8 @@
     dans: ['dans-beat', 'dans-scratch', 'dans-dab'],
     schiet: ['schiet-knal', 'schiet-scherf', 'schiet-spin', 'schiet-laatste'],
     // seizoensthema's (zie SPO.SEIZOENEN in data.js): geluiden die alleen bij dat thema horen
+    // het gewone pakje (scripts/bouw-pakje.py)
+    pak: ['pakje-folie', 'pakje-scheur', 'pakje-tunnel', 'pakje-onthul-0', 'pakje-onthul-1', 'pakje-onthul-2', 'pakje-onthul-3'],
     halloween: ['halloween-donder', 'halloween-kraak', 'halloween-klok', 'halloween-huil'],
     kerst: ['kerst-bel', 'kerst-wind', 'kerst-ding', 'kerst-klokje'],
     zomer: ['zomer-golf', 'zomer-meeuw', 'zomer-plons', 'zomer-pan'],
@@ -70,6 +72,8 @@
     'glim-glinster': -6, 'glim-shiny': -4,
     'kosmisch-bas': -1, 'kosmisch-zwaai': -4, 'kosmisch-gat': -2,
     'mythisch-brul': 0, 'mythisch-vleugel': -4, 'mythisch-adem': -4, 'mythisch-smeed': 0, 'mythisch-grom': -3,
+    'pakje-folie': -12, 'pakje-scheur': -4, 'pakje-tunnel': -11,
+    'pakje-onthul-0': -9, 'pakje-onthul-1': -8, 'pakje-onthul-2': -6, 'pakje-onthul-3': -6,
     'ultiem-akkoord': -2, 'ultiem-barst': -1, 'ultiem-bang': 1,
   });
 
@@ -99,7 +103,7 @@
   // opening en seizoen: ook de geluiden van die opening of dat thema (zie GROEPEN).
   function voorlaad(opening, seizoen, zeldzaam) {
     for (const naam of GELUIDEN) haal(naam);
-    for (const naam of GROEPEN[opening] || []) haal(naam);
+    for (const naam of GROEPEN[opening || 'pak'] || []) haal(naam);
     for (const naam of GROEPEN[seizoen] || []) haal(naam);
     for (const naam of treedeGroepen(zeldzaam)) haal(naam);
   }

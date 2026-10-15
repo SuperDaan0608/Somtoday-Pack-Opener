@@ -69,8 +69,8 @@
       tl.pakIn = [0, 0.65];
     } else {
       tl.vak = [0.15, 1.3];
-      tl.onder = [1.05, 2.2]; // pas als het vak voorbij is: de woorden overlappen niet
-      tl.pakIn = [1.6, 2.5];
+      tl.onder = [1.25, 2.3]; // pas als het vak voorbij is: de woorden overlappen niet
+      tl.pakIn = [1.7, 2.55];
     }
     const c1 = tl.pakIn[1];
     tl.E = c1 + (snel ? 0.55 + 0.6 * I : 1.2 + 0.9 * I); // het moment van scheuren
@@ -190,6 +190,9 @@
       at(c1 + 0.05, () => audio.riser(E - c1 - 0.05, 0.6 + 0.4 * I));
       // Het scheurgeluid heeft zijn eerste klap na 0,1 s, dus starten we iets eerder: dan valt die precies op E.
       at(E - 0.1, () => audio.scheur(0.8 + 0.2 * I));
+      // eigen lagen van het pakje: knisperend folie tijdens het opladen, een rits van folie bij de scheur
+      at(c1 + 0.15, () => audio.speel('pakje-folie', { gain: 0.5 + 0.4 * I, duur: Math.max(0.6, E - c1 - 0.1), fadeIn: 0.2, fadeOut: 0.08 }));
+      at(E - 0.1, () => audio.speel('pakje-scheur', { gain: 0.6 + 0.4 * I, galmen: 0.15 }));
       at(E, () => {
         audio.boem(0.6 + 0.4 * I);
         trillen([30, 20, 60]);
@@ -214,6 +217,7 @@
         const [w0, w1] = tl.wo;
         const WO = w1 - w0;
         at(w0 + 0.05, () => audio.publiek(WO + 0.3, 0.5 + 0.5 * I));
+        at(w0, () => audio.speel('pakje-tunnel', { gain: 0.5 + 0.5 * I, duur: WO + 0.4, fadeIn: 0.4, fadeOut: 0.5 }));
         // De hartslag en de stappen vormen samen één ritme dat steeds luider wordt.
         const sp = Math.PI / 5.2; // één stap duurt zo lang (de stapfase loopt met 5,2 rad/s)
         for (let k = 0; ; k++) {
@@ -247,6 +251,7 @@
     at(RV, () => {
       audio.boem(tier === 0 ? 0.35 : 0.7 + 0.3 * I);
       audio.onthulling(0.8 + 0.2 * I);
+      if (!zeldzaam && tier < 4) audio.speel('pakje-onthul-' + tier, { gain: 0.8 + 0.2 * I, galmen: 0.15 }); // per niveau een eigen slot
       if (d.g >= 6) audio.gejuich(2.5 + 1.5 * I, 0.5 + 0.5 * I);
       else if (zeldzaam) audio.gejuich(3.2, 0.7);
       if (zeldzaam) {
