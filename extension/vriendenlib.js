@@ -478,6 +478,14 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
       for (const veld of ['verzoeken', 'seq']) if (riv[veld] && typeof riv[veld] === 'object' && heeft(riv[veld], id)) { delete riv[veld][id]; veranderd = true; }
       if (veranderd) await schrijf('spo_rivaal', riv);
     }
+    const tw = await lees('spo_tweeling'); // tweelingkaarten (v3.0): de gedeelde kaarten en voorstellen met deze persoon gaan weg
+    if (tw && typeof tw === 'object' && !Array.isArray(tw)) {
+      let veranderd = false;
+      if (tw.kaarten && typeof tw.kaarten === 'object') for (const k of Object.keys(tw.kaarten)) if (tw.kaarten[k] && tw.kaarten[k].vriend === id) { delete tw.kaarten[k]; veranderd = true; }
+      if (tw.verzoeken && typeof tw.verzoeken === 'object') for (const k of Object.keys(tw.verzoeken)) if (tw.verzoeken[k] && tw.verzoeken[k].van === id) { delete tw.verzoeken[k]; veranderd = true; }
+      if (tw.seq && typeof tw.seq === 'object' && heeft(tw.seq, id)) { delete tw.seq[id]; veranderd = true; }
+      if (veranderd) await schrijf('spo_tweeling', tw);
+    }
     const un = await lees('spo_uitnodigingen');
     if (un && typeof un === 'object' && !Array.isArray(un)) {
       let veranderd = false;

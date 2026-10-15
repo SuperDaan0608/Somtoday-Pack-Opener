@@ -13,6 +13,8 @@
 
   let alle = [];
   const filter = { vak: '', niv: new Set(), sort: 'nieuw', trede: 0, vloek: false };
+  let tweeling = {};   // { [kaart-id]: vriendnaam }: mijn tweelingkaarten (v3.0, tweeling.js)
+  let eigenNaam = 'Jij';
   let ggPerKaart = {}; // { [tijd van de kaart]: [vriendId, ...] }: vrienden die GG zeiden op mijn kosmische en mythische kaarten (v2.4)
   // v2.4: de ladder. Oude kaarten hebben alleen 'zeldzaam'.
   const TREDE_NAAM = globalThis.SPOLadder.NAAM;
@@ -143,11 +145,34 @@
       const ci = globalThis.SPOCapsuleUI ? globalThis.SPOCapsuleUI.icoon(e) : null; // v3.0: tijdcapsule
       if (ci) vak.append(ci);
       const gg = aantalGG(e);
+      if (tweeling[e.id]) { vak.append(tweelingBadge(tweeling[e.id])); b.setAttribute('aria-label', b.getAttribute('aria-label') + ', tweelingkaart met ' + tweeling[e.id]); }
       if (gg) { const gb = document.createElement('span'); gb.className = 'gg-label'; gb.textContent = '\u{1F64C} ' + gg; gb.title = ggTekst(gg); vak.append(gb); }
       b.append(vak, m); li.append(b); frag.append(li);
     });
     ul.append(frag);
     $('geen').hidden = alle.length === 0 || zichtbaar.length > 0;
+  }
+
+  // Tweelingkaart (v3.0): een badge met de beginletters van jou en je vriend; alleen de naam zoals die al zichtbaar is.
+  const letter = (t) => { const x = Array.from(String(t || '').trim())[0]; return x ? x.toUpperCase() : '?'; };
+  function tweelingBadge(naam) {
+    const b = document.createElement('span'); b.className = 'tw-badge'; b.title = `Tweelingkaart met ${naam}`;
+    for (const t of [eigenNaam, naam]) { const a = document.createElement('span'); a.className = 'tw-avatar'; a.setAttribute('aria-hidden', 'true'); a.textContent = letter(t); b.append(a); }
+    b.append(document.createTextNode('TWEELING'));
+    return b;
+  }
+  function leesTweeling(r) {
+    const uit = {};
+    const k = r && r.spo_tweeling && typeof r.spo_tweeling === 'object' && r.spo_tweeling.kaarten && typeof r.spo_tweeling.kaarten === 'object' ? r.spo_tweeling.kaarten : {};
+    const T = globalThis.SPOTekst;
+    for (const id of Object.keys(k).slice(0, 20)) {
+      const t = k[id];
+      if (!t || typeof t !== 'object' || t.status !== 'actief' || typeof t.eigen !== 'string') continue;
+      uit[t.eigen] = (T ? T.toonNaam(String(t.naam || ''), '') : String(t.naam || '')).slice(0, 24) || 'Vriend';
+    }
+    tweeling = uit;
+    const bn = r && r.spo_profiel && typeof r.spo_profiel === 'object' && typeof r.spo_profiel.bijnaam === 'string' ? r.spo_profiel.bijnaam : '';
+    eigenNaam = (T && bn ? T.toonNaam(bn, '') : '') || 'Jij';
   }
 
   // GG van vrienden op een kosmische of mythische kaart (v2.4)
@@ -166,6 +191,8 @@
     const gg = aantalGG(e);
     $('d-gg').hidden = !gg;
     $('d-gg').textContent = gg ? '\u{1F64C} ' + ggTekst(gg) + '!' : '';
+    $('d-tweeling').hidden = !tweeling[e.id];
+    $('d-tweeling').textContent = tweeling[e.id] ? `Tweelingkaart: ${eigenNaam} en ${tweeling[e.id]}` : '';
     $('d-vak').textContent = e.vak;
     $('d-cijfer').textContent = fmt(e.cijfer);
     $('d-onderwerp').textContent = e.onderwerp || '-';
@@ -302,14 +329,16 @@
     if (globalThis.SPOCapsuleUI) globalThis.SPOCapsuleUI.init({ opWijzig: () => { if (alle.length) raster(); } }).catch(() => {});
     if (demo) { alle = await demoData(); render(); return; }
     try {
-      const r = await chrome.storage.local.get(['spo_galerij', 'spo_gg']);
+      const r = await chrome.storage.local.get(['spo_galerij', 'spo_gg', 'spo_tweeling', 'spo_profiel']);
       alle = schoon(r.spo_galerij);
+      leesTweeling(r);
       ggPerKaart = r.spo_gg && typeof r.spo_gg === 'object' && !Array.isArray(r.spo_gg) ? r.spo_gg : {};
     } catch (_) { alle = []; }
     render();
     chrome.storage.onChanged.addListener((c, gebied) => {
       if (gebied !== 'local') return;
       if (c.spo_gg) { const n = c.spo_gg.newValue; ggPerKaart = n && typeof n === 'object' && !Array.isArray(n) ? n : {}; if (!c.spo_galerij) render(); }
+      if (c.spo_tweeling || c.spo_profiel) { chrome.storage.local.get(['spo_tweeling', 'spo_profiel']).then((r) => { leesTweeling(r); if (!c.spo_galerij) render(); }).catch(() => {}); }
       if (c.spo_galerij) { alle = schoon(c.spo_galerij.newValue); render(); }
     });
   }

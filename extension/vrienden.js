@@ -2,6 +2,7 @@
   'use strict';
   const L = globalThis.SPOVrienden;
   const R = globalThis.SPORivaal;       // aartsrivaal (rivaal.js)
+  const T = globalThis.SPOTweeling;     // tweelingkaarten (tweeling.js)
   const U = globalThis.SPOUitnodiging;  // een vriend uitnodigen (uitnodiging.js)
   const NIVEAUS = ['Brons', 'Zilver', 'Goud', 'Speciaal', 'Icoon'];
   const $ = (id) => document.getElementById(id);
@@ -37,6 +38,8 @@
   let blok = {};          // wie ik geblokkeerd heb: { [id]: { ts, alias } } (spo_blokkades, zie vriendenlib.js)
   const V = globalThis.SPOVeilig; // vensters voor blokkeren, melden en waarschuwingen (veilig.js)
   let rivaalS = R.schoonStaat(null); // aartsrivaal: wie, hoe ver, openstaande verzoeken (spo_rivaal)
+  let tweelingS = T.schoonStaat(null); // tweelingkaarten en voorstellen (spo_tweeling)
+  let eigenNaam = 'Jij';  // mijn eigen bijnaam voor de tweelingkaarten, als ik die heb gekozen
 
   function el(tag, klas, tekst) {
     const e = document.createElement(tag);
@@ -67,12 +70,20 @@
 
   // ---- v3.0: blokkeren, melden, waarschuwingen en verbanning ----
   async function laadBlok() { try { blok = await L.leesBlokkades(); } catch (e) { /* blijft zoals het was */ } }
+  async function laadTweeling() {
+    try {
+      tweelingS = await T.laad();
+      const p = await L.lees('spo_profiel');
+      eigenNaam = (globalThis.SPOEco && p && typeof p === 'object' ? globalThis.SPOEco.schoonBijnaam(p.bijnaam) : '') || 'Jij';
+    } catch (e) { /* blijft zoals het was */ }
+  }
   // Na blokkeren: de persoon is uit je lijst, lokale restanten zijn opgeruimd en het scherm klopt weer.
   async function naBlokkeren(id) {
     clearTimeout(timers.get(id));
     delete vriendKaarten[id];
     await laadBlok();
     try { rivaalS = await R.laad(); } catch (e) { /* blijft zoals het was */ }
+    await laadTweeling();
     renderAlles();
     $('geblokkeerd-sectie').open = true;
   }
@@ -493,6 +504,31 @@
       },
     });
   }
+  // De tweelingkaarten (tweeling.js): voorstellen van vrienden, mijn tweelingkaarten en een formulier voor een nieuw voorstel.
+  async function tweelingActie(fn, tekst) {
+    try { await fn(); await laadTweeling(); if (tekst) melding(tekst); }
+    catch (e) { melding(foutTekst(e), true); }
+    renderAlles();
+  }
+  function renderTweeling() {
+    const sec = $('tweeling-sectie');
+    if (!sec) return;
+    // Een keuzelijst die openstaat mag niet verdwijnen door een nieuwe tekenronde: alleen opnieuw tekenen als de gegevens echt anders zijn.
+    const sig = JSON.stringify([tweelingS, st.vrienden.map((v) => [v.id, v.status, v.alias, v.andereVersie]), galerij.length, galerij.map((e) => e.id).slice(0, 5), eigenNaam, Object.keys(vriendKaarten).length]);
+    if (sec.dataset.sig === sig && !sec.hidden) return;
+    sec.dataset.sig = sig;
+    sec.hidden = !T.teken(sec, {
+      s: tweelingS, st, galerij, eigenNaam, tweestaps,
+      naamVan: (id) => L.naam(st.vrienden.find((v) => v.id === id) || { id }),
+      gekKaarten: (id) => (vriendKaarten[id] && vriendKaarten[id].kaarten) || [],
+      acties: {
+        vraag: (vid, kid) => tweelingActie(() => T.vraag(st, vid, galerij.find((e) => e.id === kid)), `Voorstel verstuurd. Het werkt pas als ${L.naam(st.vrienden.find((v) => v.id === vid) || { id: vid })} ja zegt.`),
+        accepteer: (id, kid) => tweelingActie(() => T.accepteer(st, id, galerij.find((e) => e.id === kid)), 'Je tweelingkaart is gemaakt. Je beloning komt zodra je vriend het ook heeft bevestigd.'),
+        weiger: (id) => tweelingActie(() => T.weiger(st, id), 'Voorstel geweigerd.'),
+        stop: (id) => tweelingActie(() => T.stop(st, id), 'De tweelingkaart is weggehaald.'),
+      },
+    });
+  }
   // Na een synchronisatie en daarna elke minuut: opruimen, opnieuw sturen, beloningen en rivaalmunten ophalen.
   let onderhoudBezig = false;
   async function onderhoud() {
@@ -500,6 +536,9 @@
     onderhoudBezig = true;
     try {
       await R.onderhoud(st);
+      const tw = await T.onderhoud(st);
+      await laadTweeling();
+      if (tw.munten) melding(`Tweelingkaart: ${tw.munten} munten erbij.`);
       const u = await U.onderhoud(st);
       const munten = await R.verwerkGevechten(gevechten);
       rivaalS = await R.laad();
@@ -514,9 +553,11 @@
     try {
       const a = await R.opBerichten(st, van, lijst);
       const b = await U.opBerichten(st, van, lijst);
+      const t = await T.opBerichten(st, van, lijst);
       rivaalS = await R.laad();
-      [...a.meldingen, ...b.meldingen].forEach((m) => melding(m));
-      if (a.veranderd || b.veranderd) renderAlles();
+      await laadTweeling();
+      [...a.meldingen, ...b.meldingen, ...t.meldingen].forEach((m) => melding(m));
+      if (a.veranderd || b.veranderd || t.veranderd) renderAlles();
     } catch (e) { /* de volgende keer weer */ }
   }
 
@@ -786,7 +827,7 @@
     const a = document.activeElement;
     const sleutel = a && a.id && $('app').contains(a) ? a.id : null;
     const cursor = sleutel && typeof a.selectionStart === 'number' ? [a.selectionStart, a.selectionEnd] : null;
-    renderVerzoeken(); renderVoorspel(); renderReacties(); renderRivaal(); renderVrienden(); renderBlokkades(); renderKaartenVanVrienden(); renderUitdagingenTab(); renderTellers();
+    renderVerzoeken(); renderVoorspel(); renderReacties(); renderRivaal(); renderTweeling(); renderVrienden(); renderBlokkades(); renderKaartenVanVrienden(); renderUitdagingenTab(); renderTellers();
     const n = sleutel && document.getElementById(sleutel);
     if (n && n !== document.activeElement) { n.focus(); try { if (cursor) n.setSelectionRange(cursor[0], cursor[1]); } catch (e) { /* geen tekstveld */ } }
   }
@@ -829,7 +870,7 @@
     if (live) return;
     live = L.maakLive({
       st: () => st, galerij: () => galerij,
-      herlaad: async () => { const n = await L.laad(); if (n) { st = n; galerij = await L.leesGalerij(); gevechten = await L.leesGevechten(); rivaalS = await R.laad(); renderAlles(); } return st; },
+      herlaad: async () => { const n = await L.laad(); if (n) { st = n; galerij = await L.leesGalerij(); gevechten = await L.leesGevechten(); rivaalS = await R.laad(); await laadTweeling(); renderAlles(); } return st; },
       bij(g) {
         if (!st) return;
         // Alleen opnieuw tekenen als er echt iets veranderd is: anders raak je wat je net intikte kwijt.
@@ -880,6 +921,7 @@
     });
     if (!st) { $('uitleg').hidden = false; return; }
     rivaalS = await R.laad();
+    await laadTweeling();
     await laadBlok();
     toonApp(); renderAlles();
     gevechten = await L.leesGevechten();
@@ -940,7 +982,7 @@
     }
     if (live) { live.stop(); live = null; }
     try { await L.wis(R.SLEUTEL); } catch (e) { /* niet erg */ } // de rivaliteit hoort bij dit account (de uitnodigingsbeloningen blijven staan)
-    st = null; vriendKaarten = {}; blok = {}; opgehaald = false; rivaalS = R.schoonStaat(null); raadForm = null; concept.clear();
+    st = null; vriendKaarten = {}; blok = {}; opgehaald = false; rivaalS = R.schoonStaat(null); tweelingS = T.schoonStaat(null); raadForm = null; concept.clear();
     $('app').hidden = true; $('uitleg').hidden = false; $('meer').open = false; $('kop-toevoegen').hidden = true;
     melding('Je account en al je gedeelde gegevens zijn gewist.');
     $('aanzetten').focus();

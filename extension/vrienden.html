@@ -6,6 +6,7 @@
   <title>Vrienden</title>
   <link rel="stylesheet" href="vrienden.css" />
   <link rel="stylesheet" href="rivaal.css" />
+  <link rel="stylesheet" href="tweeling.css" />
   <link rel="stylesheet" href="veilig.css" />
   <link rel="stylesheet" href="embed.css" />
   <script src="embed.js"></script>
@@ -60,6 +61,7 @@
       <section class="sec" id="sec-vrienden" role="tabpanel" aria-labelledby="stab-vrienden" tabindex="0">
         <p class="sec-uitleg">Je vrienden. Klap een profielkaart open of daag iemand uit voor een gevecht.</p>
         <section class="blok rivaal" id="rivaal-sectie" aria-labelledby="rv-titel" hidden></section>
+        <section class="blok tweeling" id="tweeling-sectie" aria-labelledby="tw-titel" hidden></section>
         <div class="leeg-blok" id="geen-vrienden" hidden>
           <p><strong>Je hebt nog geen vrienden.</strong> Geef je vriendcode aan een klasgenoot, of vul zijn code in.</p>
           <button type="button" class="knop goud" data-sec="toevoegen">Vriend toevoegen</button>
@@ -166,7 +168,9 @@
   <script src="profielkaart.js"></script>
   <script src="vriendenlib.js"></script>
   <script src="ladder.js"></script>
+  <script src="gevecht.js"></script>
   <script src="rivaal.js"></script>
+  <script src="tweeling.js"></script>
   <script src="veilig.js"></script>
   <script src="uitnodiging.js"></script>
   <script src="vrienden.js"></script>

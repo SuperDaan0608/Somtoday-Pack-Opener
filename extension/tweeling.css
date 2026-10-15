@@ -1,0 +1,24 @@
+/* Tweelingkaarten (v3.0). Gebruikt de kleuren van vrienden.css. */
+.tweeling { border-color: rgba(120,200,255,.45); background: linear-gradient(160deg, rgba(120,200,255,.09), rgba(255,255,255,.02)); }
+.tweeling h2 { margin-bottom: 8px; }
+.tweeling h3 { margin: 14px 0 8px; font-size: 16px; }
+.tw-verzoeken, .tw-lijst { list-style: none; margin: 12px 0; padding: 0; display: grid; gap: 10px; }
+.tw-verzoek, .tw-kaart { border: 1px solid var(--lijn-2); border-radius: 12px; padding: 12px; background: rgba(255,255,255,.03); }
+.tw-verzoek p { margin: 0 0 8px; }
+.tw-kaart { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.tw-kaart.actief { border-color: rgba(120,200,255,.6); box-shadow: 0 0 0 1px rgba(120,200,255,.25) inset; }
+.tw-paar { display: inline-flex; align-items: center; gap: 4px; flex: none; }
+.tw-avatar { display: inline-grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; font: 800 16px/1 var(--display, system-ui); color: #08121c; background: linear-gradient(135deg, #bfe8ff, #5fb6ff); border: 2px solid #fff; }
+.tw-paar .tw-avatar + .tw-plus + .tw-avatar { background: linear-gradient(135deg, #ffe9b3, #ffb25f); margin-left: 0; }
+.tw-plus { font-weight: 800; color: var(--tekst-2); }
+.tw-tekst { flex: 1 1 200px; min-width: 0; }
+.tw-naam { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
+.tw-tekst .uitleg { margin: 2px 0 0; }
+.tw-acties { display: flex; flex-wrap: wrap; gap: 8px; }
+.tw-form { display: grid; gap: 6px; max-width: 460px; margin-top: 12px; }
+.tw-label { font-size: 13px; color: var(--tekst-2); }
+.tw-select { min-height: 40px; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--lijn-2); background: rgba(0,0,0,.3); color: inherit; font: inherit; max-width: 100%; }
+.tw-deelt { margin: 2px 0 6px; }
+/* badge in de galerij */
+.tw-badge { position: absolute; left: 4px; bottom: 4px; display: inline-flex; align-items: center; gap: 2px; padding: 2px 6px 2px 3px; border-radius: 999px; background: rgba(8,18,28,.88); border: 1px solid rgba(120,200,255,.8); color: #bfe8ff; font: 800 10px/1 system-ui, sans-serif; letter-spacing: .04em; }
+.tw-badge .tw-avatar { width: 16px; height: 16px; font-size: 9px; border-width: 1px; }
