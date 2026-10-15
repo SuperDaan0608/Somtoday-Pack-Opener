@@ -336,14 +336,16 @@ float figuur(vec2 q, float ph, float amp){
   vec2 qb = rot2(s1 * .022 * amp) * (q - vec2(0., .52)) + vec2(0., .52); // bekken kantelt mee
   vec2 qs = rot2(-s1 * .03 * amp) * (q - vec2(0., .78)) + vec2(0., .78); // schouders tegengesteld
   // hoofd, haar en nek
-  float d = ell(qs, vec2(0., .925), vec2(.046, .058));
-  d = smin(d, ell(qs, vec2(.004, .962), vec2(.050, .036)), .012);
-  d = smin(d, tcap(qs, vec2(0., .872), vec2(0., .835), .026, .030), .018);
+  float d = ell(qs, vec2(0., .922), vec2(.050, .062));
+  d = smin(d, ell(qs, vec2(.003, .958), vec2(.054, .042)), .012); // haar
+  d = min(d, ell(qs, vec2(-.051, .918), vec2(.009, .016))); // oren
+  d = min(d, ell(qs, vec2(.051, .918), vec2(.009, .016)));
+  d = smin(d, tcap(qs, vec2(0., .872), vec2(0., .832), .028, .034), .016);
   // romp: trapezius, schouders, borst en een taille
-  float trap = tcap(qs, vec2(0., .842), vec2(-.118, .808), .026, .034);
-  trap = min(trap, tcap(qs, vec2(0., .842), vec2(.118, .808), .026, .034));
-  float borst = ell(qs, vec2(0., .735), vec2(.122, .088));
-  float buik = ell(mix(qs, qb, .5), vec2(0., .615), vec2(.088, .085));
+  float trap = tcap(qs, vec2(0., .842), vec2(-.132, .806), .028, .038);
+  trap = min(trap, tcap(qs, vec2(0., .842), vec2(.132, .806), .028, .038));
+  float borst = ell(qs, vec2(0., .74), vec2(.128, .09));
+  float buik = ell(mix(qs, qb, .5), vec2(0., .62), vec2(.098, .075)); // shirt valt recht
   float romp = smin(smin(trap, borst, .035), buik, .05);
   // shirt hangt wat los over de broek
   romp = smin(romp, ell(qb, vec2(0., .54), vec2(.094, .03)), .03);
@@ -369,9 +371,9 @@ float figuur(vec2 q, float ph, float amp){
     d = smin(d, ell(qb, ank + vec2(sg * .006, -.026 + .006 * voetOp), vec2(.034, neus)), .012);
     // armen: schouder, elleboog (iets gebogen) en hand; ze zwaaien tegengesteld aan de benen
     float arm = -fs * amp;
-    vec2 sh = vec2(sg * .128, .79);
-    vec2 el = vec2(sg * (.166 - .006 * abs(arm)), .64 + .03 * max(arm, 0.));
-    vec2 ha = vec2(sg * (.17 - .03 * max(arm, 0.)), .515 + .07 * max(arm, 0.) - .01 * max(-arm, 0.));
+    vec2 sh = vec2(sg * .14, .79);
+    vec2 el = vec2(sg * (.178 - .006 * abs(arm)), .645 + .03 * max(arm, 0.));
+    vec2 ha = vec2(sg * (.18 - .03 * max(arm, 0.)), .515 + .07 * max(arm, 0.) - .01 * max(-arm, 0.));
     d = smin(d, tcap(qs, sh, el, .036, .028), .025);
     d = smin(d, tcap(qs, el, ha, .027, .021), .012);
     d = smin(d, ell(qs, ha + vec2(0., -.018), vec2(.021, .028)), .01);
@@ -505,6 +507,18 @@ void main(){
         // de shirtrand en broek iets anders van tint, zodat je kleding leest
         float broekZ = smoothstep(.535, .525, q.y) * smoothstep(.40, .42, q.y);
         fcol = mix(fcol, fcol * 1.6 + uTint * .01, broekZ);
+        // tenue: een zachte vullamp van voren laat het shirt in de kleur van het niveau zien (cilindrisch belicht),
+        // donkere broek, kousen in shirtkleur en een huidtint op hoofd en armen; sterker naarmate hij dichterbij komt
+        float dicht = smoothstep(.12, .6, uFig.z);
+        float cyl = 1. - abs(gN.x) * .7;
+        float shirt = smoothstep(.535, .55, q.y) * smoothstep(.87, .85, q.y) * step(abs(q.x), .15);
+        float kous = smoothstep(.06, .08, q.y) * smoothstep(.27, .25, q.y);
+        float huid = smoothstep(.86, .875, q.y) + smoothstep(.15, .17, abs(q.x)) * smoothstep(.79, .76, q.y) * step(.5, q.y);
+        vec3 kit = mix(uTint, vec3(1.), .15) * .4;
+        vec3 fill = kit * (shirt + kous * .8) + vec3(.2, .12, .08) * .5 * min(huid, 1.) + vec3(.02, .02, .03) * broekZ;
+        fcol += fill * cyl * vol * dicht * (.6 + .4 * smoothstep(.3, .9, q.y));
+        // een rugnummerloze borst: een paar plooien in het shirt
+        fcol *= 1. - .25 * shirt * dicht * smoothstep(.3, 1., sin(q.x * 60. + q.y * 20.));
         col = mix(col, fcol, sil * uFig.w);
         col += mix(uTint, vec3(1.), .55) * L * rim * tegen * sil * uFig.w * (1.1 + .7 * smoothstep(.55, .95, q.y));
         col += uTint * L * exp(d / (5. * px + .004)) * sil * uFig.w * .06 * tegen; // zachte doorschijn in de stof
@@ -565,11 +579,15 @@ void main(){
   const VS_PAK = `${KOP}
 ${OBJ_GEMEEN}
 uniform float uBol; uniform ivec2 uRaster;
+uniform float uScheurY, uRimpel, uTime;
 out vec2 vUv; out vec3 vN; out vec3 vWp;
 float hoogte(vec2 g){
   float bx = 1. - pow(abs(2. * g.x - 1.), 2.4);
   float by = smoothstep(0., .13, g.y) * smoothstep(1., .87, g.y);
-  return uBol * pow(max(bx, 0.), .6) * by;
+  // folie-rimpels: golven die vanaf de scheurlijn door het zakje lopen
+  float ds = abs(g.y - uScheurY);
+  float rimpel = uRimpel * sin(ds * 46. - uTime * 38. + g.x * 7.) * exp(-ds * 5.) * .035;
+  return uBol * pow(max(bx, 0.), .6) * by + rimpel * (.4 + .6 * max(bx, 0.));
 }
 void main(){
   int q = gl_VertexID / 6; int k = gl_VertexID - q * 6;
@@ -593,7 +611,7 @@ void main(){
   const FS_PAK = `${KOP}
 in vec2 vUv; in vec3 vN; in vec3 vWp; out vec4 o;
 uniform sampler2D uTex;
-uniform float uDeel, uScheurY, uLaad, uTime, uSeed, uAlpha, uRand, uGlans;
+uniform float uDeel, uScheurY, uLaad, uTime, uSeed, uAlpha, uRand, uGlans, uPeel;
 uniform vec3 uCol, uCol2, uCamPos; uniform vec2 uKantel;
 ${GEMEEN}
 void main(){
@@ -660,8 +678,15 @@ void main(){
   col += uCol * fres * (.3 + 1.0 * uLaad) * uRand + vec3(.45, .6, 1.) * fres * .3;
   // licht dat uit de naad lekt terwijl het pakje oplaadt
   float lek = exp(-abs(rand) * (95. - 30. * uLaad)) * uLaad;
-  col += mix(uCol, vec3(1.), .45) * lek * .9 + uCol * exp(-abs(rand) * 9.) * uLaad * uLaad * .25;
+  col += mix(uCol, vec3(1.), .45) * lek * .45 * (1. - .7 * step(.001, uPeel)) + uCol * exp(-abs(rand) * 9.) * uLaad * uLaad * .1;
   col += uCol * uLaad * uLaad * .05;
+  // vlak voor het scheuren loopt er een felle barst van links naar rechts over de naad
+  if (uPeel > 0. && uDeel < .5) {
+    float voor = smoothstep(uPeel + .02, uPeel - .02, vUv.x);
+    float kop = exp(-pow((vUv.x - uPeel) * 22., 2.));
+    float barst = exp(-abs(rand) * 260.) * voor;
+    col += mix(uCol, vec3(1.), .7) * (barst * 6. + exp(-abs(rand) * 40.) * voor * .8 + kop * exp(-abs(rand) * 25.) * 4.);
+  }
   // gescheurde rand: witte folie-vezels
   if (uDeel > .5) {
     float ed = abs(rand);

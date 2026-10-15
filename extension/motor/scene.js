@@ -68,15 +68,15 @@
       tl.onder = null;
       tl.pakIn = [0, 0.65];
     } else {
-      tl.vak = [0.2, 1.45];
-      tl.onder = [1.2, 2.45]; // pas als het vak voorbij is: de woorden overlappen niet
-      tl.pakIn = [1.85, 2.8];
+      tl.vak = [0.15, 1.3];
+      tl.onder = [1.05, 2.2]; // pas als het vak voorbij is: de woorden overlappen niet
+      tl.pakIn = [1.6, 2.5];
     }
     const c1 = tl.pakIn[1];
-    tl.E = c1 + (snel ? 0.55 + 0.6 * I : 1.35 + 1.1 * I); // het moment van scheuren
+    tl.E = c1 + (snel ? 0.55 + 0.6 * I : 1.2 + 0.9 * I); // het moment van scheuren
     if (walkout) {
       const w0 = tl.E + (snel ? 0.3 : 0.5);
-      const wd = snel ? 2.6 + 0.6 * I : 3.5 + 1.1 * I;
+      const wd = snel ? 2.6 + 0.6 * I : 3.0 + 0.9 * I;
       tl.wo = [w0, w0 + wd];
       tl.K0 = w0 + wd;
     } else {
@@ -308,7 +308,7 @@
           const q = (ts - tl.wo[0]) / (tl.wo[1] - tl.wo[0]);
           schok(ts, 0.0016 + 0.009 * q * q, 0.12);
         }
-        flits(K0 - 0.04, kosm3 ? 0.22 : 0.8 * gw, 0.3);
+        flits(K0 - 0.04, kosm3 ? 0.22 : 0.5 * gw, 0.22);
       }
       // oplaadgolven rond het pakje: steeds sneller
       for (let ts = c1 + 0.35, stap = 0.55; ts < E - 0.15; ts += stap, stap = Math.max(0.22, stap * 0.87)) golf(ts, 0.7, 0.16 + 0.2 * I, 0);
@@ -380,7 +380,7 @@
     }
     if (tier === 0 && !zeldzaam) {
       e({ mode: 3, t0: RV, life: 5, delay: 0.2, n: 160, alpha: 0.8, seed: 9, blend: 'alpha' });
-      e({ mode: 6, t0: RV, life: 3.2, delay: 0.5, n: 14, org: [0, -0.2], size: [0.18, 0.4], col1: [0.16, 0.12, 0.1], col2: [0.3, 0.22, 0.16], blend: 'alpha', seed: 10, lod: false });
+      e({ mode: 6, t0: RV, life: 3.2, delay: 0.5, n: 8, org: [0, -0.78], size: [0.18, 0.4], col1: [0.16, 0.12, 0.1], col2: [0.3, 0.22, 0.16], blend: 'alpha', seed: 10, lod: false });
     } else if ((d.g >= 6 || zeldzaam) && !myth4 && !kosm3) {
       e({ mode: 2, t0: RV + 0.1, life: 4.6, delay: 1.1, n: Math.max(zeldzaam ? 260 : 0, Math.round(40 + 200 * Math.max(0, I - 0.5) * 2 * (d.g >= 9 ? 1.4 : 1))), org: [0, 0.62], angle: -Math.PI / 2, spread: 0.7, spd: [0.1, 0.45], grav: [0, -0.09], drag: 0.45, size: zeldzaam ? [0.008, 0.017] : [0.006, 0.012], col1: kl, col2: kl2, alpha: 1, blend: 'alpha', seed: 12 });
     }
@@ -556,6 +556,9 @@
       p.f1('uAlpha', alpha);
       p.f1('uRand', tier >= 1 || laad > 0.2 ? 1 : 0.5);
       p.f1('uGlans', glans);
+      // de barst die over de naad loopt en de rimpels in de folie
+      p.f1('uPeel', deel === 0 ? Math.pow(ramp(t, E - 0.38, E), 1.6) * 1.05 : 0);
+      p.f1('uRimpel', deel === 0 ? 0.5 * sm(t, E - 0.45, E) : 1.6 * Math.exp(-(t - E) / 0.35));
       p.v3('uCol', kl);
       p.v3('uCol2', kl2);
       p.f2('uKantel', kantel[0], kantel[1]);
@@ -771,7 +774,7 @@
           basis(p);
           p.f1('uTime', t);
           // de leerling loopt door de lichtbundel naar je toe: eerst klein, aan het eind groter dan het beeld
-          const h = 0.1 * Math.pow(11, Math.pow(q, 0.9)) * (0.85 + 0.15 * fit);
+          const h = 0.1 * Math.pow(8, Math.pow(q, 0.85)) * (0.85 + 0.15 * fit); // eindigt met hoofd en schouders in beeld, niet in de lens
           const loopt = q < 0.93 ? 1 : Math.max(0.2, 1 - (q - 0.93) / 0.07);
           p.f1('uStap', (t - w0) * 5.2 + 1.2);
           p.f1('uAmp', loopt * (0.55 + 0.45 * q));
@@ -780,8 +783,8 @@
           p.f1('uAlpha', sm(t, w0 - 0.02, w0 + 0.25) * (1 - sm(t, K0 - 0.02, K0 + 0.1)));
           p.f1('uRegen', regenboog ? 1 : 0);
           p.f1('uKw', motor.kwaliteit);
-          p.f1('uLicht', 0.35 + 0.35 * q + 1.6 * Math.pow(ramp(q, 0.9, 1), 2) + 0.9 * Math.exp(-(t - w0) / 0.4));
-          p.f4('uFig', 0, 0.07 - 0.55 * h, h, sm(q, 0, 0.08));
+          p.f1('uLicht', 0.35 + 0.35 * q + 2.4 * Math.pow(ramp(q, 0.82, 1), 2) + 0.9 * Math.exp(-(t - w0) / 0.4));
+          p.f4('uFig', 0, 0.07 - 0.62 * h, h, sm(q, 0, 0.08) * (1 - sm(q, 0.86, 0.985))); // lost op in het licht voor de kaart komt
           p.v3('uTint', kl);
           p.v3('uTint2', kl2);
           motor.mengen('optel');
