@@ -361,7 +361,7 @@ const kaart = (id, ts, vak, cijfer, extra) => Object.assign({ id, ts, vak, cijfe
   controle('manifest: arcade.html is bereikbaar vanuit Somtoday', manifest.web_accessible_resources.some((w) => w.resources.includes('arcade.html')));
   controle('arcade.html: scripts in de goede volgorde', ['economie.js', 'arcadelib.js', 'arcade.js'].every((s, i, l) => arcadeHtml.indexOf(`src="${s}"`) > (i ? arcadeHtml.indexOf(`src="${l[i - 1]}"`) : 0)));
   controle('arcade.html: lang nl, kop, hoofd en skip-link', /<html lang="nl">/.test(arcadeHtml) && /<h1>/.test(arcadeHtml) && /<main id="hoofd">/.test(arcadeHtml) && /class="skip"/.test(arcadeHtml));
-  controle('arcade.html: geen tekstvelden (dus niets om te filteren)', !/<(input|textarea)\b/i.test(arcadeHtml) && !/contenteditable/i.test(arcadeHtml));
+  controle('arcade.html: geen tekstvelden (dus niets om te filteren)', !/<(input|textarea)\b(?![^>]*type="checkbox")/i.test(arcadeHtml) && !/contenteditable/i.test(arcadeHtml));
   controle('arcade.html: statusmeldingen worden voorgelezen', /id="melding"[^>]*role="status"[^>]*aria-live="polite"/.test(arcadeHtml));
   const zonderOpmerkingen = (t) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '').replace(/\s\/\/ .*$/gm, '');
   controle('het woord Somtoday komt in de nieuwe bestanden niet voor in teksten of data (alleen in opmerkingen)', !/somtoday/i.test(arcadeHtml) && ['arcade.js', 'arcadelib.js', 'heel.js', 'drop.js'].every((f) => !/somtoday/i.test(zonderOpmerkingen(lees_(f)))));
