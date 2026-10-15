@@ -16,7 +16,7 @@
       punten: [
         'Veiliger voor iedereen: een streng filter op alles wat je typt, en je kunt vrienden blokkeren en melden.',
         'Geheime prestaties met een raadsel erbij, een troostpakje na een tegenvallend cijfer en op maandag een weekoverzicht.',
-        'Maak je eigen voetballer en je eigen stadion. Kies huid, haar, tenue, rugnummer en juichstijl, en geef je stadion een naam. Vrienden zien ze ook, en je voetballer schiet de strafschoppen.',
+        'Maak je eigen voetballer en je eigen stadion. Vrienden zien ze ook. Je teamduels zijn nu strafschoppenreeksen: kies een hoek, stop de wijzer in het groen, duik als keeper, en vrienden kijken live mee en gooien emoji.',
         'Nieuw Kaartspel: kies een deck van 5 kaarten en speel deck tegen deck, tegen de computer of een vriend. Je verdient munten, hoogstens 5 potjes per dag.',
         'Nieuwe Campagne: vier werelden met een eindbaas (draak, feniks, kraken, griffioen). Versla ze met je kaartspel-deck, verdien sterren en munten en win titels en kaartkleuren.',
         'Schrijf een tijdcapsule aan jezelf, kies een aartsrivaal, nodig vrienden uit met een link, heft vloeken op, speel in de Arcade-hoek en zie de teller met mythische kaarten van alle spelers.',

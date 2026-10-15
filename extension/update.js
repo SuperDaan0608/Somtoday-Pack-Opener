@@ -157,10 +157,15 @@
       if (!v) continue;
       const lijst = await L.haalBerichten(st, v, cursor);
       for (const b of lijst) {
-        if (b.m.t === 'uitnodiging') {
+        if (b.m.t === 'uitnodiging' || b.m.t === 'sd_uit') {
           if (b.leeftijd >= 300 || typeof b.m.mid !== 'string' || gezienUitdaging.has(b.m.mid)) continue;
           gezienUitdaging.add(b.m.mid);
-          uit.push({ soort: 'duel', tekst: `${L.naam(v)} daagt je uit voor een duel!` });
+          uit.push({ soort: 'duel', tekst: `${L.naam(v)} daagt je uit voor een strafschoppenduel!` });
+        } else if (b.m.t === 'sd_kijk') {
+          // v3.0: een vriend speelt een strafschoppenduel: kijk mee op het tabblad Team
+          if (b.leeftijd >= 180 || typeof b.m.mid !== 'string' || gezienUitdaging.has('k' + b.m.mid)) continue;
+          gezienUitdaging.add('k' + b.m.mid);
+          uit.push({ soort: 'duel', tekst: `${L.naam(v)} speelt een strafschoppenduel. Kijk mee op het tabblad Team!` });
         } else if (b.m.t === 'gg') {
           // GG van een vriend op een kosmische of mythische kaart van mij (alleen als die kaart echt in mijn galerij staat)
           const g = L.schoonGG(b.m);

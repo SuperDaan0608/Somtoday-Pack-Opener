@@ -555,7 +555,7 @@
         const w = gv.filter((x) => x.mijn > x.hun).length, g = gv.filter((x) => x.mijn === x.hun).length, l = gv.length - w - g;
         li.append(el('span', 'gv-stand', `${w} gewonnen, ${g} gelijk, ${l} verloren. Laatste uitslag: ${gv[0].mijn}-${gv[0].hun}.`));
       }
-      if (daagt) { const a = el('a', 'knop goud klein', 'Gevecht accepteren'); a.href = 'team.html'; a.dataset.ga = 'team'; li.append(el('span', 'geverifieerd', `${naam} daagt je uit!`), a); }
+      if (daagt) { const a = el('a', 'knop goud klein', 'Duel accepteren'); a.href = 'team.html'; a.dataset.ga = 'team'; li.append(el('span', 'geverifieerd', `${naam} daagt je uit!`), a); }
       rijen.push(li);
     }
     $('gevechten').replaceChildren(...rijen);
@@ -847,7 +847,7 @@
           if (handtekening() !== voor) renderAlles();
         } else if (g.type === 'berichten') {
           opVriendBerichten(g.van, g.berichten);
-          if (g.berichten.some((b) => b.m.t === 'uitnodiging' && b.leeftijd < 300)) { uitdagingen.add(g.van); melding(`${L.naam(st.vrienden.find((v) => v.id === g.van) || { id: g.van })} daagt je uit voor een gevecht. Open Team om te accepteren.`); renderAlles(); }
+          if (g.berichten.some((b) => (b.m.t === 'uitnodiging' || b.m.t === 'sd_uit') && b.leeftijd < 300)) { uitdagingen.add(g.van); melding(`${L.naam(st.vrienden.find((v) => v.id === g.van) || { id: g.van })} daagt je uit voor een strafschoppenduel. Open Team om te accepteren.`); renderAlles(); }
         } else if (g.type === 'waarschuwing') toonWaarschuwing();
         else if (g.type === 'ok') { $('ban-banner').hidden = true; if (!bezig) zetStatus(true); }
         else if (g.type === 'fout') {

@@ -10,6 +10,7 @@ const EXT = path.resolve(__dirname, '../../extension');
 const P = require(EXT + '/prestatieslib.js');
 require(EXT + '/gevecht.js');
 const G = globalThis.SPOGevecht;
+const D = require(EXT + '/duellib.js');
 require(EXT + '/economie.js');
 const E = globalThis.SPOEco;
 const H = require(EXT + '/heel.js');
@@ -81,17 +82,25 @@ const kaart = (id, ts, vak, cijfer, extra) => Object.assign({ id, ts, vak, cijfe
     controle('opgeheven = één trede hoger', Math.abs(G.sterkte(heel) - G.sterkte(Object.assign({}, gewoon, { t: 1 }))) < 1e-9 && G.duelTrede(heel) === 1);
     controle('opgeheven kaart van trede 1 telt als trede 2', G.duelTrede(Object.assign({}, heel, { t: 1 })) === 2);
     controle('hoogstens mythisch (trede 4)', G.duelTrede(Object.assign({}, heel, { t: 4 })) === 4 && G.sterkte(Object.assign({}, heel, { t: 4 })) === G.sterkte(Object.assign({}, gewoon, { t: 4 })));
-    controle('klikken tellen mee: opgeheven > gewoon', G.klikFactor(heel, 0, 0) > G.klikFactor(gewoon, 0, 0));
+    controle('in een duel telt een opgeheven kaart zwaarder dan een gewone', D.macht(heel, 0, 0) > D.macht(gewoon, 0, 0));
     let keert = 0;
     for (let i = 0; i < 300; i++) if (G.vloekKeert(12345, i, 'A', 1, heel)) keert++;
     controle('een opgeheven vloek keert zich nooit tegen je team', keert === 0);
     let keertV = 0;
     for (let i = 0; i < 300; i++) if (G.vloekKeert(12345, i, 'A', 1, vloek)) keertV++;
     controle('een echte vloek wel (controle van de test zelf)', keertV > 0);
-    // Een wedstrijd met opgeheven kaarten: beide computers zien exact hetzelfde.
+    // Een duel met opgeheven kaarten: beide computers zien exact hetzelfde.
     const teamVan = (h) => Array.from({ length: 7 }, (_, i) => ({ vak: 'Vak' + i, cijfer: 4 + (i % 3), tier: 0, z: false, t: 0, v: false, h }));
-    const speel = (seed, hA) => { const sim = G.maakSim(seed, { A: teamVan(hA), B: teamVan(false) }, {}), uit = []; for (let i = 0; i < 400 && !sim.klaar; i++) { const e = sim.volgende(); if (e.t === 'eind') break; if (e.t === 'kans') { const u = sim.duelUitslag(20, 20); uit.push((u.goal ? 'G' : 'N') + (u.keert ? 'K' : '')); } } return uit.join(',') + '|' + sim.stand.A + '-' + sim.stand.B; };
-    controle('opgeheven: twee computers spelen exact dezelfde wedstrijd', [1, 2, 3, 42, 777].every((sd) => speel(sd, true) === speel(sd, true)));
+    const speel = (seed, hA) => {
+      const A = G.ordenTeam(teamVan(hA), 0), B = G.ordenTeam(teamVan(false), 0), rA = D.rollen(A), rB = D.rollen(B), uit = [];
+      for (let k = 0; k < 10; k++) {
+        const z = D.kantVan('A', k), beurt = D.beurtVan(k), sch = D.schutterVoor(z === 'A' ? rA : rB, beurt), kee = (z === 'A' ? rB : rA).keeper;
+        const u = D.uitkomst({ seedTekst: 'x|' + seed, k, kant: z, beurt, schutter: sch, keeper: kee, chS: 0, chK: 0, auraS: 0, auraK: 0, r: 'links', h: 'laag', q: 80, dr: 'rechts', dh: 'laag' });
+        uit.push(u.uitkomst + (u.keert ? 'K' : ''));
+      }
+      return uit.join(',');
+    };
+    controle('opgeheven: twee computers spelen exact hetzelfde duel', [1, 2, 3, 42, 777].every((sd) => speel(sd, true) === speel(sd, true)));
     controle('opgeheven: geen vloek-omkering in een heel team (alleen echte vloeken keren zich tegen je)', ![1, 2, 3, 4, 5, 6, 7, 8].some((sd) => /K/.test(speel(sd, true))));
     controle('h bij een kaart die ook v is telt niet (geen dubbele bonus)', G.isHeel(Object.assign({}, vloek, { h: true })) === false);
     controle('een kaart zonder h verandert niet', G.duelTrede(gewoon) === 0 && G.sterkte(gewoon) === 4.2);

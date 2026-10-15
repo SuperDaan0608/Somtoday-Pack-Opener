@@ -9,7 +9,7 @@
  *   spo_dagelijks   { laatste:'JJJJ-MM-DD', reeks:1..7, dagen }     dagelijkse beloning
  *   spo_winkel      { gekocht:[itemId], gebruik:{somtoday, titel, bg} }
  *   spo_profiel     { bijnaam, deel }
- *   (v3.0) spo_munten_ids bevat ook 'cf:<wereld>:<niveau>' / 'cd:<dag>:<nr>' / 'cw:<wereld>' (campagne: eerste winst, beloonde herhaling, wereld voltooid) en 'dm:<kaart>' (mythische kaart gemeld) en 'ar:<dag>:<nr>' / 'arw:<dag>:<nr>' (arcade gestart / uitbetaald) en 'ks:<dag>:<nr>' / 'ksw:<potje>' (kaartspel, dagelijkse limiet / uitbetaald)
+ *   (v3.0) spo_munten_ids bevat ook 'cf:<wereld>:<niveau>' / 'cd:<dag>:<nr>' / 'cw:<wereld>' (campagne: eerste winst, beloonde herhaling, wereld voltooid) en 'dm:<kaart>' (mythische kaart gemeld) en 'ar:<dag>:<nr>' / 'arw:<dag>:<nr>' (arcade gestart / uitbetaald) en 'ks:<dag>:<nr>' / 'ksw:<potje>' (kaartspel, dagelijkse limiet / uitbetaald) en 'ds:<dag>:<nr>' / 'dsw:<duel>' (strafschoppenduel, dagelijkse limiet / uitbetaald)
  *   (v3.0) 'mn:<dag>:<nr>' / 'mnw:<potje>' (Snelspel: potje gespeeld, dagelijkse limiet / uitbetaald) en 'tw:<id>' (tweelingkaart: eenmalige beloning, via bonusMunten 'bm:tw:<id>')
  *   spo_voetbal     { v:1, avatar, stadion }                       je voetballer en je stadion (zie voetbal.js)
  * De munten hebben nooit invloed op cijfers: het zijn alleen cosmetische dingen.
@@ -378,6 +378,35 @@
     });
   }
 
+  // ───────── Duel (v3.0): munten voor een uitgespeeld strafschoppenduel, met een dagelijkse limiet ─────────
+  // Hoogstens DUEL_PER_DAG duels per dag leveren munten op (sleutel 'ds:<dag>:<nr>'); elk duel (id van het duel, 'dsw:<id>') wordt maar één keer uitbetaald.
+  // Een duel tegen de computer telt ook mee (anders kun je niet zonder vriend testen), maar valt onder dezelfde limiet.
+  const DUEL_PER_DAG = 5;
+  const DUEL_MUNTEN = { w: 10, g: 4, v: 2 };
+  const duelTelling = (s, nu) => { let n = 0; for (let i = 1; i <= DUEL_PER_DAG; i++) if (s.ids['ds:' + nu + ':' + i]) n++; return n; };
+  async function duelStatus() {
+    const r = await leesAlles([K.ids, K.munten]);
+    const g = duelTelling({ ids: obj(r[K.ids]) }, vandaag());
+    return { gespeeld: g, over: Math.max(0, DUEL_PER_DAG - g), max: DUEL_PER_DAG, saldo: schoonMunten(r[K.munten]).saldo };
+  }
+  // uitslag: 'w' | 'g' | 'v'. Geeft { ok:true, munten, dagmax, over, saldo } of { ok:false, reden: 'onbekend' | 'al-betaald' }.
+  function duelKlaar(id, uitslag) {
+    return werk((s) => {
+      if (typeof id !== 'string' || !KS_MID.test(id) || !Object.prototype.hasOwnProperty.call(DUEL_MUNTEN, uitslag)) return { ok: false, reden: 'onbekend' };
+      const sl = 'dsw:' + id;
+      if (s.ids[sl]) return { ok: false, reden: 'al-betaald' };
+      s.ids[sl] = 1;
+      const nu = vandaag();
+      let nr = 0;
+      for (let i = 1; i <= DUEL_PER_DAG; i++) if (!s.ids['ds:' + nu + ':' + i]) { nr = i; break; }
+      if (!nr) return { ok: true, munten: 0, dagmax: true, over: 0, saldo: s.munten.saldo };
+      s.ids['ds:' + nu + ':' + nr] = 1;
+      const n = DUEL_MUNTEN[uitslag];
+      boek(s, n, 'Duel: ' + (uitslag === 'w' ? 'gewonnen' : uitslag === 'g' ? 'gelijkspel' : 'meegedaan'), sl);
+      return { ok: true, munten: n, dagmax: false, over: DUEL_PER_DAG - duelTelling(s, nu), saldo: s.munten.saldo };
+    });
+  }
+
   // ───────── Snelspel (v3.0): korte lesbeurt-mini-games van ~20 seconden, met een eigen dagelijkse limiet ─────────
   // Gratis te spelen (geen inzet). Elk afgerond potje telt voor de limiet van MINI_PER_DAG per dag (sleutel 'mn:<dag>:<nr>'); een goed potje
   // levert MINI_MUNTEN munten op. Elk potje (id, 'mnw:<id>') kan maar één keer worden afgerekend. Het maximum per dag is dus MINI_PER_DAG * MINI_MUNTEN.
@@ -606,7 +635,7 @@
 
   globalThis.SPOEco = {
     K, ITEMS, PER_ID, SOORTEN, ZELD, PAKJES, TERUG, DAG_BELONING, TIERNAMEN,
-    waarde, cijferMunten, verdienCijfer, sweep, koop, openPakje, gratisPakje, bonusMunten, gebruik, claimDagelijks, dagStatus, troostPakje, TROOST_PER_DAG, CAMPAGNE_WERELDEN, CAMPAGNE_PER_DAG, CAMPAGNE_EERSTE, CAMPAGNE_HERHALING, campagneStatus, campagneKlaar, dropGemeld, dropMarkeer, ARCADE, ARCADE_PER_DAG, ARCADE_INZET, arcadeStatus, arcadeStart, arcadeKlaar, KAARTSPEL_PER_DAG, KAARTSPEL_MUNTEN, kaartspelStatus, kaartspelKlaar, MINI_PER_DAG, MINI_MUNTEN, MINI_SPELLEN, miniStatus, miniKlaar, lees, registreerThemas, leesVoetbal, bewaarVoetbal, duelUiterlijk,
+    waarde, cijferMunten, verdienCijfer, sweep, koop, openPakje, gratisPakje, bonusMunten, gebruik, claimDagelijks, dagStatus, troostPakje, TROOST_PER_DAG, CAMPAGNE_WERELDEN, CAMPAGNE_PER_DAG, CAMPAGNE_EERSTE, CAMPAGNE_HERHALING, campagneStatus, campagneKlaar, dropGemeld, dropMarkeer, ARCADE, ARCADE_PER_DAG, ARCADE_INZET, arcadeStatus, arcadeStart, arcadeKlaar, KAARTSPEL_PER_DAG, KAARTSPEL_MUNTEN, kaartspelStatus, kaartspelKlaar, MINI_PER_DAG, MINI_MUNTEN, MINI_SPELLEN, miniStatus, miniKlaar, DUEL_PER_DAG, DUEL_MUNTEN, duelStatus, duelKlaar, lees, registreerThemas, leesVoetbal, bewaarVoetbal, duelUiterlijk,
     maakProfiel, schoonProfiel, mijnProfielDeelbaar, bewaarProfiel, schoonBijnaam, schoonWinkel, schoonMunten, vandaag,
   };
 })();

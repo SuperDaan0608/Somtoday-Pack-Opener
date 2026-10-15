@@ -73,7 +73,7 @@
     { tab: 'winkel', doel: '#tab-winkel', ook: '#munten', titel: 'Munten en Winkel',
       tekst: 'Munten verdien je met cijfers openen, duels winnen, prestaties en een beloning per dag. Je begint met 50. In de Winkel koop je thema\'s, kaartranden en titels. Het is alleen voor de sier.' },
     { tab: 'team', doel: '#tab-team', titel: 'Team en duels',
-      tekst: 'Zet je beste kaarten in je Team en speel duels tegen vrienden. Hoe hoger de trede op de ladder, hoe sterker je kaart. Een autoclicker telt niet mee: alleen echte klikken.' },
+      tekst: 'Zet je beste kaarten in je Team en speel strafschoppenduels tegen vrienden of de computer. Kies een hoek, stop de wijzer in het groen en duik als keeper. Hoe hoger de trede op de ladder, hoe sterker je kaart. Vrienden kunnen live meekijken.' },
     { tab: 'vrienden', doel: '#tab-vrienden', titel: 'Vrienden',
       tekst: 'Geef je vriendcode aan een klasgenoot en vul de zijne in. Dan zien jullie elkaars kaarten, kun je GG sturen bij een zeldzame trekking en kunnen vrienden meekijken als jij iets kosmisch of mythisch opent. Dat kan alleen met vrienden die dezelfde versie hebben. Gedraagt iemand zich niet netjes? Bij Meer opties kun je die persoon melden of blokkeren.' },
     { tab: 'prestaties', doel: '#tab-prestaties', titel: 'Huisdier en Prestaties',

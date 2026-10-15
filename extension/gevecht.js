@@ -1,16 +1,10 @@
-// Gevecht: de wedstrijd zelf. Alles hier is "deterministisch": met dezelfde seed en dezelfde teams geeft het
-// op beide computers precies dezelfde wedstrijd. Er staat geen scherm of netwerk in; dat doet team.js.
+// Gevecht: de gedeelde basis voor teams en duels (sterkte van kaarten, teamchemie, vloek, computer-team).
+// Alles hier is "deterministisch": met dezelfde invoer geeft het op beide computers precies hetzelfde. Er staat geen scherm of
+// netwerk in. v3.0: het duel zelf is een reeks strafschoppen; de regels staan in duellib.js, het scherm in team.js.
 //
 // Teams: lijst met kaarten { vak, cijfer, tier, z }. Plaats 0 is de keeper, de rest zijn veldspelers.
-// Kant 'A' is degene die uitnodigde (onderaan in het canonieke veld), kant 'B' degene die accepteerde (bovenaan).
 (function () {
   'use strict';
-
-  const MAX_MIN = 90;       // een wedstrijd van 90 spelminuten
-  const STAPPEN = 40;       // ... in 40 stappen (passes), samen ongeveer een minuut echte tijd
-  const MAX_KANSEN = 6;
-  const MIN_KANSEN = 3;
-  const KLIK_MAX = 60;      // meer dan dit tellen we niet mee (60 kliks in 3 seconde is al onmenselijk snel)
 
   // Kleine, snelle generator met een seed (mulberry32).
   function maakRng(seed) {
@@ -39,21 +33,18 @@
   // v2.4: de ladder. k.t = trede 0..4 (gewoon, zeldzaam, glim, kosmisch, mythisch); oude kaarten hebben alleen k.z (zeldzaam).
   // Elke trede is sterker; mythisch is bijna niet te verslaan. Een team krijgt bovendien een aura van zijn hoogste trede.
   const TREDE_STERKTE = [0, 0.3, 1.2, 2.6, 6];
-  const TREDE_KLIK = [1, 1.03, 1.15, 1.4, 1.75];
   const AURA_STERKTE = [0, 0, 0.3, 0.8, 1.8];
-  const AURA_KLIK = [1, 1, 1.05, 1.15, 1.35];
   const tredeVan = (k) => (k && Number.isInteger(k.t) ? Math.max(0, Math.min(4, k.t)) : k && k.z ? 1 : 0);
   const auraVan = (team) => (Array.isArray(team) ? team.reduce((m, k) => Math.max(m, tredeVan(k)), 0) : 0);
   // v2.4: een vervloekte kaart (k.v) is sterker, maar keert zich soms tegen zijn eigen team (zie vloekKeert).
   const VLOEK_STERKTE = 1.6;   // de sterkte van een vervloekte kaart telt zoveel keer mee
-  const VLOEK_KLIK = 1.3;      // en elke klik in een duel ook een beetje
-  const VLOEK_KANS = 0.2;      // kans per duel dat de vloek toeslaat
+  const VLOEK_KANS = 0.2;      // kans per strafschop dat de vloek toeslaat
   const isVloek = (k) => !!k && k.v === true;
-  // v3.0: een opgeheven vloek (k.h, zie heel.js) telt als één trede hoger (hoogstens mythisch) voor sterkte en kliks. De vloek keert zich dan niet meer (k.v is dan onwaar).
+  // v3.0: een opgeheven vloek (k.h, zie heel.js) telt als één trede hoger (hoogstens mythisch) voor de sterkte. De vloek keert zich dan niet meer (k.v is dan onwaar).
   const isHeel = (k) => !!k && k.h === true && k.v !== true;
   const duelTrede = (k) => Math.min(4, tredeVan(k) + (isHeel(k) ? 1 : 0));
   function sterkte(k) { return (k.cijfer + 0.4 * (k.tier | 0) + TREDE_STERKTE[duelTrede(k)]) * (isVloek(k) ? VLOEK_STERKTE : 1); }
-  // Slaat de vloek toe in duel `nr` van deze wedstrijd? Hangt alleen af van de seed, het duelnummer en de plek van de kaart,
+  // Slaat de vloek toe in strafschop `nr` van dit duel? Hangt alleen af van de seed, het duelnummer en de plek van de kaart,
   // dus beide spelers zien precies hetzelfde. Een kaart zonder vloek keert zich nooit.
   function vloekKeert(seed, nr, kant, plek, kaart) {
     if (!isVloek(kaart)) return false;
@@ -61,11 +52,9 @@
     r(); // de eerste waarde van mulberry32 is nog erg gelijk bij nabije seeds
     return r() < VLOEK_KANS;
   }
-  // Bonus voor de klik-duels: hoe hoger het cijfer, hoe sterker je kliks tellen (0,85 bij een 1, 1,3 bij een 10).
-  // `ch` is de teamchemie (0 tot 100) en geeft hooguit +8% extra.
+  // Teamchemie (0 tot 100) geeft hooguit +8% op de sterkte van de kaarten van een team in een duel.
   const CHEMIE_MAX_BONUS = 0.08;
   const chemieBonus = (ch) => CHEMIE_MAX_BONUS * Math.max(0, Math.min(100, ch | 0)) / 100;
-  function klikFactor(k, ch, aura) { return (0.8 + 0.05 * k.cijfer) * (1 + chemieBonus(ch)) * TREDE_KLIK[duelTrede(k)] * AURA_KLIK[aura | 0] * (isVloek(k) ? VLOEK_KLIK : 1); }
 
   // ---- Teamchemie ----
   // Vakken die bij elkaar horen vormen een groep. Hoe meer kaarten uit dezelfde groep, en hoe vaker ze naast elkaar staan, hoe hoger de chemie.
@@ -153,136 +142,6 @@
     return kant === 'A' ? uit : uit.map((p) => ({ x: 1 - p.x, y: 1 - p.y }));
   }
 
-  const ander = (z) => (z === 'A' ? 'B' : 'A');
-  const kies = (rng, lijst) => lijst[Math.floor(rng() * lijst.length) % lijst.length];
-
-  // De wedstrijd. teams = { A: [kaart...], B: [kaart...] } (al in volgorde: keeper eerst).
-  function maakSim(seed, teams, opties) {
-    const rng = maakRng(seed);
-    const n = teams.A.length;
-    // Chemie per kant (0 tot 100, geheel getal). Zonder opties (oude versie of oude test) is het 0 en verandert er niets.
-    const ch = { A: 0, B: 0 };
-    if (opties && opties.chemie) { ch.A = Math.max(0, Math.min(100, Math.round(Number(opties.chemie.A)) || 0)); ch.B = Math.max(0, Math.min(100, Math.round(Number(opties.chemie.B)) || 0)); }
-    const pos = { A: posities(n, 'A'), B: posities(n, 'B') };
-    const aura = { A: auraVan(teams.A), B: auraVan(teams.B) };
-    const sterkteIn = (z, i) => sterkte(teams[z][i]) + AURA_STERKTE[aura[z]];
-    const s = {
-      n, teams, pos, chemie: ch, minuut: 0, stand: { A: 0, B: 0 }, kansen: 0, sindsKans: 99, stap: 0,
-      houder: null, kans: null, klaar: false, aftrapDoor: null,
-    };
-    // De aftrap is voor kant A, in het midden van het veld (de middelste veldspeler, of de keeper bij n = 1).
-    function aftrapPlek(z) {
-      if (n === 1) return 0;
-      const mid = [];
-      for (let i = 1; i < n; i++) if (lijnVan(n, i) === 2) mid.push(i);
-      return mid.length ? mid[0] : Math.min(n - 1, 1 + Math.floor((n - 1) / 2));
-    }
-    s.houder = { z: 'A', i: aftrapPlek('A') };
-
-    function topLijn() { let m = 0; for (let i = 1; i < n; i++) m = Math.max(m, lijnVan(n, i)); return m; }
-    const top = topLijn();
-
-    // Een volgende gebeurtenis. Elke aanroep gebruikt de generator in dezelfde volgorde op beide computers.
-    s.volgende = function () {
-      if (s.klaar) return { t: 'eind' };
-      if (s.kans) throw new Error('Eerst het duel afhandelen.');
-      if (s.minuut >= MAX_MIN - 1e-9) { s.klaar = true; return { t: 'eind', stand: Object.assign({}, s.stand) }; }
-      const h = s.houder, z = h.z, o = ander(z);
-      s.stap++; s.sindsKans++;
-
-      // Een team met alleen een keeper: alleen schoten (keeper tegen keeper), om en om.
-      if (n === 1) {
-        s.minuut = Math.min(MAX_MIN, s.minuut + 15);
-        const aanval = rng() < 0.5 ? z : o;
-        return maakKans({ z: aanval, i: 0 }, { z: ander(aanval), i: 0 });
-      }
-
-      const lijn = lijnVan(n, h.i);
-      const min = s.minuut;
-      s.minuut = Math.min(MAX_MIN, s.minuut + MAX_MIN / STAPPEN);
-      // Kans op een schot: voorin vaak, op het middenveld heel soms, en te weinig duels? Dan sneller.
-      const nood = s.kansen < MIN_KANSEN && min > 68;
-      if (s.kansen < MAX_KANSEN && (s.sindsKans >= 3 || nood) && lijn > 0) {
-        let p = lijn === top ? 0.4 : (lijn === top - 1 && top >= 3 ? 0.06 : 0);
-        if (s.kansen < MIN_KANSEN) {
-          if (min > 55 && lijn === top) p = 0.85;
-          if (nood) p = 1;
-        }
-        if (rng() < p) return maakKans(h, { z: o, i: 0 });
-      }
-      // Pass: iemand van mijn team, het liefst vooruit.
-      const kandidaten = [];
-      for (let i = 0; i < n; i++) {
-        if (i === h.i) continue;
-        const l = lijnVan(n, i);
-        let w = l > lijn ? 3 : l === lijn ? 1.5 : 1;
-        if (i === 0) w = lijn === 1 ? 0.5 : 0.15;
-        if (lijn === 0) w = l === 1 ? 3 : 1;
-        kandidaten.push({ i, w });
-      }
-      let tot = 0; for (const k of kandidaten) tot += k.w;
-      let r = rng() * tot, naar = kandidaten[kandidaten.length - 1].i;
-      for (const k of kandidaten) { r -= k.w; if (r <= 0) { naar = k.i; break; } }
-      // Een tegenstander probeert de bal te onderscheppen (een veldspeler van de ander, bij n = 2 ook de keeper niet).
-      const tegen = [];
-      for (let i = 1; i < n; i++) tegen.push(i);
-      const d = tegen.length ? kies(rng, tegen) : 0;
-      const sPass = (sterkteIn(z, h.i) + sterkteIn(z, naar)) / 2;
-      const sD = sterkteIn(o, d);
-      const pOk = Math.max(0.25, Math.min(aura[z] === 4 ? 0.98 : 0.93, 0.76 + 0.05 * (sPass - sD) + chemieBonus(ch[z])));
-      const a = pos[z][h.i], b = pos[z][naar];
-      const dist = Math.hypot(a.x - b.x, a.y - b.y);
-      const dur = Math.round(550 + 700 * dist + rng() * 150);
-      const ok = rng() < pOk;
-      if (ok) {
-        s.houder = { z, i: naar };
-        return { t: 'pass', van: { z, i: h.i }, naar: { z, i: naar }, dur, min: s.minuut };
-      }
-      s.houder = { z: o, i: d };
-      return { t: 'onderschep', van: { z, i: h.i }, naar: { z, i: naar }, door: { z: o, i: d }, dur, min: s.minuut };
-    };
-
-    function maakKans(schutter, keeper) {
-      s.kansen++; s.sindsKans = 0;
-      s.kans = { k: s.kansen, schutter, keeper };
-      s.houder = schutter;
-      return { t: 'kans', k: s.kansen, schutter, keeper, min: s.minuut };
-    }
-
-    // Uitslag van het klikduel: aanvaller (ca kliks) tegen keeper (ck kliks). Wie relatief het meest klikt, wint.
-    s.duelUitslag = function (ca, ck) {
-      if (!s.kans) throw new Error('Er is geen duel.');
-      const { schutter, keeper } = s.kans;
-      const u = duelUitslag(teams[schutter.z][schutter.i], teams[keeper.z][keeper.i], ca, ck, ch[schutter.z], ch[keeper.z], aura[schutter.z], aura[keeper.z]);
-      // De vloek: een vervloekte schutter mist expres, een vervloekte keeper laat de bal erin. Dat is een minpunt voor zijn eigen team.
-      // (Keren beide zich om, dan telt de schutter: geen doelpunt.)
-      const keertS = vloekKeert(seed, s.kans.k, schutter.z, schutter.i, teams[schutter.z][schutter.i]);
-      const keertK = vloekKeert(seed, s.kans.k, keeper.z, keeper.i, teams[keeper.z][keeper.i]);
-      u.keert = null;
-      if (keertS) { u.goal = false; u.keert = { z: schutter.z, i: schutter.i, rol: 'schutter' }; }
-      else if (keertK) { u.goal = true; u.keert = { z: keeper.z, i: keeper.i, rol: 'keeper' }; }
-      s.kans = null;
-      if (u.goal) {
-        s.stand[schutter.z]++;
-        const z = keeper.z;
-        s.houder = { z, i: aftrapPlek(z) };
-        s.aftrapDoor = z;
-      } else {
-        s.houder = { z: keeper.z, i: 0 };
-      }
-      return u;
-    };
-    return s;
-  }
-
-  function schoonKlik(c) { return Number.isFinite(c) ? Math.max(0, Math.min(KLIK_MAX, Math.round(c))) : 0; }
-  // Los van de wedstrijd, zodat het ook te testen is. De keeper houdt hem bij gelijke stand.
-  function duelUitslag(schutterKaart, keeperKaart, ca, ck, chA, chK, auraA, auraK) {
-    const sa = schoonKlik(ca) * klikFactor(schutterKaart, chA, auraA);
-    const sk = schoonKlik(ck) * klikFactor(keeperKaart, chK, auraK);
-    return { goal: sa > sk, sa, sk };
-  }
-
   // De computer-tegenstander (oefenmodus): een team van dezelfde grootte, rond het niveau van jouw team.
   const VAKKEN = ['Wiskunde', 'Nederlands', 'Engels', 'Biologie', 'Scheikunde', 'Natuurkunde', 'Geschiedenis', 'Aardrijkskunde', 'Frans', 'Duits', 'Economie', 'Muziek'];
   function maakComputerTeam(seed, n, mijn) {
@@ -298,14 +157,9 @@
     }
     return uit;
   }
-  // Hoe vaak de computer klikt in een duel van 3 seconde: een mens doet ongeveer 15 tot 25.
-  function computerKliks(rng, kaart) {
-    return Math.round(13 + kaart.cijfer * 0.9 + (rng() - 0.5) * 8);
-  }
-
   const lib = {
-    MAX_MIN, STAPPEN, KLIK_MAX, maakRng, seedUitTekst, seedUitHash, sterkte, klikFactor, GROEPEN, groepVan, chemie, chemieBonus, CHEMIE_MAX_BONUS, lijnen, lijnVan, posities, ordenTeam,
-    maakSim, duelUitslag, vloekKeert, isVloek, isHeel, duelTrede, VLOEK_STERKTE, VLOEK_KLIK, VLOEK_KANS, schoonKlik, maakComputerTeam, computerKliks, TREDE_STERKTE, TREDE_KLIK, AURA_KLIK, tredeVan, auraVan,
+    maakRng, seedUitTekst, seedUitHash, sterkte, GROEPEN, groepVan, chemie, chemieBonus, CHEMIE_MAX_BONUS, lijnen, lijnVan, posities, ordenTeam,
+    vloekKeert, isVloek, isHeel, duelTrede, VLOEK_STERKTE, VLOEK_KANS, maakComputerTeam, TREDE_STERKTE, AURA_STERKTE, tredeVan, auraVan,
   };
   globalThis.SPOGevecht = lib;
   if (typeof module !== 'undefined' && module.exports) module.exports = lib;
