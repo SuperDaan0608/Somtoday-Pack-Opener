@@ -77,7 +77,7 @@ const gem = (d) => d.reduce((a, k) => a + G.sterkte(k), 0) / d.length;
   const am = ACC.samenvoegen('spo_campagne', a, b, false);
   controle('back-up: samenvoegen houdt de hoogste voortgang van allebei', am.w.talen.s.join() === '1,2,0,0,0' && am.w.exact.s[0] === 3);
   controle('back-up: leeg + vol = vol, en een kapotte back-up levert geen fout', JSON.stringify(ACC.samenvoegen('spo_campagne', undefined, a, false)) === JSON.stringify(a) && ACC.samenvoegen('spo_campagne', { w: 5 }, { w: { exact: { s: 'x' } } }, false).v === 1);
-  controle('back-up: een gat in de ene kant maakt geen gat in het resultaat', ACC.samenvoegen('spo_campagne', { w: { exact: { s: [0, 3, 3, 3, 3] } } }, { w: { exact: { s: [1, 0, 0, 0, 0] } } }, false).w.exact.s.join() === '1,3,3,3,3'.split(',').map((x, i) => (i ? 3 : 1)).join() || true);
+  controle('back-up: per niveau de meeste sterren, en nooit een gat', ACC.samenvoegen('spo_campagne', { w: { exact: { s: [1, 1, 0, 0, 0] } } }, { w: { exact: { s: [3, 0, 0, 0, 0] } } }, false).w.exact.s.join() === '3,1,0,0,0' && ACC.samenvoegen('spo_campagne', { w: { exact: { s: [0, 3, 3, 0, 0] } } }, { w: { exact: { s: [1, 0, 0, 0, 0] } } }, false).w.exact.s.join() === '1,3,3,0,0');
 }
 
 // ───────── 3. Beloningen en winkelitems (economie.js) ─────────
@@ -90,7 +90,9 @@ const gem = (d) => d.reduce((a, k) => a + G.sterkte(k), 0) / d.length;
   r = await E.campagneKlaar('exact', 1);
   controle('herhaling: minder munten (4) en telt voor de dagelijkse limiet', r.ok && !r.eerste && r.munten === 4 && r.over === 2 && r.saldo === 19);
   r = await E.campagneKlaar('exact', 1); r = await E.campagneKlaar('exact', 1);
-  controle('na 3 herhalingen: geen munten meer vandaag', r.dagmax === true && r.munten === 0 && r.saldo === 4 * 3 + 15, r);
+  controle('de derde herhaling telt nog, de vierde niet meer: geen munten meer vandaag', r.munten === 4 && r.over === 0 && r.saldo === 15 + 4 * 3);
+  r = await E.campagneKlaar('exact', 1);
+  controle('na 3 herhalingen: geen munten meer vandaag', r.dagmax === true && r.munten === 0 && r.saldo === 15 + 4 * 3, r);
   r = await E.campagneKlaar('exact', 2);
   controle('een nieuw niveau geeft altijd munten, ook na de dagelijkse limiet', r.eerste && r.munten === 20);
   const ids = lees('spo_munten_ids');
@@ -112,7 +114,7 @@ const gem = (d) => d.reduce((a, k) => a + G.sterkte(k), 0) / d.length;
   mem.clear(); zet('spo_munten', MUNTEN(1e6)); zet('spo_winkel', { gekocht: [], gebruik: {} });
   for (let i = 0; i < 120; i++) await E.openPakje('groot');
   controle('pakjes geven nooit een campagne-item', !lees('spo_winkel').gekocht.some((id) => E.PER_ID.get(id).campagne));
-  zet('spo_winkel', { gekocht: E.ITEMS.filter((i) => i.prijs == null && !i.campagne).map((i) => i.id), gebruik: {} }); zet('spo_dagelijks', { laatste: '2000-01-01', reeks: 6, dagen: 6 });
+  zet('spo_winkel', { gekocht: E.ITEMS.filter((i) => i.prijs == null && !i.campagne).map((i) => i.id), gebruik: {} }); { const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - 1); zet('spo_dagelijks', { laatste: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`, reeks: 6, dagen: 6 }); }
   mem.delete('spo_munten_ids');
   const dag = await E.claimDagelijks();
   controle('de dagelijkse beloning geeft geen campagne-item (alles gehad: 100 munten)', dag && dag.dag === 7 && dag.item === null && dag.munten === 100, dag);
@@ -143,6 +145,7 @@ const gem = (d) => d.reduce((a, k) => a + G.sterkte(k), 0) / d.length;
 
 // ───────── 5. De pagina ─────────
 const SERVER = 'https://jummysnacks.nl/api.php';
+const VRIENDEN = { server: SERVER, id: 'ab'.repeat(16), token: 'geheim-token', privJwk: {}, pub: 'p', vrienden: [] };
 const kaartPlaat = 'data:image/gif;base64,R0lGODlhAQABAAAAACw=';
 const sterkeKaarten = (n, vak, cijfer, trede) => Array.from({ length: n }, (_, i) => ({ id: 'k' + i, ts: 1000 + i, vak, cijfer: cijfer - i * 0.01, onderwerp: 'T', weging: 1, opening: 'pak', tier: 4, zeldzaam: true, trede, kaart: kaartPlaat }));
 const gewoneKaarten = (n) => Array.from({ length: n }, (_, i) => ({ id: 'k' + i, ts: 1000 + i, vak: ['Wiskunde', 'Engels', 'Geschiedenis', 'Muziek'][i % 4], cijfer: 5 + (i % 5), onderwerp: 'T', weging: 1, opening: 'pak', tier: 1, zeldzaam: false, trede: 0, kaart: kaartPlaat }));
@@ -225,7 +228,7 @@ async function paginaTests() {
       await p.waitForFunction(() => /Je krijgt 4 munten/.test(document.getElementById('einde-tekst').textContent));
       controle('herhaling geeft 4 munten', (await opslag(p, 'spo_munten')).saldo === 119);
       await p.locator('#einde-volgende').click();
-      controle('volgend niveau: Lasabrand… niveau 2 (Asgeest)', (await p.locator('#naam-zij').innerText()) === 'Asgeest');
+      controle('volgend niveau: niveau 2 (Asgeest)', (await p.locator('#naam-zij').innerText()) === 'Asgeest');
       await p.locator('#opgeven').click();
       controle('opgeven: terug in de wereld, niets bewaard of uitbetaald', await p.locator('#wereld-scherm').isVisible() && (await opslag(p, 'spo_munten')).saldo === 119 && (await opslag(p, 'spo_campagne')).w.exact.s[1] === 0);
       controle('pagina: geen fouten tijdens het hele traject', fouten.length === 0, fouten);
@@ -268,7 +271,8 @@ async function paginaTests() {
       while (Date.now() - t0 < 40000 && !klaar) {
         if (await p.locator('#einde').isVisible()) { klaar = true; break; }
         if (await p.locator('#vgl-knoppen').isVisible()) { await p.keyboard.press('2'); await slaap(100); continue; }
-        if ((await p.locator('.hand-kaart:not(:disabled)').count()) > 0) { await p.keyboard.press('1'); await slaap(100); continue; }
+        const vrij = await p.evaluate(() => [...document.querySelectorAll('.hand-kaart')].findIndex((b) => !b.disabled));
+        if (vrij >= 0) { await p.keyboard.press(String(vrij + 1)); await slaap(100); continue; }
         await slaap(60);
       }
       controle('met toetsenbord en minder beweging snel uitgespeeld', klaar && Date.now() - t0 < 30000, Date.now() - t0);
@@ -278,7 +282,7 @@ async function paginaTests() {
     }
     // 5e. Het tabblad in het paneel
     {
-      const { ctx, p } = await nieuwe(br, { zaad: { spo_munten: MUNTEN(100), spo_galerij: gewoneKaarten(8) } });
+      const { ctx, p } = await nieuwe(br, { breed: 1100, hoog: 800, zaad: { spo_munten: MUNTEN(100), spo_galerij: gewoneKaarten(8), spo_rondleiding: 1, spo_nieuw_gezien: '2.4.4', spo_vrienden: VRIENDEN, spo_account: { email: 't@t.nl', sessie: 's', account: 'a', sleutel: 'k', laatsteBackup: 1 } } });
       await p.goto(WEB + '/hub.html'); await p.waitForSelector('#tab-campagne'); await slaap(900);
       controle('hub: tabblad Campagne staat in de lijst', await p.evaluate(() => { const t = [...document.querySelectorAll('#tabs [role=tab]')].map((b) => b.id); return t.includes('tab-campagne') && t.indexOf('tab-campagne') === t.indexOf('tab-team') + 1; }));
       await p.click('#tab-campagne'); await slaap(900);
