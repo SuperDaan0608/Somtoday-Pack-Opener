@@ -553,7 +553,7 @@
   // ---- scherm ----
   const achterScherm = () => [document.getElementById('hoofd'), document.querySelector('.kop')].filter(Boolean);
   function toonScherm() { $('scherm').hidden = false; document.body.classList.add('in-gevecht'); achterScherm().forEach((e) => { e.inert = true; }); }
-  function verbergScherm() { $('scherm').hidden = true; document.body.classList.remove('in-gevecht'); $('einde').hidden = true; $('emoji-balk').hidden = true; achterScherm().forEach((e) => { e.inert = false; }); }
+  function verbergScherm() { $('scherm').hidden = true; $('scherm').classList.remove('met-balk'); document.body.classList.remove('in-gevecht'); $('einde').hidden = true; $('emoji-balk').hidden = true; achterScherm().forEach((e) => { e.inert = false; }); }
   let wachtStop = null;
   function toonWachten(tekst, stop) {
     toonScherm();
@@ -568,7 +568,7 @@
     toonScherm();
     $('einde-kop').textContent = o.kop; $('einde-stand').textContent = o.stand; $('einde-tekst').textContent = o.tekst;
     $('einde').hidden = false;
-    $('emoji-balk').hidden = true;
+    $('emoji-balk').hidden = true; $('scherm').classList.remove('met-balk');
     $('einde-kop').focus();
   }
   $('einde-terug').addEventListener('click', () => { verbergScherm(); kijkSessie = null; tekenVrienden(); tekenUitnodigingen(); tekenKijkUitnodigingen(); if ($('oefen')) $('oefen').focus(); });
@@ -741,10 +741,10 @@
 
   // ---- uitslag tonen: filmpje of 2D ----
   async function toonUitkomst(o) {
-    const gespeeld = await speelFilm(o);
+    const gespeeld = o.inhalen ? false : await speelFilm(o);
     resetPodium();
-    await toon2D(o, gespeeld);
-    await o.wacht(gespeeld ? 900 : rustig ? 1200 : 1700);
+    await toon2D(o, gespeeld || o.inhalen);
+    await o.wacht(o.inhalen ? 350 : gespeeld ? 900 : rustig ? 1200 : 1700);
   }
 
   // ---- een keuze vragen (schutter: hoek + timing, keeper: duikhoek) ----
@@ -1009,7 +1009,7 @@
     kijkLijst = kijkLijst.filter((x) => x.mid !== mid);
     tekenVrienden(); tekenUitnodigingen(); tekenKijkUitnodigingen();
     toonScherm();
-    $('einde').hidden = true; $('keuze').hidden = true; $('kaart-rij').hidden = false;
+    $('einde').hidden = true; $('keuze').hidden = true; $('kaart-rij').hidden = true; $('scherm').classList.add('met-balk');
     $('naam-a').textContent = namen.A; $('naam-b').textContent = namen.B;
     $('score-a').textContent = '0'; $('score-b').textContent = '0'; $('klok').textContent = 'Kijken';
     $('bord-status').textContent = 'Wachten op de volgende strafschop...';
@@ -1051,8 +1051,9 @@
         stand.A = ev.a; stand.B = ev.b;
         stand.nA = ev.z === 'A' ? Math.floor(ev.k / 2) + 1 : Math.floor((ev.k + 1) / 2);
         stand.nB = ev.z === 'B' ? Math.floor(ev.k / 2) + 1 : Math.floor((ev.k + 1) / 2);
-        if (sessie.events.has(k + 1)) { /* we lopen achter: kort tonen */ }
+        const inhalen = sessie.events.has(k + 1); // we lopen achter op de spelers: geen filmpje en korter tonen
         resetPodium();
+        $('kaart-rij').hidden = false;
         $('klok').textContent = `Strafschop ${ev.k + 1}`;
         const goal = ev.u === 'goal';
         const nm = namen[ev.z];
@@ -1068,7 +1069,7 @@
         $('score-a').textContent = stand.A; $('score-b').textContent = stand.B;
         if (goal) speel('gejuich', 0.5); else speel('boem', 0.4);
         const sUit = uiter[ev.z].av, kUit = uiter[D.anderKant(ev.z)].av;
-        await toonUitkomst({ r: ev.r, h: ev.h, dr: ev.dr, dh: ev.dh, q: ev.q, uitkomst: ev.u, schutter: ev.s, keeper: ev.g, sUit, kUit, thema: VB && (uiter.A.sd || uiter.B.sd) ? VB.naarThema(uiter.A.sd || uiter.B.sd) : null, wacht });
+        await toonUitkomst({ r: ev.r, h: ev.h, dr: ev.dr, dh: ev.dh, q: ev.q, uitkomst: ev.u, schutter: ev.s, keeper: ev.g, inhalen, sUit, kUit, thema: VB && (uiter.A.sd || uiter.B.sd) ? VB.naarThema(uiter.A.sd || uiter.B.sd) : null, wacht });
         if (D.beslist(stand).klaar) { sessie.klaar = true; break; }
       }
     } catch (e) { /* een kijker die iets mist, stopt gewoon */ }

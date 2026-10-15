@@ -159,7 +159,7 @@ function galerijVan(lijst, basis) {
 
     const speler = async (naam, st, gal, tm, viewport, opts) => {
       const ctx = await br.newContext({ viewport: viewport || { width: 1000, height: 900 }, reducedMotion: opts && opts.rustig ? 'reduce' : 'no-preference' });
-      await ctx.addInitScript(([s, g, t]) => { if (!localStorage.getItem('spo_vrienden')) { localStorage.setItem('spo_vrienden', JSON.stringify(s)); localStorage.setItem('spo_galerij', JSON.stringify(g)); if (t) localStorage.setItem('spo_team', JSON.stringify(t)); } }, [st, gal, tm]);
+      await ctx.addInitScript(([s, g, t, inst]) => { if (!localStorage.getItem('spo_vrienden')) { localStorage.setItem('spo_vrienden', JSON.stringify(s)); localStorage.setItem('spo_galerij', JSON.stringify(g)); if (t) localStorage.setItem('spo_team', JSON.stringify(t)); if (inst) localStorage.setItem('spo_instellingen', JSON.stringify(inst)); } }, [st, gal, tm, opts && opts.inst ? opts.inst : null]);
       const p = await ctx.newPage();
       const fouten = [], verzoeken = [];
       p.on('pageerror', (e) => fouten.push(String(e)));
@@ -252,7 +252,7 @@ function galerijVan(lijst, basis) {
           gedaan.add(st.klok);
           const n = gedaan.size + (o.start || 0);
           try {
-            await p.keyboard.press(String(1 + ((n * 5 + (o.start || 0)) % 6)));
+            await p.keyboard.press(String(1 + ((n * (o.mul || 5) + (o.start || 0)) % 6)));
             if (st.schiet && n % 2 === 0) await p.click('#zonder'); else await p.keyboard.press('Space');
           } catch (e) { /* de pagina is al verder */ }
           if (o.naKeuze) await o.naKeuze(n);
@@ -268,7 +268,7 @@ function galerijVan(lijst, basis) {
     await L.antwoord(Object.assign({}, Cacc, { vrienden: [{ id: A.id, pub: A.pub, status: 'ontvangen' }] }), A.id, true, 'Daan');
     const vC = A.vrienden.find((v) => v.id === Cacc.id); vC.status = 'vriend'; vC.alias = 'Tess'; vC.deel = { modus: 'alles', ids: [] };
     Cacc.vrienden = [{ id: A.id, pub: A.pub, alias: 'Daan', status: 'vriend', deel: { modus: 'niets', ids: [] } }];
-    const PA2 = await speler('A2', A, galA, teamA, null, { rustig: true }), PB2 = await speler('B2', B, galB, teamB, null, { rustig: true }), PCc = await speler('C', Cacc, galerijVan([['Duits', 6.1]], 60), null, null, {});
+    const PA2 = await speler('A2', A, galA, teamA, null, { rustig: true }), PB2 = await speler('B2', B, galB, teamB, null, { rustig: true }), PCc = await speler('C', Cacc, galerijVan([['Duits', 6.1]], 60), null, null, { inst: { duelFilm: 'uit' } });
     await PA.ctx.close(); await PB.ctx.close();
     for (const P of [PA2, PB2, PCc]) await P.p.waitForFunction(() => /Live/.test(document.getElementById('sync-status').textContent), null, { timeout: 20000 });
     await PA2.p.waitForFunction((id) => !document.getElementById('uitdaag-' + id).disabled, B.id, { timeout: 30000 });
@@ -284,7 +284,7 @@ function galerijVan(lijst, basis) {
     controle('beide spelers zien het doel met 6 zones', true);
     controle('een derde vriend (C) krijgt een uitnodiging om mee te kijken, met de naam van de speler', await PCc.p.waitForSelector('#kijk-uitnodigingen .kijk-uitnodiging', { timeout: 30000 }).then(async () => /Daan speelt een strafschoppenduel/.test(await PCc.p.textContent('#kijk-uitnodigingen')), () => false), await PCc.p.textContent('#kijk-uitnodigingen'));
     // De spelers beginnen
-    const dA = speelUI(PA2.p, { start: 0 }), dB = speelUI(PB2.p, { start: 3 });
+    const dA = speelUI(PA2.p, { start: 0, mul: 5 }), dB = speelUI(PB2.p, { start: 1, mul: 7 });
     // C kijkt mee en gooit emoji
     await PCc.p.click('#kijk-uitnodigingen .knop');
     await PCc.p.waitForSelector('#scherm:not([hidden])', { timeout: 10000 });
