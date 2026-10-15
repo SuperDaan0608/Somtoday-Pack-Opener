@@ -1,0 +1,26 @@
+/* De Campagne (campagne.html). De kaarten, het deck en de tafel gebruiken kaartspel.css. */
+.werelden { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.wereld-knop { display: flex; flex-direction: column; gap: 6px; width: 100%; height: 100%; padding: 0 0 12px; text-align: left; border: 2px solid var(--wk, var(--lijn-2)); border-radius: 16px; overflow: hidden; background: var(--paneel); }
+.wereld-knop:hover, .wereld-knop:focus-visible { box-shadow: 0 0 18px var(--wk, #fff4); }
+.wereld-knop canvas { width: 100%; height: auto; display: block; aspect-ratio: 9 / 5; }
+.wereld-knop strong { font: 800 17px var(--display); padding: 0 12px; }
+.wereld-knop small { padding: 0 12px; color: var(--tekst-2); }
+.wereld-knop .klaar { color: var(--geel); font-weight: 700; }
+.sterren { font: 800 22px/1 var(--display); color: var(--geel); letter-spacing: .1em; margin: 4px 0; }
+.sterren:empty { display: none; }
+.sterren .uit { color: var(--tekst-3); opacity: .5; }
+.wereld-kop { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: center; margin: 4px 0 14px; }
+.wereld-kop canvas { width: min(100%, 360px); height: auto; border-radius: 16px; border: 2px solid var(--wk, var(--lijn-2)); aspect-ratio: 9 / 5; }
+.wereld-kop h2 { margin-top: 0; }
+.wereld-kop h2:focus { outline: none; }
+.niveaus { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; counter-reset: niv; }
+.niveau-knop { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 14px; align-items: center; width: 100%; text-align: left; padding: 12px 16px; border-radius: 14px; border: 1px solid var(--lijn-2); background: var(--paneel); }
+.niveau-knop:hover:not(:disabled) { background: rgba(255,255,255,.1); }
+.niveau-knop:disabled { opacity: .5; cursor: default; }
+.niveau-knop .nr { grid-row: span 2; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; border: 2px solid var(--wk, var(--lijn-2)); font: 800 15px var(--display); }
+.niveau-knop strong { font: 700 15px var(--display); }
+.niveau-knop small { color: var(--tekst-3); grid-column: 2; }
+.niveau-knop .sterren { grid-row: span 2; font-size: 16px; margin: 0; }
+.niveau-knop.baas { border-color: var(--wk, var(--geel)); background: rgba(255,210,74,.08); }
+.baas-regel { text-align: center; margin: 8px 0 0; }
+@media (max-width: 560px) { .niveau-knop { grid-template-columns: auto 1fr; } .niveau-knop .sterren { grid-column: 2; grid-row: auto; } }

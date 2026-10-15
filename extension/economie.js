@@ -9,7 +9,7 @@
  *   spo_dagelijks   { laatste:'JJJJ-MM-DD', reeks:1..7, dagen }     dagelijkse beloning
  *   spo_winkel      { gekocht:[itemId], gebruik:{somtoday, titel, bg} }
  *   spo_profiel     { bijnaam, deel }
- *   (v3.0) spo_munten_ids bevat ook 'dm:<kaart>' (mythische kaart gemeld) en 'ar:<dag>:<nr>' / 'arw:<dag>:<nr>' (arcade gestart / uitbetaald) en 'ks:<dag>:<nr>' / 'ksw:<potje>' (kaartspel, dagelijkse limiet / uitbetaald)
+ *   (v3.0) spo_munten_ids bevat ook 'cf:<wereld>:<niveau>' / 'cd:<dag>:<nr>' / 'cw:<wereld>' (campagne: eerste winst, beloonde herhaling, wereld voltooid) en 'dm:<kaart>' (mythische kaart gemeld) en 'ar:<dag>:<nr>' / 'arw:<dag>:<nr>' (arcade gestart / uitbetaald) en 'ks:<dag>:<nr>' / 'ksw:<potje>' (kaartspel, dagelijkse limiet / uitbetaald)
  *   spo_voetbal     { v:1, avatar, stadion }                       je voetballer en je stadion (zie voetbal.js)
  * De munten hebben nooit invloed op cijfers: het zijn alleen cosmetische dingen.
  */
@@ -47,6 +47,15 @@
     { id: 'kt-ijs', soort: 'kaartthema', thema: 'ijs', naam: 'IJs', prijs: 60, zeld: 1, uitleg: 'Kaartkleuren: ijsblauw en wit.', pal: ['#0a2a40', '#5cc4e8', '#eefcff'], tekst: '#06222f' },
     { id: 'kt-smaragd', soort: 'kaartthema', thema: 'smaragd', naam: 'Smaragd', prijs: 80, zeld: 2, uitleg: 'Kaartkleuren: groen als een edelsteen.', pal: ['#01221a', '#0aa36b', '#a8ffd8'], tekst: '#012418' },
     { id: 'kt-diamant', soort: 'kaartthema', thema: 'diamant', naam: 'Diamant', prijs: null, zeld: 3, uitleg: 'Kaartkleuren: bijna wit met een blauwe gloed.', pal: ['#20324d', '#9fd0ff', '#ffffff'], tekst: '#10213a' },
+    // v3.0 Campagne: alleen te winnen door de eindbaas van een wereld te verslaan (campagne: wereld-id). Nooit in pakjes of de dagelijkse beloning.
+    { id: 'ti-drakendoder', soort: 'titel', naam: 'Drakendoder', prijs: null, zeld: 3, campagne: 'exact', uitleg: 'Profieltitel. Alleen te winnen: versla de vulkaandraak in de Campagne.' },
+    { id: 'ti-feniksvriend', soort: 'titel', naam: 'Feniksvriend', prijs: null, zeld: 3, campagne: 'talen', uitleg: 'Profieltitel. Alleen te winnen: versla de zonnefeniks in de Campagne.' },
+    { id: 'ti-krakenbedwinger', soort: 'titel', naam: 'Krakenbedwinger', prijs: null, zeld: 3, campagne: 'mens', uitleg: 'Profieltitel. Alleen te winnen: versla de kraken in de Campagne.' },
+    { id: 'ti-griffioenmeester', soort: 'titel', naam: 'Griffioenmeester', prijs: null, zeld: 3, campagne: 'kunst', uitleg: 'Profieltitel. Alleen te winnen: versla de berggriffioen in de Campagne.' },
+    { id: 'kt-vulkaan', soort: 'kaartthema', thema: 'vulkaan', naam: 'Vulkaan', prijs: null, zeld: 3, campagne: 'exact', uitleg: 'Kaartkleuren: zwart gesteente met gloeiend magma. Alleen te winnen in de Campagne.', pal: ['#1a0604', '#c2300a', '#ffb347'], tekst: '#2a0900' },
+    { id: 'kt-zonnetempel', soort: 'kaartthema', thema: 'zonnetempel', naam: 'Zonnetempel', prijs: null, zeld: 3, campagne: 'talen', uitleg: 'Kaartkleuren: warm goud en zand. Alleen te winnen in de Campagne.', pal: ['#3a2504', '#e0a21b', '#fff2b8'], tekst: '#2a1a02' },
+    { id: 'kt-diepzee', soort: 'kaartthema', thema: 'diepzee', naam: 'Diepzee', prijs: null, zeld: 3, campagne: 'mens', uitleg: 'Kaartkleuren: donkerblauw met lichtgevend turquoise. Alleen te winnen in de Campagne.', pal: ['#02122a', '#0b6e8f', '#7ff3e6'], tekst: '#031a2e' },
+    { id: 'kt-bergtop', soort: 'kaartthema', thema: 'bergtop', naam: 'Bergtop', prijs: null, zeld: 3, campagne: 'kunst', uitleg: 'Kaartkleuren: sneeuw en blauwgrijs gesteente. Alleen te winnen in de Campagne.', pal: ['#222c3c', '#8da2bd', '#ffffff'], tekst: '#14202f' },
     { id: 'rd-dubbel', soort: 'rand', rand: 'dubbel', naam: 'Dubbele lijn', prijs: 30, zeld: 0, uitleg: 'Een rand met twee dunne lijnen.' },
     { id: 'rd-neon', soort: 'rand', rand: 'neon', naam: 'Neonrand', prijs: 45, zeld: 1, uitleg: 'Een rand die licht geeft.' },
     { id: 'ti-pakjesjager', soort: 'titel', naam: 'Pakjesjager', prijs: 25, zeld: 0, uitleg: 'Titel op je profielkaart.' },
@@ -206,6 +215,7 @@
       let item = null;
       if (id.startsWith('k:')) item = id.slice(2);
       else if (/^pak:[^:]+:/.test(id)) item = id.split(':')[2];
+      else if (/^cw:[^:]+:/.test(id)) item = id.split(':')[2];
       else if (r.startsWith('Dagelijkse beloning: ')) item = naarId.get(r.slice(21)) || null;
       if (item && PER_ID.has(item) && !s.winkel.gekocht.includes(item)) s.winkel.gekocht.push(item);
     }
@@ -232,8 +242,8 @@
   // Trekt een item uit een pakje en boekt het (dubbel: je krijgt een deel van de waarde terug). Rekent het pakje zelf niet af.
   function trekItem(s, pak) {
     let z = kiesKans(pak.kans);
-    while (z > 0 && !ITEMS.some((i) => i.zeld === z)) z--;
-    const it = lootUit(ITEMS.filter((i) => i.zeld === z));
+    while (z > 0 && !ITEMS.some((i) => i.zeld === z && !i.campagne)) z--;
+    const it = lootUit(ITEMS.filter((i) => i.zeld === z && !i.campagne));
     const dubbel = s.winkel.gekocht.includes(it.id);
     let terug = 0;
     if (dubbel) { terug = Math.max(1, Math.round(waarde(it) * TERUG)); boek(s, terug, 'Dubbel: ' + it.naam, 'dubbel:' + it.id); }
@@ -367,6 +377,44 @@
     });
   }
 
+  // ───────── Campagne (v3.0): vier werelden met vijf niveaus, de vijfde is een eindbaas ─────────
+  // Alles in spo_munten_ids, dus mee in de back-up en niet te omzeilen: 'cf:<wereld>:<niveau>' (eerste winst, eenmalig meer munten),
+  // 'cd:<dag>:<nr>' (beloonde herhalingen, hoogstens CAMPAGNE_PER_DAG per dag) en 'cw:<wereld>' (wereld voltooid: titel en kaartkleuren, eenmalig).
+  const CAMPAGNE_WERELDEN = { exact: ['ti-drakendoder', 'kt-vulkaan'], talen: ['ti-feniksvriend', 'kt-zonnetempel'], mens: ['ti-krakenbedwinger', 'kt-diepzee'], kunst: ['ti-griffioenmeester', 'kt-bergtop'] };
+  const CAMPAGNE_PER_DAG = 3;
+  const CAMPAGNE_EERSTE = [15, 20, 25, 30, 60];   // eenmalig, per niveau (het vijfde is de baas)
+  const CAMPAGNE_HERHALING = [4, 5, 6, 7, 10];    // per beloonde herhaling
+  const campagneTelling = (s, nu) => { let n = 0; for (let i = 1; i <= CAMPAGNE_PER_DAG; i++) if (s.ids['cd:' + nu + ':' + i]) n++; return n; };
+  async function campagneStatus() {
+    const r = await leesAlles([K.ids, K.munten]);
+    const g = campagneTelling({ ids: obj(r[K.ids]) }, vandaag());
+    return { gespeeld: g, over: Math.max(0, CAMPAGNE_PER_DAG - g), max: CAMPAGNE_PER_DAG, saldo: schoonMunten(r[K.munten]).saldo };
+  }
+  // Na een gewonnen niveau. Geeft { ok:true, eerste, munten, dagmax, over, wereldKlaar, items:[itemId], saldo } of { ok:false, reden:'onbekend' }.
+  function campagneKlaar(wereld, niveau) {
+    return werk((s) => {
+      if (typeof wereld !== 'string' || !Object.prototype.hasOwnProperty.call(CAMPAGNE_WERELDEN, wereld) || !Number.isInteger(niveau) || niveau < 1 || niveau > 5) return { ok: false, reden: 'onbekend' };
+      const nu = vandaag();
+      const uit = { ok: true, eerste: false, munten: 0, dagmax: false, over: 0, wereldKlaar: false, items: [] };
+      const eerste = 'cf:' + wereld + ':' + niveau;
+      if (!s.ids[eerste]) {
+        s.ids[eerste] = 1; uit.eerste = true; uit.munten = CAMPAGNE_EERSTE[niveau - 1];
+        boek(s, uit.munten, 'Campagne: niveau ' + niveau + ' gewonnen', eerste);
+      } else {
+        let nr = 0;
+        for (let i = 1; i <= CAMPAGNE_PER_DAG; i++) if (!s.ids['cd:' + nu + ':' + i]) { nr = i; break; }
+        if (!nr) uit.dagmax = true;
+        else { s.ids['cd:' + nu + ':' + nr] = 1; uit.munten = CAMPAGNE_HERHALING[niveau - 1]; boek(s, uit.munten, 'Campagne: herhaling gewonnen', 'cd:' + nu + ':' + nr); }
+      }
+      if (niveau === 5 && !s.ids['cw:' + wereld]) {
+        s.ids['cw:' + wereld] = 1; uit.wereldKlaar = true;
+        for (const id of CAMPAGNE_WERELDEN[wereld]) if (!s.winkel.gekocht.includes(id)) { s.winkel.gekocht.push(id); uit.items.push(id); s.log.unshift({ ts: Date.now(), n: 0, r: 'Campagne voltooid: ' + PER_ID.get(id).naam, id: 'cw:' + wereld + ':' + id }); }
+      }
+      uit.over = Math.max(0, CAMPAGNE_PER_DAG - campagneTelling(s, nu)); uit.saldo = s.munten.saldo;
+      return uit;
+    });
+  }
+
   // ───────── Beloningen van vrienden (v3.0: uitnodigen en aartsrivaal) ─────────
   // Een gratis pakje. `id` zorgt dat het maar één keer telt (spo_munten_ids, sleutel 'gp:<id>').
   function gratisPakje(pakId, reden, id) {
@@ -440,7 +488,7 @@
       if (reeks < 7) {
         uit.munten = DAG_BELONING[reeks - 1];
       } else {
-        const over = ITEMS.filter((i) => i.prijs == null && !s.winkel.gekocht.includes(i.id));
+        const over = ITEMS.filter((i) => i.prijs == null && !i.campagne && !s.winkel.gekocht.includes(i.id));
         if (over.length) { uit.item = lootUit(over).id; s.winkel.gekocht.push(uit.item); }
         else uit.munten = 100;
       }
@@ -527,7 +575,7 @@
 
   globalThis.SPOEco = {
     K, ITEMS, PER_ID, SOORTEN, ZELD, PAKJES, TERUG, DAG_BELONING, TIERNAMEN,
-    waarde, cijferMunten, verdienCijfer, sweep, koop, openPakje, gratisPakje, bonusMunten, gebruik, claimDagelijks, dagStatus, troostPakje, TROOST_PER_DAG, dropGemeld, dropMarkeer, ARCADE, ARCADE_PER_DAG, ARCADE_INZET, arcadeStatus, arcadeStart, arcadeKlaar, KAARTSPEL_PER_DAG, KAARTSPEL_MUNTEN, kaartspelStatus, kaartspelKlaar, lees, registreerThemas, leesVoetbal, bewaarVoetbal, duelUiterlijk,
+    waarde, cijferMunten, verdienCijfer, sweep, koop, openPakje, gratisPakje, bonusMunten, gebruik, claimDagelijks, dagStatus, troostPakje, TROOST_PER_DAG, CAMPAGNE_WERELDEN, CAMPAGNE_PER_DAG, CAMPAGNE_EERSTE, CAMPAGNE_HERHALING, campagneStatus, campagneKlaar, dropGemeld, dropMarkeer, ARCADE, ARCADE_PER_DAG, ARCADE_INZET, arcadeStatus, arcadeStart, arcadeKlaar, KAARTSPEL_PER_DAG, KAARTSPEL_MUNTEN, kaartspelStatus, kaartspelKlaar, lees, registreerThemas, leesVoetbal, bewaarVoetbal, duelUiterlijk,
     maakProfiel, schoonProfiel, mijnProfielDeelbaar, bewaarProfiel, schoonBijnaam, schoonWinkel, schoonMunten, vandaag,
   };
 })();

@@ -4,7 +4,7 @@
 // Opslag (chrome.storage.local, in tests localStorage):
 //   spo_prestaties  { [badgeId]: tijdstip waarop je de badge kreeg }
 //   spo_stats       { openingen: [naam...], seizoenen: [naam...], reddingen: getal, chemieMax: getal, teamMax: getal }
-// Gelezen: spo_galerij, spo_gevechten, spo_team.
+// Gelezen: spo_galerij, spo_gevechten, spo_team, spo_campagne (alleen de voortgang per wereld).
 (function () {
   'use strict';
 
@@ -129,6 +129,12 @@
     { id: 'heel-gemaakt', naam: 'Heel gemaakt', raadsel: 'Wat gebroken is, kan heel worden.', tekst: 'Trek een vervloekte kaart en haal daarna in hetzelfde vak een 8 of hoger.', rang: kapot('VLOEK GEBROKEN'), tier: 5, icoon: 'schild', meet: (d) => vooruit(d.genezen, 1) },
     // Echte voorwaarde: 10 gevechten achter elkaar gewonnen (een verlies of gelijkspel maakt de reeks weer nul).
     { id: 'ongebroken', naam: 'Ongebroken', raadsel: 'Tien keer staan, nooit gevallen.', tekst: 'Win 10 gevechten achter elkaar, zonder verlies of gelijkspel.', rang: kapot('ONVERSLAAN'), tier: 5, icoon: 'zwaard', meet: (d) => vooruit(d.zegeReeks, 10) },
+    // ---- Campagne (v3.0): een prestatie per eindbaas ----
+    { id: 'camp-draak', naam: 'Drakendoder', tekst: 'Versla de vulkaandraak in de Campagne.', tier: 2, icoon: 'vlam', meet: (d) => vooruit(d.campBaas.exact, 1) },
+    { id: 'camp-feniks', naam: 'Feniksvriend', tekst: 'Versla de zonnefeniks in de Campagne.', tier: 2, icoon: 'ster', meet: (d) => vooruit(d.campBaas.talen, 1) },
+    { id: 'camp-kraken', naam: 'Krakenbedwinger', tekst: 'Versla de kraken in de Campagne.', tier: 2, icoon: 'spook', meet: (d) => vooruit(d.campBaas.mens, 1) },
+    { id: 'camp-griffioen', naam: 'Griffioenmeester', tekst: 'Versla de berggriffioen in de Campagne.', tier: 2, icoon: 'kroon', meet: (d) => vooruit(d.campBaas.kunst, 1) },
+    { id: 'camp-alles', naam: 'Heer van de werelden', tekst: 'Versla alle vier de eindbazen van de Campagne.', tier: 4, icoon: 'beker', meet: (d) => vooruit(d.campVoltooid, 4) },
     { id: 'topcijfer', naam: 'Topcijfer', tekst: 'Haal een 9 of hoger.', tier: 2, icoon: 'ster', meet: (d) => vooruit(d.negenPlus, 1) },
     { id: 'icoon', naam: 'Icoonkaart', tekst: 'Haal een 10.', tier: 4, icoon: 'beker', meet: (d) => vooruit(d.tien, 1) },
     { id: 'vijf-vakken', naam: 'Veelzijdig', tekst: 'Heb kaarten van 5 verschillende vakken.', tier: 0, icoon: 'boeken', meet: (d) => vooruit(d.vakken, 5) },
@@ -150,13 +156,14 @@
 
   // ---- gegevens verzamelen en badges uitrekenen ----
   async function verzamelBron() {
-    const [gal, gev, team, stats, behaald] = await Promise.all([lees('spo_galerij'), lees('spo_gevechten'), lees('spo_team'), lees(SLEUTEL_STATS), lees(SLEUTEL_PRESTATIES)]);
+    const [gal, gev, team, stats, behaald, camp] = await Promise.all([lees('spo_galerij'), lees('spo_gevechten'), lees('spo_team'), lees(SLEUTEL_STATS), lees(SLEUTEL_PRESTATIES), lees('spo_campagne')]);
     return {
       gal: Array.isArray(gal) ? gal.filter((e) => e && typeof e === 'object' && typeof e.vak === 'string' && Number.isFinite(e.cijfer)) : [],
       gev: gev && typeof gev === 'object' && !Array.isArray(gev) ? gev : {},
       team: team && Array.isArray(team.ids) ? team.ids.filter((x) => typeof x === 'string') : [],
       stats: stats && typeof stats === 'object' && !Array.isArray(stats) ? stats : {},
       behaald: behaald && typeof behaald === 'object' && !Array.isArray(behaald) ? behaald : {},
+      camp: camp && typeof camp === 'object' && !Array.isArray(camp) && camp.w && typeof camp.w === 'object' ? camp.w : {},
     };
   }
   // Teamchemie en teamgrootte nu (uit je galerij en team), op dezelfde manier als op de teampagina.
@@ -192,6 +199,9 @@
     for (const v of Object.keys(bron.gev)) if (Array.isArray(bron.gev[v])) for (const x of bron.gev[v]) if (x && Number.isFinite(x.mijn) && Number.isFinite(x.hun)) alle.push(x);
     const st = bron.stats;
     const t = teamNu(bron);
+    // campagne: is de eindbaas (niveau 5) van elke wereld verslagen?
+    const campBaas = {};
+    for (const id of ['exact', 'talen', 'mens', 'kunst']) { const w = bron.camp && bron.camp[id]; campBaas[id] = w && Array.isArray(w.s) && getal(w.s[4]) > 0 ? 1 : 0; }
     // geheime prestaties
     const dagen = [...new Set(gal.map((e) => dagNr(e.ts)))].sort((a, b) => a - b);
     let dagReeks = 0, dagNu = 0;
@@ -201,7 +211,7 @@
     let zegeReeks = 0, zegeNu = 0;
     alle.slice().sort((a, b) => getal(a.ts) - getal(b.ts)).forEach((x) => { zegeNu = x.mijn > x.hun ? zegeNu + 1 : 0; zegeReeks = Math.max(zegeReeks, zegeNu); });
     return {
-      gal, reeks, besteStijging,
+      gal, reeks, besteStijging, campBaas, campVoltooid: Object.values(campBaas).reduce((a, b) => a + b, 0),
       middernacht: gal.filter((e) => e.ts > 0 && new Date(e.ts).getHours() === 0).length,
       echo: echo ? 1 : 0,
       grens: gal.filter((e) => Math.abs(e.cijfer - 5.5) < 0.001).length,

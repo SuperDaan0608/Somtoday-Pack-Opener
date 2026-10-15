@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Campagne</title>
+  <link rel="stylesheet" href="kaartspel.css" />
+  <link rel="stylesheet" href="campagne.css" />
+  <link rel="stylesheet" href="embed.css" />
+  <script src="embed.js"></script>
+</head>
+<body>
+  <a class="skip" href="#hoofd">Naar de inhoud</a>
+  <header class="kop">
+    <h1>Campagne</h1>
+    <p class="onder">Vier werelden, elk met vier tegenstanders en een eindbaas. Verslaag ze met een kaartspel-potje: jouw deck van 5 kaarten tegen hun deck. Het verandert nooit je cijfers.</p>
+  </header>
+
+  <main id="hoofd">
+    <section class="saldo-balk" aria-label="Je munten en beloningen van vandaag">
+      <div><span class="saldo-label">Je munten</span><strong id="saldo">0</strong></div>
+      <div class="dag-info" id="dag-info"></div>
+      <button type="button" class="knop klein" id="geluid" aria-pressed="true">Geluid aan</button>
+    </section>
+    <p class="melding" id="melding" role="status" aria-live="polite"></p>
+
+    <section id="kaart-scherm" aria-labelledby="k-titel">
+      <h2 id="k-titel" tabindex="-1">Kies een wereld</h2>
+      <p class="uitleg" id="k-voortgang"></p>
+      <ul class="werelden" id="werelden" aria-labelledby="k-titel"></ul>
+
+      <h2 id="d-titel">Jouw deck</h2>
+      <p class="uitleg">Kies precies 5 kaarten uit je galerij. Bij de vergelijking Vakgroep slaat Exact de Talen, Talen slaat Mens &amp; maatschappij, Mens &amp; maatschappij slaat Kunst &amp; sport en Kunst &amp; sport slaat Exact.</p>
+      <div class="deck-rij" id="deck-slots" aria-label="Je gekozen deck" role="list"></div>
+      <div class="spelrij">
+        <span class="stand" id="deck-stand" aria-live="polite"></span>
+        <button type="button" class="knop" id="deck-beste">Kies mijn beste 5</button>
+        <button type="button" class="knop" id="deck-leeg">Deck leegmaken</button>
+      </div>
+      <p class="geen" id="geen-galerij" hidden>Je galerij heeft minder dan 5 kaarten. Open eerst een paar cijfers, dan kun je een deck maken.</p>
+      <ul class="kies-raster" id="kies" aria-label="Kaarten in je galerij"></ul>
+    </section>
+
+    <section id="wereld-scherm" aria-labelledby="w-titel" hidden>
+      <div class="spelrij"><button type="button" class="knop" id="w-terug">Terug naar de werelden</button></div>
+      <div class="wereld-kop">
+        <canvas id="w-canvas" width="360" height="200" aria-hidden="true"></canvas>
+        <div>
+          <h2 id="w-titel" tabindex="-1"></h2>
+          <p class="uitleg" id="w-uitleg"></p>
+          <p class="uitleg" id="w-baas"></p>
+        </div>
+      </div>
+      <ol class="niveaus" id="niveaus" aria-label="Niveaus van deze wereld"></ol>
+      <p class="geen" id="w-deck-melding" hidden>Kies eerst een deck van 5 kaarten bij Jouw deck op het overzicht.</p>
+    </section>
+
+    <section id="tafel" aria-labelledby="t-titel" hidden>
+      <h2 id="t-titel" tabindex="-1">Aan tafel</h2>
+      <div class="scorebalk">
+        <div class="score"><span class="score-naam">Jij</span><strong id="score-ik" aria-hidden="true">0</strong></div>
+        <div class="ronde-info"><span id="ronde-info"></span><span id="kiezer-info"></span></div>
+        <div class="score"><span class="score-naam" id="naam-zij">Tegenstander</span><strong id="score-zij" aria-hidden="true">0</strong></div>
+      </div>
+      <p class="uitleg baas-regel" id="baas-regel" hidden></p>
+      <div class="hun-deck" id="hun-deck" role="list" aria-label="Deck van de tegenstander"></div>
+      <div class="arena" id="arena">
+        <div class="slot" id="slot-zij" aria-label="Kaart van de tegenstander"></div>
+        <div class="vgl-badge" id="vgl-badge" aria-hidden="true"></div>
+        <div class="slot" id="slot-ik" aria-label="Jouw kaart"></div>
+      </div>
+      <p class="tafel-tekst" id="tafel-tekst" role="status" aria-live="polite"></p>
+      <div class="vgl-knoppen" id="vgl-knoppen" role="group" aria-label="Kies hoe de kaarten worden vergeleken" hidden></div>
+      <div class="hand" id="hand" role="group" aria-label="Jouw kaarten"></div>
+      <div class="spelrij"><button type="button" class="knop" id="opgeven">Opgeven</button></div>
+    </section>
+  </main>
+
+  <div class="einde" id="einde" hidden role="dialog" aria-modal="true" aria-labelledby="einde-kop">
+    <canvas id="confetti" aria-hidden="true"></canvas>
+    <div class="einde-binnen">
+      <p class="einde-kop" id="einde-kop" tabindex="-1"></p>
+      <p class="einde-stand" id="einde-stand"></p>
+      <p class="sterren" id="einde-sterren" role="img"></p>
+      <p class="einde-tekst" id="einde-tekst"></p>
+      <div class="spelrij"><button type="button" class="knop goud" id="einde-volgende">Volgend niveau</button><button type="button" class="knop" id="einde-nog">Nog een keer</button><button type="button" class="knop" id="einde-terug">Terug naar de wereld</button></div>
+    </div>
+  </div>
+
+  <script src="tekstfilter-woorden.js"></script>
+  <script src="tekstfilter.js"></script>
+  <script src="economie.js"></script>
+  <script src="vriendenlib.js"></script>
+  <script src="gevecht.js"></script>
+  <script src="ladder.js"></script>
+  <script src="kaartspellib.js"></script>
+  <script src="campagnelib.js"></script>
+  <script src="campagne-art.js"></script>
+  <script src="campagne.js"></script>
+</body>
+</html>

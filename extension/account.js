@@ -26,7 +26,7 @@
     'spo_galerij', 'spo_geopend', 'spo_dicht', 'spo_instellingen', 'spo_munten', 'spo_munten_log', 'spo_munten_ids',
     'spo_dagelijks', 'spo_winkel', 'spo_profiel', 'spo_prestaties', 'spo_prestaties_gezien', 'spo_stats', 'spo_team',
     'spo_gevechten', 'spo_vrienden', 'spo_vrienden_sec', 'spo_uitval_gezien', 'spo_huisdier', 'spo_rondleiding',
-    'spo_capsules', 'spo_weekoverzicht', 'spo_heel',
+    'spo_capsules', 'spo_weekoverzicht', 'spo_heel', 'spo_campagne',
     'spo_voetbal', 'spo_rivaal', 'spo_uitnodigingen', 'spo_blokkades', 'spo_nieuw_gezien',
   ];
   const ITERATIES = 250000;
@@ -183,6 +183,17 @@
         const u = Object.assign({}, obj(daar));
         for (const [id, ts] of Object.entries(obj(hier))) u[id] = u[id] ? Math.min(u[id], ts) : ts;
         return u;
+      }
+      case 'spo_campagne': {
+        // het hoogste bereikte niveau wint: per wereld en niveau de meeste sterren, van allebei (een deck blijft het eigen deck)
+        const h = obj(hier), d = obj(daar), hw = obj(h.w), dw = obj(d.w), w = {};
+        for (const id of new Set([].concat(Object.keys(dw), Object.keys(hw)))) {
+          const hs = Array.isArray(obj(hw[id]).s) ? hw[id].s : [], ds = Array.isArray(obj(dw[id]).s) ? dw[id].s : [];
+          const s = []; let stop = false;
+          for (let i = 0; i < 5; i++) { const v = stop ? 0 : Math.max(0, Math.min(3, Math.floor(Math.max(Number(hs[i]) || 0, Number(ds[i]) || 0)))); if (!v) stop = true; s.push(v); }
+          w[id] = { s };
+        }
+        return { v: 1, w, deck: Array.isArray(h.deck) && h.deck.length ? h.deck : Array.isArray(d.deck) ? d.deck : [], ts: Math.max(Number(h.ts) || 0, Number(d.ts) || 0) };
       }
       case 'spo_geopend': {
         const u = Object.assign({}, obj(daar));
