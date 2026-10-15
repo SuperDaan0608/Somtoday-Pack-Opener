@@ -46,9 +46,10 @@
   // De kaartonthulling duurt bij elke opening even lang en begint bij K0.
   function kaartTijden(tl, d) {
     const { I, snel } = d;
-    tl.spin = snel ? 0.85 : 1.35; // draaitijd van de kaart
+    const gewoon = !d.zeldzaam; // de hogere ladders houden hun eigen, langere maat
+    tl.spin = snel ? 0.85 : gewoon ? 1.15 : 1.35; // draaitijd van de kaart
     tl.telStart = tl.K0 + tl.spin * 0.85;
-    tl.telDuur = snel ? 0.75 : 1.05 + 0.85 * I;
+    tl.telDuur = snel ? 0.75 : gewoon ? 0.8 + 0.6 * I : 1.05 + 0.85 * I;
     tl.RV = tl.telStart + tl.telDuur; // de onthulling
     tl.EIND = tl.RV + (snel ? 1.0 : 1.6); // vanaf hier verschijnen de knoppen
     return tl;
@@ -67,15 +68,15 @@
       tl.onder = null;
       tl.pakIn = [0, 0.65];
     } else {
-      tl.vak = [0.25, 1.75];
-      tl.onder = [1.5, 3.0]; // pas als het vak voorbij is: de woorden overlappen niet
-      tl.pakIn = [2.35, 3.4];
+      tl.vak = [0.2, 1.45];
+      tl.onder = [1.2, 2.45]; // pas als het vak voorbij is: de woorden overlappen niet
+      tl.pakIn = [1.85, 2.8];
     }
     const c1 = tl.pakIn[1];
-    tl.E = c1 + (snel ? 0.55 + 0.6 * I : 1.8 + 1.5 * I); // het moment van scheuren
+    tl.E = c1 + (snel ? 0.55 + 0.6 * I : 1.35 + 1.1 * I); // het moment van scheuren
     if (walkout) {
       const w0 = tl.E + (snel ? 0.3 : 0.5);
-      const wd = snel ? 2.6 + 0.6 * I : 5.4 + 1.5 * I;
+      const wd = snel ? 2.6 + 0.6 * I : 3.5 + 1.1 * I;
       tl.wo = [w0, w0 + wd];
       tl.K0 = w0 + wd;
     } else {
@@ -689,6 +690,13 @@
             pow += (0.25 + 0.35 * I) * Math.exp(-(t - RV) / 0.7);
           }
           haze = 0.22;
+          if (!zeldzaam) {
+            // gewone kaart: de bundels blijven achter de kaart (geen witte waas over het metaal) en het niveau bepaalt de maat
+            const nv = [0.4, 0.62, 0.85, 1, 1][tier];
+            pow *= 0.55 + 0.45 * nv;
+            core *= 0.35 + 0.3 * nv;
+            haze = 0.12 + 0.1 * nv;
+          }
         }
         const dim = (1 - 0.62 * rustig2) * gw;
         stralen(t, stralenKans * (1 - 0.35 * rustig2) * ((myth4 || kosm3) && Zm && Zm.stralenMul ? Zm.stralenMul(t) : 1), pow * dim, core * dim, haze, 0, 0.02, t * (0.12 + 0.35 * laad + (t >= RV ? 0.2 : 0)), 1);
@@ -859,7 +867,7 @@
           const dt2 = t - E;
           const aan = sm(dt2, -0.05, 0.03);
           const b = Math.exp(-dt2 / (0.35 + 0.25 * I));
-          licht(t, 0, lekP, (0.3 + 0.55 * I) * b * aan * gw * (zeldzaam ? 1 : 0.5), 0.01 + 0.12 * Math.pow(Math.min(dt2, 0.6), 0.7) + 0.015, (0.35 + 0.55 * I) * Math.exp(-dt2 / 0.65) * aan, (0.3 + 0.4 * I) * Math.exp(-dt2 / 0.9), t * 0.35);
+          licht(t, 0, lekP, (0.3 + 0.55 * I) * b * aan * gw * (zeldzaam ? 1 : 0.5), 0.01 + 0.12 * Math.pow(klem(dt2, 0, 0.6), 0.7) + 0.015, (0.35 + 0.55 * I) * Math.exp(-dt2 / 0.65) * aan, (0.3 + 0.4 * I) * Math.exp(-dt2 / 0.9), t * 0.35);
         }
 
         // ── plaatjes tijdens de walkout ──
@@ -911,7 +919,7 @@
         const op = veer(ramp(q, 0, 0.6));
         // na de onthulling schuift de kaart wat omlaag en wordt hij iets kleiner, zodat de titel erboven past
         const lay = sm(t, RV + 0.15, RV + 0.9);
-        const sc = KAART_H * R(1) * (0.02 + 0.98 * Math.min(1.12, op)) * mix(1, zk ? zk.lay : 0.92, lay) * (zk ? zk.schaal : 1);
+        const sc = KAART_H * R(1) * (0.02 + 0.98 * Math.min(1.12, op)) * mix(1, zk ? zk.lay : 0.84, lay) * (zk ? zk.schaal : 1);
         // tel het cijfer op
         const cp = ramp(t, tl.telStart, RV);
         const val = t >= RV ? d.g : 1 + (d.g - 1) * (1 - Math.pow(1 - cp, 2));
@@ -939,7 +947,7 @@
         kantel[1] = ky;
         const sc2 = sc * (1 + (t >= RV ? 0.08 * Math.exp(-(t - RV) / 0.45) : 0) + 0.012 * Math.sin(t * 1.6) * rust);
         const p = P.kaart.gebruik();
-        obj(p, zk ? zk.x : 0, mix(0.03, -0.17, lay) + (zk ? zk.y : 0) + Math.sin(t * 1.15) * 0.012 * rust, z, -ky * 0.3 + Math.sin(t * 0.6) * 0.03 * rust, draai + kx * 0.4 + Math.sin(t * 0.8) * 0.05 * rust, 0.04 * (1 - uit) * Math.sin(q * 6), (KAART_B / KAART_H) * sc2, sc2);
+        obj(p, zk ? zk.x : 0, mix(0.03, -0.21, lay) + (zk ? zk.y : 0) + Math.sin(t * 1.15) * 0.012 * rust, z, -ky * 0.3 + Math.sin(t * 0.6) * 0.03 * rust, draai + kx * 0.4 + Math.sin(t * 0.8) * 0.05 * rust, 0.04 * (1 - uit) * Math.sin(q * 6), (KAART_B / KAART_H) * sc2, sc2);
         p.tex('uBG', 0, tex.bg);
         p.tex('uMid', 1, tex.mid);
         p.tex('uFG', 2, tex.fg);
@@ -976,7 +984,7 @@
         const w = Math.min(2.05 * (0.9 + 0.1 * I), visB * 0.96);
         const hT = w * (360 / 1500);
         // net boven de kaart, die inmiddels wat omlaag en kleiner staat
-        vlak(t, tex.titel, 0, -0.17 + 0.667 * fit + 0.5 * hT + 0.035, 0, 0, 0, -0.03 * (1 - pop), w * pop, hT * pop, sm(q, 0, 0.12), 2, 0, q < 0.2 ? 1 - q / 0.2 : 0);
+        vlak(t, tex.titel, 0, -0.21 + 0.609 * fit + 0.5 * hT + 0.03, 0, 0, 0, -0.03 * (1 - pop), w * pop, hT * pop, sm(q, 0, 0.12), 2, 0, q < 0.2 ? 1 - q / 0.2 : 0);
       }
 
       // ── deeltjes ──
