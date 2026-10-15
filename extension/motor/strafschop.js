@@ -1950,7 +1950,7 @@ void main(){
     vec3 q = vW - uTor[i * 4];
     vec3 l = vec3(dot(q, uTor[i * 4 + 1]), dot(q, uTor[i * 4 + 2]), dot(q, uTor[i * 4 + 3]));
     alb *= .92 + .08 * sin(l.x * 60. + l.y * 25.) - .1 * smoothstep(.2, .02, l.y);
-    alb = mix(alb, uAcc[i], smoothstep(.02, .012, abs(l.y - .515)) * smoothstep(.11, .08, length(l.xz)) * .9);
+    alb = mix(alb, uAcc[i], smoothstep(.02, .012, abs(l.y - .515)) * smoothstep(.11, .08, length(l.xz)) * smoothstep(.03, .05, length(l.xz)) * .9);
     vec2 uv = vec2(-l.x / .32 + .5, (l.y - .32) / .24 + .5);
     if (l.z < -.02 && uv.x > 0. && uv.x < 1. && uv.y > 0. && uv.y < 1.) {
       vec4 g = texture(uGetal, vec2((uv.x + float(i)) * .5, 1. - uv.y));
@@ -2100,7 +2100,7 @@ void main(){
     vec3 a = mix(vec3(.05, .25, 1.), vec3(1., .2, .5), h21(vec2(seg, floor(uTime * .25))));
     float strepen = .55 + .45 * smoothstep(.3, .7, fract(bu * .25 - uTime * .6));
     float letters = step(.5, vn(vec2(bu * 2.2, vU.y * 9.))) * smoothstep(.18, .3, vU.y) * smoothstep(.8, .66, vU.y);
-    col = (a * (.25 + .5 * strepen) + vec3(1.) * letters * .35) * .9;
+    col = (a * (.25 + .5 * strepen) + vec3(1.) * letters * .35) * .55;
   } else col = vec3(.008, .009, .012);
   o = vec4(mist(col, afst), 1.);
 }`;
@@ -2349,10 +2349,8 @@ void main(){
     E(L(HD, H, 0, 0.016, -0.006), Rh, Uh, Fh, [0.077, 0.094, 0.09], hu, 11);
     E(L(HD, H, 0, -0.045, 0.026), Rh, Uh, Fh, [0.056, 0.06, 0.064], hu, 11);
     E(L(HD, H, 0, -0.086, 0.055), Rh, Uh, Fh, [0.028, 0.02, 0.024], hu, 11);
-    E(L(HD, H, 0, 0.03, 0.074), Rh, Uh, Fh, [0.056, 0.014, 0.02], hu, 11);
     C(L(HD, H, 0, 0.016, 0.088), 0.009, L(HD, H, 0, -0.022, 0.1), 0.013, hu, 11);
     for (const s of [-1, 1]) {
-      E(L(HD, H, s * 0.04, -0.012, 0.064), Rh, Uh, Fh, [0.018, 0.014, 0.016], hu, 11);
       E(L(HD, H, s * 0.078, 0, -0.006), Rh, Uh, Fh, [0.012, 0.026, 0.018], hu, 11);
       E(L(HD, H, s * 0.03, 0.011, 0.074), Rh, Uh, Fh, [0.0115, 0.0115, 0.0115], [1, 1, 1], 8);
     }
