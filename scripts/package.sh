@@ -17,6 +17,11 @@ case "$MANIFEST_VERSIE" in
   *) echo "manifest.json heeft versie $MANIFEST_VERSIE, maar de tag is $VERSIE" >&2; exit 1 ;;
 esac
 
+# "Wat is nieuw" (v3.0): voor de versie in manifest.json moet een blok in extension/nieuw-data.js staan, anders ziet niemand wat er veranderd is.
+if ! grep -q "versie: '$MANIFEST_VERSIE'" "$ROOT/extension/nieuw-data.js"; then
+  echo "WAARSCHUWING: extension/nieuw-data.js heeft geen blok voor versie $MANIFEST_VERSIE (de teksten voor Wat is nieuw). Voeg dat blok toe en probeer het opnieuw." >&2; exit 1
+fi
+
 WERK="$(mktemp -d)"
 trap 'rm -rf "$WERK"' EXIT
 cp -R "$ROOT/extension" "$WERK/$NAAM"
@@ -38,10 +43,10 @@ Fanproject. Niet verbonden aan Somtoday of Topicus.
 EOF
 
 # Veiligheid: debugcode hoort nooit in een gewone release (alleen scripts/package-debug.sh mag die maken).
-if grep -rqE '__spoDebug|spo_debug|debug-somtoday|version_name": *"[^"]*debug' "$WERK"; then
+if grep -rqE '__spoDebug|spo_debug|debug-somtoday|debug-nep|debug-vriend|version_name": *"[^"]*debug' "$WERK"; then
   echo "Er zit debugcode in deze build. Afgebroken." >&2; exit 1
 fi
-if find "$WERK" \( -name 'debug.html' -o -name 'debug.js' -o -name 'debug.css' -o -name 'debug-somtoday.js' \) | grep -q .; then
+if find "$WERK" \( -name 'debug.html' -o -name 'debug.js' -o -name 'debug.css' -o -name 'debug-somtoday.js' -o -name 'debug-nep.js' -o -name 'debug-vriend.js' \) | grep -q .; then
   echo "Er zitten debugbestanden in deze build. Afgebroken." >&2; exit 1
 fi
 

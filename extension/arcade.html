@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Arcade-hoek</title>
+  <link rel="stylesheet" href="arcade.css" />
+  <link rel="stylesheet" href="embed.css" />
+  <script src="embed.js"></script>
+</head>
+<body>
+  <a class="skip" href="#hoofd">Naar de inhoud</a>
+  <header class="kop">
+    <h1>Arcade-hoek</h1>
+    <p class="onder">Vier mini-games met je munten. Elk spel kost 5 munten en je kunt vandaag hoogstens 10 spellen spelen. Met slim spelen krijg je ongeveer je inzet terug; met gokken verlies je gemiddeld een beetje. Het verandert nooit je cijfers.</p>
+  </header>
+
+  <main id="hoofd">
+    <div class="deeltabs" role="tablist" aria-label="Soort spel">
+      <button type="button" role="tab" id="dtab-munten" aria-selected="true" aria-controls="deel-munten" tabindex="0">Muntenspellen</button>
+      <button type="button" role="tab" id="dtab-snel" aria-selected="false" aria-controls="deel-snel" tabindex="-1">Snelspel</button>
+    </div>
+
+    <section class="saldo-balk" aria-label="Je munten en spellen van vandaag">
+      <div><span class="saldo-label">Je munten</span><strong id="saldo">0</strong></div>
+      <div class="dag-info" id="dag-info"></div>
+    </section>
+    <p class="melding" id="melding" role="status" aria-live="polite"></p>
+
+    <div id="deel-munten" role="tabpanel" aria-labelledby="dtab-munten">
+    <div class="spelkeuze" role="group" aria-label="Kies een spel">
+      <button type="button" class="spelknop" data-spel="memory" aria-pressed="true"><strong>Memory</strong><small>Vind de paren met je eigen kaarten</small></button>
+      <button type="button" class="spelknop" data-spel="hoger" aria-pressed="false"><strong>Hoger of lager</strong><small>Raad het volgende cijfer</small></button>
+      <button type="button" class="spelknop" data-spel="kras" aria-pressed="false"><strong>Kraslot</strong><small>Drie dezelfde symbolen win je</small></button>
+      <button type="button" class="spelknop" data-spel="rad" aria-pressed="false"><strong>Rad van fortuin</strong><small>Draai en win</small></button>
+    </div>
+
+    <section class="spel" id="spel-memory" aria-labelledby="k-memory">
+      <h2 id="k-memory">Memory</h2>
+      <p class="uitleg">Zes van je eigen kaarten, elk twee keer. Draai steeds twee kaarten om. Hoe minder beurten, hoe meer munten: 7 beurten of minder geeft 12 munten, 8 beurten 7, tot 10 beurten 5, tot 12 beurten 3, tot 15 beurten 2, daarna 1. Stoppen kan niet: je inzet is dan weg.</p>
+      <div class="spelrij"><button type="button" class="knop goud" id="memory-start">Start (5 munten)</button><span class="stand" id="memory-stand" aria-live="polite"></span></div>
+      <div class="memory" id="memory-bord" role="group" aria-label="Memory-kaarten" hidden></div>
+    </section>
+
+    <section class="spel" id="spel-hoger" aria-labelledby="k-hoger" hidden>
+      <h2 id="k-hoger">Hoger of lager</h2>
+      <p class="uitleg">Je ziet een cijfer van 1,0 tot en met 10,0. Is het volgende cijfer hoger of lager? Elke goede gok levert meer op: 1 goed 6 munten, 2 goed 8, 3 goed 10, 4 goed 12, 5 goed 16. Je mag na elke goede gok stoppen en je munten pakken. Gokje fout? Dan verlies je je inzet.</p>
+      <div class="spelrij"><button type="button" class="knop goud" id="hoger-start">Start (5 munten)</button><span class="stand" id="hoger-stand" aria-live="polite"></span></div>
+      <div class="hoger" id="hoger-bord" hidden>
+        <div class="hoger-cijfer" id="hoger-cijfer" aria-live="polite"></div>
+        <div class="hoger-knoppen">
+          <button type="button" class="knop" id="hoger-hoger">Hoger</button>
+          <button type="button" class="knop" id="hoger-lager">Lager</button>
+          <button type="button" class="knop goud" id="hoger-stop" hidden>Stoppen</button>
+        </div>
+        <p class="hoger-kans" id="hoger-kans"></p>
+      </div>
+    </section>
+
+    <section class="spel" id="spel-kras" aria-labelledby="k-kras" hidden>
+      <h2 id="k-kras">Kraslot</h2>
+      <p class="uitleg">Kras de zes vakjes open. Drie dezelfde symbolen win je: munt 5, ster 8, klaver 15, diamant 25 en kroon 50 munten. Je kunt ook op &lsquo;Alles openkrassen&rsquo; drukken.</p>
+      <div class="spelrij"><button type="button" class="knop goud" id="kras-start">Koop een kraslot (5 munten)</button><button type="button" class="knop" id="kras-alles" hidden>Alles openkrassen</button><span class="stand" id="kras-stand" aria-live="polite"></span></div>
+      <div class="kraslot" id="kras-bord" role="group" aria-label="Kraslot met zes vakjes" hidden></div>
+    </section>
+
+    <section class="spel" id="spel-rad" aria-labelledby="k-rad" hidden>
+      <h2 id="k-rad">Rad van fortuin</h2>
+      <p class="uitleg">Draai aan het rad. Het rad heeft twaalf vakken: vijf keer niets, en verder 2, 3, 5, 5, 8, 10 en 20 munten.</p>
+      <div class="spelrij"><button type="button" class="knop goud" id="rad-start">Draai (5 munten)</button><span class="stand" id="rad-stand" aria-live="polite"></span></div>
+      <div class="rad-wrap" aria-hidden="true"><div class="rad-pijl"></div><svg class="rad" id="rad" viewBox="-110 -110 220 220"></svg></div>
+    </section>
+    </div>
+
+    <div id="deel-snel" role="tabpanel" aria-labelledby="dtab-snel" hidden>
+      <h2 id="k-snel">Snelspel</h2>
+      <p class="uitleg">Korte spelletjes van ongeveer 20 seconden, gratis. Een goed potje levert 2 munten op en je kunt vandaag hoogstens 15 potjes spelen (dus hoogstens 30 munten per dag). Wat je verdient verandert nooit je cijfers.</p>
+      <p class="dag-info" id="mini-info" role="status" aria-live="polite"></p>
+      <div class="spelkeuze" role="group" aria-label="Kies een snelspel">
+        <button type="button" class="snelknop" data-spel="reactie" aria-pressed="true"><strong>Reactietest</strong><small>Klik de gouden kaart</small></button>
+        <button type="button" class="snelknop" data-spel="schatting" aria-pressed="false"><strong>Cijferschatting</strong><small>Wat is het gemiddelde?</small></button>
+        <button type="button" class="snelknop" data-spel="hoogste" aria-pressed="false"><strong>Hoogste kaart</strong><small>Wijs het hoogste cijfer aan</small></button>
+        <button type="button" class="snelknop" data-spel="sorteer" aria-pressed="false"><strong>Sorteer op ladder</strong><small>Van Gewoon tot Mythisch</small></button>
+      </div>
+      <p class="uitleg" id="mini-uitleg"></p>
+      <div class="spelrij">
+        <button type="button" class="knop goud" id="mini-start">Start</button>
+        <label class="rustig"><input type="checkbox" id="mini-rustig" /> Zonder tijdsdruk</label>
+        <span class="stand" id="mini-stand" role="status" aria-live="polite"></span>
+      </div>
+      <div class="mini-klok" id="mini-klok" role="timer" aria-label="Resterende tijd" hidden><span id="mini-klok-tekst"></span><span class="balk" aria-hidden="true"><i id="mini-klok-balk"></i></span></div>
+      <div class="mini-bord" id="mini-bord" role="group" aria-label="Speelveld van het snelspel" hidden></div>
+      <p class="uitleg">Toetsen: druk op 1 t/m 4 om een kaart of antwoord te kiezen. Met Tab en Enter kan het ook. Zet &lsquo;Zonder tijdsdruk&rsquo; aan als je geen klok wilt: je krijgt dan dezelfde beloning, maar je moet wel de rondes goed hebben.</p>
+    </div>
+  </main>
+
+  <script src="tekstfilter-woorden.js"></script>
+  <script src="tekstfilter.js"></script>
+  <script src="economie.js"></script>
+  <script src="arcadelib.js"></script>
+  <script src="snelspellib.js"></script>
+  <script src="arcade.js"></script>
+  <script src="snelspel.js"></script>
+</body>
+</html>

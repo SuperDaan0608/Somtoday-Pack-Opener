@@ -46,9 +46,10 @@
   // De kaartonthulling duurt bij elke opening even lang en begint bij K0.
   function kaartTijden(tl, d) {
     const { I, snel } = d;
-    tl.spin = snel ? 0.85 : 1.35; // draaitijd van de kaart
+    const gewoon = !d.zeldzaam; // de hogere ladders houden hun eigen, langere maat
+    tl.spin = snel ? 0.85 : gewoon ? 1.15 : 1.35; // draaitijd van de kaart
     tl.telStart = tl.K0 + tl.spin * 0.85;
-    tl.telDuur = snel ? 0.75 : 1.05 + 0.85 * I;
+    tl.telDuur = snel ? 0.75 : gewoon ? 0.8 + 0.6 * I : 1.05 + 0.85 * I;
     tl.RV = tl.telStart + tl.telDuur; // de onthulling
     tl.EIND = tl.RV + (snel ? 1.0 : 1.6); // vanaf hier verschijnen de knoppen
     return tl;
@@ -67,15 +68,15 @@
       tl.onder = null;
       tl.pakIn = [0, 0.65];
     } else {
-      tl.vak = [0.25, 1.75];
-      tl.onder = [1.5, 3.0]; // pas als het vak voorbij is: de woorden overlappen niet
-      tl.pakIn = [2.35, 3.4];
+      tl.vak = [0.15, 1.3];
+      tl.onder = [1.25, 2.3]; // pas als het vak voorbij is: de woorden overlappen niet
+      tl.pakIn = [1.7, 2.55];
     }
     const c1 = tl.pakIn[1];
-    tl.E = c1 + (snel ? 0.55 + 0.6 * I : 1.8 + 1.5 * I); // het moment van scheuren
+    tl.E = c1 + (snel ? 0.55 + 0.6 * I : 1.2 + 0.9 * I); // het moment van scheuren
     if (walkout) {
       const w0 = tl.E + (snel ? 0.3 : 0.5);
-      const wd = snel ? 2.6 + 0.6 * I : 5.4 + 1.5 * I;
+      const wd = snel ? 2.6 + 0.6 * I : 3.0 + 0.9 * I;
       tl.wo = [w0, w0 + wd];
       tl.K0 = w0 + wd;
     } else {
@@ -189,6 +190,9 @@
       at(c1 + 0.05, () => audio.riser(E - c1 - 0.05, 0.6 + 0.4 * I));
       // Het scheurgeluid heeft zijn eerste klap na 0,1 s, dus starten we iets eerder: dan valt die precies op E.
       at(E - 0.1, () => audio.scheur(0.8 + 0.2 * I));
+      // eigen lagen van het pakje: knisperend folie tijdens het opladen, een rits van folie bij de scheur
+      at(c1 + 0.15, () => audio.speel('pakje-folie', { gain: 0.5 + 0.4 * I, duur: Math.max(0.6, E - c1 - 0.1), fadeIn: 0.2, fadeOut: 0.08 }));
+      at(E - 0.1, () => audio.speel('pakje-scheur', { gain: 0.6 + 0.4 * I, galmen: 0.15 }));
       at(E, () => {
         audio.boem(0.6 + 0.4 * I);
         trillen([30, 20, 60]);
@@ -213,6 +217,7 @@
         const [w0, w1] = tl.wo;
         const WO = w1 - w0;
         at(w0 + 0.05, () => audio.publiek(WO + 0.3, 0.5 + 0.5 * I));
+        at(w0, () => audio.speel('pakje-tunnel', { gain: 0.5 + 0.5 * I, duur: WO + 0.4, fadeIn: 0.4, fadeOut: 0.5 }));
         // De hartslag en de stappen vormen samen één ritme dat steeds luider wordt.
         const sp = Math.PI / 5.2; // één stap duurt zo lang (de stapfase loopt met 5,2 rad/s)
         for (let k = 0; ; k++) {
@@ -246,6 +251,7 @@
     at(RV, () => {
       audio.boem(tier === 0 ? 0.35 : 0.7 + 0.3 * I);
       audio.onthulling(0.8 + 0.2 * I);
+      if (!zeldzaam && tier < 4) audio.speel('pakje-onthul-' + tier, { gain: 0.8 + 0.2 * I, galmen: 0.15 }); // per niveau een eigen slot
       if (d.g >= 6) audio.gejuich(2.5 + 1.5 * I, 0.5 + 0.5 * I);
       else if (zeldzaam) audio.gejuich(3.2, 0.7);
       if (zeldzaam) {
@@ -307,7 +313,7 @@
           const q = (ts - tl.wo[0]) / (tl.wo[1] - tl.wo[0]);
           schok(ts, 0.0016 + 0.009 * q * q, 0.12);
         }
-        flits(K0 - 0.04, kosm3 ? 0.22 : 0.8 * gw, 0.3);
+        flits(K0 - 0.04, kosm3 ? 0.22 : 0.5 * gw, 0.22);
       }
       // oplaadgolven rond het pakje: steeds sneller
       for (let ts = c1 + 0.35, stap = 0.55; ts < E - 0.15; ts += stap, stap = Math.max(0.22, stap * 0.87)) golf(ts, 0.7, 0.16 + 0.2 * I, 0);
@@ -379,7 +385,7 @@
     }
     if (tier === 0 && !zeldzaam) {
       e({ mode: 3, t0: RV, life: 5, delay: 0.2, n: 160, alpha: 0.8, seed: 9, blend: 'alpha' });
-      e({ mode: 6, t0: RV, life: 3.2, delay: 0.5, n: 14, org: [0, -0.2], size: [0.18, 0.4], col1: [0.16, 0.12, 0.1], col2: [0.3, 0.22, 0.16], blend: 'alpha', seed: 10, lod: false });
+      e({ mode: 6, t0: RV, life: 3.2, delay: 0.5, n: 8, org: [0, -0.78], size: [0.18, 0.4], col1: [0.16, 0.12, 0.1], col2: [0.3, 0.22, 0.16], blend: 'alpha', seed: 10, lod: false });
     } else if ((d.g >= 6 || zeldzaam) && !myth4 && !kosm3) {
       e({ mode: 2, t0: RV + 0.1, life: 4.6, delay: 1.1, n: Math.max(zeldzaam ? 260 : 0, Math.round(40 + 200 * Math.max(0, I - 0.5) * 2 * (d.g >= 9 ? 1.4 : 1))), org: [0, 0.62], angle: -Math.PI / 2, spread: 0.7, spd: [0.1, 0.45], grav: [0, -0.09], drag: 0.45, size: zeldzaam ? [0.008, 0.017] : [0.006, 0.012], col1: kl, col2: kl2, alpha: 1, blend: 'alpha', seed: 12 });
     }
@@ -555,6 +561,9 @@
       p.f1('uAlpha', alpha);
       p.f1('uRand', tier >= 1 || laad > 0.2 ? 1 : 0.5);
       p.f1('uGlans', glans);
+      // de barst die over de naad loopt en de rimpels in de folie
+      p.f1('uPeel', deel === 0 ? Math.pow(ramp(t, E - 0.38, E), 1.6) * 1.05 : 0);
+      p.f1('uRimpel', deel === 0 ? 0.5 * sm(t, E - 0.45, E) : 1.6 * Math.exp(-(t - E) / 0.35));
       p.v3('uCol', kl);
       p.v3('uCol2', kl2);
       p.f2('uKantel', kantel[0], kantel[1]);
@@ -689,6 +698,13 @@
             pow += (0.25 + 0.35 * I) * Math.exp(-(t - RV) / 0.7);
           }
           haze = 0.22;
+          if (!zeldzaam) {
+            // gewone kaart: de bundels blijven achter de kaart (geen witte waas over het metaal) en het niveau bepaalt de maat
+            const nv = [0.4, 0.62, 0.85, 1, 1][tier];
+            pow *= 0.55 + 0.45 * nv;
+            core *= 0.35 + 0.3 * nv;
+            haze = 0.12 + 0.1 * nv;
+          }
         }
         const dim = (1 - 0.62 * rustig2) * gw;
         stralen(t, stralenKans * (1 - 0.35 * rustig2) * ((myth4 || kosm3) && Zm && Zm.stralenMul ? Zm.stralenMul(t) : 1), pow * dim, core * dim, haze, 0, 0.02, t * (0.12 + 0.35 * laad + (t >= RV ? 0.2 : 0)), 1);
@@ -763,7 +779,7 @@
           basis(p);
           p.f1('uTime', t);
           // de leerling loopt door de lichtbundel naar je toe: eerst klein, aan het eind groter dan het beeld
-          const h = 0.1 * Math.pow(11, Math.pow(q, 0.9)) * (0.85 + 0.15 * fit);
+          const h = 0.1 * Math.pow(8, Math.pow(q, 0.85)) * (0.85 + 0.15 * fit); // eindigt met hoofd en schouders in beeld, niet in de lens
           const loopt = q < 0.93 ? 1 : Math.max(0.2, 1 - (q - 0.93) / 0.07);
           p.f1('uStap', (t - w0) * 5.2 + 1.2);
           p.f1('uAmp', loopt * (0.55 + 0.45 * q));
@@ -772,8 +788,8 @@
           p.f1('uAlpha', sm(t, w0 - 0.02, w0 + 0.25) * (1 - sm(t, K0 - 0.02, K0 + 0.1)));
           p.f1('uRegen', regenboog ? 1 : 0);
           p.f1('uKw', motor.kwaliteit);
-          p.f1('uLicht', 0.35 + 0.35 * q + 1.6 * Math.pow(ramp(q, 0.9, 1), 2) + 0.9 * Math.exp(-(t - w0) / 0.4));
-          p.f4('uFig', 0, 0.07 - 0.55 * h, h, sm(q, 0, 0.08));
+          p.f1('uLicht', 0.35 + 0.35 * q + 2.4 * Math.pow(ramp(q, 0.82, 1), 2) + 0.9 * Math.exp(-(t - w0) / 0.4));
+          p.f4('uFig', 0, 0.07 - 0.62 * h, h, sm(q, 0, 0.08) * (1 - sm(q, 0.86, 0.985))); // lost op in het licht voor de kaart komt
           p.v3('uTint', kl);
           p.v3('uTint2', kl2);
           motor.mengen('optel');
@@ -859,7 +875,7 @@
           const dt2 = t - E;
           const aan = sm(dt2, -0.05, 0.03);
           const b = Math.exp(-dt2 / (0.35 + 0.25 * I));
-          licht(t, 0, lekP, (0.3 + 0.55 * I) * b * aan * gw * (zeldzaam ? 1 : 0.5), 0.01 + 0.12 * Math.pow(Math.min(dt2, 0.6), 0.7) + 0.015, (0.35 + 0.55 * I) * Math.exp(-dt2 / 0.65) * aan, (0.3 + 0.4 * I) * Math.exp(-dt2 / 0.9), t * 0.35);
+          licht(t, 0, lekP, (0.3 + 0.55 * I) * b * aan * gw * (zeldzaam ? 1 : 0.5), 0.01 + 0.12 * Math.pow(klem(dt2, 0, 0.6), 0.7) + 0.015, (0.35 + 0.55 * I) * Math.exp(-dt2 / 0.65) * aan, (0.3 + 0.4 * I) * Math.exp(-dt2 / 0.9), t * 0.35);
         }
 
         // ── plaatjes tijdens de walkout ──
@@ -911,7 +927,7 @@
         const op = veer(ramp(q, 0, 0.6));
         // na de onthulling schuift de kaart wat omlaag en wordt hij iets kleiner, zodat de titel erboven past
         const lay = sm(t, RV + 0.15, RV + 0.9);
-        const sc = KAART_H * R(1) * (0.02 + 0.98 * Math.min(1.12, op)) * mix(1, zk ? zk.lay : 0.92, lay) * (zk ? zk.schaal : 1);
+        const sc = KAART_H * R(1) * (0.02 + 0.98 * Math.min(1.12, op)) * mix(1, zk ? zk.lay : 0.84, lay) * (zk ? zk.schaal : 1);
         // tel het cijfer op
         const cp = ramp(t, tl.telStart, RV);
         const val = t >= RV ? d.g : 1 + (d.g - 1) * (1 - Math.pow(1 - cp, 2));
@@ -939,7 +955,7 @@
         kantel[1] = ky;
         const sc2 = sc * (1 + (t >= RV ? 0.08 * Math.exp(-(t - RV) / 0.45) : 0) + 0.012 * Math.sin(t * 1.6) * rust);
         const p = P.kaart.gebruik();
-        obj(p, zk ? zk.x : 0, mix(0.03, -0.17, lay) + (zk ? zk.y : 0) + Math.sin(t * 1.15) * 0.012 * rust, z, -ky * 0.3 + Math.sin(t * 0.6) * 0.03 * rust, draai + kx * 0.4 + Math.sin(t * 0.8) * 0.05 * rust, 0.04 * (1 - uit) * Math.sin(q * 6), (KAART_B / KAART_H) * sc2, sc2);
+        obj(p, zk ? zk.x : 0, mix(0.03, -0.21, lay) + (zk ? zk.y : 0) + Math.sin(t * 1.15) * 0.012 * rust, z, -ky * 0.3 + Math.sin(t * 0.6) * 0.03 * rust, draai + kx * 0.4 + Math.sin(t * 0.8) * 0.05 * rust, 0.04 * (1 - uit) * Math.sin(q * 6), (KAART_B / KAART_H) * sc2, sc2);
         p.tex('uBG', 0, tex.bg);
         p.tex('uMid', 1, tex.mid);
         p.tex('uFG', 2, tex.fg);
@@ -976,7 +992,7 @@
         const w = Math.min(2.05 * (0.9 + 0.1 * I), visB * 0.96);
         const hT = w * (360 / 1500);
         // net boven de kaart, die inmiddels wat omlaag en kleiner staat
-        vlak(t, tex.titel, 0, -0.17 + 0.667 * fit + 0.5 * hT + 0.035, 0, 0, 0, -0.03 * (1 - pop), w * pop, hT * pop, sm(q, 0, 0.12), 2, 0, q < 0.2 ? 1 - q / 0.2 : 0);
+        vlak(t, tex.titel, 0, -0.21 + 0.609 * fit + 0.5 * hT + 0.03, 0, 0, 0, -0.03 * (1 - pop), w * pop, hT * pop, sm(q, 0, 0.12), 2, 0, q < 0.2 ? 1 - q / 0.2 : 0);
       }
 
       // ── deeltjes ──

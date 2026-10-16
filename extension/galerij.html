@@ -6,6 +6,8 @@
   <title>Galerij</title>
   <link rel="stylesheet" href="galerij.css" />
   <link rel="stylesheet" href="vloek.css" />
+  <link rel="stylesheet" href="capsule.css" />
+  <link rel="stylesheet" href="tweeling.css" />
   <link rel="stylesheet" href="embed.css" />
   <script src="embed.js"></script>
 </head>
@@ -89,6 +91,7 @@
         <h2 id="d-vak"></h2>
         <p class="d-cijfer" id="d-cijfer"></p>
         <p class="d-gg" id="d-gg" hidden></p>
+        <p class="d-tweeling" id="d-tweeling" hidden></p>
         <dl class="d-lijst">
           <div><dt>Onderwerp</dt><dd id="d-onderwerp"></dd></div>
           <div><dt>Weging</dt><dd id="d-weging"></dd></div>
@@ -97,13 +100,83 @@
         </dl>
         <div class="d-acties">
           <button type="button" class="knop" id="d-replay">Animatie opnieuw</button>
+          <button type="button" class="knop" id="d-capsule">Tijdcapsule</button>
           <a class="knop goud" id="d-dl" href="#" download>Downloaden</a>
           <button type="button" class="knop gevaar" id="d-weg">Verwijderen</button>
         </div>
       </div>
     </div>
   </dialog>
+  <dialog id="capsule" class="cp" aria-labelledby="cp-titel">
+    <div class="cp-in">
+      <button type="button" class="d-sluit" id="cp-sluit" aria-label="Sluiten">&times;</button>
+      <h2 id="cp-titel">Tijdcapsule</h2>
+      <p class="cp-eerlijk">Dit is een spelletje: de notitie staat in je eigen browser.</p>
+
+      <section id="cp-schrijf" aria-label="Een capsule maken">
+        <p class="cp-uitleg">Schrijf een korte notitie aan jezelf bij deze kaart. De capsule blijft dicht tot de dag die je kiest. Zo lees je later terug hoe het nu ging.</p>
+        <label class="cp-veld"><span>Je notitie</span>
+          <textarea id="cp-tekst" rows="4" maxlength="300" data-tekstfilter="tekst" placeholder="Bijvoorbeeld: dit jaar ga ik de toets van wiskunde fijn afsluiten."></textarea>
+        </label>
+        <p class="cp-teller" id="cp-teller">0 / 300</p>
+        <label class="cp-veld"><span>Openen op</span><input type="date" id="cp-datum" /></label>
+        <p class="cp-hulp">Minstens 30 dagen vooruit en hoogstens 400 dagen. Standaard staat het eind van het schooljaar (15 juli).</p>
+        <p class="cp-fout" id="cp-fout" role="alert"></p>
+        <div class="cp-acties">
+          <button type="button" class="knop goud" id="cp-bewaar">Capsule dichtdoen</button>
+          <button type="button" class="knop" id="cp-annuleer">Annuleren</button>
+        </div>
+      </section>
+
+      <section id="cp-dicht" hidden aria-label="Een dichte capsule">
+        <div class="cp-dicht-plaat" aria-hidden="true"><i class="cp-pil"><b></b><b></b></i></div>
+        <p class="cp-groot" id="cp-dicht-tekst"></p>
+        <p class="cp-hulp" id="cp-gemaakt1"></p>
+        <div class="cp-acties">
+          <button type="button" class="knop gevaar" id="cp-weg1">Capsule weggooien</button>
+          <button type="button" class="knop" id="cp-sluit1">Sluiten</button>
+        </div>
+      </section>
+
+      <section id="cp-klaar" hidden aria-label="Je capsule kan open">
+        <div class="cp-klaar-plaat"><img id="cp-img0" alt="" /><i class="cp-pil"><b></b><b></b></i></div>
+        <p class="cp-groot">Je capsule kan open!</p>
+        <div class="cp-acties">
+          <button type="button" class="knop goud" id="cp-open-knop">Open de capsule</button>
+          <button type="button" class="knop" id="cp-sluit2">Later</button>
+        </div>
+      </section>
+
+      <section id="cp-anim" hidden aria-label="De capsule gaat open" aria-live="polite">
+        <div class="cp-podium" aria-hidden="true">
+          <span class="cp-straal"></span>
+          <i class="cp-pil"><b></b><b></b></i>
+          <span class="cp-stof" id="cp-stof"></span>
+        </div>
+        <p class="cp-groot">Even geduld...</p>
+      </section>
+
+      <section id="cp-open" hidden aria-label="Je notitie">
+        <div class="cp-open-in">
+          <img id="cp-img" alt="" />
+          <div>
+            <p class="cp-klein">Een bericht van vroeger</p>
+            <blockquote id="cp-notitie"></blockquote>
+            <p class="cp-hulp" id="cp-gemaakt2"></p>
+          </div>
+        </div>
+        <div class="cp-acties">
+          <button type="button" class="knop gevaar" id="cp-weg2">Capsule weggooien</button>
+          <button type="button" class="knop" id="cp-sluit3">Sluiten</button>
+        </div>
+      </section>
+    </div>
+  </dialog>
   <script src="ladder.js"></script>
+  <script src="tekstfilter-woorden.js"></script>
+  <script src="tekstfilter.js"></script>
+  <script src="capsule.js"></script>
+  <script src="capsule-galerij.js"></script>
   <script src="galerij.js"></script>
 </body>
 </html>

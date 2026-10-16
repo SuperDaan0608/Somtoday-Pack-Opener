@@ -108,18 +108,43 @@
   const KIJK_REST = 60; // seconden dat een uitnodiging om mee te kijken blijft staan
   const gezienKijk = new Set();
   const gezienEmoji = new Set();
+  const gezienRivaal = new Map(); // vriend -> wanneer ik een rivaalverzoek meldde
+  // v3.0: waarschuwing van de beheerder en verbanning. Hoogstens 1 toast per uur (waarschuwing) of per 6 uur (ban), ook na een herstart van de achtergrond.
+  const TOAST_WAARSCHUWING = 60 * 60 * 1000, TOAST_BAN = 6 * 60 * 60 * 1000, BAN_HERHAAL = 15 * 60 * 1000;
+  let rustTot = 0; // verbannen: zolang niet bij de server aankloppen
+  async function hoogstensEens(sleutel, ms) {
+    try {
+      const r = await chrome.storage.local.get(sleutel);
+      if (Date.now() - (Number(r[sleutel]) || 0) < ms) return false;
+      await chrome.storage.local.set({ [sleutel]: Date.now() });
+      return true;
+    } catch (e) { return false; }
+  }
 
   async function kijk() {
+    if (Date.now() < rustTot) return [];
     const st = await L.laad();
     if (!st) return [];
     const cl = L.clientVan(st);
-    const p = await cl.roep('puls');
+    let p;
+    try { p = await cl.roep('puls'); }
+    catch (e) {
+      if (e.verbannen) {
+        // Verbannen: niet blijven proberen (hoogstens een keer per kwartier, of zodra de ban afloopt) en het één keer melden.
+        rustTot = Math.min(e.tot > 0 ? e.tot * 1000 : Infinity, Date.now() + BAN_HERHAAL);
+        if (await hoogstensEens('spo_toast_ban', TOAST_BAN)) return [{ soort: 'ban', tekst: e.message }];
+        return [];
+      }
+      throw e;
+    }
     const uit = [];
+    if (p.w > 0 && await hoogstensEens('spo_toast_waarschuwing', TOAST_WAARSCHUWING)) uit.push({ soort: 'waarschuwing', tekst: 'Je hebt een waarschuwing van de beheerder.' });
     if (vh === null || p.vh !== vh) {
       vh = p.vh;
       const inb = await cl.roep('inbox');
+      const geblokkeerd = await L.leesBlokkades();
       for (const r of inb.verzoeken || []) {
-        if (gezienVerzoek.has(r.id)) continue;
+        if (gezienVerzoek.has(r.id) || geblokkeerd[r.id]) continue; // van een geblokkeerde persoon melden we niets
         gezienVerzoek.add(r.id);
         const bekend = st.vrienden.find((v) => v.id === r.id && v.status === 'vriend');
         // Bij de eerste keer niet alle oude verzoeken melden die je al gezien had (die staan al als 'ontvangen' in je lijst).
@@ -132,10 +157,15 @@
       if (!v) continue;
       const lijst = await L.haalBerichten(st, v, cursor);
       for (const b of lijst) {
-        if (b.m.t === 'uitnodiging') {
+        if (b.m.t === 'uitnodiging' || b.m.t === 'sd_uit') {
           if (b.leeftijd >= 300 || typeof b.m.mid !== 'string' || gezienUitdaging.has(b.m.mid)) continue;
           gezienUitdaging.add(b.m.mid);
-          uit.push({ soort: 'duel', tekst: `${L.naam(v)} daagt je uit voor een duel!` });
+          uit.push({ soort: 'duel', tekst: `${L.naam(v)} daagt je uit voor een strafschoppenduel!` });
+        } else if (b.m.t === 'sd_kijk') {
+          // v3.0: een vriend speelt een strafschoppenduel: kijk mee op het tabblad Team
+          if (b.leeftijd >= 180 || typeof b.m.mid !== 'string' || gezienUitdaging.has('k' + b.m.mid)) continue;
+          gezienUitdaging.add('k' + b.m.mid);
+          uit.push({ soort: 'duel', tekst: `${L.naam(v)} speelt een strafschoppenduel. Kijk mee op het tabblad Team!` });
         } else if (b.m.t === 'gg') {
           // GG van een vriend op een kosmische of mythische kaart van mij (alleen als die kaart echt in mijn galerij staat)
           const g = L.schoonGG(b.m);
@@ -149,6 +179,13 @@
           if (!k || gezienKijk.has(k.mid)) continue;
           gezienKijk.add(k.mid);
           uit.push({ soort: 'kijk', van: v.id, naam: L.naam(v), kijk: k, rest: Math.max(5, KIJK_REST - b.leeftijd), tekst: `${L.naam(v)} opent nu iets ${k.trede === 4 ? 'MYTHISCHS (kans 1/1000)' : 'KOSMISCHS (kans 1/150)'}: kijk mee!` });
+        } else if (b.m.t === 'rivaal') {
+          // v3.0: een vriend vraagt jou als aartsrivaal (hoogstens één melding per vriend per uur; wie al jouw rivaal is, meldt niets)
+          if (b.leeftijd >= 600 || Date.now() - (gezienRivaal.get(v.id) || 0) < 3600000) continue;
+          const rs = await L.lees('spo_rivaal');
+          if (rs && rs.id === v.id) continue;
+          gezienRivaal.set(v.id, Date.now());
+          uit.push({ soort: 'verzoek', tekst: `${L.naam(v)} wil jouw aartsrivaal worden!` });
         } else if (b.m.t === 'emoji') {
           const e = L.schoonKijkEmoji(b.m);
           if (!e || b.leeftijd >= 30 || gezienEmoji.has(b.seq + ':' + v.id)) continue;
@@ -178,6 +215,17 @@
       }
       await L.stuurKijkEmoji(st, String(m.naar || ''), m.emoji);
       return { ok: true };
+    })().then(antwoord, () => antwoord({ ok: false }));
+    return true;
+  });
+
+  // v3: een mythische kaart is geopend: één bij op de wekelijkse teller (alleen met een account; er gaat verder niets mee).
+  chrome.runtime.onMessage.addListener((m, _afz, antwoord) => {
+    if (!m || m.type !== 'spo-drop-meld') return;
+    (async () => {
+      const st = await L.laad();
+      if (!st) return { ok: false };
+      return { ok: !!(await L.dropMeld(st)) };
     })().then(antwoord, () => antwoord({ ok: false }));
     return true;
   });

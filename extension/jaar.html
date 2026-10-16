@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Jouw jaar</title>
+  <link rel="stylesheet" href="jaar.css" />
+  <style>
+    :root { color-scheme: dark; }
+    body { margin: 0; min-height: 100vh; padding: 28px 16px; background: #080a14; color: #eef1f8; font: 15px/1.5 system-ui, sans-serif; }
+    main { max-width: 640px; margin: 0 auto; display: grid; gap: 14px; }
+    h1 { margin: 0; font-size: 28px; color: #ffd24a; }
+  </style>
+</head>
+<body>
+  <main id="hoofd">
+    <h1>Jouw jaar</h1>
+    <p>Een terugblik op je schooljaar: je beste kaart, je grootste stijging, je zwaarste week en meer. Alles wordt op jouw computer uitgerekend.</p>
+    <div class="jaar-blok" id="jaar-aanbod" hidden>
+      <p id="jaar-aanbod-tekst"></p>
+      <div class="jaar-acties"><button type="button" class="jaar-knop jaar-goud" id="jaar-aanbod-open">Bekijk jouw jaar</button><button type="button" class="jaar-knop" id="jaar-aanbod-later">Later</button></div>
+    </div>
+    <p><button type="button" class="jaar-knop jaar-goud" id="b-jaar">Jaar bekijken</button></p>
+  </main>
+  <script src="tekstfilter-woorden.js"></script>
+  <script src="tekstfilter.js"></script>
+  <script src="gevecht.js"></script>
+  <script src="vriendenlib.js"></script>
+  <script src="jaar.js"></script>
+</body>
+</html>

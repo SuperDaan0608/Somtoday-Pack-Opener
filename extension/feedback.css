@@ -1,0 +1,27 @@
+/* Feedbackvenster (feedback.js). Het venster zelf (.nv-*) staat in nieuw.css. */
+/* Feedback */
+.fb-vorm { display: grid; gap: 10px; }
+.fb-soort { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.fb-soort legend { margin: 0 0 6px; padding: 0; font-size: 12.5px; font-weight: 600; color: var(--tekst-2); }
+.fb-chip { position: relative; }
+.fb-chip input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.fb-chip span { display: inline-flex; align-items: center; min-height: 40px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--lijn-2); background: rgba(255, 255, 255, 0.05); font-weight: 600; color: var(--tekst-2); }
+.fb-chip input:checked + span { border-color: var(--geel); background: rgba(255, 210, 74, 0.16); color: #fff; }
+.fb-chip input:focus-visible + span { outline: 2px solid var(--geel); outline-offset: 2px; }
+.fb-label { font-size: 12.5px; font-weight: 600; color: var(--tekst-2); }
+.fb-tekst {
+  width: 100%; min-height: 120px; padding: 12px 14px; resize: vertical; border-radius: 12px; border: 1px solid var(--lijn-2);
+  background: rgba(0, 0, 0, 0.28); color: var(--tekst); font: inherit; line-height: 1.5;
+}
+.fb-tekst:focus-visible { outline: 2px solid var(--geel); outline-offset: 1px; }
+.fb-tekst[aria-invalid='true'] { border-color: #ff9a8a; }
+.fb-teller { margin: -4px 0 0; text-align: right; font-size: 12px; color: var(--tekst-3); }
+.fb-teller.is-over { color: #ff9a8a; font-weight: 700; }
+.fb-vink { display: flex; align-items: center; gap: 10px; min-height: 36px; font-size: 14px; color: var(--tekst); cursor: pointer; }
+.fb-vink input { width: 18px; height: 18px; margin: 0; accent-color: var(--geel); }
+.fb-info { margin: 0; padding: 10px 12px; border-radius: 10px; border: 1px dashed var(--lijn-2); font-size: 12.5px; line-height: 1.5; color: var(--tekst-2); overflow-wrap: anywhere; }
+.fb-info code { font: inherit; color: var(--tekst); }
+.fb-fout { min-height: 0; margin: 0; font-size: 13px; font-weight: 600; color: #ff9a8a; }
+.fb-fout:empty { display: none; }
+.fb-bedankt { margin: 8px 0 6px; font: 700 18px/1.3 var(--display); color: #fff; }
+

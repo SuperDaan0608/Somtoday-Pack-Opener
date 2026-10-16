@@ -1,5 +1,23 @@
 # Wijzigingen
 
+## v3.0.0
+
+Een grote update.
+
+- **Veiliger:** een streng filter op alles wat je typt (ook privé en in meldformulieren). Je kunt vrienden **blokkeren** en **melden**, en de beheerder kan waarschuwen en tijdelijk of blijvend bannen. Een nieuwe account krijgt de eerste dag een lager limiet voor vriendschapsverzoeken. Een IP-adres wordt alleen als gezouten hash bewaard (maximaal 30 dagen, een IP-blokkade duurt maximaal 7 dagen).
+- **Wat is nieuw** (dit venster) en een **feedbackknop** met een voorbeeld van wat je meestuurt.
+- **Duels opnieuw:** een duel is nu een reeks strafschoppen in 3D (met een lichte en een nog lichtere variant voor zwakke videokaarten en een 2D-uitslag als vangnet). Kies een hoek, stop de wijzer in het groen, duik als keeper. Vrienden kijken live mee en gooien emoji.
+- **Eigen voetballer en eigen stadion**, met 22 winkelitems.
+- **Kaartspel** en **Campagne** (vier werelden met een eindbaas: draak, feniks, kraken en griffioen), **Snelspel**, **Arcade-hoek** en **tweelingkaarten** met vrienden.
+- **Jouw jaar:** een terugblik op je schooljaar, lokaal of met een AI-tekst via een wachtrij (met toestemming en een dagelijkse limiet).
+- **Vloeken opheffen**, de **wekelijkse Drop** (teller van mythische kaarten van alle spelers, zonder namen), een **tijdcapsule**, een **aartsrivaal**, een **uitnodig-link**, een **troostpakje** na een tegenvallend cijfer en een **weekoverzicht** op maandag.
+- **Geheime prestaties** met een raadsel erbij.
+- **Betere pakje-animatie:** nieuwe pakje, scheur, walkout, kaartonthulling en geluiden, en een foutje bij het scheuren dat een grijs beeld gaf is weg.
+
+**Server:** upload de nieuwe `api.php` en voer `migratie-v3.sql` uit (12 tabellen). Zet voor het AI-jaaroverzicht `groq_sleutel` in `config.php`; zie `server/LEESMIJ.md`.
+
+**Privacy:** alleen als je op het AI-jaaroverzicht klikt en toestemming geeft, gaan een paar getallen (gemiddelden per vakgroep en aantallen, geen namen of vaknamen) eenmalig via de server naar een AI-dienst (Groq). De server bewaart de tekst kort tot jij hem ophaalt (hooguit 10 minuten).
+
 ## v2.4.4
 
 - De prestatie voor een 10 op een mythische kaart heet nu **Pure Aura** en staat extra groot bovenaan.

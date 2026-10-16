@@ -1,0 +1,53 @@
+/* Blokkeren, melden en waarschuwingen (v3.0). Gebruikt de kleuren van vrienden.css. */
+.veilig-venster { width: calc(100vw - 32px); max-width: 540px; max-height: calc(100vh - 32px); overflow: auto; border: 1px solid var(--lijn-2); border-radius: 16px; background: #10131f; color: var(--tekst); padding: 20px; }
+.veilig-venster::backdrop { background: rgba(0,0,0,.7); }
+.veilig-venster h2 { margin: 0 0 10px; overflow-wrap: anywhere; }
+.veilig-venster p { color: var(--tekst-2); margin: 0 0 12px; }
+.veilig-venster .bv-uitleg { color: var(--tekst); font-size: 15px; }
+.veilig-venster .acties { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.veilig-venster .bv-status { min-height: 0; font-size: 13px; color: #ff9a9a; margin: 0 0 8px; }
+.veilig-venster .bv-status:empty { display: none; }
+.veilig-venster textarea, .veilig-venster select { width: 100%; background: rgba(0,0,0,.25); border: 1px solid var(--lijn-2); border-radius: 10px; padding: 9px 12px; color: var(--tekst); font: inherit; }
+.veilig-venster textarea { resize: vertical; min-height: 76px; }
+.veilig-venster textarea[aria-invalid="true"] { border-color: #ff5b5b; }
+.mv-form { display: grid; gap: 12px; }
+.mv-teller { margin: -6px 0 0 !important; text-align: right; }
+.mv-wat { border: 1px solid var(--lijn-2); border-radius: 12px; padding: 12px; margin: 0; min-width: 0; display: grid; gap: 8px; }
+.mv-wat legend { padding: 0 6px; font-weight: 700; color: var(--tekst); }
+.mv-wat p { margin: 0; }
+.mv-vb-kop { font-size: 13px; }
+.mv-voorbeeld { border: 1px dashed #ffd24a; background: rgba(255,210,74,.07); border-radius: 10px; padding: 10px 12px; display: grid; gap: 4px; font-size: 13px; color: var(--tekst); }
+.mv-regel { overflow-wrap: anywhere; white-space: pre-wrap; }
+.mv-regel.verborgen:not(.open) { filter: blur(6px); user-select: none; }
+.veilig-venster .knop.gevaar { border-color: #ff5b5b; color: #ff9a9a; }
+.veilig-venster .knop.gevaar:hover { background: rgba(255,91,91,.15); }
+.veilig-venster.waarschuwing { border-color: #ffb347; box-shadow: 0 0 0 3px rgba(255,179,71,.25); }
+.veilig-venster.waarschuwing h2 { color: #ffd24a; }
+.wa-lijst { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 8px; }
+.wa-item { border: 1px solid rgba(255,179,71,.5); background: rgba(255,179,71,.08); border-radius: 12px; padding: 10px 12px; }
+.wa-tijd { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--tekst-3); }
+.veilig-venster .wa-reden { margin: 4px 0 0; color: var(--tekst); font-weight: 600; overflow-wrap: anywhere; }
+
+/* geblokkeerd (inklapbaar) */
+.geblokkeerd { margin-top: 18px; border: 1px solid var(--lijn); border-radius: 14px; padding: 4px 14px 12px; background: rgba(255,255,255,.02); }
+.geblokkeerd > summary { cursor: pointer; padding: 10px 0; font-weight: 700; }
+.geblokkeerd .n { margin-left: 8px; }
+.geblokkeerd-lijst { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.geblokkeerd-lijst li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; border-top: 1px solid var(--lijn); padding-top: 8px; }
+.geblokkeerd-lijst .g-naam { font-weight: 600; overflow-wrap: anywhere; }
+
+/* verbanning */
+.ban-banner { border: 1px solid #ff5b5b; background: rgba(255,91,91,.12); border-radius: 14px; padding: 14px 16px; margin-bottom: 14px; }
+.ban-banner h2 { margin: 0 0 6px; font-size: 16px; color: #ff9a9a; }
+.ban-banner p { margin: 0 0 6px; color: var(--tekst); }
+.ban-banner p:last-child { margin-bottom: 0; color: var(--tekst-2); font-size: 13px; }
+.v-veilig { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.v-meer .v-voet { flex-wrap: wrap; gap: 8px; }
+.knop.blokkeer { border-color: rgba(255,91,91,.55); color: #ff9a9a; }
+.knop.blokkeer:hover { border-color: #ff5b5b; background: rgba(255,91,91,.12); }
+.verzoek .acties .knop.blokkeer { margin-left: auto; }
+
+@media (max-width: 480px) {
+  .veilig-venster { padding: 16px; }
+  .veilig-venster .acties .knop { flex: 1 1 100%; width: 100%; }
+}

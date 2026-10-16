@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "Somtoday Pack Opener",
   "short_name": "Pack Opener",
-  "version": "2.4.4",
-  "version_name": "2.4.4",
+  "version": "3.0.0",
+  "version_name": "3.0.0",
   "description": "Open je Somtoday-cijfers als een FIFA-pakket: tunnel, walkout en een eigen kaart voor elk vak.",
   "permissions": ["activeTab", "scripting", "storage", "unlimitedStorage"],
   "content_scripts": [
@@ -15,7 +15,7 @@
     },
     {
       "matches": ["https://leerling.somtoday.nl/*"],
-      "js": ["motor/data.js", "motor/audio.js", "motor/shaders.js", "motor/gl.js", "motor/art.js", "motor/openingen/kluis.js", "motor/openingen/plinko.js", "motor/openingen/ster.js", "motor/openingen/raket.js", "motor/openingen/schiet.js", "motor/openingen/dans.js", "motor/mythisch.js", "motor/kosmisch.js", "motor/zeldzaam.js", "motor/scene.js", "motor/main.js", "gevecht.js", "prestatieslib.js", "economie.js", "huisdier.js", "kijken.js", "content.js", "dagelijks.js", "rooster.js", "updatemelding.js", "meldingen.js"],
+      "js": ["tekstfilter-woorden.js", "tekstfilter.js", "voetbal.js", "motor/data.js", "motor/audio.js", "motor/shaders.js", "motor/gl.js", "motor/art.js", "motor/openingen/kluis.js", "motor/openingen/plinko.js", "motor/openingen/ster.js", "motor/openingen/raket.js", "motor/openingen/schiet.js", "motor/openingen/dans.js", "motor/mythisch.js", "motor/kosmisch.js", "motor/zeldzaam.js", "motor/scene.js", "motor/main.js", "gevecht.js", "prestatieslib.js", "economie.js", "heel.js", "huisdier.js", "kijken.js", "content.js", "dagelijks.js", "troost.js", "weekoverzicht.js", "capsule.js", "rooster.js", "updatemelding.js", "meldingen.js"],
       "run_at": "document_idle"
     }
   ],
@@ -48,7 +48,7 @@
       "matches": ["<all_urls>"]
     },
     {
-      "resources": ["hub.html", "galerij.html", "kaart.html", "vrienden.html", "team.html", "prestaties.html", "rekenen.html", "geluiden.html", "winkel.html", "profiel.html"],
+      "resources": ["hub.html", "galerij.html", "kaart.html", "vrienden.html", "team.html", "prestaties.html", "rekenen.html", "geluiden.html", "winkel.html", "profiel.html", "speler.html", "arcade.html", "kaartspel.html", "campagne.html", "jaar.html"],
       "matches": ["https://leerling.somtoday.nl/*"]
     }
   ]

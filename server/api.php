@@ -9,6 +9,44 @@ const MAX_BLOB = 98304;   // 96 KB
 const MAX_BERICHT = 2048; // een kanaalbericht (versleuteld) mag hoogstens 2 KB zijn
 const BERICHT_TTL = 600;  // berichten in een kanaal verdwijnen na 10 minuten
 const MAX_WACHTRIJ = 300; // hoogstens zoveel berichten tegelijk van één afzender naar één ontvanger
+const IP_MAX_DAGEN = 30;  // een ip-hash wordt hoogstens zo lang onthouden
+const IP_BAN_MAX = 604800; // een ip-ban duurt hoogstens 7 dagen en is nooit voorgoed
+const MELD_REDENEN = ['naam', 'tekst', 'pesten', 'spam', 'anders'];
+const FB_SOORTEN = ['fout', 'idee', 'anders'];
+const TABELLEN = ['users', 'friendships', 'blobs', 'ratelimit', 'berichten', 'bans', 'accounts', 'acc_codes', 'acc_sessies', 'acc_backup', 'user_versie',
+  'blokkades', 'meldingen', 'waarschuwingen', 'ban_email', 'ban_ip', 'acc_ip', 'acc_koppel', 'beheer_mail', 'feedback', 'week_teller', 'jaar_wachtrij', 'jaar_teller']; // v3: vanaf 'blokkades'
+
+// Uitnodigingspagina (v3): api.php?uitnodiging=CODE. Statisch: geen database, geen cookies, geen scripts en geen tracking.
+function uitnodigingPagina(string $code): void {
+  // Streng: precies de vorm van een vriendcode (SPO1-id-sleutel). Alles anders geeft dezelfde pagina zonder code.
+  $geldig = preg_match('/^SPO1-[0-9a-f]{32}-[A-Za-z0-9_-]{80,100}$/D', $code) === 1;
+  $css = 'body{margin:0;padding:24px 16px;background:#080a14;color:#eef1f8;font:16px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}'
+    . 'main{max-width:560px;margin:0 auto}h1{font-size:26px;margin:0 0 8px}ol{padding-left:22px}li{margin-bottom:14px}'
+    . 'a.knop{display:inline-block;margin-top:6px;padding:10px 16px;border-radius:10px;background:#ffd24a;color:#1a1300;font-weight:700;text-decoration:none}'
+    . 'input{width:100%;box-sizing:border-box;margin-top:6px;padding:10px;border-radius:10px;border:1px solid #5a6280;background:#10142a;color:#eef1f8;font:13px ui-monospace,monospace;user-select:all}'
+    . 'small{color:#a5aec4}:focus-visible{outline:2px solid #ffd24a;outline-offset:2px}';
+  $h = fn(string $t): string => htmlspecialchars($t, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+  $stap3 = $geldig
+    ? '<li>Open <strong>Vrienden</strong> in de Pack Opener en vul deze code in:<label for="c"><small>Klik op het veld om de code te selecteren en kopieer hem.</small></label>'
+      . '<input id="c" type="text" readonly value="' . $h($code) . '" aria-label="Vriendcode"></li>'
+    : '<li>Open <strong>Vrienden</strong> in de Pack Opener en vul de vriendcode in die je hebt gekregen. <small>(Deze link bevat geen geldige code.)</small></li>';
+  $html = '<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+    . '<meta name="referrer" content="no-referrer"><meta name="robots" content="noindex"><title>Uitnodiging Pack Opener</title><style>' . $css . '</style></head><body><main>'
+    . '<h1>Je bent uitgenodigd voor de Somtoday Pack Opener</h1><p>Doe mee met vrienden in drie stappen.</p><ol>'
+    . '<li>Download de extensie:<br><a class="knop" href="https://github.com/SuperDaan0608/Somtoday-Pack-Opener/releases/latest" rel="noopener noreferrer">Download de nieuwste versie</a></li>'
+    . '<li>Installeer hem. De extensie staat niet in de winkel, dus dit doe je zelf: pak de zip uit, ga in Chrome naar <strong>chrome://extensions</strong>, zet rechtsboven <strong>Ontwikkelaarsmodus</strong> aan, klik op <strong>Uitgepakte extensie laden</strong> en kies de uitgepakte map. (Firefox: ga naar <strong>about:debugging</strong>, kies <strong>Deze Firefox</strong> en dan <strong>Tijdelijke add-on laden</strong>.)</li>'
+    . $stap3 . '</ol></main></body></html>';
+  header_remove('Access-Control-Allow-Origin');
+  header('Content-Type: text/html; charset=utf-8');
+  header('Cache-Control: no-store');
+  header("Content-Security-Policy: default-src 'none'; style-src 'sha256-" . base64_encode(hash('sha256', $css, true)) . "'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
+  header('X-Content-Type-Options: nosniff');
+  header('X-Frame-Options: DENY');
+  header('Referrer-Policy: no-referrer');
+  http_response_code(200);
+  echo $html;
+  exit;
+}
 
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Headers: Content-Type, X-Id, X-Token, X-Beheer, X-Sessie, X-Versie');
@@ -23,10 +61,18 @@ function uit(int $code, array $data): void {
 }
 function fout(int $code, string $tekst): void { uit($code, ['fout' => $tekst]); }
 
+// Ontbreekt er een tabel (bijv. migratie-v3.sql nog niet uitgevoerd)? Herken dat aan de foutmelding van SQLite of MySQL.
+function tabelOntbreekt(Throwable $e): bool {
+  return $e instanceof PDOException && preg_match('/no such table|doesn.t exist|Base table or view not found|42S02/i', $e->getMessage()) === 1;
+}
 // Onverwachte fouten: nooit details naar buiten lekken.
-set_exception_handler(function (Throwable $e) { fout(500, 'Serverfout.'); });
+set_exception_handler(function (Throwable $e) {
+  if (tabelOntbreekt($e)) fout(503, 'De server is nog niet bijgewerkt (migratie-v3.sql ontbreekt). Probeer het later opnieuw.');
+  fout(500, 'Serverfout.');
+});
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') { http_response_code(204); exit; }
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET' && isset($_GET['uitnodiging'])) uitnodigingPagina(is_string($_GET['uitnodiging']) ? $_GET['uitnodiging'] : '');
 // Controle voor jezelf: open api.php?status=1 in de browser. Laat zien of config.php en de tabellen kloppen (geen geheimen).
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET' && isset($_GET['status'])) {
   $pad = getenv('SPO_CONFIG') ?: __DIR__ . '/config.php';
@@ -35,9 +81,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET' && isset($_GET['status'])) {
   try {
     $d = new PDO($c['db_dsn'], $c['db_user'] ?? null, $c['db_pass'] ?? null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
   } catch (Throwable $e) { fout(500, 'Database niet bereikbaar: controleer host, naam, gebruiker en wachtwoord in config.php.'); }
-  foreach (['users', 'friendships', 'blobs', 'ratelimit', 'berichten', 'bans', 'accounts', 'acc_codes', 'acc_sessies', 'acc_backup', 'user_versie'] as $t) {
+  foreach (TABELLEN as $t) {
     try { $d->query('SELECT 1 FROM ' . $t . ' LIMIT 1'); }
-    catch (Throwable $e) { fout(500, 'Tabel ontbreekt: ' . $t . '. Voer schema.sql uit in phpMyAdmin.'); }
+    catch (Throwable $e) { fout(500, 'Tabel ontbreekt: ' . $t . '. Voer schema.sql (of migratie-v3.sql) uit in phpMyAdmin.'); }
   }
   uit(200, ['ok' => true, 'tekst' => 'Alles klopt: config en tabellen zijn in orde.']);
 }
@@ -101,20 +147,63 @@ function smtpStuur(array $cfg, string $van, string $aan, string $onderwerp, stri
   fclose($s);
   return $ok;
 }
+// Verstuurt een mail: 0 = gelukt, 1 = mail_van ontbreekt, 2 = mislukt. In tests ('mail_bestand') komt de mail in een bestand in plaats van in de post.
+function verstuurMail(array $cfg, string $aan, string $onderwerp, string $tekst, array $testInfo): int {
+  if (!empty($cfg['mail_bestand'])) {
+    file_put_contents((string)$cfg['mail_bestand'], json_encode(['aan' => $aan] + $testInfo) . "\n", FILE_APPEND);
+    return 0;
+  }
+  $van = (string)($cfg['mail_van'] ?? '');
+  if ($van === '' || !filter_var($van, FILTER_VALIDATE_EMAIL)) return 1;
+  if (!empty($cfg['smtp_wachtwoord'])) return smtpStuur($cfg, $van, $aan, $onderwerp, $tekst) ? 0 : 2;
+  $kop = 'From: Somtoday Pack Opener <' . $van . ">\r\nContent-Type: text/plain; charset=utf-8\r\nX-Mailer: SPO";
+  return mail($aan, '=?UTF-8?B?' . base64_encode($onderwerp) . '?=', $tekst, $kop, '-f' . $van) ? 0 : 2;
+}
 function isId($v): bool { return is_string($v) && preg_match('/^[0-9a-f]{32}$/', $v) === 1; }
+function knip(string $t, int $n): string { $t = trim($t); return function_exists('mb_substr') ? mb_substr($t, 0, $n) : substr($t, 0, $n); }
+// Willekeurig positief geheel getal dat veilig in JSON/JavaScript past (voor melding- en waarschuwing-id's).
+function nieuwId(): int { return random_int(1, 9007199254740991); }
+
+// IP-adres voor de hash: IPv6 telt per /64 (één thuisnetwerk heeft er miljarden), IPv4-in-IPv6 wordt gewoon IPv4.
+// -- begin ip-functie (de test leest dit stuk los) --
+function maskIp(string $ip): string {
+  $ip = explode('%', $ip, 2)[0];
+  if (strpos($ip, ':') === false) return $ip;
+  $b = @inet_pton($ip);
+  if ($b === false || strlen($b) !== 16) return $ip;
+  if (substr($b, 0, 12) === "\0\0\0\0\0\0\0\0\0\0\xff\xff") return (string)inet_ntop(substr($b, 12));
+  return bin2hex(substr($b, 0, 8)) . '/64';
+}
+// -- eind ip-functie --
+// Mailadres gelijktrekken voor de hash: kleine letters, googlemail.com = gmail.com, bij gmail geen punten, overal niets na een '+'.
+// -- begin email-functie (de test leest dit stuk los) --
+function normEmail(string $e): string {
+  $e = strtolower(trim($e));
+  $p = strrpos($e, '@');
+  if ($p === false) return $e;
+  $l = substr($e, 0, $p); $d = substr($e, $p + 1);
+  if ($d === 'googlemail.com') $d = 'gmail.com';
+  $plus = strpos($l, '+');
+  if ($plus !== false && $plus > 0) $l = substr($l, 0, $plus);
+  if ($d === 'gmail.com') $l = str_replace('.', '', $l);
+  return $l . '@' . $d;
+}
+// -- eind email-functie --
 
 // Rate limit: alleen een hash van ip + zout wordt bewaard, nooit het ruwe adres.
-function tel(PDO $db, string $sleutel, int $venster, int $max): void {
+function tel(PDO $db, string $sleutel, int $venster, int $max, string $tekst = 'Te veel verzoeken. Probeer het zo opnieuw.'): void {
   $n = q($db, 'UPDATE ratelimit SET aantal = aantal + 1 WHERE k = ? AND venster = ?', [$sleutel, $venster])->rowCount();
   if ($n === 0) {
     try { q($db, 'INSERT INTO ratelimit (k, venster, aantal) VALUES (?, ?, 1)', [$sleutel, $venster]); }
     catch (Throwable $e) { q($db, 'UPDATE ratelimit SET aantal = aantal + 1 WHERE k = ? AND venster = ?', [$sleutel, $venster]); }
   }
   $a = (int)q($db, 'SELECT aantal FROM ratelimit WHERE k = ? AND venster = ?', [$sleutel, $venster])->fetchColumn();
-  if ($a > $max) { header('Retry-After: 60'); fout(429, 'Te veel verzoeken. Probeer het zo opnieuw.'); }
+  if ($a > $max) { header('Retry-After: 60'); fout(429, $tekst); }
 }
 $nu = time();
-$ipHash = hash('sha256', ($_SERVER['REMOTE_ADDR'] ?? '') . ($cfg['zout'] ?? ''));
+// Weekteller van de wekelijkse drop (v3): de UTC ISO-week als 'JJJJ-Www' (bijv. 2026-W42), altijd 8 tekens.
+function weekVan(int $ts): string { return gmdate('o-\WW', $ts); }
+$ipHash = hash('sha256', maskIp((string)($_SERVER['REMOTE_ADDR'] ?? '')) . ($cfg['zout'] ?? ''));
 // Per ip-adres ruim (een school deelt vaak één adres); de strengere grenzen per gebruiker staan hieronder na het inloggen.
 tel($db, hash('sha256', $ipHash . ':req'), intdiv($nu, 60), (int)($cfg['limiet_per_min'] ?? 6000));
 
@@ -126,16 +215,28 @@ function verwijderGebruiker(PDO $db, string $id): void {
   q($db, 'DELETE FROM bans WHERE id = ?', [$id]);
   q($db, 'DELETE FROM user_versie WHERE id = ?', [$id]);
   q($db, 'DELETE FROM users WHERE id = ?', [$id]);
+  // v3-tabellen: een server zonder migratie-v3.sql blijft gewoon werken. Meldingen blijven bewaard (de beheerder heeft ze nodig).
+  foreach (['DELETE FROM blokkades WHERE van = ? OR tegen = ?', 'DELETE FROM waarschuwingen WHERE account = ?', 'DELETE FROM acc_ip WHERE account = ?', 'DELETE FROM acc_koppel WHERE user_id = ?', 'UPDATE feedback SET van = NULL WHERE van = ?', 'DELETE FROM jaar_wachtrij WHERE account = ?'] as $sql) {
+    try { q($db, $sql, substr_count($sql, '?') === 2 ? [$id, $id] : [$id]); } catch (Throwable $e) { if (!tabelOntbreekt($e)) throw $e; }
+  }
 }
 if (random_int(1, 100) === 1) {
   // Minuut-vensters (nu rond 29 miljoen) en uur-vensters (rond 490 duizend) staan in dezelfde tabel; elk krijgt zijn eigen drempel.
   q($db, 'DELETE FROM ratelimit WHERE venster >= 10000000 AND venster < ?', [intdiv($nu, 60) - 120]);
   q($db, 'DELETE FROM berichten WHERE created < ?', [$nu - BERICHT_TTL]);
-  q($db, 'DELETE FROM ratelimit WHERE venster < 10000000 AND venster < ?', [intdiv($nu, 3600) - 3]);
+  q($db, 'DELETE FROM ratelimit WHERE venster >= 100000 AND venster < 10000000 AND venster < ?', [intdiv($nu, 3600) - 3]);
+  q($db, 'DELETE FROM ratelimit WHERE venster < 100000 AND venster < ?', [intdiv($nu, 86400) - 3]); // dag-vensters (nieuwe accounts)
   q($db, 'DELETE FROM bans WHERE tot > 0 AND tot <= ?', [$nu]);
   q($db, 'DELETE FROM acc_codes WHERE verloopt < ?', [$nu]);
   q($db, 'DELETE FROM acc_sessies WHERE verloopt < ?', [$nu]);
   q($db, 'DELETE FROM accounts WHERE geverifieerd = 0 AND gemaakt < ?', [$nu - 7 * 86400]);
+  // v3: ip-geheugen hoogstens 30 dagen; verlopen bans en gelezen waarschuwingen weg.
+  foreach ([['DELETE FROM acc_ip WHERE laatst < ?', $nu - IP_MAX_DAGEN * 86400], ['DELETE FROM ban_ip WHERE tot <= ?', $nu], ['DELETE FROM ban_email WHERE tot > 0 AND tot <= ?', $nu],
+    ['DELETE FROM waarschuwingen WHERE gezien = 1 AND ts < ?', $nu - 90 * 86400],
+    ['DELETE FROM jaar_teller WHERE dag < ?', intdiv($nu, 86400) - 2], ['DELETE FROM jaar_wachtrij WHERE verloopt < ?', $nu],
+    ['DELETE FROM week_teller WHERE week < ?', weekVan($nu - 56 * 86400)]] as $o) { // weekteller: hoogstens 8 weken bewaard
+    try { q($db, $o[0], [$o[1]]); } catch (Throwable $e) { if (!tabelOntbreekt($e)) throw $e; }
+  }
   $oud = q($db, 'SELECT id FROM users WHERE last_seen < ?', [$nu - 365 * 86400])->fetchAll(PDO::FETCH_COLUMN);
   foreach ($oud as $o) verwijderGebruiker($db, $o);
 }
@@ -143,9 +244,97 @@ if (random_int(1, 100) === 1) {
 $actie = $in['a'] ?? '';
 if (!is_string($actie)) fout(400, 'Ongeldige actie.');
 
+// ---- Hulpfuncties voor v3 (blokkeren, melden, ip-geheugen, bans, mail aan de beheerder) ----
+// Voert een opruim-opdracht uit en slaat hem over als de tabel (nog) niet bestaat.
+function zonderTabel(PDO $db, string $sql, array $p): void {
+  try { q($db, $sql, $p); } catch (Throwable $e) { if (!tabelOntbreekt($e)) throw $e; }
+}
+// Blokkeert 'x' de gebruiker 'y'? (alleen in die richting)
+function blokkeertVan(PDO $db, string $x, string $y): bool {
+  try { return q($db, 'SELECT 1 FROM blokkades WHERE van = ? AND tegen = ?', [$x, $y])->fetchColumn() !== false; }
+  catch (Throwable $e) { if (tabelOntbreekt($e)) return false; throw $e; }
+}
+function isGeblokkeerd(PDO $db, string $x, string $y): bool { return blokkeertVan($db, $x, $y) || blokkeertVan($db, $y, $x); }
+// Weigert registreren/inloggen/codes aanvragen vanaf een geblokkeerd netwerk. Een ip-ban is nooit voorgoed: tot = 0 telt hier niet mee.
+function ipGeband(PDO $db, string $ipHash, int $nu): void {
+  try { $r = q($db, 'SELECT tot FROM ban_ip WHERE ip_hash = ?', [$ipHash])->fetch(); }
+  catch (Throwable $e) { if (tabelOntbreekt($e)) return; throw $e; }
+  if ($r && (int)$r['tot'] > $nu) fout(403, 'Registreren en inloggen kan vanaf dit netwerk nu even niet. Probeer het later opnieuw.');
+}
+// Is dit e-mailadres (een van de hashes) geblokkeerd?
+function emailGeband(PDO $db, array $hashes, int $nu): bool {
+  foreach ($hashes as $h) {
+    try { $r = q($db, 'SELECT tot FROM ban_email WHERE email_hash = ?', [$h])->fetch(); }
+    catch (Throwable $e) { if (tabelOntbreekt($e)) return false; throw $e; }
+    if ($r && ((int)$r['tot'] === 0 || (int)$r['tot'] > $nu)) return true;
+  }
+  return false;
+}
+// Onthoudt de ip-hash van een gebruiker (hoogstens 1x per dag per ip; rijen ouder dan 30 dagen worden opgeruimd).
+function ipOnthoud(PDO $db, string $id, string $ipHash, int $nu, bool $nu_zeker = false): void {
+  try {
+    $l = q($db, 'SELECT laatst FROM acc_ip WHERE account = ? AND ip_hash = ?', [$id, $ipHash])->fetchColumn();
+    if ($l === false) {
+      try { q($db, 'INSERT INTO acc_ip (account, ip_hash, laatst) VALUES (?, ?, ?)', [$id, $ipHash, $nu]); }
+      catch (Throwable $e) { q($db, 'UPDATE acc_ip SET laatst = ? WHERE account = ? AND ip_hash = ?', [$nu, $id, $ipHash]); }
+    } elseif ($nu_zeker || $nu - (int)$l >= 86400) q($db, 'UPDATE acc_ip SET laatst = ? WHERE account = ? AND ip_hash = ?', [$nu, $id, $ipHash]);
+  } catch (Throwable $e) { if (!tabelOntbreekt($e)) throw $e; }
+}
+// Controleert X-Id + X-Token. Geeft de rij van de gebruiker of null. Vergelijkt ook bij een onbekende id, zodat de tijd niets verraadt.
+function gebruikerUitHeaders(PDO $db): ?array {
+  $ik = $_SERVER['HTTP_X_ID'] ?? '';
+  $tok = $_SERVER['HTTP_X_TOKEN'] ?? '';
+  if (!isId($ik) || !is_string($tok) || $tok === '') return null;
+  $rij = q($db, 'SELECT id, token_hash, last_seen, created FROM users WHERE id = ?', [$ik])->fetch();
+  if (!hash_equals($rij['token_hash'] ?? str_repeat('0', 64), hash('sha256', $tok)) || !$rij) return null;
+  return $rij;
+}
+// Koppelt de ingelogde gebruiker (als die headers meestuurt) aan een e-mailaccount, voor "ook e-mailadres blokkeren". Er wordt geen adres bewaard.
+function koppelAccount(PDO $db, string $account, string $ipHash, int $nu): void {
+  $g = gebruikerUitHeaders($db);
+  if (!$g) return;
+  try {
+    if (q($db, 'SELECT 1 FROM acc_koppel WHERE user_id = ? AND account = ?', [$g['id'], $account])->fetchColumn() === false)
+      q($db, 'INSERT INTO acc_koppel (user_id, account, laatst) VALUES (?, ?, ?)', [$g['id'], $account, $nu]);
+    else q($db, 'UPDATE acc_koppel SET laatst = ? WHERE user_id = ? AND account = ?', [$nu, $g['id'], $account]);
+  } catch (Throwable $e) { if (!tabelOntbreekt($e)) throw $e; }
+  ipOnthoud($db, $g['id'], $ipHash, $nu, true);
+}
+// Mail aan de beheerder (config 'beheer_mail'): nooit inhoud, alleen dat er een melding is en welke reden-categorie. Hoogstens 1 mail per 10 minuten;
+// wat in die tijd binnenkomt, gaat mee in de eerstvolgende mail (bij de volgende melding of het volgende beheerverzoek). Geen cron nodig.
+function beheerMailBundel(PDO $db, array $cfg, int $nu, ?string $cat): void {
+  $aan = $cfg['beheer_mail'] ?? '';
+  if (!is_string($aan) || $aan === '' || !filter_var($aan, FILTER_VALIDATE_EMAIL)) return;
+  try {
+    if (q($db, 'SELECT 1 FROM beheer_mail WHERE id = 1')->fetchColumn() === false) {
+      try { q($db, 'INSERT INTO beheer_mail (id, laatst, wachtend, redenen) VALUES (1, 0, 0, ?)', ['']); } catch (Throwable $e) { /* een ander verzoek was eerder */ }
+    }
+    if ($cat !== null && (in_array($cat, MELD_REDENEN, true) || in_array($cat, ['fb-fout', 'fb-idee', 'fb-anders'], true))) {
+      $lijst = array_values(array_filter(explode(',', (string)q($db, 'SELECT redenen FROM beheer_mail WHERE id = 1')->fetchColumn())));
+      if (!in_array($cat, $lijst, true)) $lijst[] = $cat;
+      q($db, 'UPDATE beheer_mail SET wachtend = wachtend + 1, redenen = ? WHERE id = 1', [implode(',', $lijst)]);
+    }
+    $r = q($db, 'SELECT laatst, wachtend, redenen FROM beheer_mail WHERE id = 1')->fetch();
+    $n = (int)$r['wachtend'];
+    if ($n < 1 || $nu - (int)$r['laatst'] < 600) return;
+    // Claimen: alleen het verzoek dat de tijd als eerste bijwerkt, verstuurt de mail.
+    if (q($db, 'UPDATE beheer_mail SET laatst = ?, wachtend = wachtend - ?, redenen = ? WHERE id = 1 AND laatst = ?', [$nu, $n, '', (int)$r['laatst']])->rowCount() !== 1) return;
+    $alle = explode(',', (string)$r['redenen']);
+    $redenen = array_values(array_filter($alle, fn($x) => in_array($x, MELD_REDENEN, true)));
+    $soorten = array_values(array_map(fn($x) => substr($x, 3), array_filter($alle, fn($x) => in_array($x, ['fb-fout', 'fb-idee', 'fb-anders'], true))));
+    // Alleen aantallen en categorieën, nooit de tekst van een melding of van feedback.
+    if (!$soorten) { $kop = $n === 1 ? 'Er is een nieuwe melding' : $n . ' nieuwe meldingen'; $tekst = $kop . ".\n\nReden: " . ($redenen ? implode(', ', $redenen) : 'onbekend') . "\n\nOpen je beheerpagina.\n"; }
+    elseif (!$redenen) { $kop = $n === 1 ? 'Er is nieuwe feedback' : 'Er is nieuwe feedback (' . $n . 'x)'; $tekst = $kop . ".\n\nSoort: " . implode(', ', $soorten) . "\n\nOpen je beheerpagina.\n"; }
+    else { $kop = $n . ' nieuwe berichten (meldingen en feedback)'; $tekst = $kop . ".\n\nReden: " . implode(', ', $redenen) . "\nFeedback: " . implode(', ', $soorten) . "\n\nOpen je beheerpagina.\n"; }
+    if (verstuurMail($cfg, $aan, 'Pack Opener: ' . $kop, $tekst, ['soort' => 'beheer', 'tekst' => $tekst]) !== 0)
+      q($db, 'UPDATE beheer_mail SET wachtend = wachtend + ?, redenen = ? WHERE id = 1', [$n, (string)$r['redenen']]); // later opnieuw (over 10 minuten)
+  } catch (Throwable $e) { /* mail is bijzaak: een fout hier mag een melding of beheerverzoek nooit laten mislukken */ }
+}
+
 // ---- Beheer (alleen voor de eigenaar) ----
 // Aan als config.php een lange 'beheer_sleutel' heeft; anders bestaan deze acties niet (404).
 // De beheerder ziet alleen id's, tijden en aantallen/groottes: de inhoud is versleuteld en blijft onleesbaar.
+// Uitzondering: bij een melding ziet de beheerder de uitleg en het bewijs die de melder zelf meestuurde (bewijs pas na apart ophalen).
 if (strncmp($actie, 'beheer', 6) === 0) {
   $bs = $cfg['beheer_sleutel'] ?? '';
   if (!is_string($bs) || strlen($bs) < 16) fout(404, 'Onbekende actie.');
@@ -154,6 +343,7 @@ if (strncmp($actie, 'beheer', 6) === 0) {
   $gegeven = $_SERVER['HTTP_X_BEHEER'] ?? ($in['beheer'] ?? '');
   if (!is_string($gegeven) || $gegeven === '' || !hash_equals($bs, $gegeven)) fout(403, 'Geen toegang.');
   unset($in['beheer']);
+  beheerMailBundel($db, $cfg, $nu, null); // opgespaarde meldingen alsnog mailen als de 10 minuten voorbij zijn
   $bid = $in['id'] ?? null;
   switch ($actie) {
     case 'beheerLijst': {
@@ -173,6 +363,12 @@ if (strncmp($actie, 'beheer', 6) === 0) {
     }
     case 'beheerStats': {
       $n = fn(string $sql, array $p = []) => (int)q($db, $sql, $p)->fetchColumn();
+      $ontbreekt = [];
+      foreach (TABELLEN as $t) { try { q($db, 'SELECT 1 FROM ' . $t . ' LIMIT 1'); } catch (Throwable $e) { $ontbreekt[] = $t; } }
+      $nieuweMeldingen = 0;
+      if (!in_array('meldingen', $ontbreekt, true)) $nieuweMeldingen = $n('SELECT COUNT(*) FROM meldingen WHERE status = ?', ['nieuw']);
+      $nieuweFeedback = 0;
+      if (!in_array('feedback', $ontbreekt, true)) $nieuweFeedback = $n('SELECT COUNT(*) FROM feedback WHERE status = ?', ['nieuw']);
       uit(200, ['nu' => $nu,
         'gebruikers' => $n('SELECT COUNT(*) FROM users'),
         'actief24u' => $n('SELECT COUNT(*) FROM users WHERE last_seen >= ?', [$nu - 86400]),
@@ -183,7 +379,84 @@ if (strncmp($actie, 'beheer', 6) === 0) {
         'blobs' => $n('SELECT COUNT(*) FROM blobs'),
         'blobBytes' => $n('SELECT COALESCE(SUM(LENGTH(data)), 0) FROM blobs'),
         'berichten' => $n('SELECT COUNT(*) FROM berichten'),
-        'verbannen' => $n('SELECT COUNT(*) FROM bans WHERE tot = 0 OR tot > ?', [$nu])]);
+        'verbannen' => $n('SELECT COUNT(*) FROM bans WHERE tot = 0 OR tot > ?', [$nu]),
+        'nieuweMeldingen' => $nieuweMeldingen,
+        'nieuweFeedback' => $nieuweFeedback,
+        'ontbrekendeTabellen' => $ontbreekt]);
+    }
+    case 'beheerMeldingen': {
+      $rijen = q($db, 'SELECT id, ts, van, tegen, reden, uitleg, bewijs, status, uitkomst FROM meldingen ORDER BY ts DESC, id DESC LIMIT 300')->fetchAll();
+      $tegenAantal = []; $waarsch = []; $bn = []; $bnE = []; $bnI = [];
+      foreach (q($db, 'SELECT tegen, COUNT(*) AS n FROM meldingen GROUP BY tegen')->fetchAll() as $x) $tegenAantal[$x['tegen']] = (int)$x['n'];
+      foreach (q($db, 'SELECT account, COUNT(*) AS n FROM waarschuwingen GROUP BY account')->fetchAll() as $x) $waarsch[$x['account']] = (int)$x['n'];
+      foreach (q($db, 'SELECT id, tot, reden FROM bans WHERE tot = 0 OR tot > ?', [$nu])->fetchAll() as $x) $bn[$x['id']] = ['tot' => (int)$x['tot'], 'reden' => $x['reden']];
+      foreach (q($db, 'SELECT bron FROM ban_email WHERE tot = 0 OR tot > ?', [$nu])->fetchAll() as $x) $bnE[$x['bron']] = true;
+      foreach (q($db, 'SELECT bron FROM ban_ip WHERE tot > ?', [$nu])->fetchAll() as $x) $bnI[$x['bron']] = true;
+      $ipCache = [];
+      $ipVan = function (string $id) use ($db, $nu, &$ipCache): array {
+        if (isset($ipCache[$id])) return $ipCache[$id];
+        $h = q($db, 'SELECT ip_hash FROM acc_ip WHERE account = ? AND laatst >= ? ORDER BY laatst DESC LIMIT 1', [$id, $nu - IP_MAX_DAGEN * 86400])->fetchColumn();
+        $n = $h === false ? 0 : (int)q($db, 'SELECT COUNT(DISTINCT account) FROM acc_ip WHERE ip_hash = ? AND laatst >= ?', [$h, $nu - IP_MAX_DAGEN * 86400])->fetchColumn();
+        return $ipCache[$id] = [$h !== false, $n];
+      };
+      $lijst = [];
+      foreach ($rijen as $x) {
+        $t = $x['tegen']; $ip = $ipVan($t);
+        $b = $bn[$t] ?? null;
+        if ($b) { $b['ookEmail'] = isset($bnE[$t]); $b['ookIp'] = isset($bnI[$t]); }
+        $lijst[] = ['id' => (int)$x['id'], 'ts' => (int)$x['ts'], 'van' => $x['van'], 'tegen' => $t, 'reden' => $x['reden'], 'uitleg' => $x['uitleg'],
+          'heeftBewijs' => (string)$x['bewijs'] !== '', 'aantalTegen' => $tegenAantal[$t] ?? 0, 'waarschuwingen' => $waarsch[$t] ?? 0,
+          'ipBekend' => $ip[0], 'ipAccounts' => $ip[1], 'banStatus' => $b, 'status' => $x['status'], 'uitkomst' => (string)$x['uitkomst']];
+      }
+      uit(200, ['nu' => $nu, 'meldingen' => $lijst]);
+    }
+    case 'beheerFeedback': {
+      $alleenNieuw = ($in['alleenNieuw'] ?? false) === true;
+      $rijen = q($db, 'SELECT id, ts, van, ip_hash, soort, tekst, info, status FROM feedback' . ($alleenNieuw ? ' WHERE status = ?' : '') . ' ORDER BY (CASE WHEN status = ? THEN 0 ELSE 1 END), ts DESC, id DESC LIMIT 300',
+        $alleenNieuw ? ['nieuw', 'nieuw'] : ['nieuw'])->fetchAll();
+      $perVan = []; $perIp = [];
+      foreach (q($db, 'SELECT van, COUNT(*) AS n FROM feedback WHERE van IS NOT NULL GROUP BY van')->fetchAll() as $x) $perVan[$x['van']] = (int)$x['n'];
+      foreach (q($db, 'SELECT ip_hash, COUNT(*) AS n FROM feedback WHERE van IS NULL GROUP BY ip_hash')->fetchAll() as $x) $perIp[$x['ip_hash']] = (int)$x['n'];
+      $lijst = [];
+      foreach ($rijen as $x) {
+        $lijst[] = ['id' => (int)$x['id'], 'ts' => (int)$x['ts'], 'van' => $x['van'], 'soort' => $x['soort'], 'tekst' => (string)$x['tekst'], 'info' => (string)$x['info'],
+          'status' => $x['status'], 'aantalVanZelfde' => $x['van'] !== null ? ($perVan[$x['van']] ?? 1) : ($perIp[$x['ip_hash']] ?? 1)];
+      }
+      uit(200, ['nu' => $nu, 'feedback' => $lijst]);
+    }
+    case 'beheerFeedbackKlaar': {
+      if (!is_int($bid) || $bid < 1) fout(400, 'Ongeldige id.');
+      $n = q($db, 'UPDATE feedback SET status = ? WHERE id = ?', ['klaar', $bid])->rowCount();
+      if ($n === 0 && q($db, 'SELECT 1 FROM feedback WHERE id = ?', [$bid])->fetchColumn() === false) fout(404, 'Deze feedback bestaat niet (meer).');
+      uit(200, ['ok' => true]);
+    }
+    case 'beheerFeedbackWis': {
+      if (!is_int($bid) || $bid < 1) fout(400, 'Ongeldige id.');
+      if (q($db, 'DELETE FROM feedback WHERE id = ?', [$bid])->rowCount() === 0) fout(404, 'Deze feedback bestaat niet (meer).');
+      uit(200, ['ok' => true]);
+    }
+    case 'beheerBewijs': {
+      if (!is_int($bid) || $bid < 1) fout(400, 'Ongeldige id.');
+      $b = q($db, 'SELECT bewijs FROM meldingen WHERE id = ?', [$bid])->fetchColumn();
+      if ($b === false) fout(404, 'Deze melding bestaat niet (meer).');
+      uit(200, ['bewijs' => (string)$b]);
+    }
+    case 'beheerMeldingKlaar': {
+      if (!is_int($bid) || $bid < 1) fout(400, 'Ongeldige id.');
+      $uitkomst = $in['uitkomst'] ?? '';
+      if (!is_string($uitkomst)) fout(400, 'Ongeldige uitkomst.');
+      $n = q($db, 'UPDATE meldingen SET status = ?, uitkomst = ? WHERE id = ?', ['klaar', knip($uitkomst, 200), $bid])->rowCount();
+      if ($n === 0 && q($db, 'SELECT 1 FROM meldingen WHERE id = ?', [$bid])->fetchColumn() === false) fout(404, 'Deze melding bestaat niet (meer).');
+      uit(200, ['ok' => true]);
+    }
+    case 'beheerOnban': { // werkt ook als het account er niet meer is: zo blijft een e-mailban altijd op te heffen
+      if (!isId($bid)) fout(400, 'Ongeldige id.');
+      $db->beginTransaction();
+      q($db, 'DELETE FROM bans WHERE id = ?', [$bid]);
+      zonderTabel($db, 'DELETE FROM ban_email WHERE bron = ?', [$bid]);
+      zonderTabel($db, 'DELETE FROM ban_ip WHERE bron = ?', [$bid]);
+      $db->commit();
+      uit(200, ['ok' => true]);
     }
   }
   // Acties met een doelgebruiker.
@@ -193,18 +466,48 @@ if (strncmp($actie, 'beheer', 6) === 0) {
     case 'beheerBan': {
       $tot = $in['tot'] ?? 0;
       $reden = $in['reden'] ?? '';
+      $ookEmail = $in['ook_email'] ?? false;
+      $ookIp = $in['ook_ip'] ?? false;
       if (!is_int($tot) || $tot < 0 || ($tot > 0 && $tot <= $nu) || $tot > 4102444800) fout(400, 'Ongeldige einddatum.');
       if (!is_string($reden)) fout(400, 'Ongeldige reden.');
-      $reden = function_exists('mb_substr') ? mb_substr(trim($reden), 0, 200) : substr(trim($reden), 0, 200);
+      if (!is_bool($ookEmail) || !is_bool($ookIp)) fout(400, 'Ongeldige keuze voor e-mailadres of ip.');
+      $reden = knip($reden, 200);
       $db->beginTransaction();
       q($db, 'DELETE FROM bans WHERE id = ?', [$bid]);
       q($db, 'INSERT INTO bans (id, tot, reden, gemaakt) VALUES (?, ?, ?, ?)', [$bid, $tot, $reden, $nu]);
+      $emails = 0; $ipTot = 0;
+      try {
+        // Een nieuwe ban vervangt de uitgebreide bans van eerder.
+        zonderTabel($db, 'DELETE FROM ban_email WHERE bron = ?', [$bid]);
+        zonderTabel($db, 'DELETE FROM ban_ip WHERE bron = ?', [$bid]);
+        if ($ookEmail) {
+          $acc = q($db, 'SELECT a.id AS id, a.email_hash AS h FROM acc_koppel k JOIN accounts a ON a.id = k.account WHERE k.user_id = ? ORDER BY k.laatst DESC LIMIT 5', [$bid])->fetchAll();
+          foreach ($acc as $a) {
+            q($db, 'DELETE FROM ban_email WHERE email_hash = ?', [$a['h']]);
+            q($db, 'INSERT INTO ban_email (email_hash, bron, tot, gemaakt) VALUES (?, ?, ?, ?)', [$a['h'], $bid, $tot, $nu]);
+            q($db, 'DELETE FROM acc_sessies WHERE account = ?', [$a['id']]);
+            $emails++;
+          }
+        }
+        if ($ookIp) {
+          $h = q($db, 'SELECT ip_hash FROM acc_ip WHERE account = ? AND laatst >= ? ORDER BY laatst DESC LIMIT 1', [$bid, $nu - IP_MAX_DAGEN * 86400])->fetchColumn();
+          if ($h !== false) {
+            // Altijd hoogstens 7 dagen en nooit voorgoed, wat de beheerpagina (of iemand anders) ook vraagt.
+            $ipTot = ($tot === 0 || $tot > $nu + IP_BAN_MAX) ? $nu + IP_BAN_MAX : $tot;
+            q($db, 'DELETE FROM ban_ip WHERE ip_hash = ?', [$h]);
+            q($db, 'INSERT INTO ban_ip (ip_hash, bron, tot, gemaakt) VALUES (?, ?, ?, ?)', [$h, $bid, $ipTot, $nu]);
+          }
+        }
+      } catch (Throwable $e) { $db->rollBack(); throw $e; }
       $db->commit();
-      uit(200, ['ok' => true, 'tot' => $tot, 'reden' => $reden]);
+      uit(200, ['ok' => true, 'tot' => $tot, 'reden' => $reden, 'emailGeblokkeerd' => $emails, 'ipGeblokkeerd' => $ipTot > 0, 'ipTot' => $ipTot]);
     }
-    case 'beheerOnban':
-      q($db, 'DELETE FROM bans WHERE id = ?', [$bid]);
+    case 'beheerWaarschuw': {
+      $reden = $in['reden'] ?? '';
+      if (!is_string($reden) || trim($reden) === '') fout(400, 'Geef een reden voor de waarschuwing.');
+      q($db, 'INSERT INTO waarschuwingen (id, account, reden, ts, gezien) VALUES (?, ?, ?, ?, 0)', [nieuwId(), $bid, knip($reden, 200), $nu]);
       uit(200, ['ok' => true]);
+    }
     case 'beheerWisKaarten': {
       $db->beginTransaction();
       q($db, 'DELETE FROM blobs WHERE owner = ? OR recipient = ?', [$bid, $bid]);
@@ -229,7 +532,9 @@ if (strncmp($actie, 'beheer', 6) === 0) {
 // Grote verzoeken mogen alleen voor de back-up; de rest blijft onder de oude grens.
 if ($actie !== 'accBackupBewaar' && $lengte > 131072) fout(413, 'Verzoek te groot.');
 if (strncmp($actie, 'acc', 3) === 0) {
-  $emailHash = function ($e) use ($cfg): string { return hash('sha256', 'email:' . strtolower(trim((string)$e)) . ($cfg['zout'] ?? '')); };
+  // Nieuwe hash: e-mailadres eerst gelijkgetrokken (Gmail-varianten zijn één mailbox). Oude hash: zoals vóór v3, voor bestaande accounts.
+  $emailHash = function ($e) use ($cfg): string { return hash('sha256', 'email:' . normEmail((string)$e) . ($cfg['zout'] ?? '')); };
+  $emailHashOud = function ($e) use ($cfg): string { return hash('sha256', 'email:' . strtolower(trim((string)$e)) . ($cfg['zout'] ?? '')); };
   $leesEmail = function () use ($in): string {
     $e = $in['email'] ?? '';
     if (!is_string($e) || strlen($e) > 200) fout(400, 'Vul een geldig e-mailadres in.');
@@ -243,48 +548,70 @@ if (strncmp($actie, 'acc', 3) === 0) {
     if (strlen($w) > 200) fout(400, 'Je wachtwoord is te lang.');
     return $w;
   };
-  // Stuurt een code van 6 cijfers. In tests ('mail_bestand') komt de mail in een bestand in plaats van in de post.
-  $stuurCode = function (string $email, string $soort) use ($db, $cfg, $nu, $emailHash): void {
+  // Alle accounts die bij dit adres horen: eerst op de nieuwe hash, dan op de oude. Meestal 0 of 1; 2 als twee oude accounts nu dezelfde mailbox blijken.
+  $kandidaten = function (string $email) use ($db, $emailHash, $emailHashOud): array {
+    $uit = [];
+    foreach (array_unique([$emailHash($email), $emailHashOud($email)]) as $h) {
+      $r = q($db, 'SELECT id, email_hash, ww_hash, geverifieerd FROM accounts WHERE email_hash = ?', [$h])->fetch();
+      if ($r) $uit[$r['id']] = $r;
+    }
+    return array_values($uit);
+  };
+  // Zet een account met een oude hash over op de nieuwe, behalve als die al bij een ander account hoort (dan blijft het op de oude: niemand raakt buitengesloten).
+  $migreer = function (array $acc, string $email) use ($db, $emailHash): void {
+    $nieuw = $emailHash($email);
+    if ($acc['email_hash'] === $nieuw) return;
+    try {
+      if (q($db, 'SELECT 1 FROM accounts WHERE email_hash = ?', [$nieuw])->fetchColumn() !== false) return;
+      q($db, 'UPDATE accounts SET email_hash = ? WHERE id = ? AND email_hash = ?', [$nieuw, $acc['id'], $acc['email_hash']]);
+    } catch (Throwable $e) { /* UNIQUE-conflict: laten staan */ }
+  };
+  // Geblokkeerd netwerk of e-mailadres? (Alleen voor registreren, inloggen en codes; een al ingelogd ander account merkt hier niets van.)
+  $poort = function (string $email, bool $stil = false) use ($db, $nu, $ipHash, $emailHash, $emailHashOud): bool {
+    ipGeband($db, $ipHash, $nu);
+    if (emailGeband($db, array_unique([$emailHash($email), $emailHashOud($email)]), $nu)) {
+      if ($stil) return true;
+      fout(403, 'Met dit e-mailadres kun je de Pack Opener niet gebruiken.');
+    }
+    return false;
+  };
+  // Stuurt een code van 6 cijfers. $sleutel is de hash waaronder het account staat (zo hoort de code bij precies dat account).
+  $stuurCode = function (string $email, string $soort, string $sleutel) use ($db, $cfg, $nu): void {
     $code = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-    $eh = $emailHash($email);
-    q($db, 'DELETE FROM acc_codes WHERE email_hash = ? AND soort = ?', [$eh, $soort]);
+    q($db, 'DELETE FROM acc_codes WHERE email_hash = ? AND soort = ?', [$sleutel, $soort]);
     q($db, 'INSERT INTO acc_codes (email_hash, soort, code_hash, verloopt, pogingen) VALUES (?, ?, ?, ?, 0)',
-      [$eh, $soort, hash('sha256', $code . ':' . $eh), $nu + 15 * 60]);
+      [$sleutel, $soort, hash('sha256', $code . ':' . $sleutel), $nu + 15 * 60]);
     $onderwerp = $soort === 'reset' ? 'Je code om je wachtwoord te wijzigen' : 'Je code voor Somtoday Pack Opener';
     $tekst = "Hoi!\n\nJe code is: $code\n\nVul deze code in de Pack Opener in. De code werkt 15 minuten.\n"
       . ($soort === 'reset' ? "Heb jij niet gevraagd om je wachtwoord te wijzigen? Dan kun je deze mail negeren.\n" : "Heb jij geen account gemaakt? Dan kun je deze mail negeren.\n")
       . "\nSomtoday Pack Opener";
-    $van = (string)($cfg['mail_van'] ?? '');
-    if (!empty($cfg['mail_bestand'])) {
-      file_put_contents((string)$cfg['mail_bestand'], json_encode(['aan' => $email, 'soort' => $soort, 'code' => $code]) . "\n", FILE_APPEND);
-      return;
-    }
-    if ($van === '' || !filter_var($van, FILTER_VALIDATE_EMAIL)) fout(500, 'De server kan nog geen mail sturen (mail_van ontbreekt in config.php).');
-    if (!empty($cfg['smtp_wachtwoord'])) {
-      if (!smtpStuur($cfg, $van, $email, $onderwerp, $tekst)) fout(500, 'De mail kon niet worden verstuurd. Probeer het later opnieuw.');
-      return;
-    }
-    $kop = 'From: Somtoday Pack Opener <' . $van . ">\r\nContent-Type: text/plain; charset=utf-8\r\nX-Mailer: SPO";
-    if (!mail($email, '=?UTF-8?B?' . base64_encode($onderwerp) . '?=', $tekst, $kop, '-f' . $van)) fout(500, 'De mail kon niet worden verstuurd. Probeer het later opnieuw.');
+    $res = verstuurMail($cfg, $email, $onderwerp, $tekst, ['soort' => $soort, 'code' => $code]);
+    if ($res === 1) fout(500, 'De server kan nog geen mail sturen (mail_van ontbreekt in config.php).');
+    if ($res === 2) fout(500, 'De mail kon niet worden verstuurd. Probeer het later opnieuw.');
   };
   // Controleert een code; na 5 foute pogingen moet je een nieuwe vragen.
-  $controleerCode = function (string $email, string $soort) use ($db, $in, $nu, $emailHash): void {
+  $controleerCode = function (string $soort, string $sleutel) use ($db, $in, $nu): void {
     $code = $in['code'] ?? '';
     if (!is_string($code) || !preg_match('/^[0-9]{6}$/', trim($code))) fout(400, 'Vul de code van 6 cijfers in.');
-    $eh = $emailHash($email);
-    $r = q($db, 'SELECT code_hash, verloopt, pogingen FROM acc_codes WHERE email_hash = ? AND soort = ?', [$eh, $soort])->fetch();
+    $r = q($db, 'SELECT code_hash, verloopt, pogingen FROM acc_codes WHERE email_hash = ? AND soort = ?', [$sleutel, $soort])->fetch();
     if (!$r || (int)$r['verloopt'] < $nu) fout(400, 'Deze code is verlopen. Vraag een nieuwe code aan.');
     if ((int)$r['pogingen'] >= 5) fout(429, 'Te vaak een verkeerde code. Vraag een nieuwe code aan.');
-    if (!hash_equals((string)$r['code_hash'], hash('sha256', trim($code) . ':' . $eh))) {
-      q($db, 'UPDATE acc_codes SET pogingen = pogingen + 1 WHERE email_hash = ? AND soort = ?', [$eh, $soort]);
+    if (!hash_equals((string)$r['code_hash'], hash('sha256', trim($code) . ':' . $sleutel))) {
+      q($db, 'UPDATE acc_codes SET pogingen = pogingen + 1 WHERE email_hash = ? AND soort = ?', [$sleutel, $soort]);
       fout(400, 'Deze code klopt niet.');
     }
-    q($db, 'DELETE FROM acc_codes WHERE email_hash = ? AND soort = ?', [$eh, $soort]);
+    q($db, 'DELETE FROM acc_codes WHERE email_hash = ? AND soort = ?', [$sleutel, $soort]);
   };
-  $nieuweSessie = function (string $acc) use ($db, $nu): string {
+  // Welk account hoort bij de code die is gestuurd? Het eerste kandidaat-account met een openstaande code (anders het eerste).
+  $kiesMetCode = function (array $kand, string $soort) use ($db): array {
+    foreach ($kand as $c) if (q($db, 'SELECT 1 FROM acc_codes WHERE email_hash = ? AND soort = ?', [$c['email_hash'], $soort])->fetchColumn() !== false) return $c;
+    return $kand[0];
+  };
+  $nieuweSessie = function (string $acc) use ($db, $nu, $ipHash): string {
     $t = bin2hex(random_bytes(32));
     q($db, 'INSERT INTO acc_sessies (token_hash, account, verloopt) VALUES (?, ?, ?)', [hash('sha256', $t), $acc, $nu + 365 * 86400]);
     q($db, 'UPDATE accounts SET laatst = ? WHERE id = ?', [$nu, $acc]);
+    koppelAccount($db, $acc, $ipHash, $nu);
     return $t;
   };
   // Mails en inlogpogingen zijn beperkt per ip-adres en per e-mailadres.
@@ -301,44 +628,55 @@ if (strncmp($actie, 'acc', 3) === 0) {
     case 'accRegistreer': {
       $email = $leesEmail();
       $ww = $leesWw();
+      $poort($email);
       $limietMail($email);
-      $eh = $emailHash($email);
-      $r = q($db, 'SELECT id, geverifieerd FROM accounts WHERE email_hash = ?', [$eh])->fetch();
-      if ($r && (int)$r['geverifieerd'] === 1) fout(409, 'Er bestaat al een account met dit e-mailadres. Log in.');
+      $kand = $kandidaten($email);
+      foreach ($kand as $c) if ((int)$c['geverifieerd'] === 1) fout(409, 'Er bestaat al een account met dit e-mailadres. Log in.');
       $hash = password_hash($ww, PASSWORD_DEFAULT);
-      if ($r) q($db, 'UPDATE accounts SET ww_hash = ? WHERE id = ?', [$hash, $r['id']]);
-      else q($db, 'INSERT INTO accounts (id, email_hash, ww_hash, geverifieerd, gemaakt, laatst) VALUES (?, ?, ?, 0, ?, ?)', [bin2hex(random_bytes(16)), $eh, $hash, $nu, $nu]);
-      $stuurCode($email, 'verifieer');
+      if ($kand) { q($db, 'UPDATE accounts SET ww_hash = ? WHERE id = ?', [$hash, $kand[0]['id']]); $sleutel = $kand[0]['email_hash']; }
+      else { $sleutel = $emailHash($email); q($db, 'INSERT INTO accounts (id, email_hash, ww_hash, geverifieerd, gemaakt, laatst) VALUES (?, ?, ?, 0, ?, ?)', [bin2hex(random_bytes(16)), $sleutel, $hash, $nu, $nu]); }
+      $stuurCode($email, 'verifieer', $sleutel);
+      $g = gebruikerUitHeaders($db);
+      if ($g) ipOnthoud($db, $g['id'], $ipHash, $nu, true);
       uit(200, ['ok' => true]);
     }
     case 'accVerifieer': {
       $email = $leesEmail();
+      $poort($email);
       $limietLogin($email);
-      $r = q($db, 'SELECT id FROM accounts WHERE email_hash = ?', [$emailHash($email)])->fetch();
-      if (!$r) fout(404, 'Er is geen account met dit e-mailadres.');
-      $controleerCode($email, 'verifieer');
+      $kand = $kandidaten($email);
+      if (!$kand) fout(404, 'Er is geen account met dit e-mailadres.');
+      $r = $kiesMetCode($kand, 'verifieer');
+      $controleerCode('verifieer', $r['email_hash']);
       q($db, 'UPDATE accounts SET geverifieerd = 1 WHERE id = ?', [$r['id']]);
+      $migreer($r, $email);
       uit(200, ['sessie' => $nieuweSessie($r['id']), 'account' => $r['id'], 'nieuw' => true]);
     }
     case 'accCodeOpnieuw': {
       $email = $leesEmail();
       $limietMail($email);
-      $r = q($db, 'SELECT geverifieerd FROM accounts WHERE email_hash = ?', [$emailHash($email)])->fetch();
-      if ($r && (int)$r['geverifieerd'] === 0) $stuurCode($email, 'verifieer');
+      if (!$poort($email, true)) {
+        foreach ($kandidaten($email) as $c) if ((int)$c['geverifieerd'] === 0) { $stuurCode($email, 'verifieer', $c['email_hash']); break; }
+      }
       uit(200, ['ok' => true]); // altijd ok: zo verraad je niet of een adres een account heeft
     }
     case 'accLogin': {
       $email = $leesEmail();
       $ww = $in['ww'] ?? '';
       if (!is_string($ww) || $ww === '' || strlen($ww) > 200) fout(400, 'Vul je wachtwoord in.');
+      $poort($email);
       $limietLogin($email);
-      $r = q($db, 'SELECT id, ww_hash, geverifieerd FROM accounts WHERE email_hash = ?', [$emailHash($email)])->fetch();
-      // ook zonder account een hash controleren, zodat de tijd niets verraadt
-      $ok = password_verify($ww, $r ? (string)$r['ww_hash'] : '$2y$10$abcdefghijklmnopqrstuuJ0bJHn7ZLqvSMxKjXv5lQ4p1JhPpE1i');
-      if (!$r || !$ok) fout(401, 'E-mailadres of wachtwoord klopt niet.');
+      $kand = $kandidaten($email);
+      // Het wachtwoord moet bij één van de kandidaten passen (meestal is er maar één).
+      // Ook zonder account een hash controleren, zodat de tijd niets verraadt.
+      $r = null;
+      foreach ($kand as $c) if (password_verify($ww, (string)$c['ww_hash'])) { $r = $c; break; }
+      if (!$kand) password_verify($ww, '$2y$10$abcdefghijklmnopqrstuuJ0bJHn7ZLqvSMxKjXv5lQ4p1JhPpE1i');
+      if (!$r) fout(401, 'E-mailadres of wachtwoord klopt niet.');
+      $migreer($r, $email);
       if ((int)$r['geverifieerd'] !== 1) {
         $limietMail($email);
-        $stuurCode($email, 'verifieer');
+        $stuurCode($email, 'verifieer', (string)q($db, 'SELECT email_hash FROM accounts WHERE id = ?', [$r['id']])->fetchColumn()); // na het migreren kan de hash nieuw zijn
         uit(403, ['fout' => 'Je e-mailadres is nog niet bevestigd. We hebben een nieuwe code gestuurd.', 'nietBevestigd' => true]);
       }
       uit(200, ['sessie' => $nieuweSessie($r['id']), 'account' => $r['id']]);
@@ -346,23 +684,27 @@ if (strncmp($actie, 'acc', 3) === 0) {
     case 'accVergeten': {
       $email = $leesEmail();
       $limietMail($email);
-      $r = q($db, 'SELECT geverifieerd FROM accounts WHERE email_hash = ?', [$emailHash($email)])->fetch();
-      if ($r && (int)$r['geverifieerd'] === 1) $stuurCode($email, 'reset');
+      if (!$poort($email, true)) {
+        foreach ($kandidaten($email) as $c) if ((int)$c['geverifieerd'] === 1) { $stuurCode($email, 'reset', $c['email_hash']); break; }
+      }
       uit(200, ['ok' => true]);
     }
     case 'accReset': {
       $email = $leesEmail();
       $ww = $leesWw();
+      $poort($email);
       $limietLogin($email);
-      $r = q($db, 'SELECT id FROM accounts WHERE email_hash = ? AND geverifieerd = 1', [$emailHash($email)])->fetch();
-      if (!$r) fout(404, 'Er is geen account met dit e-mailadres.');
-      $controleerCode($email, 'reset');
+      $kand = array_values(array_filter($kandidaten($email), fn($c) => (int)$c['geverifieerd'] === 1));
+      if (!$kand) fout(404, 'Er is geen account met dit e-mailadres.');
+      $r = $kiesMetCode($kand, 'reset');
+      $controleerCode('reset', $r['email_hash']);
       // Nieuw wachtwoord = nieuwe sleutel: de oude back-up is daarmee niet meer te lezen en gaat weg. De browser zet hem opnieuw neer.
       $db->beginTransaction();
       q($db, 'UPDATE accounts SET ww_hash = ? WHERE id = ?', [password_hash($ww, PASSWORD_DEFAULT), $r['id']]);
       q($db, 'DELETE FROM acc_sessies WHERE account = ?', [$r['id']]);
       q($db, 'DELETE FROM acc_backup WHERE account = ?', [$r['id']]);
       $db->commit();
+      $migreer($r, $email);
       uit(200, ['sessie' => $nieuweSessie($r['id']), 'account' => $r['id']]);
     }
   }
@@ -383,6 +725,7 @@ if (strncmp($actie, 'acc', 3) === 0) {
       if (!is_string($data) || $data === '' || strlen($data) > MAX_BACKUP || !preg_match('/^[A-Za-z0-9_.-]+$/', $data)) fout(400, 'Ongeldige back-up (te groot of verkeerde vorm).');
       $n = q($db, 'UPDATE acc_backup SET data = ?, versie = versie + 1, bijgewerkt = ? WHERE account = ?', [$data, $nu, $acc])->rowCount();
       if ($n === 0) q($db, 'INSERT INTO acc_backup (account, data, versie, bijgewerkt) VALUES (?, ?, 1, ?)', [$acc, $data, $nu]);
+      koppelAccount($db, $acc, $ipHash, $nu);
       uit(200, ['ok' => true, 'versie' => (int)q($db, 'SELECT versie FROM acc_backup WHERE account = ?', [$acc])->fetchColumn()]);
     }
     case 'accUitloggen': {
@@ -394,6 +737,7 @@ if (strncmp($actie, 'acc', 3) === 0) {
       q($db, 'DELETE FROM acc_backup WHERE account = ?', [$acc]);
       q($db, 'DELETE FROM acc_sessies WHERE account = ?', [$acc]);
       q($db, 'DELETE FROM accounts WHERE id = ?', [$acc]);
+      zonderTabel($db, 'DELETE FROM acc_koppel WHERE account = ?', [$acc]);
       $db->commit();
       uit(200, ['ok' => true]);
     }
@@ -403,6 +747,7 @@ if (strncmp($actie, 'acc', 3) === 0) {
 }
 
 if ($actie === 'register') {
+  ipGeband($db, $ipHash, $nu);
   tel($db, hash('sha256', $ipHash . ':reg'), intdiv($nu, 3600), (int)($cfg['limiet_reg_per_uur'] ?? 5));
   $pub = $in['pub'] ?? null;
   if (!is_string($pub) || !preg_match('/^[A-Za-z0-9_-]{80,100}$/', $pub)) fout(400, 'Ongeldige publieke sleutel.');
@@ -410,16 +755,50 @@ if ($actie === 'register') {
   $token = bin2hex(random_bytes(32));
   q($db, 'INSERT INTO users (id, pub, token_hash, created, last_seen) VALUES (?, ?, ?, ?, ?)',
     [$id, $pub, hash('sha256', $token), $nu, $nu]);
+  ipOnthoud($db, $id, $ipHash, $nu, true);
   uit(200, ['id' => $id, 'token' => $token]);
 }
 
+// ---- Feedback (v3): een gebruiker stuurt een fout, idee of opmerking. Het vrienden-account is de afzender als het er is; zonder account telt alleen het netwerk. ----
+// Verbannen accounts mogen niet; een geblokkeerd netwerk (ban_ip) wel (onschuldigen op school). De tekst is gewone tekst die de afzender zelf kiest te sturen.
+if ($actie === 'feedback') {
+  $soort = $in['soort'] ?? null;
+  $tekst = $in['tekst'] ?? null;
+  $info = $in['info'] ?? '';
+  if (!is_string($soort) || !in_array($soort, FB_SOORTEN, true) || !is_string($tekst) || !(is_string($info) || $info === null)) fout(400, 'Ongeldige feedback.');
+  // Besturingstekens eruit (alleen een nieuwe regel blijft in de tekst), ook de tekens die tekst omdraaien; dan afkappen.
+  $schoon = function (string $t, bool $regels): string {
+    $t = (string)preg_replace('/\r\n?/u', "\n", $t);
+    $t = (string)preg_replace($regels ? '/[^\P{Cc}\n]|[\x{202A}-\x{202E}\x{2066}-\x{2069}]/u' : '/\p{Cc}|[\x{202A}-\x{202E}\x{2066}-\x{2069}]/u', $regels ? '' : ' ', $t);
+    return $t;
+  };
+  $tekst = knip($schoon($tekst, true), 500);
+  $info = knip($schoon((string)$info, false), 300);
+  if ($tekst === '') fout(400, 'Schrijf eerst je feedback.');
+  $g = gebruikerUitHeaders($db);
+  $van = $g ? $g['id'] : null;
+  if ($van !== null) {
+    $ban = q($db, 'SELECT tot, reden FROM bans WHERE id = ?', [$van])->fetch();
+    if ($ban && ((int)$ban['tot'] === 0 || (int)$ban['tot'] > $nu)) uit(403, ['fout' => 'Je bent verbannen', 'verbannen' => true, 'tot' => (int)$ban['tot'], 'reden' => (string)$ban['reden']]);
+    tel($db, hash('sha256', $van . ':fb'), intdiv($nu, 86400), (int)($cfg['limiet_feedback_per_dag'] ?? 3), 'Je hebt vandaag al 3 keer feedback gestuurd. Probeer het morgen opnieuw.');
+  }
+  tel($db, hash('sha256', $ipHash . ':fb'), intdiv($nu, 86400), (int)($cfg['limiet_feedback_ip_per_dag'] ?? 20), 'Vanaf dit netwerk is er vandaag al veel feedback gestuurd. Probeer het morgen opnieuw.');
+  for ($poging = 0; ; $poging++) {
+    try { q($db, 'INSERT INTO feedback (id, ts, van, ip_hash, soort, tekst, info, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [nieuwId(), $nu, $van, $ipHash, $soort, $tekst, $info, 'nieuw']); break; }
+    catch (Throwable $e) { if ($poging >= 2 || tabelOntbreekt($e)) throw $e; }
+  }
+  // Antwoord eerst afleveren; de mail aan de beheerder (zonder de tekst) gaat daarna.
+  http_response_code(200);
+  echo json_encode(['ok' => true]);
+  if (function_exists('fastcgi_finish_request')) fastcgi_finish_request();
+  beheerMailBundel($db, $cfg, $nu, 'fb-' . $soort);
+  exit;
+}
+
 // Authenticatie voor alle andere acties.
-$ik = $_SERVER['HTTP_X_ID'] ?? '';
-$tok = $_SERVER['HTTP_X_TOKEN'] ?? '';
-if (!isId($ik) || !is_string($tok) || $tok === '') fout(401, 'Niet ingelogd.');
-$rij = q($db, 'SELECT token_hash, last_seen FROM users WHERE id = ?', [$ik])->fetch();
-// Ook bij een onbekende id vergelijken we, zodat de tijd geen aanwijzing geeft.
-if (!hash_equals($rij['token_hash'] ?? str_repeat('0', 64), hash('sha256', $tok)) || !$rij) fout(401, 'Niet ingelogd.');
+$rij = gebruikerUitHeaders($db); // vergelijkt ook bij een onbekende id, zodat de tijd geen aanwijzing geeft
+if (!$rij) fout(401, 'Niet ingelogd.');
+$ik = $rij['id'];
 // Verbannen? Dan alleen deleteAccount en mijnStatus. Een verlopen ban wordt hier meteen opgeruimd.
 $ban = q($db, 'SELECT tot, reden FROM bans WHERE id = ?', [$ik])->fetch();
 if ($ban && (int)$ban['tot'] > 0 && (int)$ban['tot'] <= $nu) { q($db, 'DELETE FROM bans WHERE id = ?', [$ik]); $ban = false; }
@@ -432,6 +811,7 @@ $relayActie = $actie === 'send' || $actie === 'poll';
 if ($relayActie) tel($db, hash('sha256', $ik . ':rel'), intdiv($nu, 60), (int)($cfg['limiet_relay_per_min'] ?? 1200));
 else tel($db, hash('sha256', $ik . ':usr'), intdiv($nu, 60), (int)($cfg['limiet_user_per_min'] ?? 180));
 if ($nu - (int)$rij['last_seen'] > 3600) q($db, 'UPDATE users SET last_seen = ? WHERE id = ?', [$nu, $ik]);
+ipOnthoud($db, $ik, $ipHash, $nu); // hoogstens 1x per dag per ip; max. 30 dagen bewaard
 
 // Vrienden alleen met dezelfde versie (v2.3.4). Oude versies sturen geen X-Versie mee en moeten eerst updaten.
 $versieCheck = ($cfg['vrienden_zelfde_versie'] ?? true) !== false;
@@ -466,6 +846,149 @@ function bestaat(PDO $db, string $id): bool {
   return q($db, 'SELECT 1 FROM users WHERE id = ?', [$id])->fetchColumn() !== false;
 }
 
+// ---- Jaaroverzicht (v3): een AI-terugblik via Groq, met een wachtrij en dagelijkse limieten ----
+// De client stuurt alleen getallen (gemiddelde per vakgroep, aantallen, maandnummer): geen namen, geen vaknamen, geen school, geen tekst.
+// De server valideert streng (alleen getallen in vaste velden) en bouwt de prompt zelf uit die getallen, dus er is geen plek voor prompt-injectie.
+// Er wordt niets gelogd en niets blijvend bewaard: de rij wordt gewist zodra de client de tekst heeft opgehaald (of na 10 minuten).
+const JAAR_GROEPEN = ['exact', 'talen', 'mens', 'kunst'];
+const JAAR_GROEPNAAM = ['exact' => 'exacte vakken', 'talen' => 'talen', 'mens' => 'mens en maatschappij', 'kunst' => 'kunst en sport'];
+const JAAR_MAANDEN = ['', 'januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
+const JAAR_LADDER = ['gewoon', 'zeldzaam', 'glim', 'kosmisch', 'mythisch'];
+const JAAR_WACHT_MAX = 120;   // seconden in de wachtrij voordat het 'tijd' wordt
+const JAAR_BEZIG_MAX = 60;    // een verwerking die langer duurt, geldt als mislukt
+const JAAR_BEWAAR = 600;      // een klaar resultaat verdwijnt na 10 minuten
+function jaarGetal($v, float $min, float $max, bool $nullMag): array { // [geldig, waarde]
+  if ($v === null) return [$nullMag, null];
+  if (!(is_int($v) || is_float($v)) || !is_finite((float)$v) || $v < $min || $v > $max) return [false, null];
+  return [true, round((float)$v, 1)];
+}
+function jaarHeel($v, int $min, int $max, bool $nullMag): array {
+  if ($v === null) return [$nullMag, null];
+  if (!is_int($v) || $v < $min || $v > $max) return [false, null];
+  return [true, $v];
+}
+// Geeft de schone gegevens of null. Geen onbekende velden, geen tekst.
+function jaarInvoer($d): ?array {
+  if (!is_array($d) || array_is_list($d)) return null;
+  $toegestaan = ['v', 'gem', 'stijg', 'lad', 'hoog', 'laag', 'pak', 'prest', 'slecht'];
+  if (array_diff(array_keys($d), $toegestaan) || array_diff($toegestaan, array_keys($d)) || $d['v'] !== 1) return null;
+  $uit = ['v' => 1, 'gem' => [], 'stijg' => []];
+  foreach (['gem' => [1.0, 10.0], 'stijg' => [-9.0, 9.0]] as $veld => $grens) {
+    $x = $d[$veld];
+    if (!is_array($x) || array_is_list($x) || array_diff(array_keys($x), JAAR_GROEPEN) || array_diff(JAAR_GROEPEN, array_keys($x))) return null;
+    foreach (JAAR_GROEPEN as $g) { [$ok, $w] = jaarGetal($x[$g], $grens[0], $grens[1], true); if (!$ok) return null; $uit[$veld][$g] = $w; }
+  }
+  if (!is_array($d['lad']) || !array_is_list($d['lad']) || count($d['lad']) !== 5) return null;
+  $uit['lad'] = [];
+  foreach ($d['lad'] as $n) { [$ok, $w] = jaarHeel($n, 0, 9999, false); if (!$ok) return null; $uit['lad'][] = $w; }
+  foreach (['hoog' => [1.0, 10.0], 'laag' => [1.0, 10.0]] as $veld => $grens) { [$ok, $w] = jaarGetal($d[$veld], $grens[0], $grens[1], true); if (!$ok) return null; $uit[$veld] = $w; }
+  foreach (['pak' => [0, 99999, false], 'prest' => [0, 999, false], 'slecht' => [1, 12, true]] as $veld => $g) { [$ok, $w] = jaarHeel($d[$veld], $g[0], $g[1], $g[2]); if (!$ok) return null; $uit[$veld] = $w; }
+  return $uit;
+}
+function jaarGetalTekst(float $x): string { return str_replace('.', ',', number_format($x, 1, '.', '')); }
+// De prompt komt volledig uit getallen en vaste woorden van de server.
+function jaarPrompt(array $i): array {
+  $r = [];
+  foreach (JAAR_GROEPEN as $g) {
+    $r[] = 'Gemiddeld cijfer ' . JAAR_GROEPNAAM[$g] . ': ' . ($i['gem'][$g] === null ? 'geen cijfers' : jaarGetalTekst($i['gem'][$g]))
+      . ($i['stijg'][$g] === null ? '' : '; verandering over het jaar: ' . ($i['stijg'][$g] > 0 ? '+' : '') . jaarGetalTekst($i['stijg'][$g]));
+  }
+  $lad = [];
+  foreach (JAAR_LADDER as $k => $naam) $lad[] = $naam . ' ' . $i['lad'][$k];
+  $r[] = 'Aantal kaarten per ladder: ' . implode(', ', $lad);
+  if ($i['hoog'] !== null) $r[] = 'Hoogste cijfer: ' . jaarGetalTekst($i['hoog']);
+  if ($i['laag'] !== null) $r[] = 'Laagste cijfer: ' . jaarGetalTekst($i['laag']);
+  $r[] = 'Geopende pakjes: ' . $i['pak'];
+  $r[] = 'Behaalde prestaties: ' . $i['prest'];
+  if ($i['slecht'] !== null) $r[] = 'De slechtste week was in ' . JAAR_MAANDEN[$i['slecht']];
+  $systeem = 'Je schrijft in eenvoudig Nederlands een korte, vriendelijke terugblik op een schooljaar van een leerling, op basis van de getallen die de gebruiker geeft. '
+    . 'Schrijf 5 tot 8 korte zinnen, samen hoogstens 700 tekens. Gebruik alleen deze getallen en verzin geen vakken, namen, scholen of andere feiten. '
+    . 'Wees positief en eerlijk, ook bij tegenvallende cijfers. Geen opmaak, geen lijstjes, geen links, geen emoji.';
+  return [['role' => 'system', 'content' => $systeem], ['role' => 'user', 'content' => implode("\n", $r)]];
+}
+// De tekst van de AI wordt niet vertrouwd: tags, links en opmaak eruit, begrensd op 800 tekens (liefst op een zinseinde).
+function jaarSchoon(string $t): ?string {
+  $t = preg_replace('~<(script|style)\b.*?</\1\s*>~isu', ' ', $t) ?? '';
+  $t = strip_tags($t);
+  $t = preg_replace('~(?:https?://|www\.)\S*~iu', '', $t) ?? '';
+  $t = preg_replace('/[\x00-\x1F\x7F\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2060}-\x{2069}\x{FEFF}<>*#_`\[\]{}|\\\\]/u', ' ', $t) ?? '';
+  $t = trim(preg_replace('/\s+/u', ' ', $t) ?? '');
+  if (function_exists('mb_strlen') && mb_strlen($t) > 800) {
+    $k = mb_substr($t, 0, 800);
+    $p = max(mb_strrpos($k, '. ') ?: 0, mb_strrpos($k, '! ') ?: 0, mb_strrpos($k, '? ') ?: 0);
+    $t = $p > 300 ? mb_substr($k, 0, $p + 1) : $k;
+  } elseif (!function_exists('mb_strlen') && strlen($t) > 800) $t = substr($t, 0, 800);
+  return strlen($t) >= 40 ? $t : null;
+}
+// Eén keer naar Groq (chat completions). Geeft de tekst of null bij elke fout. Er wordt niets gelogd.
+function jaarGroq(array $cfg, array $berichten): ?string {
+  $sleutel = (string)($cfg['groq_sleutel'] ?? '');
+  if ($sleutel === '' || !function_exists('curl_init')) return null;
+  $url = (string)($cfg['groq_url'] ?? 'https://api.groq.com/openai/v1/chat/completions');
+  $body = json_encode(['model' => (string)($cfg['groq_model'] ?? 'llama-3.3-70b-versatile'), 'messages' => $berichten, 'max_tokens' => 400, 'temperature' => 0.7], JSON_UNESCAPED_UNICODE);
+  $c = curl_init($url);
+  curl_setopt_array($c, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $body, CURLOPT_RETURNTRANSFER => true, CURLOPT_CONNECTTIMEOUT => 5, CURLOPT_TIMEOUT => (int)($cfg['groq_timeout'] ?? 25),
+    CURLOPT_FOLLOWLOCATION => false, CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'Authorization: Bearer ' . $sleutel]]);
+  $r = curl_exec($c);
+  $code = (int)curl_getinfo($c, CURLINFO_HTTP_CODE);
+  curl_close($c);
+  if (!is_string($r) || $code !== 200) return null;
+  $j = json_decode($r, true);
+  $t = is_array($j) ? ($j['choices'][0]['message']['content'] ?? null) : null;
+  return is_string($t) ? jaarSchoon($t) : null;
+}
+function jaarTelSleutel(string $wat, array $cfg): string { return substr(hash('sha256', $wat . ':jaar:' . ($cfg['zout'] ?? '')), 0, 40); }
+// Telt een aanvraag bij; geeft false (en telt niet mee) als de limiet is bereikt. $soort komt in 'limiet' terug: 'dag' of 'account'.
+function jaarTelBij(PDO $db, array $cfg, string $account, int $dag): ?string {
+  $limieten = [[jaarTelSleutel('g', $cfg), (int)($cfg['limiet_jaar_per_dag'] ?? 150), 'dag'], [jaarTelSleutel('a' . $account, $cfg), (int)($cfg['limiet_jaar_per_account_per_dag'] ?? 1), 'account']];
+  $gedaan = [];
+  foreach ($limieten as [$k, $max, $soort]) {
+    if (q($db, 'UPDATE jaar_teller SET aantal = aantal + 1 WHERE k = ? AND dag = ?', [$k, $dag])->rowCount() === 0) {
+      try { q($db, 'INSERT INTO jaar_teller (k, dag, aantal) VALUES (?, ?, 1)', [$k, $dag]); }
+      catch (Throwable $e) { if (tabelOntbreekt($e)) throw $e; q($db, 'UPDATE jaar_teller SET aantal = aantal + 1 WHERE k = ? AND dag = ?', [$k, $dag]); }
+    }
+    $gedaan[] = $k;
+    if ((int)q($db, 'SELECT aantal FROM jaar_teller WHERE k = ? AND dag = ?', [$k, $dag])->fetchColumn() > $max) {
+      foreach ($gedaan as $g) q($db, 'UPDATE jaar_teller SET aantal = aantal - 1 WHERE k = ? AND dag = ? AND aantal > 0', [$g, $dag]);
+      return $soort;
+    }
+  }
+  return null;
+}
+function jaarTerug(PDO $db, array $cfg, string $account, int $dag): void {
+  foreach ([jaarTelSleutel('g', $cfg), jaarTelSleutel('a' . $account, $cfg)] as $k) q($db, 'UPDATE jaar_teller SET aantal = aantal - 1 WHERE k = ? AND dag = ? AND aantal > 0', [$k, $dag]);
+}
+// Ruimt op en verwerkt hoogstens één wachtende aanvraag (de oudste) als er een plek vrij is. Wie een status opvraagt of aanvraagt helpt dus de rij vooruit.
+function jaarWerk(PDO $db, array $cfg, int $nu): void {
+  q($db, 'DELETE FROM jaar_wachtrij WHERE verloopt > 0 AND verloopt < ?', [$nu]);
+  foreach (q($db, "SELECT id, account, dag FROM jaar_wachtrij WHERE (status = 'wacht' AND ts < ?) OR (status = 'bezig' AND start < ?)", [$nu - JAAR_WACHT_MAX, $nu - JAAR_BEZIG_MAX])->fetchAll() as $r) {
+    if (q($db, "UPDATE jaar_wachtrij SET status = 'tijd', invoer = '', verloopt = ? WHERE id = ? AND status IN ('wacht', 'bezig')", [$nu + JAAR_BEWAAR, $r['id']])->rowCount() === 1) jaarTerug($db, $cfg, (string)$r['account'], (int)$r['dag']);
+  }
+  if ((int)q($db, "SELECT COUNT(*) FROM jaar_wachtrij WHERE status = 'bezig'")->fetchColumn() >= max(1, (int)($cfg['jaar_gelijktijdig'] ?? 2))) return;
+  $kop = q($db, "SELECT id, account, dag, invoer FROM jaar_wachtrij WHERE status = 'wacht' ORDER BY ts, id LIMIT 1")->fetch();
+  if (!$kop) return;
+  if (q($db, "UPDATE jaar_wachtrij SET status = 'bezig', start = ? WHERE id = ? AND status = 'wacht'", [$nu, $kop['id']])->rowCount() !== 1) return; // een ander verzoek was eerder
+  $i = json_decode((string)$kop['invoer'], true);
+  $tekst = is_array($i) ? jaarGroq($cfg, jaarPrompt($i)) : null;
+  if ($tekst !== null) q($db, "UPDATE jaar_wachtrij SET status = 'klaar', invoer = '', uitvoer = ?, verloopt = ? WHERE id = ? AND status = 'bezig'", [$tekst, time() + JAAR_BEWAAR, $kop['id']]);
+  elseif (q($db, "UPDATE jaar_wachtrij SET status = 'fout', invoer = '', verloopt = ? WHERE id = ? AND status = 'bezig'", [time() + JAAR_BEWAAR, $kop['id']])->rowCount() === 1) jaarTerug($db, $cfg, (string)$kop['account'], (int)$kop['dag']);
+}
+// Antwoord voor de client over de laatste aanvraag van deze gebruiker. 'klaar', 'fout' en 'tijd' worden één keer teruggegeven en daarna gewist.
+function jaarAntwoord(PDO $db, string $account): void {
+  $r = q($db, 'SELECT id, ts, status, uitvoer FROM jaar_wachtrij WHERE account = ? ORDER BY ts DESC, id DESC LIMIT 1', [$account])->fetch();
+  if (!$r) uit(200, ['status' => 'geen']);
+  $st = (string)$r['status'];
+  if ($st === 'wacht') {
+    $voor = (int)q($db, "SELECT COUNT(*) FROM jaar_wachtrij WHERE status = 'wacht' AND (ts < ? OR (ts = ? AND id < ?))", [$r['ts'], $r['ts'], $r['id']])->fetchColumn();
+    uit(200, ['status' => 'wacht', 'positie' => $voor + 1]);
+  }
+  if ($st === 'bezig') uit(200, ['status' => 'bezig', 'positie' => 0]);
+  $tekst = (string)$r['uitvoer'];
+  q($db, 'DELETE FROM jaar_wachtrij WHERE id = ?', [$r['id']]);
+  if ($st === 'klaar') uit(200, ['status' => 'klaar', 'tekst' => $tekst]);
+  uit(200, ['status' => $st === 'tijd' ? 'tijd' : 'fout']);
+}
+
 switch ($actie) {
   case 'request': {
     $to = $in['to'] ?? null;
@@ -473,6 +996,12 @@ switch ($actie) {
     if ($to === $ik) fout(400, 'Je kunt jezelf niet toevoegen.');
     if (!bestaat($db, $to)) fout(404, 'Deze vriendcode bestaat niet (meer).');
     zelfdeVersie($db, $to);
+    // Nieuwe accounts (eerste 24 uur): hoogstens 3 vriendverzoeken per dag. De dag-teller staat in dezelfde tabel als de andere limieten.
+    if ($nu - (int)$rij['created'] < 86400)
+      tel($db, hash('sha256', $ik . ':nieuwreq'), intdiv($nu, 86400), (int)($cfg['limiet_nieuw_verzoek_per_dag'] ?? 3), 'Je account is nieuw: de eerste dag kun je hoogstens 3 vriendverzoeken sturen. Probeer het morgen opnieuw.');
+    // Geblokkeerd door de ander? Dan lijkt alles gelukt, maar er wordt niets opgeslagen (de geblokkeerde merkt niets).
+    if (blokkeertVan($db, $to, $ik)) uit(200, ['ok' => true, 'status' => 'pending']);
+    if (blokkeertVan($db, $ik, $to)) fout(409, 'Je hebt deze persoon geblokkeerd. Deblokkeer hem of haar eerst.');
     $f = vriendschap($db, $ik, $to);
     if ($f === null) {
       q($db, 'INSERT INTO friendships (a, b, status, created) VALUES (?, ?, ?, ?)', [$ik, $to, 'pending', $nu]);
@@ -495,7 +1024,7 @@ switch ($actie) {
     if (!isId($van) || !is_bool($in['accept'] ?? null)) fout(400, 'Ongeldig verzoek.');
     if ($in['accept']) zelfdeVersie($db, $van);
     $f = q($db, 'SELECT 1 FROM friendships WHERE a = ? AND b = ? AND status = ?', [$van, $ik, 'pending'])->fetchColumn();
-    if ($f === false) fout(404, 'Geen openstaand verzoek van deze vriend.');
+    if ($f === false || ($in['accept'] && isGeblokkeerd($db, $ik, $van))) fout(404, 'Geen openstaand verzoek van deze vriend.');
     if ($in['accept']) q($db, 'UPDATE friendships SET status = ? WHERE a = ? AND b = ?', ['accepted', $van, $ik]);
     else q($db, 'DELETE FROM friendships WHERE a = ? AND b = ?', [$van, $ik]);
     uit(200, ['ok' => true]);
@@ -514,7 +1043,7 @@ switch ($actie) {
     if ($data !== '' && !preg_match('/^[A-Za-z0-9._-]+$/', $data)) fout(400, 'Ongeldig formaat.');
     zelfdeVersie($db, $to);
     $f = vriendschap($db, $ik, $to);
-    if ($f === null || $f['status'] !== 'accepted') fout(403, 'Jullie zijn geen vrienden.');
+    if ($f === null || $f['status'] !== 'accepted' || isGeblokkeerd($db, $ik, $to)) fout(403, 'Jullie zijn geen vrienden.');
     $db->beginTransaction();
     // `updated` gaat altijd omhoog (ook bij twee wijzigingen in dezelfde seconde), zodat 'puls' elke wijziging ziet.
     $vorig = (int)q($db, 'SELECT updated FROM blobs WHERE owner = ? AND recipient = ?', [$ik, $to])->fetchColumn();
@@ -541,7 +1070,10 @@ switch ($actie) {
     $po = q($db, 'SELECT afz, MAX(seq) AS seq FROM berichten WHERE ontv = ? AND created >= ? GROUP BY afz', [$ik, $nu - BERICHT_TTL])->fetchAll();
     $post = [];
     foreach ($po as $x) $post[] = ['van' => $x['afz'], 'seq' => (int)$x['seq']];
-    uit(200, ['nu' => $nu, 'vh' => substr(hash('sha256', implode(',', $ids)), 0, 16), 'blobs' => $bl, 'post' => $post]);
+    $w = 0; // aantal ongelezen waarschuwingen van de beheerder
+    try { $w = (int)q($db, 'SELECT COUNT(*) FROM waarschuwingen WHERE account = ? AND gezien = 0', [$ik])->fetchColumn(); }
+    catch (Throwable $e) { if (!tabelOntbreekt($e)) throw $e; }
+    uit(200, ['nu' => $nu, 'vh' => substr(hash('sha256', implode(',', $ids)), 0, 16), 'blobs' => $bl, 'post' => $post, 'w' => $w]);
   }
   case 'send': {
     // Kanaal voor gevechten: een klein, versleuteld bericht naar een vriend. De server kijkt niet in de inhoud.
@@ -553,7 +1085,7 @@ switch ($actie) {
     if (!preg_match('/^[A-Za-z0-9._-]+$/', $data)) fout(400, 'Ongeldig formaat.');
     zelfdeVersie($db, $to);
     $f = vriendschap($db, $ik, $to);
-    if ($f === null || $f['status'] !== 'accepted') fout(403, 'Jullie zijn geen vrienden.');
+    if ($f === null || $f['status'] !== 'accepted' || isGeblokkeerd($db, $ik, $to)) fout(403, 'Jullie zijn geen vrienden.');
     q($db, 'DELETE FROM berichten WHERE afz = ? AND ontv = ? AND created < ?', [$ik, $to, $nu - BERICHT_TTL]);
     $n = (int)q($db, 'SELECT COUNT(*) FROM berichten WHERE afz = ? AND ontv = ?', [$ik, $to])->fetchColumn();
     if ($n >= MAX_WACHTRIJ) fout(429, 'Te veel berichten in de wachtrij.');
@@ -567,7 +1099,7 @@ switch ($actie) {
     if (!isId($van) || !is_int($na) || $na < 0) fout(400, 'Ongeldig verzoek.');
     zelfdeVersie($db, $van);
     $f = vriendschap($db, $ik, $van);
-    if ($f === null || $f['status'] !== 'accepted') fout(403, 'Jullie zijn geen vrienden.');
+    if ($f === null || $f['status'] !== 'accepted' || isGeblokkeerd($db, $ik, $van)) fout(403, 'Jullie zijn geen vrienden.');
     $r = q($db, 'SELECT seq, data, created FROM berichten WHERE afz = ? AND ontv = ? AND seq > ? AND created >= ? ORDER BY seq LIMIT 50', [$van, $ik, $na, $nu - BERICHT_TTL])->fetchAll();
     foreach ($r as &$x) { $x['seq'] = (int)$x['seq']; $x['leeftijd'] = $nu - (int)$x['created']; unset($x['created']); }
     unset($x);
@@ -582,6 +1114,102 @@ switch ($actie) {
     q($db, 'DELETE FROM berichten WHERE (afz = ? AND ontv = ?) OR (afz = ? AND ontv = ?)', [$ik, $o, $o, $ik]);
     $db->commit();
     uit(200, ['ok' => true]);
+  }
+  case 'blokkeer': {
+    $id = $in['id'] ?? null;
+    if (!isId($id)) fout(400, 'Ongeldig verzoek.');
+    if ($id === $ik) fout(400, 'Je kunt jezelf niet blokkeren.');
+    if (blokkeertVan($db, $ik, $id)) uit(200, ['ok' => true]);
+    if ((int)q($db, 'SELECT COUNT(*) FROM blokkades WHERE van = ?', [$ik])->fetchColumn() >= 500) fout(429, 'Je hebt al heel veel mensen geblokkeerd.');
+    $db->beginTransaction();
+    q($db, 'DELETE FROM friendships WHERE (a = ? AND b = ?) OR (a = ? AND b = ?)', [$ik, $id, $id, $ik]);
+    q($db, 'DELETE FROM blobs WHERE (owner = ? AND recipient = ?) OR (owner = ? AND recipient = ?)', [$ik, $id, $id, $ik]);
+    q($db, 'DELETE FROM berichten WHERE (afz = ? AND ontv = ?) OR (afz = ? AND ontv = ?)', [$ik, $id, $id, $ik]);
+    q($db, 'INSERT INTO blokkades (van, tegen, ts) VALUES (?, ?, ?)', [$ik, $id, $nu]);
+    $db->commit();
+    uit(200, ['ok' => true]);
+  }
+  case 'deblokkeer': {
+    $id = $in['id'] ?? null;
+    if (!isId($id)) fout(400, 'Ongeldig verzoek.');
+    q($db, 'DELETE FROM blokkades WHERE van = ? AND tegen = ?', [$ik, $id]);
+    uit(200, ['ok' => true]);
+  }
+  case 'blokkades': {
+    uit(200, ['ids' => q($db, 'SELECT tegen FROM blokkades WHERE van = ? ORDER BY ts', [$ik])->fetchAll(PDO::FETCH_COLUMN)]);
+  }
+  case 'meld': {
+    $tegen = $in['tegen'] ?? null;
+    $reden = $in['reden'] ?? null;
+    $uitleg = $in['uitleg'] ?? '';
+    $bewijs = $in['bewijs'] ?? '';
+    if (!isId($tegen) || !is_string($reden) || !in_array($reden, MELD_REDENEN, true) || !is_string($uitleg) || !(is_string($bewijs) || $bewijs === null)) fout(400, 'Ongeldige melding.');
+    if ($tegen === $ik) fout(400, 'Je kunt jezelf niet melden.');
+    if (!bestaat($db, $tegen)) fout(404, 'Deze gebruiker bestaat niet (meer).');
+    if ((int)q($db, 'SELECT COUNT(*) FROM meldingen WHERE van = ? AND ts > ?', [$ik, $nu - 86400])->fetchColumn() >= 5) fout(429, 'Je hebt vandaag al 5 meldingen gedaan. Probeer het morgen opnieuw.');
+    if (q($db, 'SELECT 1 FROM meldingen WHERE van = ? AND tegen = ? AND ts > ?', [$ik, $tegen, $nu - 86400])->fetchColumn() !== false) fout(429, 'Je hebt deze persoon vandaag al gemeld.');
+    $uitleg = knip($uitleg, 300); $bewijs = knip((string)$bewijs, 400);
+    for ($poging = 0; ; $poging++) {
+      try { q($db, 'INSERT INTO meldingen (id, ts, van, tegen, reden, uitleg, bewijs, status, uitkomst) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [nieuwId(), $nu, $ik, $tegen, $reden, $uitleg, $bewijs, 'nieuw', '']); break; }
+      catch (Throwable $e) { if ($poging >= 2 || tabelOntbreekt($e)) throw $e; }
+    }
+    // Antwoord eerst afleveren; de mail aan de beheerder (kan een paar seconden duren) gaat daarna.
+    http_response_code(200);
+    echo json_encode(['ok' => true]);
+    if (function_exists('fastcgi_finish_request')) fastcgi_finish_request();
+    beheerMailBundel($db, $cfg, $nu, $reden);
+    exit;
+  }
+  case 'waarschuwingen': {
+    $r = q($db, 'SELECT id, reden, ts FROM waarschuwingen WHERE account = ? AND gezien = 0 ORDER BY ts, id LIMIT 50', [$ik])->fetchAll();
+    foreach ($r as &$x) { $x['id'] = (int)$x['id']; $x['ts'] = (int)$x['ts']; }
+    unset($x);
+    uit(200, ['lijst' => $r]);
+  }
+  case 'waarschuwingGezien': {
+    $id = $in['id'] ?? null;
+    if (!is_int($id) || $id < 1) fout(400, 'Ongeldig verzoek.');
+    if (q($db, 'SELECT 1 FROM waarschuwingen WHERE id = ? AND account = ?', [$id, $ik])->fetchColumn() === false) fout(404, 'Deze waarschuwing bestaat niet (meer).');
+    q($db, 'UPDATE waarschuwingen SET gezien = 1 WHERE id = ? AND account = ?', [$id, $ik]);
+    uit(200, ['ok' => true]);
+  }
+  // Wekelijkse drop (v3): hoeveel mythische kaarten zijn er deze week (UTC ISO-week) geopend door alle spelers samen. Alleen een teller:
+  // geen namen, geen kaarten, geen account-id in de tabel. Je moet wel ingelogd zijn (vrienden aan), zodat een anoniem script de teller niet kan vullen.
+  case 'dropMelden': {
+    tel($db, hash('sha256', $ik . ':drop'), intdiv($nu, 86400), (int)($cfg['limiet_drop_per_dag'] ?? 5), 'Je hebt vandaag al vaak een mythische kaart gemeld. Probeer het morgen opnieuw.');
+    tel($db, hash('sha256', $ipHash . ':drop'), intdiv($nu, 86400), (int)($cfg['limiet_drop_ip_per_dag'] ?? 30), 'Vanaf dit netwerk zijn er vandaag al veel mythische kaarten gemeld. Probeer het morgen opnieuw.');
+    $week = weekVan($nu);
+    if (q($db, 'UPDATE week_teller SET aantal = aantal + 1 WHERE week = ?', [$week])->rowCount() === 0) {
+      try { q($db, 'INSERT INTO week_teller (week, aantal) VALUES (?, 1)', [$week]); }
+      catch (Throwable $e) { if (tabelOntbreekt($e)) throw $e; q($db, 'UPDATE week_teller SET aantal = aantal + 1 WHERE week = ?', [$week]); } // een ander verzoek was eerder
+    }
+    uit(200, ['ok' => true, 'week' => $week, 'aantal' => (int)q($db, 'SELECT aantal FROM week_teller WHERE week = ?', [$week])->fetchColumn()]);
+  }
+  case 'dropTelling': {
+    $week = weekVan($nu);
+    $n = q($db, 'SELECT aantal FROM week_teller WHERE week = ?', [$week])->fetchColumn();
+    uit(200, ['week' => $week, 'aantal' => $n === false ? 0 : (int)$n]);
+  }
+  // Jaaroverzicht (v3): zie de hulpfuncties hierboven. Vraagt X-Id en X-Token; de gegevens zijn alleen getallen (jaarInvoer) en de tekst wordt niet bewaard na het ophalen.
+  case 'jaarAanvraag': {
+    if (trim((string)($cfg['groq_sleutel'] ?? '')) === '') fout(503, 'Het jaaroverzicht is nu niet beschikbaar.');
+    $inv = jaarInvoer($in['d'] ?? null);
+    if ($inv === null) fout(400, 'Ongeldige gegevens.');
+    jaarWerk($db, $cfg, $nu);
+    $nog = q($db, "SELECT status FROM jaar_wachtrij WHERE account = ? AND status IN ('wacht', 'bezig', 'klaar') LIMIT 1", [$ik])->fetchColumn();
+    if ($nog === false) {
+      $dag = intdiv($nu, 86400);
+      $lim = jaarTelBij($db, $cfg, $ik, $dag);
+      if ($lim !== null) uit(200, ['status' => 'limiet', 'soort' => $lim]);
+      q($db, 'DELETE FROM jaar_wachtrij WHERE account = ?', [$ik]);
+      q($db, "INSERT INTO jaar_wachtrij (id, account, ts, dag, status, start, verloopt, invoer, uitvoer) VALUES (?, ?, ?, ?, 'wacht', 0, ?, ?, '')", [nieuwId(), $ik, $nu, $dag, $nu + 600, json_encode($inv)]);
+      jaarWerk($db, $cfg, $nu);
+    }
+    jaarAntwoord($db, $ik);
+  }
+  case 'jaarStatus': {
+    jaarWerk($db, $cfg, $nu);
+    jaarAntwoord($db, $ik);
   }
   case 'deleteAccount': {
     $db->beginTransaction();

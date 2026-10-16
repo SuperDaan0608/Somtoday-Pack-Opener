@@ -505,6 +505,14 @@
       if (instellingen.geluid !== false) new Audio(chrome.runtime.getURL('sounds/halloween-huil.mp3')).play().catch(() => {});
     } catch (e) { /* geen effect is ook goed */ }
   }
+  // v3.0 wekelijkse drop: een mythische kaart telt één keer mee voor de teller van alle spelers (alleen met een account; er gaat geen naam of kaart mee).
+  async function meldDrop(id) {
+    try {
+      if (!window.SPOEco || await window.SPOEco.dropGemeld(id)) return;
+      const r = await chrome.runtime.sendMessage({ type: 'spo-drop-meld' });
+      if (r && r.ok) await window.SPOEco.dropMarkeer(id);
+    } catch (e) { /* geen account of achtergrond niet bereikbaar */ }
+  }
   // Meekijken (v2.4): een vriend opent een kosmische of mythische kaart. We sturen hem alleen aan vrienden aan wie je al
   // al je kaarten laat zien (de achtergrond kiest wie). Staat 'Vrienden laten meekijken' uit, dan gaat er niets weg.
   function stuurKijk(rij, d, trede) {
@@ -733,19 +741,28 @@
         try { if (window.SPOEco) window.SPOEco.verdienCijfer(rij.sig, d.cijfer, tredeVoor(rij)); } catch (e) { /* geen munten */ }
         try { if (window.SPOHuisdier) window.SPOHuisdier.xp({ id: rij.sig, cijfer: d.cijfer, trede: tredeVoor(rij) }); } catch (e) { /* geen huisdier */ }
         if (vloekVoor(rij)) setTimeout(toonVloek, 450);
+        if (tredeVoor(rij) === 4) meldDrop(rij.sig);
       },
       // de miniatuur van de kaart, kort na de onthulling: bewaren voor de galerij (alleen in deze browser)
       opKaartKlaar(k) {
         if (!k) return;
+        let eerder = false, nieuwKaart = null;
         onthoudVoorPrestaties(k).catch(() => {});
         if (instellingen.galerij === false || typeof k.kaart !== 'string') return;
         try {
           chrome.storage.local.get(SLEUTEL_GALERIJ).then((r) => {
+            const oud = Array.isArray(r[SLEUTEL_GALERIJ]) ? r[SLEUTEL_GALERIJ].find((x) => x && x.id === rij.sig) : null;
+            eerder = !!oud;
             const lijst = Array.isArray(r[SLEUTEL_GALERIJ]) ? r[SLEUTEL_GALERIJ].filter((x) => x && x.id !== rij.sig) : [];
             const nieuw = { id: rij.sig, ts: Date.now(), vak: String(k.vak).slice(0, 60), cijfer: k.cijfer, onderwerp: String(k.onderwerp).slice(0, 120), weging: k.weging, opening: k.opening, tier: k.tier, zeldzaam: !!k.zeldzaam, trede: tredeVoor(rij), kaart: k.kaart };
             if (vloekVoor(rij)) nieuw.vloek = true;
+            if (oud && oud.heel > 0) nieuw.heel = oud.heel; // een opgeheven vloek blijft opgeheven als je de kaart opnieuw opent
+            nieuwKaart = nieuw;
             lijst.unshift(nieuw);
             return chrome.storage.local.set({ [SLEUTEL_GALERIJ]: lijst.slice(0, 150) });
+          }).then(() => {
+            // v3.0: een voldoende kaart heft een eerdere vloek in hetzelfde vak op (heel.js)
+            if (nieuwKaart && window.SPOHeel) return window.SPOHeel.naEnToon({ id: nieuwKaart.id, ts: nieuwKaart.ts, vak: nieuwKaart.vak, cijfer: nieuwKaart.cijfer }, { eerder }).catch(() => {});
           }).then(() => controleerPrestaties(), () => {});
         } catch (e) {
           /* opslag niet beschikbaar */
@@ -753,6 +770,8 @@
       },
       opGesloten() {
         bezig = false;
+        // v3.0 troostpakje: na een onvoldoende (ook een vervloekte) een gratis pakje. Het uitdelen (één keer per kaart, hoogstens 3 per dag) staat in troost.js en economie.js.
+        if (gemarkeerd && d.cijfer < 5.5) setTimeout(() => { try { if (window.SPOTroost) window.SPOTroost.na({ id: rij.sig, cijfer: d.cijfer, vloek: vloekVoor(rij) }); } catch (e) { /* geen troostpakje */ } }, 700);
         const st = staat.get(rij.host);
         if (st) {
           st.willekeur = null; // de volgende keer weer een nieuwe verrassing
@@ -832,7 +851,7 @@
   //     hub-klaar | sluiten | open-volgende | alles-geopend | alles-afdekken | naar-cijfers | proef { data }
   //   hier -> paneel: { bron: 'spo-pagina', versie: 1, type, ... }
   //     init { tab, status } | status { status } | tab { tab } | focus { waar } | antwoord { id, ok, status }
-  const HUB_TABS = ['overzicht', 'galerij', 'kaart', 'vrienden', 'team', 'prestaties', 'profiel', 'winkel', 'rekenen', 'proberen', 'instellingen', 'geluiden'];
+  const HUB_TABS = ['overzicht', 'galerij', 'kaart', 'vrienden', 'team', 'campagne', 'prestaties', 'arcade', 'kaartspel', 'profiel', 'speler', 'winkel', 'rekenen', 'proberen', 'instellingen', 'geluiden'];
   const HUB_WACHT_MS = 2500; // zo lang wachten we op 'hub-klaar' van het iframe
   const CIJFERS_PAD = '/cijfers';
   // Het origin van onze eigen extensiepagina's; null als de browser er geen geeft (dan vertrouwen we alleen op event.source).

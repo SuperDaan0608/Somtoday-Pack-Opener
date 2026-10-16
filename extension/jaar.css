@@ -1,0 +1,47 @@
+/* Jouw jaar (v3.0): de schooljaar-terugblik. Vult het hele scherm; de kleuren komen uit hub.css of staan hier als terugval. */
+html.jaar-open { overflow: hidden; }
+.jaar-overlay { position: fixed; inset: 0; z-index: 2147483000; display: grid; place-items: center; padding: 16px; color: #eef1f8; font: 15px/1.5 'SPO Text', system-ui, sans-serif; background: #080a14; }
+.jaar-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.jaar-doos { position: relative; width: min(680px, 100%); max-height: 100%; overflow: auto; display: flex; flex-direction: column; gap: 14px; padding: 20px; border-radius: 22px; border: 1px solid rgba(255,255,255,.17); background: rgba(8,10,20,.72); backdrop-filter: blur(6px); }
+.jaar-kop { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.jaar-teller { margin: 0; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: #a5aec4; }
+.jaar-knop { min-height: 44px; padding: 0 18px; border-radius: 999px; border: 1px solid rgba(255,255,255,.2); background: rgba(255,255,255,.08); color: inherit; font: inherit; font-weight: 650; cursor: pointer; }
+.jaar-knop:hover:not(:disabled) { background: rgba(255,255,255,.16); }
+.jaar-knop:disabled { opacity: .45; cursor: default; }
+.jaar-goud { border: 0; color: #241703; background: linear-gradient(135deg, #fff0b3 0%, #ffd24a 40%, #ff7a3d 100%); font-weight: 800; }
+.jaar-goud:hover:not(:disabled) { background: linear-gradient(135deg, #fff6cf 0%, #ffdc6a 40%, #ff8d57 100%); }
+.jaar-overlay :focus-visible { outline: 3px solid #ffd24a; outline-offset: 2px; }
+.jaar-inhoud { min-height: 280px; display: flex; flex-direction: column; gap: 10px; justify-content: center; }
+.jaar-titel { margin: 0; font: 800 clamp(22px, 5vw, 30px)/1.15 'SPO Display', system-ui, sans-serif; color: #ffd24a; }
+.jaar-titel:focus { outline: none; }
+.jaar-scherm { display: flex; flex-direction: column; gap: 8px; align-items: center; text-align: center; padding: 8px 0; }
+.jaar-in { animation: jaar-in .5s ease both; }
+@keyframes jaar-in { from { opacity: 0; transform: translateY(14px) scale(.97); } to { opacity: 1; transform: none; } }
+.jaar-groot { margin: 0; font: 800 clamp(56px, 18vw, 120px)/1.05 'SPO Display', system-ui, sans-serif; background: linear-gradient(135deg, #fff0b3 0%, #ffd24a 45%, #ff7a3d 100%); -webkit-background-clip: text; background-clip: text; color: transparent; overflow-wrap: anywhere; }
+.jaar-regel { margin: 0; font-size: 20px; font-weight: 700; overflow-wrap: anywhere; }
+.jaar-uitleg { margin: 0; color: #c3cadb; }
+.jaar-sterk { color: #fff; font-weight: 700; }
+.jaar-let { color: #ffd9a0; }
+.jaar-tekst { margin: 0; font-size: 18px; line-height: 1.55; text-align: left; overflow-wrap: anywhere; }
+.jaar-bron { margin: 0; font-size: 12px; color: #a5aec4; }
+.jaar-ladder { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; width: 100%; }
+.jaar-ladder li { padding: 10px; border-radius: 12px; border: 1px solid rgba(255,255,255,.17); background: rgba(255,255,255,.06); font-weight: 700; }
+.jaar-voorbeeld { margin: 0; padding: 12px 12px 12px 30px; border-radius: 12px; border: 1px solid rgba(255,255,255,.17); background: rgba(255,255,255,.05); font-size: 14px; }
+.jaar-ai { display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 16px; border: 1px solid rgba(255,210,74,.4); background: rgba(255,210,74,.07); }
+.jaar-ai h3 { margin: 0; font-size: 17px; }
+.jaar-vink { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; font-weight: 650; min-height: 44px; }
+.jaar-vink input { width: 22px; height: 22px; flex: none; accent-color: #ffd24a; }
+.jaar-acties { display: flex; flex-wrap: wrap; gap: 10px; }
+.jaar-voet { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; }
+.jaar-voet[hidden] { display: none; }
+.jaar-melding { margin: 0; min-height: 20px; color: #ffd24a; font-size: 14px; }
+.jaar-wacht { margin: 0; font-size: 18px; font-weight: 700; }
+.jaar-stip { display: block; width: 18px; height: 18px; border-radius: 50%; background: #ffd24a; animation: jaar-puls 1.2s ease-in-out infinite; }
+@keyframes jaar-puls { 50% { transform: scale(1.5); opacity: .5; } }
+/* Het blokje in het Overzicht */
+.jaar-blok { margin: 12px 0; padding: 14px 16px; border-radius: 16px; border: 1px solid rgba(255,210,74,.45); background: rgba(255,210,74,.08); }
+.jaar-blok p { margin: 0 0 10px; }
+.jaar-blok .jaar-acties { display: flex; flex-wrap: wrap; gap: 10px; }
+@media (prefers-reduced-motion: reduce) {
+  .jaar-in, .jaar-stip { animation: none; }
+}

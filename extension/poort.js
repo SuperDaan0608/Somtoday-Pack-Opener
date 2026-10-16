@@ -79,7 +79,7 @@
         <p>We hebben een code van 6 cijfers gestuurd naar <b>${esc(geheugen.email)}</b>. Kijk ook in je spam.</p>
         ${lijktSchool(geheugen.email) ? '<p class="tip">Geen code na een paar minuten? Schoolmail blokkeert vaak mail van buiten. Ga terug en maak een account met je eigen e-mail (bijv. Gmail).</p>' : ''}
         <form>
-          <label for="p-code">Code</label><input id="p-code" class="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required>
+          <label for="p-code">Code</label><input id="p-code" data-tekstfilter="uit" class="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required>
           <button class="knop" type="submit">Bevestigen</button>
         </form>
         <div class="fout" role="alert"></div>
@@ -97,7 +97,7 @@
         <h1>Nieuw wachtwoord</h1>
         <p>Als er een account bestaat met <b>${esc(geheugen.email)}</b>, hebben we een code gestuurd.</p>
         <form>
-          <label for="p-code">Code</label><input id="p-code" class="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required>
+          <label for="p-code">Code</label><input id="p-code" data-tekstfilter="uit" class="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required>
           <label for="p-ww">Nieuw wachtwoord (minstens 8 tekens)</label><input id="p-ww" type="password" autocomplete="new-password" minlength="8" required>
           <button class="knop" type="submit">Opslaan en inloggen</button>
         </form>

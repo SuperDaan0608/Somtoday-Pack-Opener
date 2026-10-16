@@ -189,7 +189,7 @@ function galerij(vak, basis) {
       && /Daan/.test(await B.p.textContent('.raadform fieldset')) && /niet het cijfer zelf/.test(await B.p.textContent('.raadform')) && (await raadKnop.getAttribute('aria-expanded')) === 'true');
     controle('de focus gaat naar het formulier', await B.p.evaluate(() => !!document.activeElement.closest('.raadform')));
     await B.p.setViewportSize({ width: 390, height: 844 });
-    await B.p.locator('.raadform').scrollIntoViewIfNeeded();
+    await B.p.locator('.raadform').scrollIntoViewIfNeeded().catch(() => {});
     await B.p.screenshot({ path: path.join(TMP, '9-raadformulier-telefoon-B.png'), fullPage: true });
     await B.p.setViewportSize({ width: 900, height: 900 });
     await B.p.uncheck('.raadform input[type=checkbox]');

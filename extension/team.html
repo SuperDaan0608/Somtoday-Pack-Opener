@@ -14,14 +14,14 @@
   <a class="skip" href="#hoofd">Naar de inhoud</a>
   <header class="kop">
     <h1>Team</h1>
-    <p class="onder">Zet je beste kaarten in een team en battle tegen je vrienden.</p>
+    <p class="onder">Zet je beste kaarten in een team en neem het op tegen je vrienden in een strafschoppenduel.</p>
   </header>
   <div class="melding" id="melding" role="status" aria-live="polite"></div>
 
   <main id="hoofd">
     <section class="paneel" aria-labelledby="tm-titel">
       <h2 id="tm-titel">Mijn team</h2>
-      <p class="uitleg">Kies 1 tot 11 kaarten uit je galerij. De eerste kaart is de <strong>keeper</strong>. Klik op een kaart op het veld om die keeper te maken. De beste kaarten spelen voorin, de zwakste achterin. Hoe hoger het cijfer, hoe sterker de kaart.</p>
+      <p class="uitleg">Kies 1 tot 11 kaarten uit je galerij. De eerste kaart is de <strong>keeper</strong>. Klik op een kaart op het veld om die keeper te maken. De 5 beste veldspelers nemen de strafschoppen, de keeper staat in doel. Hoe hoger het cijfer, hoe sterker de kaart.</p>
       <div class="bouw">
         <div class="veld-kolom">
           <div class="veld bouwveld" id="bouwveld" aria-label="Opstelling van je team"></div>
@@ -39,7 +39,7 @@
               <summary>Hoe werkt chemie?</summary>
               <p>Vakken die bij elkaar horen vormen een groep. Heb je <strong>3 of meer kaarten uit één groep</strong>, dan krijgt je team chemie. Twee kaarten geven een halve bonus.</p>
               <p>Staan kaarten uit dezelfde groep <strong>naast elkaar</strong> op het veld, dan zie je er een lijntje tussen en komt er nog wat chemie bij.</p>
-              <p>In een gevecht geeft chemie hooguit <strong>8% extra passkans en klikkracht</strong>. Je vriend ziet alleen het getal, niet welke vakken je hebt.</p>
+              <p>In een duel geeft chemie hooguit <strong>8% extra sterkte</strong> voor al je kaarten. Je vriend ziet alleen het getal, niet welke vakken je hebt.</p>
               <ul class="chemie-vakken" id="chemie-vakken"></ul>
             </details>
           </section>
@@ -56,62 +56,100 @@
     </section>
 
     <section class="paneel" aria-labelledby="gv-titel">
-      <h2 id="gv-titel">Gevecht</h2>
+      <h2 id="gv-titel">Strafschoppenduel</h2>
       <div class="balk-boven">
         <span class="status" id="sync-status">Verbinden...</span>
         <button type="button" class="knop klein" id="sync">Synchroniseren</button>
       </div>
-      <p class="uitleg">Je kunt alleen vechten als jullie teams <strong>evenveel kaarten</strong> hebben. Je ziet de kaarten van je vriend pas als het gevecht begint. Tijdens een kans klik je zo snel mogelijk: wie het meeste klikt, wint het duel.</p>
+      <p class="uitleg">Een duel is een reeks van <strong>5 strafschoppen per kant</strong>, om en om. Bij elke strafschop is de één schutter en de ander keeper. De schutter kiest een hoek en <strong>stopt een wijzer in de groene zone</strong>: goed timen geeft een harder en nauwkeuriger schot. De keeper kiest waar hij heen duikt. De sterkte van jullie kaarten (met vloek, heel en chemie) schuift de kansen. Je ziet de kaarten van je vriend pas als het duel begint.</p>
+      <p class="uitleg" id="dag-info"></p>
       <div id="uitnodigingen"></div>
+      <div id="kijk-uitnodigingen" aria-live="polite"></div>
       <div id="vriend-uitleg" class="geen" hidden>De vriendenfunctie staat nog uit. Zet hem aan op het tabblad Vrienden om tegen een vriend te spelen. Oefenen tegen de computer kan wel.</div>
       <ul class="gv-lijst" id="gv-vrienden"></ul>
       <div class="oefen">
         <button type="button" class="knop goud" id="oefen">Oefenen tegen de computer</button>
         <span class="uitleg" id="oefen-info"></span>
       </div>
+      <fieldset class="duel-opties">
+        <legend>Opties</legend>
+        <label for="opt-film">Filmpje van de strafschop</label>
+        <select id="opt-film">
+          <option value="kort">Elke strafschop, zonder herhaling</option>
+          <option value="vol">Elke strafschop, met herhaling</option>
+          <option value="uit">Geen filmpje (alleen de 2D-uitslag)</option>
+        </select>
+        <label class="vink"><input type="checkbox" id="opt-kijkers" checked /> Vrienden mogen live meekijken en emoji sturen</label>
+        <p class="uitleg">Meekijken kan alleen voor vrienden aan wie je al je kaarten laat zien.</p>
+      </fieldset>
     </section>
   </main>
 
-  <div class="scherm" id="scherm" role="dialog" aria-modal="true" aria-label="Gevecht" hidden>
+  <div class="scherm" id="scherm" role="dialog" aria-modal="true" aria-label="Strafschoppenduel" hidden>
     <div class="bord">
-      <div class="bord-team" id="bord-a"><span class="bn" id="naam-a"></span><b id="score-a">0</b></div>
-      <div class="bord-klok"><span id="klok">0'</span><small id="bord-status"></small></div>
-      <div class="bord-team rechts" id="bord-b"><b id="score-b">0</b><span class="bn" id="naam-b"></span></div>
+      <div class="bord-team" id="bord-a"><span class="bn" id="naam-a"></span><b id="score-a" aria-hidden="true">0</b></div>
+      <div class="bord-klok"><span id="klok">Duel</span><small id="bord-status"></small></div>
+      <div class="bord-team rechts" id="bord-b"><b id="score-b" aria-hidden="true">0</b><span class="bn" id="naam-b"></span></div>
       <button type="button" class="knop klein stop" id="stop">Stoppen</button>
     </div>
-    <div class="veld-vak" id="veld-vak">
-      <div class="veld wedstrijdveld" id="wveld">
-        <div class="bal" id="bal" aria-hidden="true"></div>
-        <div class="veld-tekst" id="veld-tekst" aria-live="polite"></div>
-      </div>
+    <div class="reeks" id="reeks" aria-hidden="true">
+      <div class="reeks-rij" id="reeks-a"></div>
+      <div class="reeks-rij" id="reeks-b"></div>
     </div>
-    <div class="duel" id="duel" hidden>
-      <div class="duel-vignet"></div>
-      <div class="duel-binnen">
-        <p class="duel-rol" id="duel-rol"></p>
-        <div class="duel-kaarten"><div id="duel-schutter"></div><span class="duel-vs">tegen</span><div id="duel-keeper"></div></div>
-        <div class="duel-teller" id="duel-teller" aria-live="assertive">3</div>
-        <div class="meter" aria-hidden="true">
-          <div class="meter-vul mijn" id="meter-mijn"></div><div class="meter-vul hun" id="meter-hun"></div>
+    <div class="podium-vak">
+      <div class="podium" id="podium">
+        <canvas class="pd-bg" id="pd-bg" width="480" height="270" aria-hidden="true"></canvas>
+        <div class="gras" id="gras" aria-hidden="true">
+          <svg viewBox="0 0 160 43" preserveAspectRatio="none" class="gras-lijnen"><g fill="none" stroke="#ffffffcc" stroke-width=".6"><path d="M34 0 L22 30.3 L138 30.3 L126 0"/><path d="M60 0 L55 10.3 L105 10.3 L100 0"/><path d="M69 30.3 A13 13 0 0 0 91 30.3"/></g><circle cx="80" cy="29.7" r=".9" fill="#fff"/></svg>
         </div>
-        <div class="duel-tellers"><span>Jij <b id="kl-mijn">0</b></span><span><b id="kl-hun">0</b> <em id="kl-naam">tegenstander</em></span></div>
-        <button type="button" class="klik" id="klik">KLIK!</button>
-        <p class="duel-uitleg" id="duel-bonus"></p>
+        <div class="doel" id="doel" role="group" aria-label="Het doel. Links en rechts zoals je ze op het scherm ziet.">
+          <div class="net" aria-hidden="true"></div>
+          <div class="zones" id="zones"></div>
+          <div class="keeper-fig" id="keeper-fig" aria-hidden="true"><canvas id="cv-keeper" width="80" height="120"></canvas></div>
+        </div>
+        <div class="schutter-fig" id="schutter-fig" aria-hidden="true"><canvas id="cv-schutter" width="80" height="120"></canvas></div>
+        <div class="bal" id="bal" aria-hidden="true"></div>
+        <div class="pd-tekst" id="pd-tekst" aria-hidden="true"></div>
       </div>
     </div>
+    <p class="sr-only" id="uitslag-tekst" role="status" aria-live="assertive"></p>
+    <div class="keuze" id="keuze">
+      <p class="keuze-tekst" id="keuze-tekst" aria-live="polite"></p>
+      <div class="timing" id="timing" hidden>
+        <div class="tm-balk" id="tm-balk" aria-hidden="true"><div class="tm-zone" id="tm-zone"></div><div class="tm-wijzer" id="tm-wijzer"></div></div>
+        <p class="tm-hulp" id="tm-hulp">Stop de wijzer in de groene zone met de knop of de spatiebalk. Of kies Zonder timing.</p>
+      </div>
+      <div class="keuze-knoppen">
+        <button type="button" class="knop goud" id="bevestig" disabled>Schiet!</button>
+        <button type="button" class="knop" id="zonder" hidden>Zonder timing</button>
+      </div>
+    </div>
+    <div class="kaart-rij" id="kaart-rij" aria-label="De kaarten bij deze strafschop">
+      <figure class="kr"><div id="kr-schutter"></div><figcaption id="kr-schutter-tekst"></figcaption></figure>
+      <span class="kr-vs">tegen</span>
+      <figure class="kr"><div id="kr-keeper"></div><figcaption id="kr-keeper-tekst"></figcaption></figure>
+    </div>
+    <p class="kijk-info" id="kijk-info" aria-live="polite"></p>
     <div class="einde" id="einde" hidden>
       <div class="einde-binnen">
-        <p class="einde-kop" id="einde-kop"></p>
+        <p class="einde-kop" id="einde-kop" tabindex="-1"></p>
         <p class="einde-stand" id="einde-stand"></p>
         <p class="einde-tekst" id="einde-tekst"></p>
         <button type="button" class="knop goud" id="einde-terug">Terug</button>
       </div>
     </div>
   </div>
+  <div class="emoji-laag" id="emoji-laag" aria-hidden="true"></div>
+  <div class="emoji-balk" id="emoji-balk" role="group" aria-label="Emoji sturen" hidden></div>
+  <button type="button" class="knop film-over" id="film-over" hidden>Filmpje overslaan (Esc)</button>
 
+  <script src="tekstfilter-woorden.js"></script>
+  <script src="tekstfilter.js"></script>
+  <script src="voetbal.js"></script>
   <script src="economie.js"></script>
   <script src="vriendenlib.js"></script>
   <script src="gevecht.js"></script>
+  <script src="duellib.js"></script>
   <script src="ladder.js"></script>
   <script src="team.js"></script>
 </body>

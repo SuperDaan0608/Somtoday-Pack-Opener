@@ -20,21 +20,27 @@
     const pct = lijst.length ? Math.round((klaar / lijst.length) * 100) : 0;
     $('samen-vul').style.width = pct + '%';
     $('samen-balk').setAttribute('aria-valuenow', pct);
-    $('samen-sub').textContent = klaar === lijst.length ? 'Alles behaald. Goed gedaan!' : klaar ? `Nog ${lijst.length - klaar} te gaan.` : 'Open een pakket of speel een gevecht om je eerste badge te halen.';
+    // De geheime prestaties tellen gewoon mee in 'X van N' (N is dus het totaal, geheime erbij). Daaronder staat apart hoeveel je er al ontdekte.
+    const geheimAlle = lijst.filter((b) => b.geheim), geheimKlaar = geheimAlle.filter((b) => b.klaar).length;
+    const hoofd = klaar === lijst.length ? 'Alles behaald. Goed gedaan!' : klaar ? `Nog ${lijst.length - klaar} te gaan.` : 'Open een pakket of speel een gevecht om je eerste badge te halen.';
+    $('samen-sub').textContent = hoofd + (geheimAlle.length ? ` Geheim: ${geheimKlaar} van ${geheimAlle.length} ontdekt.` : '');
     const zichtbaar = lijst.filter((b) => filter === 'alle' || (filter === 'behaald' ? b.klaar : !b.klaar));
     // Behaalde badges eerst (nieuwste bovenaan), daarna de verste voortgang.
-    zichtbaar.sort((a, b) => (b.klaar - a.klaar) || (a.klaar ? b.ts - a.ts : (b.nu / b.doel) - (a.nu / a.doel)));
+    // De geheime prestaties (met hun raadsels) staan na de gewone behaalde badges en voor de rest; Pure Aura staat door de opmaak helemaal bovenaan.
+    const rang = (b) => (b.geheim ? 1 : b.klaar ? 0 : 2);
+    zichtbaar.sort((a, b) => (rang(a) - rang(b)) || (b.klaar - a.klaar) || (a.klaar ? b.ts - a.ts : (b.nu / b.doel) - (a.nu / a.doel)));
     $('geen').hidden = zichtbaar.length > 0;
     for (const b of zichtbaar) {
-      const li = el('li', 'badge-kaart ' + (b.klaar ? 'behaald' : 'vergrendeld') + (b.tier === 5 ? ' glitch' : ''));
+      const li = el('li', 'badge-kaart ' + (b.klaar ? 'behaald' : 'vergrendeld') + (b.geheim ? ' glitch' : '') + (b.id === 'fout-in-de-werkelijkheid' ? ' pure' : ''));
+      if (b.geheim) li.dataset.geheim = b.klaar ? 'ontdekt' : 'raadsel';
       const nieuw = b.klaar && b.ts > gezien && gezien > 0;
       if (nieuw) li.classList.add('nieuw');
       const ic = el('div', 'b-icoon'); ic.append(P.icoon(document, b, !b.klaar));
       const t = el('div', 'b-tekst');
-      t.append(el('h3', 'b-naam', b.naam), el('span', 'b-niveau', P.TIER_NAMEN[b.tier] || ''));
-      t.append(el('p', 'b-uitleg', (b.klaar ? '' : 'Hint: ') + b.tekst));
+      t.append(el('h3', 'b-naam', b.naam), el('span', 'b-niveau', (b.geheim && b.rang) || P.TIER_NAMEN[b.tier] || ''));
+      t.append(el('p', 'b-uitleg', b.klaar ? b.tekst : b.geheim ? 'Raadsel: ' + b.raadsel : 'Hint: ' + b.tekst));
       if (b.klaar) t.append(el('p', 'b-datum', b.ts ? 'Behaald op ' + datum(b.ts) : 'Behaald'));
-      else {
+      else if (!b.geheim) { // geen voortgangsbalk bij geheime prestaties: dat zou het raadsel verklappen
         const v = el('div', 'b-voortgang');
         const balk = el('div', 'balk'); balk.setAttribute('role', 'progressbar'); balk.setAttribute('aria-label', 'Voortgang ' + b.naam);
         balk.setAttribute('aria-valuemin', '0'); balk.setAttribute('aria-valuemax', String(b.doel)); balk.setAttribute('aria-valuenow', String(b.nu));

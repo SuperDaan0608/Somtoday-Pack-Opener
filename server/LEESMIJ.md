@@ -43,3 +43,61 @@ Foutcodes: 400, 401, 403, 404, 413, 429, met `{fout: "..."}`.
 3. Bouw de eigenaarsversie: `./scripts/package-owner.sh v1.4`, laad de uitgepakte zip in Chrome en open de tab Beheer. De pagina vraagt de sleutel één keer en bewaart hem in chrome.storage.local.
 
 De server ziet en toont alleen id's, tijden, aantallen en groottes; de inhoud blijft versleuteld.
+
+## Bijwerken naar v3 (blokkeren, melden, waarschuwingen, extra bans)
+
+1. Upload de nieuwe `api.php` (vervangt de oude; `config.php` blijft staan).
+2. Voer `migratie-v3.sql` uit in phpMyAdmin (herhaalbaar; maakt alleen de nieuwe tabellen: `blokkades`, `meldingen`, `waarschuwingen`, `ban_email`, `ban_ip`, `acc_ip`, `acc_koppel`, `beheer_mail`, `feedback`, `week_teller`, `jaar_wachtrij`, `jaar_teller`). Ook `schema.sql` bevat ze nu.
+3. Optioneel: zet `'beheer_mail' => 'jij@voorbeeld.nl'` in `config.php` (zie `config.example.php`). Zonder die regel komt er geen mail.
+4. Controleer met `api.php?status=1` en met de beheerpagina (die meldt ontbrekende tabellen).
+
+Zolang stap 2 nog niet is gedaan, werkt de rest van de server gewoon; de nieuwe acties geven dan 503 ("nog niet bijgewerkt").
+
+### Contract voor de client (alle acties: POST, JSON, headers `X-Id` en `X-Token`)
+
+- `blokkeer {id}` -> `{ok:true}`. Haalt de vriendschap (en kaarten/berichten) weg aan beide kanten. `deblokkeer {id}` -> `{ok:true}`. `blokkades` -> `{ids:[...]}` (alleen wie jij blokkeerde; de geblokkeerde ziet niets). Een vriendverzoek van de geblokkeerde aan de blokkeerder geeft `200 {ok:true,status:'pending'}` maar wordt niet opgeslagen. Verzoek van de blokkeerder aan de geblokkeerde geeft 409. send/put/poll tussen hen geven 403 zoals bij niet-vrienden. Max. 500 blokkades per gebruiker (429).
+- `meld {tegen, reden: 'naam'|'tekst'|'pesten'|'spam'|'anders', uitleg (max 300), bewijs (max 400, optioneel)}` -> `{ok:true}`. Langere tekst wordt afgekapt. Fouten: 400 (ongeldig, of jezelf), 404 (onbekende gebruiker), 429 (5 per dag per account; 1 per tegen-id per 24 uur).
+- `waarschuwingen` -> `{lijst:[{id,reden,ts}]}` (alleen ongelezen; `id` is een getal). `waarschuwingGezien {id}` -> `{ok:true}` (404 als de waarschuwing niet van jou is). `puls` heeft nu het veld `w` (aantal ongelezen waarschuwingen).
+- Nieuwe accounts (eerste 24 uur): hoogstens 3 vriendverzoeken per (UTC-)dag, anders 429 met `{fout:"Je account is nieuw: ..."}`. Verzoeken aan blokkeerders tellen mee.
+- Koppeling voor "ook e-mailadres blokkeren": stuur bij `accRegistreer`, `accVerifieer`, `accLogin`, `accReset` en `accBackupBewaar` ook de headers `X-Id` en `X-Token` mee. De server bewaart dan alleen de id's van gebruiker en account. Zonder die headers kan de beheerder het e-mailadres niet blokkeren.
+- Een geblokkeerd e-mailadres of netwerk geeft bij `register`, `accRegistreer`, `accVerifieer`, `accLogin`, `accReset` een 403 (`{fout}`); `accCodeOpnieuw` en `accVergeten` geven stil 200 zonder mail. Een al ingelogd ander account merkt niets van een ip-ban.
+
+Beheeracties (header `X-Beheer`): `beheerMeldingen` -> `{nu, meldingen:[{id, ts, van, tegen, reden, uitleg, heeftBewijs, aantalTegen, waarschuwingen, ipBekend, ipAccounts, banStatus (null of {tot,reden,ookEmail,ookIp}), status, uitkomst}]}` (nieuw eerst, max. 300); `beheerBewijs {id}` -> `{bewijs}`; `beheerMeldingKlaar {id, uitkomst}`; `beheerWaarschuw {id, reden}`; `beheerBan {id, tot (0 = voorgoed), reden, ook_email, ook_ip}` -> `{ok, tot, reden, emailGeblokkeerd, ipGeblokkeerd, ipTot}`; `beheerOnban {id}` ruimt ook `ban_email`/`ban_ip` op (ook als het account er niet meer is). `beheerStats` toont nu ook `nieuweMeldingen` en `ontbrekendeTabellen`. De IP-ban is altijd hoogstens 7 dagen en nooit voorgoed, wat er ook gevraagd wordt.
+
+### Wekelijkse drop (v3)
+
+- `dropMelden` (geen velden nodig; alles wat je meestuurt wordt genegeerd) telt één mythische kaart bij voor de huidige UTC ISO-week -> `200 {ok:true, week:'2026-W42', aantal}`. `dropTelling` -> `200 {week, aantal}` (0 als er deze week nog niets is). Beide vragen `X-Id` en `X-Token` van een vrienden-account: zonder (of met een fout token) is het `401`, zodat een anoniem script de teller niet kan vullen. Verbannen accounts krijgen 403.
+- Limieten: `dropMelden` hoogstens 5 per dag per account en 30 per dag per ip-hash (429 met `{fout}`); config `limiet_drop_per_dag` en `limiet_drop_ip_per_dag`. De gewone limiet per gebruiker en per ip geldt ook. Lezen heeft geen eigen limiet.
+- Tabel `week_teller` (week CHAR(8) = 'JJJJ-Www', aantal): alleen een weeknummer en een aantal, dus geen namen, geen kaarten en geen account-id. Weken ouder dan 8 weken worden opgeruimd. Zonder tabel: 503 ("nog niet bijgewerkt"; voer `migratie-v3.sql` uit).
+- De client meldt elke mythische kaart hoogstens één keer (sleutel `dm:<kaart>` in `spo_munten_ids`). De server controleert niet of de kaart echt bestaat: de teller is een gezelligheidsgetal, geen beloning.
+
+### Feedback (v3)
+
+- `feedback {soort: 'fout'|'idee'|'anders', tekst (1..500 tekens), info (0..300 tekens, optioneel)}` -> `200 {ok:true}`. Headers `X-Id` en `X-Token` zijn optioneel: met een geldig vrienden-account is dat de afzender (limiet 3 per dag per account, en een verbannen account krijgt 403 `{verbannen:true,...}`); zonder (of met een ongeldig token) telt alleen het netwerk. Altijd ook hoogstens 20 per dag per ip-hash (429 met `{fout}`). Een geblokkeerd netwerk (`ban_ip`) mag nog wel feedback sturen (onschuldigen op school). Ongeldige soort, geen tekst of tekst/info die geen tekst is: 400. Te lange tekst wordt afgekapt; besturingstekens (en tekens die de leesrichting omkeren) worden eruit gehaald, alleen een nieuwe regel blijft in `tekst`. Zonder tabel `feedback`: 503 ("nog niet bijgewerkt"). Er is geen versiecontrole.
+- Tabel `feedback` (id, ts, van = account-id of NULL, ip_hash (alleen hash), soort, tekst, info, status 'nieuw'|'klaar'). Bij het verwijderen van een account wordt `van` leeg gemaakt; de tekst blijft bewaard tot je hem wist.
+- Beheer (header `X-Beheer`): `beheerFeedback {alleenNieuw?: bool}` -> `{nu, feedback:[{id, ts, van, soort, tekst, info, status, aantalVanZelfde}]}` (nieuw eerst, daarna nieuwste eerst, max. 300; `aantalVanZelfde` = aantal van hetzelfde account, of van hetzelfde netwerk als er geen account is); `beheerFeedbackKlaar {id}` en `beheerFeedbackWis {id}` -> `{ok:true}` (404 als de id niet bestaat, 400 bij een ongeldige id). `beheerStats` heeft nu ook `nieuweFeedback`.
+- Mail aan de beheerder: hergebruikt het gebundelde mailmechanisme (config `beheer_mail`, hoogstens 1 mail per 10 minuten). De mail zegt alleen "Er is nieuwe feedback", het aantal en de soort(en), nooit de tekst of info. Komen er in dezelfde 10 minuten ook meldingen binnen, dan gaat het in één mail ("n nieuwe berichten"), ook zonder inhoud.
+- Beheerpagina: tabblad Feedback naast Gebruikers en Meldingen (teller van nieuwe feedback, filter Nieuw/Alles/Klaar en per soort, technische info ingeklapt, knoppen Klaar en Wissen met bevestiging). De tekst wordt altijd als tekst getoond, nooit als HTML.
+- Optionele limieten in `config.php`: `limiet_feedback_per_dag` (3) en `limiet_feedback_ip_per_dag` (20).
+
+### E-mailadressen (Gmail-varianten)
+
+Voor het hashen wordt het adres gelijkgetrokken: kleine letters, `googlemail.com` wordt `gmail.com`, bij gmail vallen punten weg, bij alle domeinen valt alles vanaf `+` weg. Bestaande accounts staan nog op de oude hash: bij inloggen en code-controle probeert de server eerst de nieuwe en dan de oude hash; werkt de oude, dan wordt het account omgezet (behalve als die plek al bezet is door een ander account: dan blijft het op de oude hash staan en kan de eigenaar gewoon blijven inloggen met het adres zoals het was). Een bestaand account is pas voor alle varianten vindbaar nadat het één keer is ingelogd met het oorspronkelijke adres.
+
+### Privacy
+
+De server bewaart alleen hashes en id's: geen e-mailadressen, geen ruwe IP-adressen. IP-adressen worden gehasht met het geheime `zout` (IPv6 per /64). Het ip-geheugen (`acc_ip`) wordt na 30 dagen opgeruimd; een ip-ban duurt hoogstens 7 dagen. De mail aan de beheerder bevat nooit inhoud: alleen dat er een melding of feedback is en de reden-categorie (bij feedback de soort), hoogstens 1 mail per 10 minuten. De beheerder ziet bij een melding wel de uitleg en het bewijs die de melder zelf meestuurde (bewijs pas na apart ophalen); dat is niet versleuteld. Meldingen blijven bewaard tot je ze zelf verwijdert. Feedback is gewone tekst die de afzender zelf kiest te sturen (niet versleuteld, geen persoonsgegevens vragen); ook die blijft bewaard tot je hem wist, zonder id van de afzender als het account is verwijderd.
+
+### Jaaroverzicht met AI (v3, optioneel)
+
+De knop 'Jaar bekijken' in de Pack Opener kan de terugblik door een AI-dienst (Groq) laten schrijven. Dat gaat zo: de gebruiker geeft per aanvraag uitdrukkelijk toestemming (vinkje, plus een voorbeeld van precies wat er wordt verstuurd); de extensie stuurt dan **alleen getallen** naar deze server (gemiddelde per vakgroep exact/talen/mens/kunst, verandering per vakgroep, aantal kaarten per ladder, hoogste en laagste cijfer, aantal pakjes en prestaties, en het nummer van de maand van de slechtste week). Geen namen, geen vaknamen, geen school, geen tekst, geen datums. De server controleert dat strikt (`jaarInvoer`: vaste velden, alleen getallen binnen grenzen, onbekende velden = 400) en bouwt de prompt zelf uit die getallen. Daardoor kan een gebruiker er geen instructies in stoppen. De server stuurt de prompt via cURL naar Groq.
+
+**Wat jij op de server moet doen**
+1. Voer `migratie-v3.sql` uit in phpMyAdmin (herhaalbaar; voegt `jaar_wachtrij` en `jaar_teller` toe) en upload de nieuwe `api.php`. Controleer met `api.php?status=1`.
+2. Maak een API-sleutel op https://console.groq.com/keys en zet in `config.php` op de server: `'groq_sleutel' => 'gsk_...',`. Zet die sleutel nooit in git, nooit in de extensie en deel hem niet. `config.example.php` bevat de sleutel alleen leeg. Zonder `groq_sleutel` geeft `jaarAanvraag` een 503 en gebruikt de extensie de lokale terugblik zonder AI.
+3. Optioneel in `config.php`: `groq_model` (standaard `llama-3.3-70b-versatile`), `limiet_jaar_per_dag` (150 in totaal), `limiet_jaar_per_account_per_dag` (1), `jaar_gelijktijdig` (2). PHP moet cURL hebben (staat bij Strato standaard aan).
+
+**Acties** (headers `X-Id` en `X-Token`): `jaarAanvraag {d: {v:1, gem:{exact,talen,mens,kunst}, stijg:{...}, lad:[5 aantallen], hoog, laag, pak, prest, slecht}}` en `jaarStatus` (zonder velden). Antwoord altijd `200 {status}` met status `wacht` (en `positie`: 1 is de volgende), `bezig`, `klaar` (met `tekst`), `limiet` (met `soort`: `dag` of `account`), `fout`, `tijd` of `geen`. De client pollt `jaarStatus` om de paar seconden. 400 bij ongeldige gegevens, 503 zonder sleutel of zonder tabellen.
+- **Wachtrij**: verzoeken worden één voor één (hoogstens `jaar_gelijktijdig` tegelijk) naar Groq gestuurd; elke aanvraag of statusvraag helpt de rij vooruit (er draait geen achtergrondproces). Wacht een verzoek langer dan 2 minuten, dan wordt het status `tijd`; duurt een verwerking langer dan 60 seconden of geeft Groq een fout, dan wordt het `fout`. In beide gevallen telt de aanvraag niet mee voor de limiet.
+- **Limieten**: globaal (`limiet_jaar_per_dag`) en per account (`limiet_jaar_per_account_per_dag`), per UTC-dag. Is er een op, dan is de status `limiet` en toont de client: 'Helaas is de dagelijkse limiet van het jaaroverzicht maken op. Probeer het morgen opnieuw, sorry voor het ongemak.'
+- **Privacy**: de server logt geen inhoud. De getallen staan alleen in `jaar_wachtrij.invoer` tot de verwerking klaar is (dan leeg), de geschreven tekst staat er alleen tot de client hem ophaalt (dan wordt de rij gewist) en uiterlijk 10 minuten. De tekst van Groq wordt aan de serverkant begrensd (800 tekens, geen tags, geen links) en de client controleert hem nog eens met het tekstfilter. De dagtellers (`jaar_teller`) bevatten alleen een hash en een aantal. Bij het verwijderen van een account wordt zijn rij gewist.

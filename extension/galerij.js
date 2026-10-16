@@ -13,6 +13,8 @@
 
   let alle = [];
   const filter = { vak: '', niv: new Set(), sort: 'nieuw', trede: 0, vloek: false };
+  let tweeling = {};   // { [kaart-id]: vriendnaam }: mijn tweelingkaarten (v3.0, tweeling.js)
+  let eigenNaam = 'Jij';
   let ggPerKaart = {}; // { [tijd van de kaart]: [vriendId, ...] }: vrienden die GG zeiden op mijn kosmische en mythische kaarten (v2.4)
   // v2.4: de ladder. Oude kaarten hebben alleen 'zeldzaam'.
   const TREDE_NAAM = globalThis.SPOLadder.NAAM;
@@ -25,7 +27,7 @@
 
   function schoon(a) {
     return (Array.isArray(a) ? a : []).filter((e) => e && typeof e.id === 'string' && typeof e.kaart === 'string' && Number.isFinite(e.cijfer))
-      .map((e) => Object.assign({}, e, { tier: Math.max(0, Math.min(4, e.tier | 0)), zeldzaam: e.zeldzaam === true || (e.trede | 0) >= 1, trede: Math.max(0, Math.min(4, e.trede | 0)) || (e.zeldzaam === true ? 1 : 0), vloek: e.vloek === true }));
+      .map((e) => Object.assign({}, e, { tier: Math.max(0, Math.min(4, e.tier | 0)), zeldzaam: e.zeldzaam === true || (e.trede | 0) >= 1, trede: Math.max(0, Math.min(4, e.trede | 0)) || (e.zeldzaam === true ? 1 : 0), vloek: e.vloek === true, heel: e.vloek === true && e.heel > 0 ? e.heel : 0 }));
   }
 
   // Tweestaps knop: eerste klik vraagt om bevestiging, tweede voert uit.
@@ -124,26 +126,53 @@
       const tr = tredeVan(e);
       b.setAttribute('aria-label', `${e.vak}, ${fmt(e.cijfer)}, ${NIVEAUS[e.tier]}${tr ? ', ' + TREDE_NAAM[tr].toLowerCase() : ''}, ${datum(e.ts)}`);
       if (tr) b.classList.add('trede-' + tr);
-      if (e.vloek) b.setAttribute('aria-label', b.getAttribute('aria-label') + ', vervloekt');
+      if (e.vloek && !(e.heel > 0)) b.setAttribute('aria-label', b.getAttribute('aria-label') + ', vervloekt');
+      else if (e.vloek) b.setAttribute('aria-label', b.getAttribute('aria-label') + ', vloek opgeheven');
       b.style.setProperty('--gl', GLOED[e.tier]);
       const vak = document.createElement('span'); vak.className = 'kaartvak';
       const k = document.createElement('span'); k.className = 'kaart';
       const img = new Image(); img.src = e.kaart; img.alt = ''; img.loading = 'lazy'; img.decoding = 'async'; img.draggable = false;
       const g = document.createElement('i'); g.className = 'glans';
       k.append(img, g); vak.append(k); tilt(k);
-      if (e.vloek) { k.classList.add('vloek'); const vb = document.createElement('span'); vb.className = 'vloek-badge'; vb.textContent = 'VLOEK'; vak.append(vb); }
+      if (e.vloek && !(e.heel > 0)) { k.classList.add('vloek'); const vb = document.createElement('span'); vb.className = 'vloek-badge'; vb.textContent = 'VLOEK'; vak.append(vb); }
+      else if (e.vloek) { const hb = document.createElement('span'); hb.className = 'heel-badge'; hb.textContent = 'HEEL'; vak.append(hb); }
       const m = document.createElement('span'); m.className = 'meta';
       const v = document.createElement('span'); v.className = 'vak'; v.textContent = e.vak;
       const c = document.createElement('span'); c.className = 'cj'; c.textContent = fmt(e.cijfer);
       const d = document.createElement('span'); d.className = 'dt'; d.textContent = datum(e.ts);
       m.append(v, c, d);
       if (tr) { const tb = document.createElement('span'); tb.className = 'trede-label t' + tr; tb.textContent = TREDE_NAAM[tr]; tb.title = TREDE_LABEL(tr) + ': zo vaak komt deze trede voor'; vak.append(tb); }
+      const ci = globalThis.SPOCapsuleUI ? globalThis.SPOCapsuleUI.icoon(e) : null; // v3.0: tijdcapsule
+      if (ci) vak.append(ci);
       const gg = aantalGG(e);
+      if (tweeling[e.id]) { vak.append(tweelingBadge(tweeling[e.id])); b.setAttribute('aria-label', b.getAttribute('aria-label') + ', tweelingkaart met ' + tweeling[e.id]); }
       if (gg) { const gb = document.createElement('span'); gb.className = 'gg-label'; gb.textContent = '\u{1F64C} ' + gg; gb.title = ggTekst(gg); vak.append(gb); }
       b.append(vak, m); li.append(b); frag.append(li);
     });
     ul.append(frag);
     $('geen').hidden = alle.length === 0 || zichtbaar.length > 0;
+  }
+
+  // Tweelingkaart (v3.0): een badge met de beginletters van jou en je vriend; alleen de naam zoals die al zichtbaar is.
+  const letter = (t) => { const x = Array.from(String(t || '').trim())[0]; return x ? x.toUpperCase() : '?'; };
+  function tweelingBadge(naam) {
+    const b = document.createElement('span'); b.className = 'tw-badge'; b.title = `Tweelingkaart met ${naam}`;
+    for (const t of [eigenNaam, naam]) { const a = document.createElement('span'); a.className = 'tw-avatar'; a.setAttribute('aria-hidden', 'true'); a.textContent = letter(t); b.append(a); }
+    b.append(document.createTextNode('TWEELING'));
+    return b;
+  }
+  function leesTweeling(r) {
+    const uit = {};
+    const k = r && r.spo_tweeling && typeof r.spo_tweeling === 'object' && r.spo_tweeling.kaarten && typeof r.spo_tweeling.kaarten === 'object' ? r.spo_tweeling.kaarten : {};
+    const T = globalThis.SPOTekst;
+    for (const id of Object.keys(k).slice(0, 20)) {
+      const t = k[id];
+      if (!t || typeof t !== 'object' || t.status !== 'actief' || typeof t.eigen !== 'string') continue;
+      uit[t.eigen] = (T ? T.toonNaam(String(t.naam || ''), '') : String(t.naam || '')).slice(0, 24) || 'Vriend';
+    }
+    tweeling = uit;
+    const bn = r && r.spo_profiel && typeof r.spo_profiel === 'object' && typeof r.spo_profiel.bijnaam === 'string' ? r.spo_profiel.bijnaam : '';
+    eigenNaam = (T && bn ? T.toonNaam(bn, '') : '') || 'Jij';
   }
 
   // GG van vrienden op een kosmische of mythische kaart (v2.4)
@@ -157,11 +186,13 @@
     const dlg = $('detail');
     dlg.style.setProperty('--gl', GLOED[e.tier]);
     $('d-img').src = e.kaart; $('d-img').alt = `Kaart ${e.vak} ${fmt(e.cijfer)}`;
-    $('d-niveau').textContent = NIVEAUS[e.tier] + (tredeVan(e) ? ' · ' + TREDE_LABEL(tredeVan(e)) : '') + (e.vloek ? ' · Vervloekt' : '');
-    $('d-kaart').classList.toggle('vloek', !!e.vloek);
+    $('d-niveau').textContent = NIVEAUS[e.tier] + (tredeVan(e) ? ' · ' + TREDE_LABEL(tredeVan(e)) : '') + (e.vloek ? (e.heel > 0 ? ' · Vloek opgeheven' : ' · Vervloekt') : '');
+    $('d-kaart').classList.toggle('vloek', !!e.vloek && !(e.heel > 0));
     const gg = aantalGG(e);
     $('d-gg').hidden = !gg;
     $('d-gg').textContent = gg ? '\u{1F64C} ' + ggTekst(gg) + '!' : '';
+    $('d-tweeling').hidden = !tweeling[e.id];
+    $('d-tweeling').textContent = tweeling[e.id] ? `Tweelingkaart: ${eigenNaam} en ${tweeling[e.id]}` : '';
     $('d-vak').textContent = e.vak;
     $('d-cijfer').textContent = fmt(e.cijfer);
     $('d-onderwerp').textContent = e.onderwerp || '-';
@@ -174,6 +205,7 @@
     $('d-vorige').disabled = i <= 0;
     $('d-volgende').disabled = i >= zichtbaar.length - 1;
     $('d-weg').resetTweestaps();
+    if (globalThis.SPOCapsuleUI) globalThis.SPOCapsuleUI.bijDetail(e);
     if (!dlg.open) dlg.showModal();
   }
 
@@ -294,16 +326,19 @@
   }
 
   async function start() {
+    if (globalThis.SPOCapsuleUI) globalThis.SPOCapsuleUI.init({ opWijzig: () => { if (alle.length) raster(); } }).catch(() => {});
     if (demo) { alle = await demoData(); render(); return; }
     try {
-      const r = await chrome.storage.local.get(['spo_galerij', 'spo_gg']);
+      const r = await chrome.storage.local.get(['spo_galerij', 'spo_gg', 'spo_tweeling', 'spo_profiel']);
       alle = schoon(r.spo_galerij);
+      leesTweeling(r);
       ggPerKaart = r.spo_gg && typeof r.spo_gg === 'object' && !Array.isArray(r.spo_gg) ? r.spo_gg : {};
     } catch (_) { alle = []; }
     render();
     chrome.storage.onChanged.addListener((c, gebied) => {
       if (gebied !== 'local') return;
       if (c.spo_gg) { const n = c.spo_gg.newValue; ggPerKaart = n && typeof n === 'object' && !Array.isArray(n) ? n : {}; if (!c.spo_galerij) render(); }
+      if (c.spo_tweeling || c.spo_profiel) { chrome.storage.local.get(['spo_tweeling', 'spo_profiel']).then((r) => { leesTweeling(r); if (!c.spo_galerij) render(); }).catch(() => {}); }
       if (c.spo_galerij) { alle = schoon(c.spo_galerij.newValue); render(); }
     });
   }

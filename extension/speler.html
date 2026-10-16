@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Speler en stadion</title>
+  <link rel="stylesheet" href="speler.css" />
+  <link rel="stylesheet" href="embed.css" />
+  <script src="embed.js"></script>
+</head>
+<body>
+  <a class="skip" href="#hoofd">Naar de inhoud</a>
+  <header class="kop">
+    <h1>Speler en stadion</h1>
+    <p class="onder">Maak je eigen voetballer en je eigen stadion. Je voetballer schiet de strafschoppen en vrienden zien allebei bij jouw naam. Het is alleen voor de leuk: het verandert nooit je cijfers.</p>
+  </header>
+
+  <main id="hoofd">
+    <p class="melding" id="melding" role="status" aria-live="polite"></p>
+
+    <section class="blok" aria-labelledby="k-speler">
+      <h2 id="k-speler">Jouw voetballer</h2>
+      <div class="rooster">
+        <div class="plaat">
+          <canvas id="av-canvas" width="320" height="480" role="img" aria-label="Je voetballer"></canvas>
+          <button type="button" class="knop" id="av-juich" aria-pressed="false">Bekijk het juichen</button>
+          <a class="knop" id="proef" href="stage.html?strafschop=1" target="_blank" rel="noopener">Proefstrafschop</a>
+        </div>
+        <div class="opties">
+          <div class="veld"><span id="l-huid">Huidskleur</span><div class="keuze kleuren" id="k-huid" role="radiogroup" aria-labelledby="l-huid"></div></div>
+          <div class="veld"><span id="l-haar">Haarstijl</span><div class="keuze" id="k-haar" role="radiogroup" aria-labelledby="l-haar"></div></div>
+          <div class="veld"><span id="l-haarkleur">Haarkleur</span><div class="keuze kleuren" id="k-haarkleur" role="radiogroup" aria-labelledby="l-haarkleur"></div></div>
+          <div class="veld"><span id="l-kit">Tenue</span><div class="keuze kleuren" id="k-kit" role="radiogroup" aria-labelledby="l-kit"></div></div>
+          <label class="veld"><span>Rugnummer (1 tot en met 99)</span><input type="number" id="nummer" min="1" max="99" step="1" inputmode="numeric" data-tekstfilter="uit" autocomplete="off" /></label>
+          <div class="veld"><span id="l-juich">Juichstijl na een doelpunt</span><div class="keuze" id="k-juich" role="radiogroup" aria-labelledby="l-juich"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="blok" aria-labelledby="k-stadion">
+      <h2 id="k-stadion">Jouw stadion</h2>
+      <div class="rooster breed">
+        <div class="plaat">
+          <canvas id="sd-canvas" width="720" height="405" role="img" aria-label="Je stadion"></canvas>
+        </div>
+        <div class="opties">
+          <label class="veld"><span>Naam van je stadion (hooguit 24 tekens)</span><input type="text" id="sd-naam" maxlength="24" data-tekstfilter="naam" autocomplete="off" placeholder="Bijv. De Kuil" /></label>
+          <div class="veld"><span id="l-thema">Thema</span><div class="keuze" id="k-thema" role="radiogroup" aria-labelledby="l-thema"></div></div>
+          <div class="veld"><span id="l-tribune">Kleur van de tribune</span><div class="keuze kleuren" id="k-tribune" role="radiogroup" aria-labelledby="l-tribune"></div></div>
+          <div class="veld"><span id="l-vlag">Vlaggen</span><div class="keuze" id="k-vlag" role="radiogroup" aria-labelledby="l-vlag"></div></div>
+          <div class="veld"><span id="l-veld">Veldstijl</span><div class="keuze" id="k-veld" role="radiogroup" aria-labelledby="l-veld"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <p class="uitleg">Meer haarstijlen, tenues, juichstijlen, thema's, vlaggen en veldstijlen koop je in de <button type="button" class="tekstknop" data-ga="winkel">Winkel</button>. Vergrendelde keuzes hebben een slotje.</p>
+    <label class="vink"><input type="checkbox" id="deel" /> Laat mijn voetballer en stadion zien aan vrienden</label>
+    <p class="uitleg">Alleen als de vriendenfunctie aan staat en je profielkaart gedeeld wordt. Alles blijft versleuteld.</p>
+  </main>
+
+  <script src="tekstfilter-woorden.js"></script>
+  <script src="tekstfilter.js"></script>
+  <script src="voetbal.js"></script>
+  <script src="economie.js"></script>
+  <script src="speler.js"></script>
+</body>
+</html>

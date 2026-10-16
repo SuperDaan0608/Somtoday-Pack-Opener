@@ -2,6 +2,31 @@
 // opent het pakket hier. De gegevens komen uit de URL.
 (function () {
   const q = new URLSearchParams(location.search);
+  // ?strafschop=1: de proef-strafschop (motor/strafschop.js) in plaats van een pakket
+  if (q.get('strafschop') === '1') {
+    const kaart = (p, vak, cijfer) => ({
+      vak: q.get(p + 'vak') || vak,
+      cijfer: q.get(p === '' ? 'cijfer' : 'keeper') || cijfer,
+      tier: q.get(p + 'tier'),
+      trede: q.get(p + 'trede'),
+      vloek: q.get(p + 'vloek'),
+    });
+    const json = (n) => { try { const v = JSON.parse(q.get(n)); return v && typeof v === 'object' ? v : null; } catch (e) { return null; } };
+    window.__somStrafschop = {
+      schutter: Object.assign(kaart('', 'Wiskunde', '8.6'), { av: json('av') }), // v3.0: eigen voetballer (optioneel)
+      thema: json('thema'), // v3.0: eigen stadion (optioneel)
+      keeper: kaart('keeper', 'Engels', '6.2'),
+      uitkomst: q.get('uitkomst') || 'goal',
+      richting: q.get('richting') || 'links',
+      hoogte: q.get('hoogte') || '',
+      kracht: q.get('kracht'),
+      stil: q.get('stil') === 'true',
+      laag: q.get('laag') === 'true',
+      pauze: q.get('pauze') === '1',
+      debug: q.get('debug') === '1',
+    };
+    return;
+  }
   window.__somPack = {
     vak: q.get('vak') || 'Vak',
     cijfer: q.get('cijfer') || '1',

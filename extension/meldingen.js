@@ -34,12 +34,14 @@
     (document.body || document.documentElement).appendChild(host);
   }
 
-  const ICOON = { duel: '⚔️', verzoek: '\u{1F91D}', gg: '\u{1F64C}', kijk: '\u{1F440}' };
+  const ICOON = { duel: '⚔️', verzoek: '\u{1F91D}', gg: '\u{1F64C}', kijk: '\u{1F440}', waarschuwing: '\u26A0\uFE0F', ban: '\u26D4' };
   const ONDER = {
     duel: 'Klik om naar Team te gaan.',
     verzoek: 'Klik om naar Vrienden te gaan.',
     gg: 'Klik om je galerij te openen.',
     kijk: 'Klik om dezelfde animatie op jouw scherm af te spelen (geen video).',
+    waarschuwing: 'Klik om hem te lezen. Je ziet hem tot je op Begrepen drukt.',
+    ban: 'Klik voor uitleg bij Vrienden.',
   };
   function toon(x) {
     if (x.soort === 'emoji') { document.dispatchEvent(new CustomEvent('spo-emoji-in', { detail: { emoji: x.emoji, naam: x.naam } })); return; }
@@ -61,7 +63,7 @@
       weg();
     });
     wortel.append(m);
-    setTimeout(weg, x.soort === 'duel' ? 30000 : x.soort === 'kijk' ? Math.min(60, x.rest || 60) * 1000 : x.soort === 'gg' ? 15000 : 12000);
+    setTimeout(weg, x.soort === 'duel' ? 30000 : x.soort === 'kijk' ? Math.min(60, x.rest || 60) * 1000 : x.soort === 'gg' ? 15000 : x.soort === 'waarschuwing' || x.soort === 'ban' ? 25000 : 12000);
     try { new Audio(chrome.runtime.getURL('sounds/' + (x.soort === 'duel' ? 'plinko-bel.mp3' : x.soort === 'kijk' ? 'hartslag.mp3' : 'icoon.mp3'))).play().catch(() => {}); } catch (e) { /* stil */ }
   }
 

@@ -37,8 +37,11 @@
   }
   function meld(t) { $('melding').textContent = t; setTimeout(() => ($('melding').textContent = ''), 3000); }
 
+  // Tekstfilter: een bijnaam die niet door het filter komt wordt niet bewaard (de melding staat onder het veld).
+  SPOTekst.koppel($('bijnaam'), { soort: 'naam', max: 20 });
   $('bijnaam').addEventListener('input', () => {
     clearTimeout(timer);
+    if (!SPOTekst.geldig($('bijnaam'))) return;
     timer = setTimeout(async () => { await E.bewaarProfiel({ bijnaam: $('bijnaam').value }); toon(false); }, 300);
   });
   $('deel').addEventListener('change', async () => { await E.bewaarProfiel({ deel: $('deel').checked }); meld('Opgeslagen.'); });

@@ -1,6 +1,6 @@
-// Beheerpagina-test in headless Chromium tegen een lokale php-server (beheer aan): ban, melding bij de gebruiker, opheffen, wissen.
+// Beheerpagina-test in headless Chromium tegen een lokale php-server (beheer aan): ban, melding bij de gebruiker, opheffen, wissen, tabblad Meldingen en Feedback (v3).
 // Gebruik: export NODE_PATH=$(npm root -g); node server/test/beheer.test.js
-const { spawn } = require('node:child_process');
+const { spawn, execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const { chromium } = require('playwright');
@@ -12,8 +12,8 @@ const MAP = path.resolve(__dirname, '..');
 const TMP = process.env.SPO_TMP || '/tmp/vrienden-scratch';
 fs.mkdirSync(TMP, { recursive: true });
 const DB = path.join(TMP, 'beheerpagina.sqlite');
-const API = 'http://localhost:8160/api.php';
-const WEB = 'http://localhost:8162';
+const API = 'http://localhost:8180/api.php';
+const WEB = 'http://localhost:8182';
 const SL = 'pagina-test-beheersleutel-0123456789';
 let ok = 0, mis = 0;
 function controle(naam, waar, extra) { if (waar) ok++; else { mis++; console.log('MIS:', naam, extra === undefined ? '' : extra); } }
@@ -26,8 +26,8 @@ const slaap = (ms) => new Promise((r) => setTimeout(r, ms));
     fs.writeFileSync(f, `<?php $d=new PDO('sqlite:'.$argv[1]); $d->exec(file_get_contents($argv[2]));`);
     spawn('php', [f, DB, path.join(MAP, 'schema.sql')]).on('exit', (c) => (c ? rej(new Error('schema')) : res()));
   });
-  const php = spawn('php', ['-S', 'localhost:8160', '-t', MAP], { env: Object.assign({}, process.env, { SPO_CONFIG: path.join(MAP, 'test/config.test.php'), SPO_TESTDB: DB, SPO_BEHEER: SL }), stdio: 'ignore' });
-  const web = spawn('http-server', ['-p', '8162', '-s', '-c-1', path.resolve(MAP, '../extension')], { stdio: 'ignore' });
+  const php = spawn('php', ['-S', 'localhost:8180', '-t', MAP], { env: Object.assign({}, process.env, { SPO_CONFIG: path.join(MAP, 'test/config.test.php'), SPO_TESTDB: DB, SPO_BEHEER: SL, SPO_LIMIET_BEHEER: '1000' }), stdio: 'ignore' });
+  const web = spawn('http-server', ['-p', '8182', '-s', '-c-1', path.resolve(MAP, '../extension')], { stdio: 'ignore' });
   const br = await chromium.launch();
   try {
     for (let i = 0; i < 50; i++) { try { await fetch(API, { method: 'OPTIONS' }); await fetch(WEB + '/beheer.html'); break; } catch (e) { await slaap(100); } }
@@ -145,6 +145,196 @@ const slaap = (ms) => new Promise((r) => setTimeout(r, ms));
     let w = null; try { await L.clientVan(mila).roep('friends'); } catch (e) { w = e.status; }
     controle('verwijderd account heeft geen toegang meer', w === 401, w);
     await p.screenshot({ path: path.join(TMP, 'beheer-4-na.png'), fullPage: true });
+
+    // ===== v3: tabblad Meldingen =====
+    {
+      const sqlDb = (q, par) => JSON.parse(execFileSync('php', ['-r', '$d=new PDO("sqlite:".$argv[1]);$s=$d->prepare($argv[2]);$s->execute(json_decode($argv[3],true));echo json_encode($s->columnCount()?$s->fetchAll(PDO::FETCH_ASSOC):[]);', '--', DB, q, JSON.stringify(par || [])]).toString() || '[]');
+      const [r1, r2, t1, t2, t3, t4] = [await maak(), await maak(), await maak(), await maak(), await maak(), await maak()];
+      const BEW = 'GEHEIM-BEWIJS: ' + 'x'.repeat(30) + ' <b>niet vet</b>';
+      await L.clientVan(r1).roep('meld', { tegen: t1.id, reden: 'pesten', uitleg: 'Scheldt in zijn naam.', bewijs: BEW });
+      await L.clientVan(r2).roep('meld', { tegen: t1.id, reden: 'naam', uitleg: 'Rare naam.' });
+      await L.clientVan(r1).roep('meld', { tegen: t2.id, reden: 'spam', uitleg: 'Stuurt steeds verzoeken.' });
+      await L.clientVan(r1).roep('meld', { tegen: t3.id, reden: 'tekst', uitleg: 'Onbetamelijke tekst.', bewijs: 'tekst die niet mag' });
+      await L.clientVan(r2).roep('meld', { tegen: t4.id, reden: 'anders', uitleg: 'Vervelend.' });
+      await p.click('#ververs');
+      await p.waitForFunction(() => document.getElementById('meld-teller') && !document.getElementById('meld-teller').hidden);
+      controle('teller bij tabblad Meldingen', (await p.textContent('#meld-teller')) === '5');
+      controle('tabblad Gebruikers staat open, meldingen verborgen', await p.locator('#paneel-gebruikers').isVisible() && !(await p.locator('#paneel-meldingen').isVisible()) && (await p.getAttribute('#tab-gebruikers', 'aria-selected')) === 'true');
+      await p.click('#tab-meldingen');
+      controle('tab Meldingen: aria-selected en paneel zichtbaar', (await p.getAttribute('#tab-meldingen', 'aria-selected')) === 'true' && await p.locator('#paneel-meldingen').isVisible() && !(await p.locator('#paneel-gebruikers').isVisible()));
+      await p.keyboard.press('ArrowLeft');
+      controle('pijltjestoets wisselt van tab', await p.locator('#paneel-gebruikers').isVisible());
+      await p.keyboard.press('ArrowRight');
+      controle('en weer terug', await p.locator('#paneel-meldingen').isVisible());
+      const kaart = (id) => p.locator('#meldlijst .meld', { hasText: id });
+      controle('5 nieuwe meldingen getoond (nieuw eerst)', (await p.locator('#meldlijst .meld').count()) === 5);
+      const tekstK = await kaart(t1.id).first().textContent();
+      controle('kaart toont reden, ids en aantal meldingen tegen dit id', /Pesten|Naam/.test(tekstK) && (tekstK.includes(r1.id) || tekstK.includes(r2.id)) && tekstK.includes(t1.id) && /Meldingen tegen dit id2/.test(tekstK), tekstK);
+      controle('bewijs staat niet in de pagina voor het klikken', !(await p.content()).includes('GEHEIM-BEWIJS') && (await kaart(t1.id).locator('blockquote.bewijs:visible').count()) === 0);
+      controle('melding zonder bewijs: geen knop, wel tekst', (await kaart(t2.id).locator('button', { hasText: 'Toon bewijs' }).count()) === 0 && (await kaart(t2.id).textContent()).includes('Geen bewijs meegestuurd'));
+      controle('rode IP-waarschuwing bij veel accounts', /Dit IP is de laatste 30 dagen door \d+ accounts gebruikt: waarschijnlijk een school of gedeeld wifi/.test(await kaart(t2.id).locator('.ip-waarschuwing').textContent()) && (await kaart(t2.id).locator('.ip-waarschuwing').getAttribute('role')) === 'alert');
+      const kBew = kaart(t1.id).filter({ hasText: 'Scheldt' });
+      await kBew.locator('button', { hasText: 'Toon bewijs' }).click();
+      await p.waitForSelector('blockquote.bewijs:visible');
+      controle('na klikken staat het bewijs er (als tekst, niet als html)', (await kBew.locator('blockquote.bewijs').textContent()) === BEW && (await kBew.locator('blockquote.bewijs b').count()) === 0 && (await kBew.locator('button', { hasText: 'Verberg bewijs' }).getAttribute('aria-expanded')) === 'true');
+      await p.screenshot({ path: path.join(TMP, 'beheer-5-meldingen.png'), fullPage: true });
+      await kBew.locator('button', { hasText: 'Verberg bewijs' }).click();
+      controle('bewijs weer te verbergen en uit de pagina', (await kBew.locator('blockquote.bewijs:visible').count()) === 0 && !(await kBew.locator('blockquote.bewijs').textContent()));
+
+      // Negeren
+      await kaart(t4.id).locator('button', { hasText: 'Negeren' }).click();
+      await p.waitForFunction(() => document.querySelectorAll('#meldlijst .meld').length === 4);
+      controle('negeren: melding uit de lijst, teller 4', (await p.textContent('#meld-teller')) === '4');
+      await p.selectOption('#meld-filter', 'klaar');
+      controle('afgehandeld: toont de uitkomst', (await p.locator('#meldlijst .meld').count()) === 1 && (await p.textContent('#meldlijst')).includes('Genegeerd'));
+      await p.selectOption('#meld-filter', 'nieuw');
+
+      // Waarschuwen (reden verplicht)
+      await kaart(t3.id).locator('button', { hasText: 'Waarschuwen' }).click();
+      await p.click('.meldform button[type=submit]');
+      controle('waarschuwen zonder reden lukt niet', (await p.locator('.meldform').count()) === 1 && (await L.clientVan(t3).roep('puls')).w === 0);
+      await p.fill('.meldform input[type=text]', 'Houd het netjes');
+      controle('waarschuwen: geen vinkjes voor bans', (await p.locator('.meldform input[type=checkbox]').count()) === 0);
+      await p.click('.meldform button[type=submit]');
+      await p.waitForFunction(() => document.querySelectorAll('#meldlijst .meld').length === 3);
+      const wl = await L.clientVan(t3).roep('waarschuwingen');
+      controle('waarschuwing is aangekomen bij de gebruiker', (await L.clientVan(t3).roep('puls')).w === 1 && wl.lijst.length === 1 && wl.lijst[0].reden === 'Houd het netjes');
+
+      // Tijdelijk bannen: bevestigingsvenster, annuleren, dan echt
+      await kaart(t2.id).locator('button', { hasText: 'Tijdelijk bannen' }).click();
+      controle('tijdelijk: duurkeuze 1 uur, 1 dag, 7 dagen, 30 dagen', (await p.locator('.meldform select option').allTextContents()).join('|') === '1 uur|1 dag|7 dagen|30 dagen');
+      controle('IP-vinkje staat standaard uit bij veel accounts op het ip', (await p.locator('.meldform input[type=checkbox]').nth(1).isChecked()) === false && (await p.locator('.meldform input[type=checkbox]').nth(0).isChecked()) === false);
+      controle('uitleg waarom het IP-vinkje uit staat', (await p.textContent('.meldform')).includes('gedeeld'));
+      await p.selectOption('.meldform select', '3600');
+      await p.fill('.meldform input[type=text]', 'Spam');
+      await p.check('.meldform input[type=checkbox] >> nth=0');
+      await p.click('.meldform button[type=submit]');
+      await p.waitForSelector('dialog#bevestig[open]');
+      const bevT = await p.textContent('#bev-regels');
+      controle('bevestigingsvenster toont wie, hoe lang en de keuzes', bevT.includes(t2.id) && /1 uur/.test(bevT) && /Spam/.test(bevT) && /e-mailadres blokkeren: ja/.test(bevT) && /IP blokkeren \(max\. 7 dagen\): nee/.test(bevT), bevT);
+      controle('focus staat op Annuleren (veilige keuze)', await p.evaluate(() => document.activeElement && document.activeElement.id === 'bev-nee'));
+      await p.screenshot({ path: path.join(TMP, 'beheer-6-bevestig.png') });
+      await p.click('#bev-nee');
+      controle('annuleren: er is niets gebeurd', (await L.clientVan(t2).roep('mijnStatus')).verbannen === false && (await p.locator('#meldlijst .meld').count()) === 3);
+      await p.click('.meldform button[type=submit]');
+      await p.waitForSelector('dialog#bevestig[open]');
+      await p.click('#bev-ja');
+      await p.waitForFunction(() => document.querySelectorAll('#meldlijst .meld').length === 2);
+      const stT2 = await L.clientVan(t2).roep('mijnStatus');
+      controle('ban is gezet voor 1 uur met reden', stT2.verbannen === true && Math.abs(stT2.tot - (Math.floor(Date.now() / 1000) + 3600)) < 30 && stT2.reden === 'Spam', stT2);
+      controle('IP niet geblokkeerd (vinkje stond uit)', Number(sqlDb('SELECT COUNT(*) AS n FROM ban_ip')[0].n) === 0);
+      await p.selectOption('#meld-filter', 'klaar');
+      controle('afgehandelde melding noemt de uitkomst', (await p.textContent('#meldlijst')).includes('Verbannen (1 uur)'));
+      await p.selectOption('#meld-filter', 'nieuw');
+
+      // Weinig accounts op het ip: vinkje standaard aan; permanent bannen met ook IP (altijd max. 7 dagen)
+      sqlDb('DELETE FROM acc_ip WHERE account <> ? AND account <> ?', [t1.id, r1.id]);
+      await p.click('#meld-ververs');
+      await p.waitForFunction(() => !document.querySelector('#meldlijst .ip-waarschuwing'));
+      controle('geen rode waarschuwing bij 2 accounts op het ip', (await p.locator('#meldlijst .ip-waarschuwing').count()) === 0);
+      await kaart(t1.id).first().locator('button', { hasText: 'Permanent bannen' }).click();
+      controle('permanent: geen duurkeuze, IP-vinkje staat aan', (await p.locator('.meldform select').count()) === 0 && (await p.locator('.meldform input[type=checkbox]').nth(1).isChecked()) === true);
+      await p.click('.meldform button[type=submit]');
+      controle('reden is verplicht bij een ban (formulier blijft)', (await p.locator('dialog#bevestig[open]').count()) === 0 && (await p.locator('.meldform').count()) === 1);
+      await p.fill('.meldform input[type=text]', 'Pesten');
+      await p.click('.meldform button[type=submit]');
+      await p.waitForSelector('dialog#bevestig[open]');
+      controle('bevestiging noemt voorgoed en ook IP', /voorgoed/.test(await p.textContent('#bev-regels')) && /IP blokkeren \(max\. 7 dagen\): ja/.test(await p.textContent('#bev-regels')));
+      await p.click('#bev-ja');
+      await p.waitForFunction(() => document.querySelectorAll('#meldlijst .meld').length === 1);
+      controle('de tweede melding over dezelfde gebruiker blijft open en toont de ban', (await p.textContent('#meldlijst')).includes('Voorgoed verbannen, ook IP') && (await p.locator('#meldlijst .meld button', { hasText: 'Ban opheffen' }).count()) === 1);
+      await p.locator('#meldlijst .meld button', { hasText: 'Negeren' }).click();
+      await p.waitForFunction(() => document.querySelectorAll('#meldlijst .meld').length === 0);
+      const stT1 = await L.clientVan(t1).roep('mijnStatus');
+      const ipb = sqlDb('SELECT tot FROM ban_ip');
+      controle('permanent verbannen, maar de ip-ban duurt hoogstens 7 dagen', stT1.verbannen === true && stT1.tot === 0 && ipb.length === 1 && Number(ipb[0].tot) > 0 && Number(ipb[0].tot) - Math.floor(Date.now() / 1000) <= 604800 + 10, [stT1, ipb]);
+      await p.selectOption('#meld-filter', 'alle');
+      controle('Alle meldingen: 5 stuks', (await p.locator('#meldlijst .meld').count()) === 5);
+      controle('alle 5 meldingen staan op afgehandeld', (await p.locator('#meldlijst .meld.klaar').count()) === 5);
+      await p.screenshot({ path: path.join(TMP, 'beheer-7-meldingen-klaar.png'), fullPage: true });
+      // Ban opheffen vanuit de melding ruimt ook het ip op
+      controle('meldingen bevatten geen onverwachte gegevens (geen e-mail/ip in de pagina)', !/@|127\.0\.0\.1/.test(await p.textContent('#paneel-meldingen')));
+      await L.clientVan(t1).roep('mijnStatus');
+      await p.selectOption('#meld-filter', 'nieuw');
+      await p.click('#tab-gebruikers');
+      const rijT1 = p.locator('#rijen tr', { hasText: t1.id });
+      await rijT1.locator('button', { hasText: 'Opheffen' }).click();
+      await p.waitForFunction(() => document.querySelectorAll('#rijen tr.verbannen').length === 1);
+      controle('opheffen via gebruikerstab ruimt ook ban_ip op', Number(sqlDb('SELECT COUNT(*) AS n FROM ban_ip')[0].n) === 0);
+      // mobiel
+      await p.setViewportSize({ width: 390, height: 800 });
+      await p.click('#tab-meldingen'); await p.selectOption('#meld-filter', 'alle');
+      controle('mobiel: geen horizontale scroll in het meldingenpaneel', await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), await p.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]));
+      await p.screenshot({ path: path.join(TMP, 'beheer-8-mobiel.png'), fullPage: true });
+      await p.setViewportSize({ width: 1280, height: 900 });
+      await p.click('#tab-gebruikers');
+    }
+
+    // ===== v3: tabblad Feedback =====
+    {
+      const sqlDb = (q, par) => JSON.parse(execFileSync('php', ['-r', '$d=new PDO("sqlite:".$argv[1]);$s=$d->prepare($argv[2]);$s->execute(json_decode($argv[3],true));echo json_encode($s->columnCount()?$s->fetchAll(PDO::FETCH_ASSOC):[]);', '--', DB, q, JSON.stringify(par || [])]).toString() || '[]');
+      sqlDb('DELETE FROM ratelimit');
+      const [f1, f2, f3] = [await maak(), await maak(), await maak()];
+      const XSS = '<img src=x onerror=window.__xss=1><b>vet</b> & "quotes"';
+      const sturen = (u, b) => L.clientVan(u).roep('feedback', b);
+      await sturen(f1, { soort: 'fout', tekst: 'De knop Openen doet niets na het klikken. ' + XSS, info: 'versie 3.0 | chrome 130 | geluid aan | thema donker' });
+      await sturen(f1, { soort: 'idee', tekst: 'Maak een dagelijkse opdracht.\nMet een beloning.' });
+      await sturen(f2, { soort: 'anders', tekst: 'Leuk spel, bedankt!' });
+      await sturen(f3, { soort: 'fout', tekst: 'Mijn kaarten laden niet bij een vriend.', info: 'versie 3.0 | firefox 128' });
+      await p.click('#ververs');
+      await p.waitForFunction(() => document.getElementById('fb-teller') && !document.getElementById('fb-teller').hidden);
+      controle('teller bij tabblad Feedback', (await p.textContent('#fb-teller')) === '4');
+      controle('stats toont nieuwe feedback', /4\s*Nieuwe feedback/.test(await p.textContent('#stats')));
+      await p.click('#tab-gebruikers'); await p.click('#tab-meldingen');
+      await p.keyboard.press('ArrowRight');
+      controle('pijltje rechts van Meldingen gaat naar Feedback', (await p.getAttribute('#tab-feedback', 'aria-selected')) === 'true' && await p.locator('#paneel-feedback').isVisible() && !(await p.locator('#paneel-meldingen').isVisible()));
+      await p.keyboard.press('ArrowRight');
+      controle('en rond naar Gebruikers (cyclisch)', await p.locator('#paneel-gebruikers').isVisible());
+      await p.keyboard.press('ArrowLeft');
+      controle('pijltje links terug naar Feedback', await p.locator('#paneel-feedback').isVisible());
+      controle('tab Feedback: role=tab, aria-controls, tabindex', (await p.getAttribute('#tab-feedback', 'role')) === 'tab' && (await p.getAttribute('#tab-feedback', 'aria-controls')) === 'paneel-feedback' && (await p.getAttribute('#tab-meldingen', 'tabindex')) === '-1');
+      const fk = (t) => p.locator('#fb-lijst .meld', { hasText: t });
+      controle('4 nieuwe feedbackberichten', (await p.locator('#fb-lijst .meld').count()) === 4);
+      controle('xss staat als tekst, niet als html', (await fk('De knop Openen').locator('.fb-tekst').textContent()).includes(XSS) && (await p.locator('#fb-lijst img, #fb-lijst b').count()) === 0 && (await p.evaluate(() => window.__xss)) === undefined);
+      controle('soort-label en datum zichtbaar', (await fk('De knop Openen').locator('.badge.soort-fout').textContent()) === 'Fout' && (await fk('dagelijkse opdracht').locator('.badge.soort-idee').textContent()) === 'Idee' && (await fk('Leuk spel').locator('.badge.soort-anders').textContent()) === 'Anders' && /\d{4}/.test(await fk('Leuk spel').locator('.meld-kop .nu').textContent()));
+      controle('nieuwe regel in de tekst blijft zichtbaar (pre-wrap)', await fk('dagelijkse opdracht').locator('.fb-tekst').evaluate((e) => getComputedStyle(e).whiteSpace === 'pre-wrap'));
+      controle('technische info is ingeklapt', (await fk('De knop Openen').locator('details').getAttribute('open')) === null && !(await fk('De knop Openen').locator('details pre').isVisible()));
+      controle('geen info: geen uitklapper', (await fk('Leuk spel').locator('details').count()) === 0);
+      controle('afzender en aantal van dezelfde afzender', (await fk('De knop Openen').textContent()).includes(f1.id) && /2 keer feedback van dezelfde afzender/.test(await fk('De knop Openen').textContent()));
+      await fk('De knop Openen').locator('summary').click();
+      controle('uitklappen toont de info als tekst', await fk('De knop Openen').locator('details pre').isVisible() && (await fk('De knop Openen').locator('details pre').textContent()).includes('chrome 130'));
+      await p.screenshot({ path: path.join(TMP, 'beheer-9-feedback.png'), fullPage: true });
+      // Filters
+      await p.selectOption('#fb-soort', 'fout');
+      controle('filter soort fout: 2 stuks', (await p.locator('#fb-lijst .meld').count()) === 2);
+      await p.selectOption('#fb-soort', 'idee');
+      controle('filter soort idee: 1 stuk', (await p.locator('#fb-lijst .meld').count()) === 1);
+      await p.selectOption('#fb-soort', 'alle');
+      // Klaar
+      await fk('Leuk spel').locator('button', { hasText: /^Klaar$/ }).click();
+      await p.waitForFunction(() => document.querySelectorAll('#fb-lijst .meld').length === 3);
+      controle('klaar: uit de lijst Nieuw en teller 3', (await p.textContent('#fb-teller')) === '3' && sqlDb("SELECT COUNT(*) AS n FROM feedback WHERE status = 'klaar'")[0].n == 1);
+      await p.selectOption('#fb-filter', 'alle');
+      controle('Alles toont 4, klare staat gedempt en zonder Klaar-knop', (await p.locator('#fb-lijst .meld').count()) === 4 && (await fk('Leuk spel').getAttribute('class')).includes('klaar') && (await fk('Leuk spel').locator('button', { hasText: /^Klaar$/ }).count()) === 0);
+      await p.selectOption('#fb-filter', 'klaar');
+      controle('filter Klaar: 1 stuk', (await p.locator('#fb-lijst .meld').count()) === 1);
+      await p.selectOption('#fb-filter', 'nieuw');
+      // Wissen met bevestiging
+      const wis = fk('Mijn kaarten laden niet').locator('button', { hasText: /^Wissen$/ });
+      await wis.click();
+      controle('wissen vraagt eerst bevestiging, er is nog niets gewist', (await fk('Mijn kaarten laden niet').locator('button.zeker').count()) === 1 && sqlDb('SELECT COUNT(*) AS n FROM feedback')[0].n == 4);
+      await fk('Mijn kaarten laden niet').locator('button.zeker').click();
+      await p.waitForFunction(() => document.querySelectorAll('#fb-lijst .meld').length === 2);
+      controle('na bevestigen gewist uit lijst en database', sqlDb('SELECT COUNT(*) AS n FROM feedback')[0].n == 3 && (await p.textContent('#fb-teller')) === '2');
+      // Mobiel
+      await p.setViewportSize({ width: 390, height: 800 });
+      await p.selectOption('#fb-filter', 'alle');
+      controle('mobiel: geen horizontale scroll in het feedbackpaneel', await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), await p.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]));
+      controle('mobiel: alle drie de tabs bereikbaar', await p.evaluate(() => ['tab-gebruikers', 'tab-meldingen', 'tab-feedback'].every((id) => { const r = document.getElementById(id).getBoundingClientRect(); return r.width > 0; })));
+      await p.screenshot({ path: path.join(TMP, 'beheer-10-feedback-mobiel.png'), fullPage: true });
+      await p.setViewportSize({ width: 1280, height: 900 });
+      await p.click('#tab-gebruikers');
+    }
 
     // Sleutel vergeten, na herladen weer vragen; bewaard na herladen
     await p.reload();

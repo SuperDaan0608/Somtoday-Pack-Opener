@@ -19,6 +19,7 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
   const GALERIJ = 'spo_galerij';
   const TEAM = 'spo_team';             // mijn team: { ids: [keeperId, ...veldspelers] }, verwijst naar kaarten uit de galerij
   const GEVECHTEN = 'spo_gevechten';  // uitslagen: { [vriendId]: [{ ts, mijn, hun, n }] }
+  const BLOKKADES = 'spo_blokkades'; // v3.0: wie ik geblokkeerd heb: { [id]: { ts, alias } } (ook in de back-up, samengevoegd als unie)
   const DICHT = 'spo_dicht'; // door de content-script bijgehouden: je nog ongeopende cijfers (zonder het cijfer zelf)
   const subtle = globalThis.crypto.subtle;
   const enc = new TextEncoder();
@@ -51,10 +52,17 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
     { emoji: '\u2764\uFE0F', naam: 'hart' },
   ];
   const GRENS = { vak: 60, onderwerp: 120, kaarten: 150, reacties: 300, rondes: 10, gokken: 50, dicht: 20 };
+  // Tekstfilter (tekstfilter.js): alles wat van een vriend komt gaat erdoor, ook al filterde de schrijver al.
+  // Is het filter niet geladen, dan blijft er alleen '•••' over (liever dicht dan open). In Node laden we het zelf.
+  if (!globalThis.SPOTekst && typeof require === 'function') { try { globalThis.SPOTekst = require('./tekstfilter.js'); } catch (e) { /* niet beschikbaar */ } }
+  const filterToon = (t) => (t && globalThis.SPOTekst ? globalThis.SPOTekst.toon(t) : t ? '\u2022\u2022\u2022' : '');
+  const filterNaam = (t, std) => (globalThis.SPOTekst ? globalThis.SPOTekst.toonNaam(t, std) : std);
   const heeft = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
   // Veilig één waarde uit een lijst van (vriend)gegevens lezen: nooit iets erven van Object.prototype.
   const eigen = (o, k) => (o && typeof o === 'object' && heeft(o, k) ? o[k] : undefined);
   const STUUR_TEKENS = /[\u0000-\u001F\u007F-\u009F\u061C\u200B-\u200F\u2028-\u202E\u2060-\u2069\uFEFF]/g; // besturings- en richtingtekens
+  // Tekst van de beheerder (reden van een ban of waarschuwing): alleen onzichtbare tekens weg, het filter zou een nette uitleg kunnen wegstrepen.
+  const schoonBeheerTekst = (t, max) => (typeof t === 'string' ? (globalThis.SPOTekst ? globalThis.SPOTekst.veilig(t) : t.replace(STUUR_TEKENS, '')).trim().slice(0, max) : '');
   const getal = (x, min, max) => typeof x === 'number' && Number.isFinite(x) && x >= min && x <= max;
   const rond1 = (x) => Math.round(x * 10) / 10;
   const rond2 = (x) => Math.round(x * 100) / 100;
@@ -62,7 +70,7 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
   // Tekst van een vriend: alleen een string, niet langer dan toegestaan (anders wordt het hele veld genegeerd).
   function tekstVeld(t, max, min) {
     if (typeof t !== 'string' || t.length > max) return null;
-    const s = t.replace(STUUR_TEKENS, '').trim();
+    const s = filterToon(t.replace(STUUR_TEKENS, '').trim());
     return s.length >= min ? s : null;
   }
   // Id van een kaart (de id uit de galerij) of van een ronde-sleutel: korte, rustige tekens, nooit '__proto__'.
@@ -143,7 +151,7 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
       const vak = tekstVeld(k.vak, GRENS.vak, 0);
       if (vak === null || !getal(k.cijfer, 1, 10) || !Number.isInteger(k.tier)) return null;
       const t = Number.isInteger(k.t) ? Math.max(0, Math.min(4, k.t)) : k.z === true ? 1 : 0;
-      kaarten.push({ vak, cijfer: rond2(k.cijfer), tier: Math.max(0, Math.min(4, k.tier)), z: t >= 1, t, v: k.v === true });
+      kaarten.push({ vak, cijfer: rond2(k.cijfer), tier: Math.max(0, Math.min(4, k.tier)), z: t >= 1, t, v: k.v === true, h: k.v !== true && k.h === true });
     }
     if (!kaarten.length) return null;
     const uit = { kaarten };
@@ -231,12 +239,16 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
   }
 
   // ---- API-client ----
-  // Tekst voor een verbannen gebruiker: 'Je bent verbannen tot 12 oktober 2026 14:30 (reden)'. tot 0 = voorgoed.
-  function banTekst(tot, reden) {
-    let wanneer = 'voorgoed';
-    if (tot > 0) { try { wanneer = 'tot ' + new Date(tot * 1000).toLocaleString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }); } catch (e) { wanneer = 'tot ' + new Date(tot * 1000).toISOString(); } }
-    return 'Je bent verbannen ' + wanneer + (reden ? ' (' + reden + ')' : '') + '.';
+  // Tekst voor een verbannen gebruiker: 'Je bent verbannen tot 12 oktober 2026 om 14:30 (reden).' of 'Je bent permanent verbannen (reden).' tot 0 = permanent.
+  function banWanneer(tot) {
+    if (!(tot > 0)) return 'permanent';
+    try { return 'tot ' + new Date(tot * 1000).toLocaleString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }); } catch (e) { return 'tot ' + new Date(tot * 1000).toISOString(); }
   }
+  function banTekst(tot, reden) {
+    return 'Je bent ' + (tot > 0 ? 'verbannen ' + banWanneer(tot) : 'permanent verbannen') + (reden ? ' (' + reden + ')' : '') + '.';
+  }
+  // Aanmelden kan niet (geblokkeerd e-mailadres of netwerk): vriendelijk, zonder te verraden wat er aan de hand is.
+  const AANMELD_TEKST = 'Aanmelden lukt nu niet met dit e-mailadres of op dit netwerk. Probeer het later opnieuw of gebruik een ander netwerk.';
   function versieNu() {
     try { if (globalThis.chrome && chrome.runtime && chrome.runtime.getManifest) return chrome.runtime.getManifest().version; } catch (e) { /* geen extensie */ }
     return typeof globalThis.SPO_VERSIE === 'string' ? globalThis.SPO_VERSIE : '';
@@ -255,7 +267,8 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
       try { j = await r.json(); } catch (e) { /* leeg antwoord */ }
       if (!r.ok) {
         const f = new Error(j.fout || 'Serverfout ' + r.status); f.status = r.status;
-        if (r.status === 403 && j.verbannen === true) { f.verbannen = true; f.tot = Number.isInteger(j.tot) ? j.tot : 0; f.reden = typeof j.reden === 'string' ? j.reden.slice(0, 200) : ''; f.message = banTekst(f.tot, f.reden); }
+        if (r.status === 403 && a === 'register' && j.verbannen !== true) f.message = AANMELD_TEKST;
+        if (r.status === 403 && j.verbannen === true) { f.verbannen = true; f.tot = Number.isInteger(j.tot) ? j.tot : 0; f.reden = typeof j.reden === 'string' ? schoonBeheerTekst(j.reden, 200) : ''; f.message = banTekst(f.tot, f.reden); }
         throw f;
       }
       return j;
@@ -283,9 +296,9 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
   function schoonDichtItem(x) {
     if (!x || typeof x !== 'object') return null;
     const id = sleutelTekst(x.id);
-    const vak = typeof x.vak === 'string' ? x.vak.replace(STUUR_TEKENS, '').trim().slice(0, GRENS.vak) : '';
+    const vak = typeof x.vak === 'string' ? filterToon(x.vak.replace(STUUR_TEKENS, '').trim().slice(0, GRENS.vak)) : '';
     if (!id || !vak) return null;
-    const onderwerp = typeof x.onderwerp === 'string' ? x.onderwerp.replace(STUUR_TEKENS, '').trim().slice(0, GRENS.onderwerp) : '';
+    const onderwerp = typeof x.onderwerp === 'string' ? filterToon(x.onderwerp.replace(STUUR_TEKENS, '').trim().slice(0, GRENS.onderwerp)) : '';
     return { id, vak, onderwerp, weging: getal(x.weging, 0.01, 100) ? x.weging : 1, ts: getal(x.ts, 1, 4.1e12) ? x.ts : Date.now() };
   }
   async function leesDicht() {
@@ -294,7 +307,7 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
   }
   // Roept `fn` aan als de galerij of de lijst met ongeopende cijfers verandert (andere pagina of de content-script).
   function opOpslagWijziging(fn) {
-    const sleutels = [GALERIJ, DICHT, TEAM, GEVECHTEN];
+    const sleutels = [GALERIJ, DICHT, TEAM, GEVECHTEN, BLOKKADES];
     if (heeftOpslag && api.storage.onChanged) {
       api.storage.onChanged.addListener((c, gebied) => { if (gebied === 'local' && sleutels.some((k) => k in c)) fn(); });
     } else if (typeof addEventListener === 'function') {
@@ -382,16 +395,19 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
   const verzoek = (...a) => serieel(() => verzoek_(...a));
   const antwoord = (...a) => serieel(() => antwoord_(...a));
   const verwijderVriend = (...a) => serieel(() => verwijderVriend_(...a));
+  const blokkeer = (...a) => serieel(() => blokkeer_(...a));
+  const deblokkeer = (...a) => serieel(() => deblokkeer_(...a));
   const synchroniseer = (...a) => serieel(() => synchroniseer_(...a));
-  async function verzoek_(st, code, alias) {
+  async function verzoek_(st, code, alias, via) { // via = true: de code kwam uit een uitnodigingslink (zie uitnodiging.js)
     const c = leesCode(code);
     if (!c) throw new Error('Dit is geen geldige vriendcode.');
     if (c.id === st.id) throw new Error('Dit is je eigen vriendcode.');
     if (st.vrienden.some((v) => v.id === c.id && v.status !== 'weggevallen')) throw new Error('Deze vriend staat al in je lijst.');
+    if (eigen(await leesBlokkades(), c.id)) throw new Error('Je hebt deze persoon geblokkeerd. Deblokkeer eerst als je weer vrienden wilt worden.');
     const r = await clientVan(st).roep('request', { to: c.id });
     st.vrienden = st.vrienden.filter((v) => v.id !== c.id);
     ruimOp(st, c.id); // reacties, gokken en rondes uit een eerdere vriendschap met dezelfde id horen hier niet meer bij
-    st.vrienden.push({ id: c.id, pub: c.pub, alias: alias || '', status: r.status === 'accepted' ? 'vriend' : 'verzonden', deel: { modus: 'niets', ids: [] } });
+    st.vrienden.push({ id: c.id, pub: c.pub, alias: alias || '', status: r.status === 'accepted' ? 'vriend' : 'verzonden', deel: { modus: 'niets', ids: [] }, via: via === true });
     await bewaar(st);
     return r.status;
   }
@@ -426,14 +442,166 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
     await wis(SLEUTEL);
   }
 
+  // ---- v3.0: blokkeren, melden en waarschuwingen ----
+  // Lokale lijst met geblokkeerde id's: { [id]: { ts, alias } }. Alleen schone id's, hoogstens 500 (net als de server).
+  function schoonBlokkades(x) {
+    const uit = Object.create(null);
+    if (!x || typeof x !== 'object' || Array.isArray(x)) return uit;
+    let n = 0;
+    for (const k of Object.keys(x)) {
+      if (n >= 500) break;
+      if (!/^[0-9a-f]{32}$/.test(k)) continue;
+      const w = x[k] && typeof x[k] === 'object' ? x[k] : {};
+      uit[k] = { ts: getal(w.ts, 0, 4.1e12) ? w.ts : 0, alias: typeof w.alias === 'string' ? w.alias.replace(STUUR_TEKENS, '').trim().slice(0, 24) : '' };
+      n++;
+    }
+    return uit;
+  }
+  async function leesBlokkades() { return schoonBlokkades(await lees(BLOKKADES)); }
+  async function bewaarBlokkades(b) {
+    const gewoon = {};
+    for (const k of Object.keys(b)) gewoon[k] = b[k];
+    await schrijf(BLOKKADES, gewoon);
+  }
+  // Wat er in dit apparaat bij een geblokkeerde persoon hoort: rivaal, uitnodig-tellers, GG, gevechten. (Reacties, gokken, rondes: ruimOp.)
+  // De lijst 'beloond' van uitnodigingen blijft staan: anders zou blokkeren en opnieuw toevoegen dezelfde beloning twee keer geven.
+  async function ruimBlokOp(st, id) {
+    ruimOp(st, id);
+    if (st.topGezien && typeof st.topGezien === 'object') delete st.topGezien[id];
+    if (st.ggGestuurd && typeof st.ggGestuurd === 'object') delete st.ggGestuurd[id];
+    bewijsGeheugen.delete(id);
+    for (const k of [...sleutelCache.keys()]) if (k.includes(':' + id + ':')) sleutelCache.delete(k);
+    const riv = await lees('spo_rivaal');
+    if (riv && typeof riv === 'object' && !Array.isArray(riv)) {
+      let veranderd = false;
+      if (riv.id === id) { riv.id = null; riv.status = null; riv.sinds = 0; riv.laatst = 0; veranderd = true; }
+      for (const veld of ['verzoeken', 'seq']) if (riv[veld] && typeof riv[veld] === 'object' && heeft(riv[veld], id)) { delete riv[veld][id]; veranderd = true; }
+      if (veranderd) await schrijf('spo_rivaal', riv);
+    }
+    const tw = await lees('spo_tweeling'); // tweelingkaarten (v3.0): de gedeelde kaarten en voorstellen met deze persoon gaan weg
+    if (tw && typeof tw === 'object' && !Array.isArray(tw)) {
+      let veranderd = false;
+      if (tw.kaarten && typeof tw.kaarten === 'object') for (const k of Object.keys(tw.kaarten)) if (tw.kaarten[k] && tw.kaarten[k].vriend === id) { delete tw.kaarten[k]; veranderd = true; }
+      if (tw.verzoeken && typeof tw.verzoeken === 'object') for (const k of Object.keys(tw.verzoeken)) if (tw.verzoeken[k] && tw.verzoeken[k].van === id) { delete tw.verzoeken[k]; veranderd = true; }
+      if (tw.seq && typeof tw.seq === 'object' && heeft(tw.seq, id)) { delete tw.seq[id]; veranderd = true; }
+      if (veranderd) await schrijf('spo_tweeling', tw);
+    }
+    const un = await lees('spo_uitnodigingen');
+    if (un && typeof un === 'object' && !Array.isArray(un)) {
+      let veranderd = false;
+      for (const veld of ['bekend', 'door']) if (un[veld] && typeof un[veld] === 'object' && heeft(un[veld], id)) { delete un[veld][id]; veranderd = true; }
+      if (veranderd) await schrijf('spo_uitnodigingen', un);
+    }
+    const gv = await lees(GEVECHTEN);
+    if (gv && typeof gv === 'object' && !Array.isArray(gv) && heeft(gv, id)) { delete gv[id]; await schrijf(GEVECHTEN, gv); }
+    const gg = await lees(GG_OPSLAG);
+    if (gg && typeof gg === 'object' && !Array.isArray(gg)) {
+      let veranderd = false;
+      for (const k of Object.keys(gg)) if (Array.isArray(gg[k]) && gg[k].includes(id)) { gg[k] = gg[k].filter((x) => x !== id); veranderd = true; }
+      if (veranderd) await schrijf(GG_OPSLAG, gg);
+    }
+  }
+  // Blokkeert iemand: eerst de server (haalt de vriendschap en alles wat gedeeld is weg), daarna dit apparaat opruimen.
+  async function blokkeer_(st, id) {
+    if (!/^[0-9a-f]{32}$/.test(String(id))) throw new Error('Deze persoon kan niet worden geblokkeerd.');
+    if (id === st.id) throw new Error('Je kunt jezelf niet blokkeren.');
+    await clientVan(st).roep('blokkeer', { id });
+    const v = st.vrienden.find((x) => x.id === id);
+    const b = await leesBlokkades();
+    if (Object.keys(b).length < 500 || eigen(b, id)) b[id] = { ts: Date.now(), alias: v && typeof v.alias === 'string' ? v.alias.slice(0, 24) : '' };
+    await bewaarBlokkades(b);
+    st.vrienden = st.vrienden.filter((x) => x.id !== id);
+    await ruimBlokOp(st, id);
+    await bewaar(st);
+  }
+  async function deblokkeer_(st, id) {
+    if (!/^[0-9a-f]{32}$/.test(String(id))) throw new Error('Deze persoon kan niet worden gedeblokkeerd.');
+    await clientVan(st).roep('deblokkeer', { id });
+    const b = await leesBlokkades();
+    delete b[id];
+    await bewaarBlokkades(b);
+  }
+  // Houdt de lokale lijst en die van de server gelijk: wat de server kent en ik niet, komt erbij; wat ik (bijv. uit een back-up) heb en de server niet, stuur ik na.
+  // Geeft de actuele lijst terug. Gaat er iets mis (server nog niet bijgewerkt, offline), dan telt alleen de lokale lijst.
+  async function synchroniseerBlokkades(st) {
+    let b = await leesBlokkades();
+    try {
+      const r = await clientVan(st).roep('blokkades');
+      const server = new Set((Array.isArray(r.ids) ? r.ids : []).filter((x) => /^[0-9a-f]{32}$/.test(String(x))));
+      let veranderd = false;
+      for (const id of server) if (!eigen(b, id) && Object.keys(b).length < 500) { b[id] = { ts: Date.now(), alias: '' }; veranderd = true; }
+      for (const id of Object.keys(b)) if (!server.has(id)) { try { await clientVan(st).roep('blokkeer', { id }); } catch (e) { if (e.verbannen) throw e; break; } }
+      if (veranderd) await bewaarBlokkades(b);
+    } catch (e) { if (e.verbannen) throw e; b = await leesBlokkades(); }
+    return b;
+  }
+
+  // Een melding aan de beheerder. De server ziet uitleg en bewijs gewoon (niet versleuteld); alleen de beheerder kan ze lezen.
+  const MELD_REDENEN = [['naam', 'Naam of bijnaam'], ['tekst', 'Tekst'], ['pesten', 'Pesten'], ['spam', 'Spam'], ['anders', 'Anders']];
+  async function meld(st, tegen, reden, uitleg, bewijs) {
+    if (!MELD_REDENEN.some((r) => r[0] === reden)) throw new Error('Kies een reden.');
+    if (!/^[0-9a-f]{32}$/.test(String(tegen))) throw new Error('Deze persoon kan niet worden gemeld.');
+    const body = { tegen, reden, uitleg: String(uitleg || '').slice(0, 300) };
+    if (bewijs) body.bewijs = String(bewijs).slice(0, 400);
+    return clientVan(st).roep('meld', body);
+  }
+  function meldFoutTekst(e) {
+    if (e && e.verbannen) return e.message;
+    if (e && e.status === 429) return (e.message && /vandaag|morgen|gemeld/.test(e.message)) ? e.message : 'Je hebt te veel meldingen gedaan. Probeer het later opnieuw.';
+    if (e && e.status === 404) return 'Deze persoon bestaat niet meer, dus melden is niet nodig.';
+    if (e && e.status === 503) return 'Melden kan nu nog niet. Probeer het later opnieuw.';
+    return e && e.message ? e.message : 'Melden is niet gelukt. Probeer het later opnieuw.';
+  }
+  // Het bewijs: wat deze persoon liet zien, zoals de app het ontsleuteld had (nog voor het filter). Alleen in het geheugen, nooit opgeslagen,
+  // en alleen om mee te sturen als jij dat aanvinkt. Geeft { bn, regels: [{ soort, tekst }] } terug of null.
+  const bewijsGeheugen = new Map();
+  function onthoudBewijs(id, p) {
+    if (!p || typeof p !== 'object' || Array.isArray(p)) return;
+    const kort = (t, max) => (typeof t === 'string' ? t.replace(STUUR_TEKENS, ' ').replace(/\s+/g, ' ').trim().slice(0, max) : '');
+    const uit = { bn: '', kaarten: [] };
+    if (p.profiel && typeof p.profiel === 'object') uit.bn = kort(p.profiel.bn, 40);
+    const zie = new Set();
+    const voeg = (vak, onderwerp) => {
+      const v = kort(vak, GRENS.vak), o = kort(onderwerp, GRENS.onderwerp);
+      const sl = v + '|' + o;
+      if ((v || o) && !zie.has(sl) && uit.kaarten.length < 12) { zie.add(sl); uit.kaarten.push({ vak: v, onderwerp: o }); }
+    };
+    for (const k of (Array.isArray(p.kaarten) ? p.kaarten : []).slice(0, 40)) if (k && typeof k === 'object') voeg(k.vak, k.onderwerp);
+    for (const r of (Array.isArray(p.raden) ? p.raden : []).slice(0, 10)) if (r && typeof r === 'object') voeg(r.vak, r.onderwerp);
+    if (uit.bn || uit.kaarten.length) bewijsGeheugen.set(id, uit); else bewijsGeheugen.delete(id);
+  }
+  function bewijsVan(id) { return bewijsGeheugen.get(id) || null; }
+  // De tekst die meegaat als je meldt om deze reden (hoogstens 400 tekens). Gebruikt door de app zelf, niet getypt.
+  function bewijsTekst(id, reden) {
+    const b = bewijsGeheugen.get(id);
+    if (!b) return '';
+    const regels = [];
+    if (b.bn && reden !== 'tekst') regels.push('Bijnaam: ' + b.bn);
+    if (reden !== 'naam') for (const k of b.kaarten) if (k.onderwerp || k.vak) regels.push('Kaart: ' + [k.vak, k.onderwerp].filter(Boolean).join(' - '));
+    let uit = '';
+    for (const r of regels) { if ((uit + (uit ? '\n' : '') + r).length > 400) break; uit += (uit ? '\n' : '') + r; }
+    return uit;
+  }
+  // Waarschuwingen van de beheerder: nog niet gelezen. Geeft [{ id, reden, ts }] terug.
+  async function haalWaarschuwingen(st) {
+    const r = await clientVan(st).roep('waarschuwingen');
+    return (Array.isArray(r.lijst) ? r.lijst : []).slice(0, 50)
+      .filter((x) => x && Number.isInteger(x.id) && x.id > 0)
+      .map((x) => ({ id: x.id, reden: schoonBeheerTekst(x.reden, 500), ts: getal(x.ts, 0, 4.1e10) ? x.ts : 0 }));
+  }
+  const waarschuwingGezien = (st, id) => clientVan(st).roep('waarschuwingGezien', { id });
+
   // Synchroniseert: verzoeken en vrienden ophalen, eigen blobs sturen, blobs van vrienden ontsleutelen.
   // Geeft { meldingen, kaarten: { [vriendId]: { ts, kaarten, reacties, raden, gokken } } } terug; wat vrienden delen blijft in het geheugen.
   async function synchroniseer_(st, galerij) {
     const cl = clientVan(st);
     const meldingen = [];
     const [fr, inb] = await Promise.all([cl.roep('friends'), cl.roep('inbox')]);
-    const vrienden = fr.vrienden || [];
-    const vraag = inb.verzoeken || [];
+    // Geblokkeerd blijft geblokkeerd: ook als de server iets laat doorkomen komt zo iemand nooit weer als vriend of verzoek in de lijst.
+    const blok = await synchroniseerBlokkades(st);
+    const vrienden = (fr.vrienden || []).filter((f) => !eigen(blok, f.id));
+    const vraag = (inb.verzoeken || []).filter((r) => !eigen(blok, r.id));
+    for (const id of Object.keys(blok)) if (st.vrienden.some((v) => v.id === id)) { st.vrienden = st.vrienden.filter((v) => v.id !== id); await ruimBlokOp(st, id); }
 
     for (const f of vrienden) {
       let v = st.vrienden.find((x) => x.id === f.id);
@@ -492,7 +660,9 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
       if (!v) continue;
       try {
         const sl = await deelSleutel(st.privJwk, v.pub, st.id, v.id);
-        const p = schoonBlob(await ontsleutel(sl, b.data));
+        const ruw = await ontsleutel(sl, b.data);
+        onthoudBewijs(v.id, ruw); // alleen in het geheugen; voor 'Melden' (niet opgeslagen en niet gefilterd)
+        const p = schoonBlob(ruw);
         if (p) kaarten[v.id] = p; else mislukt.add(v.id); // onbekende versie: niets overnemen en niets opruimen
         // nieuwe kosmische of mythische kaart van deze vriend? Dan een melding (één keer per kaart; de eerste keer alleen onthouden).
         if (p && meldingen) {
@@ -518,9 +688,9 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
   }
   // Wat vrienden van mijn team zien: vak, cijfer, niveau en zeldzaam. Geen id's, geen namen.
   function teamMomentopname(kaarten) {
-    const uit = { kaarten: kaarten.map((e) => ({ vak: String(e.vak || '').slice(0, 24), cijfer: Math.round(e.cijfer * 100) / 100, tier: Math.max(0, Math.min(4, e.tier | 0)), z: e.zeldzaam === true || (e.trede | 0) >= 1, t: Math.max(0, Math.min(4, e.trede | 0)) || (e.zeldzaam === true ? 1 : 0), v: e.vloek === true })) };
+    const uit = { kaarten: kaarten.map((e) => ({ vak: String(e.vak || '').slice(0, 24), cijfer: Math.round(e.cijfer * 100) / 100, tier: Math.max(0, Math.min(4, e.tier | 0)), z: e.zeldzaam === true || (e.trede | 0) >= 1, t: Math.max(0, Math.min(4, e.trede | 0)) || (e.zeldzaam === true ? 1 : 0), v: e.vloek === true && !(e.heel > 0), h: e.vloek === true && e.heel > 0 })) };
     const G = globalThis.SPOGevecht;
-    if (G && G.chemie && uit.kaarten.length) uit.ch = G.chemie(G.ordenTeam(uit.kaarten.map((k) => ({ vak: k.vak, cijfer: k.cijfer, tier: k.tier, z: k.z, v: k.v })), 0)).score;
+    if (G && G.chemie && uit.kaarten.length) uit.ch = G.chemie(G.ordenTeam(uit.kaarten.map((k) => ({ vak: k.vak, cijfer: k.cijfer, tier: k.tier, z: k.z, v: k.v, h: k.h })), 0)).score;
     return uit;
   }
   async function mijnTeamDeelbaar(galerij) {
@@ -634,6 +804,15 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
     for (const v of kijkOntvangers(st)) { try { await stuurBericht(st, v, m); n++; } catch (e) { /* die vriend slaan we over */ } }
     return n;
   }
+  // ---- Wekelijkse drop (v3): hoeveel mythische kaarten er deze week (UTC ISO-week) zijn geopend door alle spelers samen ----
+  // De server telt alleen: geen namen, geen kaarten. dropMeld stuurt niets mee behalve dat er er één bij is; je moet ingelogd zijn (vrienden aan).
+  function schoonDrop(r) {
+    if (!r || typeof r !== 'object' || Array.isArray(r) || !/^\d{4}-W\d{2}$/.test(String(r.week)) || !Number.isInteger(r.aantal) || r.aantal < 0 || r.aantal > 1e9) return null;
+    return { week: r.week, aantal: r.aantal };
+  }
+  const dropTekst = (n) => `Deze week: ${n} ${n === 1 ? 'mythische kaart' : 'mythische kaarten'} door alle spelers`;
+  async function dropTelling(st) { return schoonDrop(await clientVan(st).roep('dropTelling')); }
+  async function dropMeld(st) { return schoonDrop(await clientVan(st).roep('dropMelden')); }
   async function stuurKijkEmoji(st, vriendId, emoji) {
     const v = st.vrienden.find((x) => x.id === vriendId && x.status === 'vriend');
     const e = KIJK_EMOJI.find((x) => x === String(emoji || '').replace(/\uFE0F/g, ''));
@@ -689,6 +868,7 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
           if (lijst.length) opt.bij({ type: 'berichten', van: v.id, berichten: lijst });
         }
         rust = 0;
+        if (p.w > 0) opt.bij({ type: 'waarschuwing', aantal: p.w });
         opt.bij({ type: 'ok' });
       } catch (e) {
         if (e.verbannen) { if (e.tot > 0) rustTot = Math.max(rustTot, e.tot * 1000); else rustTot = Infinity; }
@@ -815,16 +995,18 @@ const SERVER_STANDAARD = 'https://jummysnacks.nl/api.php';
     return m[rid];
   }
 
-  function naam(v) { return v.alias || 'Vriend ' + v.id.slice(0, 4); }
+  function naam(v) { return filterNaam(v.alias, 'Vriend ' + v.id.slice(0, 4)); }
 
   const lib = {
     STANDAARD_SERVER, naB64, vanB64, maakSleutelpaar, deelSleutel, versleutel, ontsleutel, maakCode, leesCode, veiligheidscode,
     maakClient, clientVan, banTekst, laad, bewaar, leesGalerij, aanzetten, kaartenVoor, zetBlob, verzoek, antwoord,
     verwijderVriend, verwijderAccount, synchroniseer, naam,
+    // v3.0: blokkeren, melden, waarschuwingen
+    BLOKKADES, AANMELD_TEKST, MELD_REDENEN, banWanneer, blokkeer, deblokkeer, leesBlokkades, schoonBlokkades, meld, meldFoutTekst, onthoudBewijs, bewijsVan, bewijsTekst, haalWaarschuwingen, waarschuwingGezien,
     TEAM, GEVECHTEN, schoonTeam, leesTeam, bewaarTeam, teamKaarten, teamMomentopname, mijnTeamDeelbaar, leesGevechten, bewaarUitslag, stuurBericht, haalBerichten, maakLive, zichtbaar, lees, schrijf, wis, heeftOpslag,
     // reacties en 'voorspel mijn cijfer'
     REACTIES, GRENS, eigen, deelbareKaarten, schoonBlob, schoonKaarten, schoonReacties, schoonRonden, schoonGokken, maakInhoud, zetBlobs, haalOp, zetReactie,
-    KIJK_EMOJI, schoonGG, schoonKijk, schoonKijkEmoji, stuurGG, leesGG, bewaarGG, kijkOntvangers, stuurKijk, stuurKijkEmoji,
+    KIJK_EMOJI, schoonGG, schoonKijk, schoonKijkEmoji, stuurGG, leesGG, bewaarGG, kijkOntvangers, stuurKijk, stuurKijkEmoji, schoonDrop, dropTekst, dropTelling, dropMeld,
     reactiesOpMijnKaarten, maakRid, leesGok, startRonde, stopRonde, ranglijst, deelUitslag, slaGokOp, ruimOp, leesDicht, opOpslagWijziging,
   };
   globalThis.SPOVrienden = lib;

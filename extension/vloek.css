@@ -9,6 +9,10 @@
 .vloek-badge { position: absolute; top: 4px; left: 4px; z-index: 3; padding: 2px 7px; border-radius: 6px; pointer-events: none;
   font: 900 10px/1.4 system-ui, sans-serif; letter-spacing: .1em; color: #f1d4ff; background: #2a0848; border: 1px solid #b44dff;
   text-shadow: 1px 0 #ff2bd6, -1px 0 #29e0ff; box-shadow: 0 0 10px rgba(180, 77, 255, .9); animation: vl-badge 3.1s infinite steps(1, end); }
+/* v3.0: een opgeheven vloek: groen en rustig */
+.heel-badge { position: absolute; top: 4px; left: 4px; z-index: 3; padding: 2px 7px; border-radius: 6px; pointer-events: none;
+  font: 900 10px/1.4 system-ui, sans-serif; letter-spacing: .1em; color: #d9ffe8; background: #0b3a24; border: 1px solid #7be6aa; box-shadow: 0 0 10px rgba(123, 230, 170, .7); }
+.mk .heel-badge, .kies-kaart .heel-badge { top: auto; bottom: 2px; left: 50%; transform: translateX(-50%); font-size: 8px; padding: 1px 4px; border-radius: 4px; }
 @keyframes vl-glitch {
   0%, 90%, 100% { transform: none; }
   91% { transform: translate(-3px, 1px) skewX(4deg); }

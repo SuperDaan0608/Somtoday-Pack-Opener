@@ -26,6 +26,8 @@
     'spo_galerij', 'spo_geopend', 'spo_dicht', 'spo_instellingen', 'spo_munten', 'spo_munten_log', 'spo_munten_ids',
     'spo_dagelijks', 'spo_winkel', 'spo_profiel', 'spo_prestaties', 'spo_prestaties_gezien', 'spo_stats', 'spo_team',
     'spo_gevechten', 'spo_vrienden', 'spo_vrienden_sec', 'spo_uitval_gezien', 'spo_huisdier', 'spo_rondleiding',
+    'spo_capsules', 'spo_weekoverzicht', 'spo_heel', 'spo_campagne',
+    'spo_voetbal', 'spo_jaar', 'spo_tweeling', 'spo_rivaal', 'spo_uitnodigingen', 'spo_blokkades', 'spo_nieuw_gezien',
   ];
   const ITERATIES = 250000;
 
@@ -51,12 +53,26 @@
 
   // ---- server ----
   let server = SERVER_STANDAARD;
+  // v3.0: bij deze acties sturen we (als je de vriendenfunctie aan hebt) ook X-Id en X-Token mee. Daarmee kan de beheerder bij een ban ook het
+  // e-mailadres blokkeren. De server bewaart dan alleen de id's van gebruiker en account, nooit het adres.
+  const KOPPEL_ACTIES = ['accRegistreer', 'accVerifieer', 'accLogin', 'accReset', 'accBackupBewaar'];
+  const AANMELD_ACTIES = ['accRegistreer', 'accVerifieer', 'accLogin', 'accReset'];
+  const AANMELD_TEKST = 'Aanmelden lukt nu niet met dit e-mailadres of op dit netwerk. Probeer het later opnieuw of gebruik een ander netwerk.';
+  async function identiteitHeaders(actie) {
+    if (!KOPPEL_ACTIES.includes(actie)) return {};
+    try {
+      const v = (await lees('spo_vrienden')).spo_vrienden;
+      if (v && typeof v.id === 'string' && /^[0-9a-f]{32}$/.test(v.id) && typeof v.token === 'string' && v.token) return { 'X-Id': v.id, 'X-Token': v.token };
+    } catch (e) { /* geen vriendenidentiteit: dan sturen we niets mee */ }
+    return {};
+  }
   async function roep(actie, body, sessie) {
     let r;
+    const koppel = await identiteitHeaders(actie);
     try {
       r = await fetch(server, {
         method: 'POST',
-        headers: Object.assign({ 'Content-Type': 'application/json' }, sessie ? { 'X-Sessie': sessie } : {}),
+        headers: Object.assign({ 'Content-Type': 'application/json' }, sessie ? { 'X-Sessie': sessie } : {}, koppel),
         body: JSON.stringify(Object.assign({ a: actie }, body || {})),
         credentials: 'omit',
         cache: 'no-store',
@@ -71,6 +87,8 @@
     if (!r.ok) {
       const f = new Error(j.fout || 'Er ging iets mis (' + r.status + ').');
       f.status = r.status;
+      // Geblokkeerd e-mailadres of netwerk: altijd dezelfde vriendelijke tekst, zonder te zeggen wat er speelt. ('nog niet bevestigd' is iets anders.)
+      if (r.status === 403 && AANMELD_ACTIES.includes(actie) && !j.nietBevestigd) { f.message = AANMELD_TEKST; f.aanmeldGeweigerd = true; }
       f.data = j;
       throw f;
     }
@@ -150,17 +168,64 @@
       case 'spo_galerij': {
         if (!Array.isArray(hier) || !Array.isArray(daar)) return hier;
         const ids = new Set(hier.map((e) => e && e.id));
-        return hier.concat(daar.filter((e) => e && !ids.has(e.id))).sort((a, b) => (b.ts || 0) - (a.ts || 0)).slice(0, 150);
+        // een opgeheven vloek (heel.js) gaat nooit verloren: heeft een van beide kanten `heel` voor deze kaart, dan krijgt de samengevoegde kaart dat ook
+        const heelDaar = new Map(daar.filter((e) => e && e.heel > 0).map((e) => [e.id, e.heel]));
+        const hierMet = hier.map((e) => (e && heelDaar.has(e.id) && !(e.heel > 0) ? Object.assign({}, e, { heel: heelDaar.get(e.id) }) : e));
+        return hierMet.concat(daar.filter((e) => e && !ids.has(e.id))).sort((a, b) => (b.ts || 0) - (a.ts || 0)).slice(0, 150);
+      }
+      case 'spo_heel': {
+        // welke vloeken zijn opgeheven: de unie van allebei, per kaart het oudste tijdstip
+        const u = Object.assign({}, obj(daar));
+        for (const [id, w] of Object.entries(obj(hier))) u[id] = u[id] && obj(u[id]).ts < obj(w).ts ? u[id] : w;
+        return u;
       }
       case 'spo_prestaties': {
         const u = Object.assign({}, obj(daar));
         for (const [id, ts] of Object.entries(obj(hier))) u[id] = u[id] ? Math.min(u[id], ts) : ts;
         return u;
       }
+      case 'spo_campagne': {
+        // het hoogste bereikte niveau wint: per wereld en niveau de meeste sterren, van allebei (een deck blijft het eigen deck)
+        const h = obj(hier), d = obj(daar), hw = obj(h.w), dw = obj(d.w), w = {};
+        for (const id of new Set([].concat(Object.keys(dw), Object.keys(hw)))) {
+          const hs = Array.isArray(obj(hw[id]).s) ? hw[id].s : [], ds = Array.isArray(obj(dw[id]).s) ? dw[id].s : [];
+          const s = []; let stop = false;
+          for (let i = 0; i < 5; i++) { const v = stop ? 0 : Math.max(0, Math.min(3, Math.floor(Math.max(Number(hs[i]) || 0, Number(ds[i]) || 0)))); if (!v) stop = true; s.push(v); }
+          w[id] = { s };
+        }
+        return { v: 1, w, deck: Array.isArray(h.deck) && h.deck.length ? h.deck : Array.isArray(d.deck) ? d.deck : [], ts: Math.max(Number(h.ts) || 0, Number(d.ts) || 0) };
+      }
       case 'spo_geopend': {
         const u = Object.assign({}, obj(daar));
         for (const [id, n] of Object.entries(obj(hier))) u[id] = Math.max(u[id] || 0, n || 0);
         return u;
+      }
+      case 'spo_blokkades': {
+        // geblokkeerd blijft geblokkeerd: de unie van allebei (van wie ik de bijnaam al kende, blijft die)
+        const h = obj(hier), d = obj(daar), u = Object.assign({}, d, h);
+        for (const [id, w] of Object.entries(u)) if (obj(w) && !obj(w).alias && obj(d[id]).alias) u[id] = Object.assign({}, w, { alias: d[id].alias });
+        return u;
+      }
+      case 'spo_jaar': {
+        // terugblikken (v3.0): welke schooljaren je al zag (het oudste tijdstip) en wanneer je 'later' koos (het nieuwste)
+        const h = obj(hier), d = obj(daar), gezien = Object.assign({}, obj(d.gezien));
+        for (const [j, ts] of Object.entries(obj(h.gezien))) gezien[j] = gezien[j] ? Math.min(gezien[j], ts) : ts;
+        return { v: 1, gezien, uitgesteld: Math.max(Number(h.uitgesteld) || 0, Number(d.uitgesteld) || 0) };
+      }
+      case 'spo_tweeling': {
+        // tweelingkaarten (v3.0): een actieve tweeling gaat nooit verloren; beloond blijft beloond; verzoeken en tellers van allebei
+        const h = obj(hier), d = obj(daar), kaarten = Object.assign({}, obj(d.kaarten));
+        for (const [id, k] of Object.entries(obj(h.kaarten))) {
+          const o = kaarten[id];
+          if (!o) { kaarten[id] = k; continue; }
+          const hoog = (obj(k).status === 'actief' && obj(o).status !== 'actief') ? k : o;
+          kaarten[id] = Object.assign({}, obj(o), obj(hoog), { beloond: obj(o).beloond === true || obj(k).beloond === true, bevestigd: obj(o).bevestigd === true || obj(k).bevestigd === true, status: obj(o).status === 'actief' || obj(k).status === 'actief' ? 'actief' : obj(hoog).status });
+        }
+        const seq = Object.assign({}, obj(d.seq));
+        for (const [id, n] of Object.entries(obj(h.seq))) seq[id] = Math.max(Number(seq[id]) || 0, Number(n) || 0);
+        const betaald = Object.assign({}, obj(d.betaald));
+        for (const [dag, n] of Object.entries(obj(h.betaald))) betaald[dag] = Math.max(Number(betaald[dag]) || 0, Number(n) || 0);
+        return { v: 1, kaarten, verzoeken: Object.assign({}, obj(d.verzoeken), obj(h.verzoeken)), seq, betaald };
       }
       case 'spo_munten_ids':
       case 'spo_uitval_gezien':
@@ -177,6 +242,36 @@
           else if (typeof w === 'number' && typeof h === 'number') u[s] = Math.max(w, h);
         }
         return u;
+      }
+      case 'spo_uitnodigingen': {
+        // beloningen gaan nooit verloren en tellen niet dubbel: de grootste teller, van allebei wie er beloond is
+        const h = obj(hier), d = obj(daar);
+        const link = [h.link, d.link].filter((x) => x > 0);
+        return Object.assign({}, d, h, {
+          v: 1, n: Math.min(10, Math.max(h.n || 0, d.n || 0)), link: link.length ? Math.min(...link) : 0,
+          bekend: Object.assign({}, obj(d.bekend), obj(h.bekend)), beloond: Object.assign({}, obj(d.beloond), obj(h.beloond)),
+          door: Object.assign({}, obj(d.door), obj(h.door)),
+        });
+      }
+      case 'spo_capsules': {
+        // tijdcapsules (v3.0): per kaart de nieuwste; is het dezelfde capsule, dan blijft 'geopend' en 'gemeld' staan
+        const per = new Map();
+        for (const c of [].concat(Array.isArray(daar) ? daar : [], Array.isArray(hier) ? hier : [])) {
+          if (!c || typeof c.kaartId !== 'string') continue;
+          const oud = per.get(c.kaartId);
+          if (!oud || (c.gemaakt || 0) > (oud.gemaakt || 0)) per.set(c.kaartId, c);
+          else if ((c.gemaakt || 0) === (oud.gemaakt || 0)) per.set(c.kaartId, Object.assign({}, oud, c, { geopend: Math.max(oud.geopend || 0, c.geopend || 0) || undefined, gemeld: Math.max(oud.gemeld || 0, c.gemeld || 0) || undefined }));
+        }
+        return [...per.values()].sort((x, y) => (y.gemaakt || 0) - (x.gemaakt || 0)).slice(0, 150);
+      }
+      case 'spo_weekoverzicht':
+        return String(hier || '') > String(daar || '') ? hier : daar; // de laatste datum wint: zo komt het overzicht niet dubbel
+      case 'spo_nieuw_gezien': {
+        // Wat is nieuw (v3.0): de hoogste versie wint, numeriek vergeleken (2.10.0 is nieuwer dan 2.9.0)
+        const dl = (v) => String(v == null ? '' : v).replace(/^v/i, '').split('-')[0].split('.').map((n) => parseInt(n, 10) || 0);
+        const x = dl(hier), y = dl(daar);
+        for (let i = 0; i < Math.max(x.length, y.length, 3); i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d > 0 ? hier : daar; }
+        return hier;
       }
       case 'spo_rondleiding':
         return Math.max(Number(hier) || 0, Number(daar) || 0); // eenmaal gezien blijft gezien

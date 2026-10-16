@@ -6,6 +6,12 @@
   <title>Debug · Somtoday Pack Opener</title>
   <link rel="icon" href="icons/icon-32.png" />
   <link rel="stylesheet" href="debug.css" />
+  <link rel="stylesheet" href="nieuw.css" />
+  <link rel="stylesheet" href="feedback.css" />
+  <link rel="stylesheet" href="veilig.css" />
+  <link rel="stylesheet" href="rivaal.css" />
+  <link rel="stylesheet" href="jaar.css" />
+  <script src="debug-nep.js"></script>
   <script src="embed.js"></script>
 </head>
 <body>
@@ -44,6 +50,13 @@
         <button type="button" class="knop" id="k-speel-nu">Alleen animatie</button>
         <button type="button" class="knop gevaar" id="k-wis">Alle debugkaarten verwijderen</button>
       </div>
+      <h3>Meerdere kaarten tegelijk</h3>
+      <div class="rij">
+        <button type="button" class="knop" id="k-ladder">Eén kaart per trede (5)</button>
+        <button type="button" class="knop" id="k-vakken">Eén kaart per vak (12)</button>
+        <button type="button" class="knop" id="k-matrix">Elke trede in elk vak (60)</button>
+      </div>
+      <p class="klein" id="k-uitleg">Gebruikt cijfer, weging, vloek, galerij en munten van hierboven. Per trede: vak van hierboven. Per vak: trede van hierboven. De galerij houdt hoogstens 150 kaarten; eerst gaan de oudste debugkaarten eraf.</p>
       <p class="klein">Nep-kaarten krijgen het id <code>debug:...</code>. Ze tellen mee voor prestaties en het huisdier niet; vrienden zien ze niet zolang het vinkje bovenaan aan staat. In een account-back-up komen ze wel mee: verwijder ze daarna.</p>
     </section>
 
@@ -139,6 +152,309 @@
         <button type="button" class="knop" id="pr-alles">Alles ontgrendelen</button>
         <button type="button" class="knop gevaar" id="pr-reset">Alles resetten</button>
       </div>
+      <h3>Geheime prestaties (7, met Pure Aura)</h3>
+      <div class="rij">
+        <button type="button" class="knop" id="pr-geheim">Alle 7 geheime ontgrendelen</button>
+        <button type="button" class="knop" id="pr-aura">Alleen Pure Aura</button>
+        <button type="button" class="knop" id="pr-geheim-weg">Geheime weer vergrendelen</button>
+      </div>
+      <ul class="lijst" id="pr-lijst"></ul>
+      <p class="klein">Kijk daarna in het tabblad Prestaties: de naam blijft zichtbaar, het raadsel verandert in de echte uitleg en de rang is kapot (glitch). Pure Aura staat extra groot bovenaan.</p>
+    </section>
+
+    <section class="blok" id="s-v3">
+      <h2>v3.0: troostpakje, weekoverzicht, tijdcapsule</h2>
+      <label class="vink"><input type="checkbox" id="waar-som" /> Toon het venster op het Somtoday-tabblad (anders hier in dit menu)</label>
+      <h3>Troostpakje</h3>
+      <div class="rij">
+        <label class="vink">Cijfer <input id="t-cijfer" type="number" min="1" max="5.4" step="0.1" value="4.2" /></label>
+        <button type="button" class="knop goud" id="t-geef">Troostpakje geven</button>
+        <button type="button" class="knop" id="t-reset">Limiet van vandaag resetten (3 per dag)</button>
+      </div>
+      <p class="klein" id="t-status"></p>
+      <h3>Weekoverzicht</h3>
+      <div class="rij">
+        <button type="button" class="knop goud" id="w-voorbeeld">Toon voorbeeld</button>
+        <button type="button" class="knop" id="w-echt">Toon met mijn echte gegevens (afgelopen 7 dagen)</button>
+        <button type="button" class="knop" id="w-oud">Zet &lsquo;laatst getoond&rsquo; 8 dagen terug</button>
+        <button type="button" class="knop" id="w-wis">Wis &lsquo;laatst getoond&rsquo;</button>
+      </div>
+      <p class="klein" id="w-status"></p>
+      <h3>Tijdcapsule: datum overslaan en ontsluiten</h3>
+      <div class="rij">
+        <button type="button" class="knop goud" id="c-maak">Open capsule bij nieuwste kaart</button>
+        <button type="button" class="knop" id="c-open">Alle capsules ontsluiten (datum = vandaag)</button>
+        <button type="button" class="knop" id="c-dicht">Alle capsules weer 30 dagen dicht</button>
+        <button type="button" class="knop" id="c-nieuw">&lsquo;Geopend&rsquo; en &lsquo;gemeld&rsquo; wissen</button>
+        <button type="button" class="knop" id="c-melding">Toon melding &lsquo;capsule is open&rsquo;</button>
+      </div>
+      <p class="klein" id="c-status"></p>
+    </section>
+
+    <section class="blok" id="s-heel">
+      <h2>Vloek opheffen simuleren</h2>
+      <p class="klein">Gebruikt het vak hierboven (<b id="hl-vak">Wiskunde</b>). Eerst komt er een vervloekte kaart (4,2) in je galerij, daarna een voldoende kaart (8,4) in hetzelfde vak: die heft de vloek op, zoals bij een echt nieuw cijfer.</p>
+      <div class="rij">
+        <button type="button" class="knop goud" id="hl-alles">Alles in &eacute;&eacute;n keer</button>
+        <button type="button" class="knop" id="hl-vloek">Alleen vervloekte kaart geven</button>
+        <button type="button" class="knop" id="hl-goed">Alleen voldoende kaart geven (heft op)</button>
+      </div>
+      <p class="klein" id="hl-uitslag"></p>
+    </section>
+
+    <section class="blok" id="s-drop">
+      <h2>Wekelijkse Drop (teller)</h2>
+      <p>Lokale teller: <b id="dr-nu">niet gezet</b>. <span id="dr-tekst"></span></p>
+      <div class="rij">
+        <input id="dr-getal" type="number" min="0" step="1" value="7" aria-label="Teller" />
+        <button type="button" class="knop" id="dr-zet">Zet teller</button>
+        <button type="button" class="knop" id="dr-plus">+1</button>
+        <button type="button" class="knop" id="dr-tien">+10</button>
+        <button type="button" class="knop gevaar" id="dr-wis">Terug naar de echte teller</button>
+      </div>
+      <p class="klein">Deze teller is alleen lokaal en vervangt in het Overzicht de regel &ldquo;Deze week: N mythische kaarten door alle spelers&rdquo; (de server wordt dan niet gevraagd en er wordt niets gemeld). Staat het Overzicht open (hub), dan verandert de regel meteen; anders opent hij met de nieuwe teller.</p>
+    </section>
+
+    <section class="blok" id="s-spel">
+      <h2>Arcade, Snelspel en Kaartspel</h2>
+      <p class="klein" id="sp-status">Status laden...</p>
+      <div class="rij">
+        <input id="sp-getal" type="number" min="0" step="1" value="50" aria-label="Munten" />
+        <button type="button" class="knop goud" id="sp-munten">Geef munten</button>
+        <button type="button" class="knop" id="sp-arcade">Arcade-limiet resetten (10 per dag)</button>
+        <button type="button" class="knop" id="sp-snelspel">Snelspel-limiet resetten (15 per dag)</button>
+        <button type="button" class="knop" id="sp-kaartspel">Kaartspel-limiet resetten (5 per dag)</button>
+        <button type="button" class="knop" id="sp-alles">Alle limieten van vandaag resetten</button>
+      </div>
+      <div class="rij">
+        <a class="knop" href="hub.html#arcade" data-ga="arcade">Naar Arcade (en Snelspel)</a>
+        <a class="knop" href="hub.html#kaartspel" data-ga="kaartspel">Naar Kaartspel</a>
+      </div>
+      <p class="klein">Een kaartspel-potje dat al is uitbetaald (<code>ksw:...</code>) blijft uitbetaald; alleen de dagteller gaat terug. Zonder de dagteller geeft een nieuw potje weer munten.</p>
+    </section>
+
+    <section class="blok" id="s-voetbal">
+      <h2>Avatar en stadion</h2>
+      <div class="rij">
+        <button type="button" class="knop goud" id="vb-alles">Alle voetballer- en stadionitems gratis ontgrendelen</button>
+        <button type="button" class="knop" id="vb-weg">Die items weer vergrendelen</button>
+        <a class="knop" href="hub.html#speler" data-ga="speler">Naar Speler</a>
+      </div>
+      <p class="klein" id="vb-status"></p>
+    </section>
+
+    <section class="blok" id="s-campagne">
+      <h2>Campagne</h2>
+      <p class="klein" id="ca-status">Status laden...</p>
+      <div class="rij">
+        <label>Wereld <select id="ca-wereld"></select></label>
+        <label>Niveau <select id="ca-niveau"></select></label>
+      </div>
+      <div class="rij">
+        <button type="button" class="knop goud" id="ca-win">Win dit niveau (3 sterren)</button>
+        <button type="button" class="knop" id="ca-ontgrendel">Wereld ontgrendelen (niveau 1 t/m 4 klaar, de baas is open)</button>
+        <button type="button" class="knop" id="ca-alle">Alle werelden ontgrendelen</button>
+      </div>
+      <div class="rij">
+        <button type="button" class="knop" id="ca-limiet">Dagelijkse beloningslimiet resetten (3 herhalingen)</button>
+        <button type="button" class="knop gevaar" id="ca-sterren">Alleen de sterren wissen</button>
+        <button type="button" class="knop gevaar" id="ca-reset">Alles terug naar nul (sterren, beloningen, titels, kaartkleuren)</button>
+        <a class="knop" href="hub.html#campagne" data-ga="campagne">Naar Campagne</a>
+      </div>
+      <p class="klein" id="ca-uitslag"></p>
+      <p class="klein">&ldquo;Win dit niveau&rdquo; zet alle niveaus ervoor op 3 sterren (zonder munten) en betaalt het gekozen niveau uit zoals in het echt: de eerste keer de eenmalige munten (bij de baas ook de titel en de kaartkleuren), daarna een herhaling met de dagelijkse limiet. Om zelf te spelen heb je 5 kaarten nodig: geef jezelf eerst &ldquo;Eén kaart per vak (12)&rdquo; hierboven.</p>
+    </section>
+
+    <section class="blok" id="s-jaar">
+      <h2>Jaaroverzicht (&ldquo;Jouw jaar&rdquo;)</h2>
+      <p class="klein">Alles hier gaat naar de <b>nep-server</b>: er gaat niets naar een echte server of naar Groq. De nep-AI-tekst gaat door precies dezelfde filter en weergave als echte tekst.</p>
+      <div class="rij">
+        <button type="button" class="knop goud" id="ja-nu">Jaar bekijken nu</button>
+        <button type="button" class="knop" id="ja-data">Testgegevens voor mijn jaar</button>
+        <button type="button" class="knop gevaar" id="ja-wis">Testgegevens weghalen</button>
+      </div>
+      <p class="klein" id="ja-status"></p>
+      <h3>Jaar met nep-AI</h3>
+      <div class="rij">
+        <label>Wat staat er in de nep-AI-tekst?
+          <select id="ja-tekst">
+            <option value="goed">Gewone tekst</option>
+            <option value="rommel">Rommel (tags, link, opmaak): moet worden schoongemaakt</option>
+            <option value="afgekeurd">Telefoonnummer: moet worden geweigerd</option>
+          </select>
+        </label>
+        <label>Wachtrij begint bij plek <input id="ja-plek" type="number" min="1" max="20" step="1" value="4" /></label>
+        <label class="vink"><input type="checkbox" id="ja-auto" checked /> Zet het toestemmingsvinkje en klik de AI-knop zelf</label>
+      </div>
+      <div class="rij">
+        <button type="button" class="knop goud" id="ja-ai">Jaar met nep-AI</button>
+        <button type="button" class="knop" id="ja-limiet">Nep-limiet bereikt</button>
+        <button type="button" class="knop" id="ja-tijd">Nep-time-out</button>
+        <button type="button" class="knop" id="ja-hangt">Nep-server hangt (app geeft zelf op na 12 s)</button>
+        <button type="button" class="knop" id="ja-503">Nep-fout 503</button>
+      </div>
+      <pre id="ja-log">Nog niets (nep) verstuurd.</pre>
+      <p class="klein">&ldquo;Jaar bekijken nu&rdquo; opent de terugblik met alle kaarten en prestaties die er nu zijn, ongeacht de datum en het juli-aanbod, en zet het schooljaar niet op &lsquo;gezien&rsquo;. &ldquo;Testgegevens&rdquo; maakt ongeveer 60 debugkaarten verspreid over de laatste 12 maanden en alle vier de vakgroepen, zodat alle 8 schermen gevuld zijn (beste kaart, stijging, zwaarste week, ladder met alle 5 treden, favoriete animatie, prestaties, terugblik). Het venster staat in dit menu; de AI-knoppen zetten zelf de nep-account aan zodat het AI-blok beschikbaar is.</p>
+    </section>
+
+    <section class="blok" id="s-duel">
+      <h2>Duel en tweelingkaart (nep-vriend)</h2>
+      <label class="vink"><input type="checkbox" id="nv-aan" /> Nep-vriend-modus aan</label>
+      <p class="klein" id="nv-status"></p>
+      <p class="klein">Met de modus aan gebruiken de pagina&rsquo;s <b>Team</b> en <b>Vrienden</b> (na opnieuw openen of laden) een <b>nep-account</b> met &eacute;&eacute;n vriend, de Nep-vriend. Je echte vriendenaccount wordt dan niet gelezen of veranderd, en er gaat niets over het netwerk. Zet je de modus uit, dan is alles weer zoals het was.</p>
+      <h3>Duel</h3>
+      <div class="rij">
+        <button type="button" class="knop goud" id="du-comp">Duel tegen de computer starten</button>
+        <button type="button" class="knop" id="du-team">Maak een team van mijn kaarten</button>
+        <button type="button" class="knop" id="du-uitdaag">Nep-vriend daagt jou uit</button>
+        <a class="knop" href="hub.html#team" data-ga="team">Naar Team</a>
+      </div>
+      <div class="rij">
+        <label class="vink"><input type="checkbox" id="nv-kijkt" checked /> De Nep-vriend kijkt mee als toeschouwer</label>
+        <span class="klein">Toeschouwer-emoji:</span>
+        <button type="button" class="knop" data-nv-emoji="&#128293;" aria-label="Vuur">&#128293;</button>
+        <button type="button" class="knop" data-nv-emoji="&#128558;" aria-label="Verbazing">&#128558;</button>
+        <button type="button" class="knop" data-nv-emoji="&#128079;" aria-label="Applaus">&#128079;</button>
+        <button type="button" class="knop" data-nv-emoji="&#128514;" aria-label="Lachen">&#128514;</button>
+        <button type="button" class="knop" id="du-limiet">Daglimiet duelbeloning resetten (5 per dag)</button>
+      </div>
+      <p class="klein" id="du-status"></p>
+      <p class="klein">Duel met de nep-vriend: open Team, klik bij de Nep-vriend op &ldquo;Uitdagen&rdquo; (of accepteer zijn uitdaging na &ldquo;Nep-vriend daagt jou uit&rdquo;; binnen 4 minuten, het bericht staat dan in Team). De Nep-vriend speelt als de computer, maar via het nep-kanaal: met vastlegging, schot en onthulling. Start je een duel (tegen de computer of de Nep-vriend) met de modus aan en &ldquo;De Nep-vriend kijkt mee&rdquo;, dan doet hij na een paar seconden mee als toeschouwer; de emoji-knoppen laten dan een emoji over je scherm vliegen. &ldquo;Duel tegen de computer starten&rdquo; maakt zo nodig eerst een team en opent daarna Team, waar het duel vanzelf begint.</p>
+      <h3>Tweelingkaart</h3>
+      <div class="rij">
+        <label>Vakgroep <select id="tw-groep"><option value="exact">Exact (Wiskunde)</option><option value="talen">Talen (Engels)</option><option value="mens">Mens &amp; maatschappij (Geschiedenis)</option><option value="kunst">Kunst &amp; sport (Tekenen)</option></select></label>
+        <label>Cijfer <input id="tw-cijfer" type="number" min="1" max="10" step="0.1" value="7.5" /></label>
+        <label>Antwoord op jouw voorstel
+          <select id="tw-antwoord"><option value="ja">Nep-vriend zegt ja</option><option value="nee">Nep-vriend zegt nee</option><option value="geen">Nep-vriend antwoordt niet</option></select>
+        </label>
+      </div>
+      <div class="rij">
+        <button type="button" class="knop goud" id="tw-voorstel">Nep-vriend stelt een tweelingkaart voor</button>
+        <button type="button" class="knop" id="tw-kaart">Maak er een passende kaart bij</button>
+        <button type="button" class="knop gevaar" id="tw-wis">Alle tweelingkaarten en voorstellen wissen</button>
+        <a class="knop" href="hub.html#vrienden" data-ga="vrienden">Naar Vrienden</a>
+      </div>
+      <p class="klein" id="tw-status"></p>
+      <p class="klein">&ldquo;Stelt voor&rdquo; zet een voorstel (cijferband en vakgroep van hierboven, zonder vaknaam of exact cijfer) in je Vrienden-pagina. &ldquo;Passende kaart&rdquo; geeft een debugkaart in die band en groep, zodat je kunt accepteren. Weigeren en accepteren kun je dan op Vrienden testen. Een voorstel van jou aan de Nep-vriend krijgt het antwoord hierboven (ja geeft een actieve tweelingkaart met de badge; de 25 munten komen na &ldquo;Synchroniseren&rdquo; op Vrienden of binnen een minuut).</p>
+    </section>
+
+    <section class="blok" id="s-rivaal">
+      <h2>Aartsrivaal en uitnodig-link (simulatie)</h2>
+      <p class="klein">Alles hier is nep: er gaat niets naar de server of naar een vriend en er wordt niets opgeslagen in <code>spo_rivaal</code> of <code>spo_uitnodigingen</code>.</p>
+      <h3>Rivalenkaart</h3>
+      <div class="rij">
+        <label>Stand
+          <select id="rv-stand">
+            <option value="actief">Actief (rivalenkaart)</option>
+            <option value="verzonden">Verzoek verzonden</option>
+            <option value="binnen">Verzoek binnen</option>
+            <option value="geen">Geen (sectie verborgen)</option>
+          </select>
+        </label>
+        <button type="button" class="knop" id="rv-munten">10 rivaalmunten (debug)</button>
+      </div>
+      <section class="rivaal" id="rv-kaart" aria-live="polite"></section>
+      <h3>Uitnodiglink</h3>
+      <div class="rij">
+        <label>Server <input id="un-server" size="34" /></label>
+        <button type="button" class="knop goud" id="un-maak">Maak voorbeeldlink</button>
+        <button type="button" class="knop" id="un-lees">Lees de link terug</button>
+        <button type="button" class="knop" id="un-pakje">Beloning-pakje (debug)</button>
+      </div>
+      <p class="klein"><code id="un-link">nog geen link</code></p>
+      <p class="klein" id="un-uitslag"></p>
+    </section>
+
+    <section class="blok" id="s-veilig">
+      <h2>Veiligheid (simulatie)</h2>
+      <p class="klein">De vensters zijn de echte; het versturen is nep (<code>debug-nep.js</code>) en gaat niet naar de server. Onderaan zie je wat er verstuurd zou zijn.</p>
+      <div class="vorm">
+        <label>Antwoord bij melden
+          <select id="vl-meld"><option value="ok">Gelukt</option><option value="te-veel">Te veel meldingen (429)</option><option value="onbekend">Bestaat niet meer (404)</option><option value="verbannen">Verbannen</option><option value="geen-verbinding">Geen verbinding</option></select>
+        </label>
+        <label>Antwoord bij blokkeren
+          <select id="vl-blok"><option value="ok">Gelukt</option><option value="serverfout">Serverfout (500)</option><option value="geen-verbinding">Geen verbinding</option></select>
+        </label>
+      </div>
+      <div class="rij">
+        <button type="button" class="knop goud" id="vl-waarsch">Waarschuwing tonen</button>
+        <button type="button" class="knop" id="vl-waarsch2">Twee waarschuwingen tonen</button>
+        <button type="button" class="knop" id="vl-melden">Melden-venster</button>
+        <button type="button" class="knop" id="vl-blokkeren">Blokkeren-venster</button>
+      </div>
+      <div class="rij">
+        <button type="button" class="knop" id="vl-ban-tijd">Ban-banner: tijdelijk (3 dagen)</button>
+        <button type="button" class="knop" id="vl-ban-perm">Ban-banner: permanent</button>
+        <button type="button" class="knop" id="vl-ban-weg">Banner verbergen</button>
+      </div>
+      <section class="ban-banner" id="vl-banner" role="alert" hidden>
+        <h2>Je bent verbannen van de vriendenfunctie</h2>
+        <p id="vl-ban-wanneer"></p>
+        <p id="vl-ban-reden" hidden></p>
+        <p>Je kaarten, munten en prestaties werken gewoon. Vrienden, delen en gevechten werken pas weer als de ban voorbij is. Je hoeft niets te doen: deze pagina probeert het niet steeds opnieuw.</p>
+      </section>
+      <p class="klein" id="vl-ban-tekst"></p>
+      <pre id="vl-log">Nog niets (nep) verstuurd.</pre>
+    </section>
+
+    <section class="blok" id="s-tekst">
+      <h2>Tekstfilter-tester</h2>
+      <div class="vorm">
+        <label>Soort
+          <select id="tf-soort"><option value="tekst">tekst (streng)</option><option value="naam">naam</option></select>
+        </label>
+        <label>Maximum tekens <input id="tf-max" type="number" min="1" max="500" value="300" /></label>
+      </div>
+      <label>Tekst <textarea id="tf-in" rows="3" placeholder="Typ hier iets, bijvoorbeeld een telefoonnummer, een link of een rare tekenreeks"></textarea></label>
+      <table class="tab" id="tf-uit"><tbody>
+        <tr><th>Uitkomst</th><td id="tf-ok">-</td></tr>
+        <tr><th>Reden (code)</th><td id="tf-reden">-</td></tr>
+        <tr><th>Melding voor de gebruiker</th><td id="tf-melding">-</td></tr>
+        <tr><th>Opgeschoonde tekst</th><td id="tf-schoon">-</td></tr>
+        <tr><th>Zo ziet een ander het (toon)</th><td id="tf-toon">-</td></tr>
+        <tr><th>Alleen onzichtbare tekens weg (veilig)</th><td id="tf-veilig">-</td></tr>
+      </tbody></table>
+      <div class="rij" id="tf-voorbeelden"></div>
+      <p class="klein">De reden-code (<code>woord</code>, <code>persoonlijk</code>, <code>tekens</code>, <code>lengte</code>, <code>hulp</code>) zie je alleen hier. Echte gebruikers krijgen nooit het woord erbij te zien.</p>
+    </section>
+
+    <section class="blok" id="s-venster">
+      <h2>Feedback en Wat is nieuw</h2>
+      <div class="rij">
+        <label>Antwoord bij feedback versturen
+          <select id="fb-uitkomst"><option value="ok">Gelukt</option><option value="te-veel">Al drie keer vandaag (429)</option><option value="serverfout">Serverfout (500)</option><option value="geen-verbinding">Geen verbinding</option><option value="verbannen">Verbannen</option></select>
+        </label>
+        <button type="button" class="knop goud" id="fb-open">Feedback-venster openen</button>
+      </div>
+      <p class="klein">Voorbeeld van de technische info die meegaat: <code id="fb-info">...</code></p>
+      <div class="rij">
+        <button type="button" class="knop goud" id="nw-open">Wat is nieuw tonen</button>
+        <button type="button" class="knop" id="nw-oud">Zet &lsquo;gezien&rsquo; terug op 2.4.3 (bolletje + automatisch bij het openen van het paneel)</button>
+        <button type="button" class="knop" id="nw-wis">Wis &lsquo;gezien&rsquo; (verse installatie)</button>
+      </div>
+      <p class="klein" id="nw-status"></p>
+    </section>
+
+    <section class="blok" id="s-straf">
+      <h2>Strafschop-test (stage.html)</h2>
+      <p class="klein">Elke link opent <code>stage.html?strafschop=1&amp;...</code> in een nieuw tabblad. <b>Normaal</b>: automatisch de beste variant. <b>laag=true</b>: lage kwaliteit. <b>mesh=1</b>: forceert de mesh-variant. <b>volledig=1</b>: forceert de volle variant. <b>forceerfout=1/2/3</b> (met <code>debug=1</code>): laat de volle variant, daarna de lichte, daarna de mesh-variant mislukken om de terugval te testen.</p>
+      <div class="vorm">
+        <label>Richting <select id="sf-richting"><option>links</option><option>midden</option><option>rechts</option></select></label>
+        <label>Hoogte <select id="sf-hoogte"><option>laag</option><option>hoog</option></select></label>
+      </div>
+      <div id="sf-tabel" class="scroll"></div>
+      <div class="rij">
+        <button type="button" class="knop" id="sf-wis">Strafschop-geheugen wissen (gekozen variant en poging)</button>
+      </div>
+      <p class="klein" id="sf-status"></p>
+    </section>
+
+    <section class="blok" id="s-ruim">
+      <h2>Debugdata opruimen</h2>
+      <div class="rij">
+        <button type="button" class="knop gevaar" id="rm-alles">Alle debugdata van v3.0 opruimen</button>
+      </div>
+      <p class="klein">Haalt weg: debugkaarten, capsules en vloek-opheffingen van debugkaarten, <code>debug:</code>-regels uit de muntengeschiedenis, troost- en uitnodigingssleutels uit <code>spo_munten_ids</code> en de lokale droptelling.</p>
     </section>
 
     <section class="blok" id="s-div">
@@ -183,10 +499,30 @@
       <pre id="o-voorbeeld" hidden></pre>
     </section>
   </main>
+  <script src="tekstfilter-woorden.js"></script>
+  <script src="tekstfilter.js"></script>
   <script src="account.js"></script>
+  <script src="voetbal.js"></script>
   <script src="economie.js"></script>
+  <script src="gevecht.js"></script>
+  <script src="duellib.js"></script>
+  <script src="campagnelib.js"></script>
+  <script src="tweeling.js"></script>
   <script src="prestatieslib.js"></script>
   <script src="huisdier.js"></script>
+  <script src="heel.js"></script>
+  <script src="troost.js"></script>
+  <script src="weekoverzicht.js"></script>
+  <script src="capsule.js"></script>
+  <script src="vriendenlib.js"></script>
+  <script src="debug-vriend.js"></script>
+  <script src="jaar.js"></script>
+  <script src="veilig.js"></script>
+  <script src="rivaal.js"></script>
+  <script src="uitnodiging.js"></script>
+  <script src="nieuw-data.js"></script>
+  <script src="nieuw.js"></script>
+  <script src="feedback.js"></script>
   <script src="debug.js"></script>
 </body>
 </html>

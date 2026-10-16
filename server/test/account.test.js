@@ -34,7 +34,7 @@ const fout = async (p) => { try { await p; return null; } catch (e) { return e; 
   const f = path.join(TMP, 'schema.php');
   fs.writeFileSync(f, `<?php $d=new PDO('sqlite:'.$argv[1]); $d->exec(file_get_contents($argv[2])); $d->exec(file_get_contents($argv[2]));`);
   await new Promise((res, rej) => spawn('php', [f, DB, path.join(MAP, 'schema.sql')]).on('exit', (c) => (c ? rej(new Error('schema')) : res())));
-  const php = spawn('php', ['-S', 'localhost:' + POORT, '-t', MAP], { env: Object.assign({}, process.env, { SPO_CONFIG: path.join(MAP, 'test/config.test.php'), SPO_TESTDB: DB, SPO_MAILBESTAND: MAIL }), stdio: 'ignore' });
+  const php = spawn('php', ['-S', 'localhost:' + POORT, '-t', MAP], { env: Object.assign({}, process.env, { SPO_CONFIG: path.join(MAP, 'test/config.test.php'), SPO_TESTDB: DB, SPO_MAILBESTAND: MAIL, SPO_LIMIET_LOGIN: '1000', SPO_LIMIET_MAIL: '1000' }), stdio: 'ignore' });
   try {
     for (let i = 0; i < 50; i++) { try { await fetch(URL, { method: 'OPTIONS' }); break; } catch (e) { await slaap(100); } }
     A.zetServer(URL);
@@ -164,6 +164,96 @@ const fout = async (p) => { try { await p; return null; } catch (e) { return e; 
     await globalThis.SPOEco.koop('st-oceaan'); // te weinig munten, maar de winkel wordt wel nagekeken
     const wk2 = JSON.parse(localStorage.getItem('spo_winkel'));
     controle('economie: uit log hersteld', wk2.gekocht.includes('st-goud') && wk2.gekocht.includes('st-bos'), wk2);
+    // ===== v3: Gmail-varianten zijn één mailbox; bestaande accounts met de oude hash raken niemand buitengesloten =====
+    const { execFileSync } = require('node:child_process');
+    const crypto = require('node:crypto');
+    const ZOUT = 'testzout-testzout-testzout-testzout';
+    const hOud = (e) => crypto.createHash('sha256').update('email:' + e.trim().toLowerCase() + ZOUT).digest('hex');
+    const sql = (q, p) => JSON.parse(execFileSync('php', ['-r', '$d=new PDO("sqlite:".$argv[1]);$s=$d->prepare($argv[2]);$s->execute(json_decode($argv[3],true));echo json_encode($s->columnCount()?$s->fetchAll(PDO::FETCH_ASSOC):[]);', '--', DB, q, JSON.stringify(p || [])]).toString() || '[]');
+    const pwHash = (w) => execFileSync('php', ['-r', 'echo password_hash($argv[1], PASSWORD_DEFAULT);', '--', w]).toString();
+    // Zo zag een account van vóór v3 eruit: hash van het adres precies zoals getypt (kleine letters).
+    const oudAccount = (e, w, geverifieerd) => { const id = crypto.randomBytes(16).toString('hex'); sql('INSERT INTO accounts (id, email_hash, ww_hash, geverifieerd, gemaakt, laatst) VALUES (?, ?, ?, ?, 1, 1)', [id, hOud(e), pwHash(w), geverifieerd ? 1 : 0]); return id; };
+    const hashVan = (id) => sql('SELECT email_hash FROM accounts WHERE id = ?', [id])[0].email_hash;
+    const inlog = (email, w) => roep({ a: 'accLogin', email, ww: w });
+    const maakEnBevestig = async (email, w) => { await roep({ a: 'accRegistreer', email, ww: w }); return roep({ a: 'accVerifieer', email, code: laatsteCode(email.toLowerCase(), 'verifieer') }); };
+
+    // Nieuwe accounts: varianten wijzen naar dezelfde mailbox
+    const g1 = await maakEnBevestig('Jan.Gert@gmail.com', 'gmail-ww-12345');
+    controle('gmail: account gemaakt', g1.s === 200 && g1.j.account, g1);
+    controle('gmail: bewaard onder de genormaliseerde hash', hashVan(g1.j.account) === hOud('jangert@gmail.com'));
+    controle('gmail: zonder punten kan niet nog eens registreren (409)', (await roep({ a: 'accRegistreer', email: 'jangert@gmail.com', ww: 'ander-ww-12345' })).s === 409);
+    controle('gmail: met +tag kan niet nog eens registreren (409)', (await roep({ a: 'accRegistreer', email: 'jan.gert+school@gmail.com', ww: 'ander-ww-12345' })).s === 409);
+    controle('gmail: googlemail.com kan niet nog eens registreren (409)', (await roep({ a: 'accRegistreer', email: 'JANGERT@googlemail.com', ww: 'ander-ww-12345' })).s === 409);
+    controle('gmail: inloggen met een variant werkt', (await inlog('jangert+x@gmail.com', 'gmail-ww-12345')).s === 200 && (await inlog('j.a.n.g.e.r.t@googlemail.com', 'gmail-ww-12345')).s === 200);
+    controle('gmail: fout wachtwoord blijft 401', (await inlog('jangert@gmail.com', 'fout-wachtwoord')).s === 401);
+    controle('ander domein: punten tellen wel (aparte mailbox)', (await roep({ a: 'accRegistreer', email: 'jan.gert@school.nl', ww: 'schoolww-12345' })).s === 200 && (await roep({ a: 'accRegistreer', email: 'jangert@school.nl', ww: 'schoolww-12345' })).s === 200);
+    const s1 = await maakEnBevestig('piet+eerste@school.nl', 'plus-ww-12345');
+    controle('ander domein: +tag valt weg bij het hashen', s1.s === 200 && hashVan(s1.j.account) === hOud('piet@school.nl') && (await roep({ a: 'accRegistreer', email: 'piet@school.nl', ww: 'x-ww-123456' })).s === 409);
+    controle('code komt aan op het getypte adres', laatsteCode('jan.gert@school.nl', 'verifieer') !== null);
+
+    // Oude accounts (oude hash): inloggen met het adres zoals het was, daarna wordt het account naar de nieuwe hash gezet
+    const o1 = oudAccount('oud.een@gmail.com', 'oud-ww-12345', true);
+    controle('oud account: registreren met het adres zoals het was geeft 409 (oude hash gecontroleerd)', (await roep({ a: 'accRegistreer', email: 'Oud.Een@gmail.com', ww: 'weer-ww-12345' })).s === 409);
+    const lo = await inlog('oud.een@gmail.com', 'oud-ww-12345');
+    controle('oud account: inloggen met het oude adres werkt', lo.s === 200 && lo.j.account === o1, lo);
+    controle('oud account: gemigreerd naar de nieuwe hash', hashVan(o1) === hOud('oudeen@gmail.com'));
+    controle('oud account: na migreren geeft elke variant bij registreren 409', (await roep({ a: 'accRegistreer', email: 'oudeen@gmail.com', ww: 'weer-ww-12345' })).s === 409 && (await roep({ a: 'accRegistreer', email: 'oud.een+x@googlemail.com', ww: 'weer-ww-12345' })).s === 409);
+    controle('oud account: daarna werken ook de varianten', (await inlog('oudeen@gmail.com', 'oud-ww-12345')).j.account === o1 && (await inlog('oud.een+tag@googlemail.com', 'oud-ww-12345')).j.account === o1);
+    controle('oud account: back-up blijft bij hetzelfde account', (await roep({ a: 'accBackupLaad' }, { 'X-Sessie': lo.j.sessie })).s === 200);
+    const o2 = oudAccount('Kees+nep@school.nl', 'oud-ww-12345', true);
+    controle('oud account (+tag): inloggen met het getypte adres werkt en migreert', (await inlog('kees+nep@school.nl', 'oud-ww-12345')).j.account === o2 && hashVan(o2) === hOud('kees@school.nl') && (await inlog('kees@school.nl', 'oud-ww-12345')).j.account === o2);
+    const nmId = oudAccount('niet.mig@gmail.com', 'goed-ww-12345', true);
+    const nmR = await roep({ a: 'accLogin', email: 'niet.mig@gmail.com', ww: 'fout-ww-12345' });
+    controle('oud account: fout wachtwoord migreert niet', nmR.s === 401 && hashVan(nmId) === hOud('niet.mig@gmail.com'));
+    const o3 = oudAccount('Gewoon@voorbeeld.nl', 'oud-ww-12345', true);
+    controle('oud account zonder normalisatie-verschil: ongewijzigd en inloggen werkt', (await inlog('GEWOON@voorbeeld.nl', 'oud-ww-12345')).j.account === o3 && hashVan(o3) === hOud('gewoon@voorbeeld.nl'));
+
+    // UNIQUE-conflict: twee oude accounts blijken dezelfde mailbox
+    const cx = oudAccount('con.flict@gmail.com', 'ww-van-x-123', true);
+    const cy = oudAccount('conflict@gmail.com', 'ww-van-y-123', true);
+    const lx = await inlog('con.flict@gmail.com', 'ww-van-x-123');
+    controle('conflict: X kan inloggen met zijn eigen adres en wachtwoord', lx.s === 200 && lx.j.account === cx, lx);
+    controle('conflict: X blijft op zijn oude hash (geen UNIQUE-fout)', hashVan(cx) === hOud('con.flict@gmail.com') && hashVan(cy) === hOud('conflict@gmail.com'));
+    const ly = await inlog('conflict@gmail.com', 'ww-van-y-123');
+    controle('conflict: Y kan ook nog inloggen', ly.s === 200 && ly.j.account === cy, ly);
+    controle('conflict: wachtwoorden worden niet gemengd', (await inlog('conflict@gmail.com', 'ww-van-x-123')).s === 401 && (await inlog('con.flict@gmail.com', 'ww-van-y-123')).j.account === cy && (await inlog('con.flict@gmail.com', 'fout-ww-12345')).s === 401);
+    controle('conflict: opnieuw inloggen blijft werken voor allebei', (await inlog('con.flict@gmail.com', 'ww-van-x-123')).j.account === cx && (await inlog('conflict@gmail.com', 'ww-van-y-123')).j.account === cy);
+    controle('conflict: nieuw registreren onder die mailbox kan niet', (await roep({ a: 'accRegistreer', email: 'con.flict+z@gmail.com', ww: 'ww-van-z-123' })).s === 409);
+    // Het andere pad: X migreert gewoon als de nieuwe hash vrij is (Y bestaat niet)
+    const cx2 = oudAccount('vrij.veld@gmail.com', 'ww-van-x-123', true);
+    controle('geen conflict: migreren lukt', (await inlog('vrij.veld@gmail.com', 'ww-van-x-123')).s === 200 && hashVan(cx2) === hOud('vrijveld@gmail.com'));
+    // Twee oude accounts waarvan er eerst een migreert naar de plek van de ander
+    const dx = oudAccount('d.o.t@gmail.com', 'ww-van-x-123', true), dy = oudAccount('dot@gmail.com', 'ww-van-y-123', true);
+    await inlog('d.o.t@gmail.com', 'ww-van-x-123'); await inlog('dot@gmail.com', 'ww-van-y-123');
+    controle('conflict 2: beide accounts bestaan nog onder verschillende hashes', hashVan(dx) !== hashVan(dy) && sql('SELECT COUNT(*) AS n FROM accounts WHERE id IN (?, ?)', [dx, dy])[0].n == 2);
+
+    // Oude accounts: code-controle (bevestigen en wachtwoord vergeten) met de oude hash
+    const ou = oudAccount('half.af@gmail.com', 'half-ww-12345', false);
+    await roep({ a: 'accCodeOpnieuw', email: 'half.af@gmail.com' });
+    const hc = laatsteCode('half.af@gmail.com', 'verifieer');
+    controle('oud onbevestigd account: code wordt gestuurd', /^[0-9]{6}$/.test(hc || ''), hc);
+    const hv = await roep({ a: 'accVerifieer', email: 'half.af@gmail.com', code: hc });
+    controle('oud onbevestigd account: bevestigen werkt en migreert', hv.s === 200 && hv.j.account === ou && hashVan(ou) === hOud('halfaf@gmail.com'), hv);
+    const orst = oudAccount('reset.mij@gmail.com', 'reset-ww-12345', true);
+    await roep({ a: 'accVergeten', email: 'reset.mij@gmail.com' });
+    const rcode = laatsteCode('reset.mij@gmail.com', 'reset');
+    controle('oud account: resetcode gestuurd', /^[0-9]{6}$/.test(rcode || ''));
+    const rr = await roep({ a: 'accReset', email: 'reset.mij@gmail.com', ww: 'nieuw-reset-123', code: rcode });
+    controle('oud account: reset werkt en migreert', rr.s === 200 && rr.j.account === orst && hashVan(orst) === hOud('resetmij@gmail.com') && (await inlog('resetmij+x@gmail.com', 'nieuw-reset-123')).j.account === orst);
+    // Een code voor een variant werkt voor de mailbox
+    await roep({ a: 'accRegistreer', email: 'var.iant@gmail.com', ww: 'variant-ww-123' });
+    const vc = laatsteCode('var.iant@gmail.com', 'verifieer');
+    const vv = await roep({ a: 'accVerifieer', email: 'variant@googlemail.com', code: vc });
+    controle('nieuw: bevestigen met een variant van het adres werkt', vv.s === 200, [vv, vc]);
+    // Opnieuw registreren onder een onbevestigd account met oude hash: één account
+    const on = oudAccount('on.bevestigd@gmail.com', 'eerste-ww-1234', false);
+    await roep({ a: 'accRegistreer', email: 'on.bevestigd@gmail.com', ww: 'tweede-ww-1234' });
+    controle('onbevestigd oud account wordt hergebruikt (geen tweede account)', sql('SELECT COUNT(*) AS n FROM accounts WHERE id = ? OR email_hash IN (?, ?)', [on, hOud('onbevestigd@gmail.com'), hOud('on.bevestigd@gmail.com')])[0].n == 1);
+    const ob = await roep({ a: 'accVerifieer', email: 'on.bevestigd@gmail.com', code: laatsteCode('on.bevestigd@gmail.com', 'verifieer') });
+    controle('en daarna bevestigen en (als gemigreerd) inloggen met een variant met het nieuwe wachtwoord', ob.s === 200 && ob.j.account === on && hashVan(on) === hOud('onbevestigd@gmail.com') && (await inlog('onbevestigd@gmail.com', 'tweede-ww-1234')).s === 200, ob);
+    // Sql-injectie in het e-mailveld: ongeldig adres, of letterlijk behandeld
+    controle('sql-injectie in e-mail: afgekeurd', (await roep({ a: 'accLogin', email: "x' OR '1'='1", ww: 'wachtwoord-123' })).s === 400);
+    controle('gmail-hash lekt geen adres: tabel bevat geen leesbaar e-mailadres', !JSON.stringify(sql('SELECT * FROM accounts')).includes('gmail.com') && !JSON.stringify(sql('SELECT * FROM acc_codes')).includes('@'));
     controle('status-pagina', (await (await fetch(URL + '?status=1')).json()).ok === true);
   } catch (e) {
     mis++;

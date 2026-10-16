@@ -24,10 +24,10 @@
   const SLEUTEL_GALERIJ = 'spo_galerij';
   const SLEUTEL_GEOPEND = 'spo_geopend';
   const SLEUTEL_PROEF = 'spo_proef';
-  const STANDAARD = { dagelijks: true, afdekking: true, geluid: true, snel: false, opening: 'pak', galerij: true, laag: false, zeldzaam: true, seizoen: true, gemiddelden: true, knop: true, uitval: true, huisdier: true, meekijken: true };
+  const STANDAARD = { dagelijks: true, afdekking: true, geluid: true, snel: false, opening: 'pak', galerij: true, laag: false, zeldzaam: true, seizoen: true, gemiddelden: true, knop: true, uitval: true, huisdier: true, meekijken: true, weekoverzicht: true };
   const OPENINGEN = ['pak', 'kluis', 'plinko', 'ster', 'raket', 'schiet', 'dans', 'willekeurig'];
   const OPENING_NAAM = { pak: 'Pakje', kluis: 'Kluis', plinko: 'Plinko', ster: 'Wensster', raket: 'Raket', schiet: 'Schieten', dans: 'Dansje', willekeurig: 'Verras me' };
-  const TABS = ['overzicht', 'galerij', 'kaart', 'proberen', 'team', 'vrienden', 'prestaties', 'winkel', 'profiel', 'rekenen', 'instellingen', 'geluiden']; // zelfde volgorde als in de zijbalk (pijltjestoetsen)
+  const TABS = ['overzicht', 'galerij', 'kaart', 'proberen', 'team', 'campagne', 'vrienden', 'prestaties', 'arcade', 'kaartspel', 'winkel', 'profiel', 'speler', 'rekenen', 'instellingen', 'geluiden']; // zelfde volgorde als in de zijbalk (pijltjestoetsen)
 
   const ingebed = window.parent !== window;
   if (!ingebed) document.documentElement.classList.add('los');
@@ -545,9 +545,14 @@
     vakEl.focus();
   });
 
+  // Tekstfilter op de tekstvelden van het proefformulier (de melding staat onder het veld).
+  SPOTekst.koppel(vakEl, { max: 40 });
+  SPOTekst.koppel(onderEl, { max: 80 });
   $('formulier').addEventListener('submit', async (e) => {
     e.preventDefault();
     $('fout').textContent = '';
+    if (!SPOTekst.geldig(vakEl, { max: 40 })) { vakEl.focus(); return; }
+    if (!SPOTekst.geldig(onderEl, { max: 80 })) { onderEl.focus(); return; }
     const g = leesCijfer(cijferEl.value);
     if (g == null) {
       $('fout').textContent = 'Vul een cijfer in tussen 1 en 10.';

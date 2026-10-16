@@ -44,6 +44,18 @@
       case 'uitval':
         if (typeof window.__spoDebugFeest === 'function') window.__spoDebugFeest(FEEST_LESSEN);
         break;
+      case 'troost': // v3.0: het troostpakje met het echte venstertje (en het echte uitdelen, dus met de dagelijkse limiet)
+        if (window.SPOTroost) window.SPOTroost.na({ id: String(c.id || '').slice(0, 60), cijfer: Number(c.cijfer) });
+        break;
+      case 'week': // v3.0: het weekoverzicht met meegegeven cijfers
+        if (window.SPOWeek && c.s && typeof c.s === 'object') window.SPOWeek.toon(c.s);
+        break;
+      case 'capsule-melding': // v3.0: 'een tijdcapsule is open'
+        if (window.SPOCapsule) window.SPOCapsule.toonMelding(1);
+        break;
+      case 'heel': // v3.0: 'vloek opgeheven' (de gegevens zijn al aangepast door het testmenu)
+        if (window.SPOHeel && c.uit && c.uit.ok) window.SPOHeel.toon(c.uit);
+        break;
       case 'evolutie':
         if (window.SPOHuisdier) window.SPOHuisdier.evolutie(Math.max(1, Math.min(4, c.stadium | 0 || 1)));
         break;

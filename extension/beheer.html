@@ -29,8 +29,15 @@
 
     <div id="app" hidden>
       <section class="stats" id="stats" aria-label="Totalen"></section>
+      <p class="tabel-fout" id="tabel-fout" role="alert" hidden></p>
 
-      <section class="paneel">
+      <div class="tabs" role="tablist" aria-label="Beheer">
+        <button class="tab" type="button" role="tab" id="tab-gebruikers" aria-controls="paneel-gebruikers" aria-selected="true">Gebruikers</button>
+        <button class="tab" type="button" role="tab" id="tab-meldingen" aria-controls="paneel-meldingen" aria-selected="false" tabindex="-1">Meldingen <span class="teller" id="meld-teller" hidden></span></button>
+        <button class="tab" type="button" role="tab" id="tab-feedback" aria-controls="paneel-feedback" aria-selected="false" tabindex="-1">Feedback <span class="teller" id="fb-teller" hidden></span></button>
+      </div>
+
+      <section class="paneel" id="paneel-gebruikers" role="tabpanel" aria-labelledby="tab-gebruikers">
         <div class="filters">
           <label class="veld"><span>Zoeken</span><input id="zoek" type="text" placeholder="Bijnaam of id" autocomplete="off" /></label>
           <label class="veld"><span>Tonen</span>
@@ -65,8 +72,64 @@
         </div>
         <p class="geen" id="leeg" hidden>Geen gebruikers gevonden.</p>
       </section>
+
+      <section class="paneel" id="paneel-meldingen" role="tabpanel" aria-labelledby="tab-meldingen" hidden>
+        <div class="filters meld-filters">
+          <label class="veld"><span>Tonen</span>
+            <select id="meld-filter">
+              <option value="nieuw">Nieuwe meldingen</option>
+              <option value="alle">Alle meldingen</option>
+              <option value="klaar">Afgehandeld</option>
+            </select>
+          </label>
+          <div class="filter-acties">
+            <button class="knop klein" id="meld-ververs" type="button">Verversen</button>
+          </div>
+        </div>
+        <p class="status" id="meld-status" role="status"></p>
+        <p class="meld-uitleg">Je ziet alleen id's en tijden. Het bewijs (de tekst die de melder zelf meestuurde) blijft verborgen tot je op &ldquo;Toon bewijs&rdquo; klikt.</p>
+        <ol class="meldlijst" id="meldlijst" aria-label="Meldingen"></ol>
+        <p class="geen" id="meld-leeg" hidden>Geen meldingen.</p>
+      </section>
+
+      <section class="paneel" id="paneel-feedback" role="tabpanel" aria-labelledby="tab-feedback" hidden>
+        <div class="filters fb-filters">
+          <label class="veld"><span>Tonen</span>
+            <select id="fb-filter">
+              <option value="nieuw">Nieuw</option>
+              <option value="alle">Alles</option>
+              <option value="klaar">Klaar</option>
+            </select>
+          </label>
+          <label class="veld"><span>Soort</span>
+            <select id="fb-soort">
+              <option value="alle">Alle soorten</option>
+              <option value="fout">Fout</option>
+              <option value="idee">Idee</option>
+              <option value="anders">Anders</option>
+            </select>
+          </label>
+          <div class="filter-acties">
+            <button class="knop klein" id="fb-ververs" type="button">Verversen</button>
+          </div>
+        </div>
+        <p class="status" id="fb-status" role="status"></p>
+        <p class="meld-uitleg">Dit is gewone tekst die gebruikers zelf stuurden. De technische gegevens staan ingeklapt.</p>
+        <ol class="meldlijst" id="fb-lijst" aria-label="Feedback"></ol>
+        <p class="geen" id="fb-leeg" hidden>Geen feedback.</p>
+      </section>
     </div>
   </main>
+  <dialog id="bevestig" aria-labelledby="bev-titel">
+    <form method="dialog">
+      <h2 id="bev-titel">Weet je het zeker?</h2>
+      <ul class="bev-regels" id="bev-regels"></ul>
+      <div class="rij-knoppen">
+        <button class="knop klein" id="bev-nee" type="submit" value="nee">Annuleren</button>
+        <button class="knop klein goud" id="bev-ja" type="submit" value="ja">Ja, verbannen</button>
+      </div>
+    </form>
+  </dialog>
   <script src="vriendenlib.js"></script>
   <script src="beheer.js"></script>
 </body>

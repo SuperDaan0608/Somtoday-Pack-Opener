@@ -1,0 +1,40 @@
+@font-face { font-family: 'SPO Display'; src: url('fonts/unbounded.woff2') format('woff2'); font-weight: 200 900; }
+@font-face { font-family: 'SPO Text'; src: url('fonts/inter.woff2') format('woff2'); font-weight: 100 900; }
+:root { color-scheme: dark; --bg: #080a14; --lijn: rgba(255,255,255,.09); --lijn-2: rgba(255,255,255,.17); --tekst: #eef1f8; --tekst-2: #a5aec4; --tekst-3: #8790a8; --geel: #ffd24a; --goud: linear-gradient(135deg,#fff0b3,#ffd24a 40%,#ff7a3d); --display: 'SPO Display', system-ui, sans-serif; }
+* { box-sizing: border-box; }
+html { background: var(--bg); }
+body { margin: 0; min-height: 100vh; padding: 28px 16px 48px; font: 14px/1.45 'SPO Text', system-ui, sans-serif; color: var(--tekst); background: radial-gradient(90% 40% at 50% -8%, rgba(255,204,51,.14), transparent 70%), var(--bg); }
+body > * { max-width: 960px; margin-left: auto; margin-right: auto; }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--geel); outline-offset: 2px; }
+.skip { position: absolute; left: -999px; } .skip:focus { left: 16px; top: 8px; background: #000; padding: 6px 10px; z-index: 9; }
+h1 { font: 800 clamp(28px,5vw,40px)/1 var(--display); margin: 0; background: var(--goud); -webkit-background-clip: text; background-clip: text; color: transparent; }
+h2 { margin: 0 0 12px; font: 700 17px/1.25 var(--display); }
+.onder { margin: 8px 0 18px; color: var(--tekst-3); }
+.blok { margin: 0 0 28px; padding: 18px; border: 1px solid var(--lijn); border-radius: 18px; background: rgba(255,255,255,.03); }
+.rooster { display: grid; grid-template-columns: minmax(0, 240px) minmax(0, 1fr); gap: 24px; align-items: start; }
+.rooster.breed { grid-template-columns: minmax(0, 380px) minmax(0, 1fr); }
+.plaat { display: grid; gap: 10px; justify-items: stretch; }
+.plaat canvas { width: 100%; height: auto; border-radius: 16px; background: rgba(0,0,0,.28); box-shadow: 0 14px 34px -12px #000; }
+.opties { display: grid; gap: 16px; }
+.veld { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--tekst-3); }
+.veld > span { text-transform: uppercase; letter-spacing: .08em; font-size: 11px; }
+.keuze { display: flex; flex-wrap: wrap; gap: 8px; }
+.keuze button { min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--lijn-2); background: rgba(0,0,0,.25); font-weight: 600; }
+.keuze button[aria-checked="true"] { border-color: var(--geel); background: rgba(255,210,74,.16); color: #fff; box-shadow: 0 0 0 1px var(--geel) inset; }
+.keuze button[aria-disabled="true"] { opacity: .55; border-style: dashed; }
+.keuze.kleuren button { width: 40px; min-width: 40px; height: 40px; padding: 0; border-radius: 50%; position: relative; }
+.keuze.kleuren button[aria-disabled="true"]::after { content: "🔒"; font-size: 14px; position: absolute; inset: 0; display: grid; place-items: center; }
+.keuze.kleuren button[aria-checked="true"] { box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--geel); }
+input[type=text], input[type=number] { background: rgba(0,0,0,.25); border: 1px solid var(--lijn-2); border-radius: 10px; padding: 10px 12px; width: 100%; max-width: 360px; }
+input[type=number] { max-width: 120px; }
+.uitleg { margin: 10px 0 0; color: var(--tekst-2); font-size: 13px; }
+.tekstknop { background: none; border: 0; padding: 0; color: var(--geel); text-decoration: underline; }
+.vink { display: flex; gap: 8px; align-items: center; margin-top: 14px; }
+.knop { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 22px; border-radius: 999px; border: 1px solid var(--lijn-2); font-weight: 800; color: var(--tekst); background: rgba(255,255,255,.07); text-decoration: none; text-align: center; }
+.knop[aria-pressed="true"] { background: var(--goud); color: #241703; border-color: transparent; }
+.melding { min-height: 1.4em; color: var(--geel); margin: 0 0 8px; }
+.melding.fout { color: #ff9a8a; }
+@media (max-width: 640px) { .rooster, .rooster.breed { grid-template-columns: 1fr; } .plaat { max-width: 320px; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
