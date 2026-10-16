@@ -11,7 +11,7 @@
   const NIEUW = [
     {
       versie: '3.0.0',
-      datum: '',
+      datum: '2026-10-16',
       titel: 'Grote update',
       punten: [
         'Veiliger voor iedereen: een streng filter op alles wat je typt, en je kunt vrienden blokkeren en melden.',

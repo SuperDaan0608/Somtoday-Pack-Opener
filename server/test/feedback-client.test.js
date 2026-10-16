@@ -115,7 +115,7 @@ async function openHub(p) { await p.goto(WEB + '/hub.html'); await p.waitForSele
       const nrs = await p.locator('.nv-nr').allTextContents();
       controle('knop: alle versies, 3.0.0 bovenaan', nrs[0] === 'Versie 3.0.0' && nrs.includes('Versie 2.2.0'), nrs);
       controle('knop: titel Grote update', (await p.locator('.nv-versie').first().locator('.nv-vtitel').textContent()) === 'Grote update');
-      controle('knop: lege datum wordt weggelaten', await p.locator('.nv-versie').first().locator('.nv-datum').count() === 0);
+      controle('knop: datum van 3.0.0 wordt getoond', await p.locator('.nv-versie').first().locator('.nv-datum').count() === 1);
       controle('knop: wel een datum bij 2.4.4', /oktober 2026/.test(await p.locator('.nv-versie').nth(1).locator('.nv-datum').textContent()));
       controle('knop: hooguit 6 punten per versie', (await p.locator('.nv-punten').evaluateAll((l) => l.every((u) => u.children.length >= 1 && u.children.length <= 6))));
       controle('knop: geen Nieuw-labels (alles al gezien)', await p.locator('.nv-tag').count() === 0);

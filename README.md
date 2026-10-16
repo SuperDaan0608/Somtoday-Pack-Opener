@@ -84,6 +84,8 @@ kies `manifest.json`. Blijvend installeren kan alleen met een door Mozilla onder
 Alles gebeurt in je eigen browser. De extensie leest de cijfers alleen op de pagina en verstuurt niets.
 Om te onthouden wat je al hebt geopend, slaat ze een korte hash op (geen vak, geen cijfer). De **galerij** bewaart wel je vak, cijfer en kaartplaatje, maar alleen lokaal in je browser; je kunt dat uitzetten in de popup en de galerij leegmaken op de galerijpagina.
 
+Met een **account** (vrienden, back-up) slaat de server alleen versleutelde gegevens op die hij zelf niet kan lezen; een e-mailadres wordt alleen als hash bewaard. Een IP-adres wordt alleen als gezouten hash gebruikt (maximaal 30 dagen onthouden). Alles wat je typt gaat door een streng filter. Bij het **AI-jaaroverzicht** gaan na jouw toestemming eenmalig een paar getallen (gemiddelden per vakgroep en aantallen, geen namen of vaknamen) via de server naar een AI-dienst; de server bewaart de tekst hooguit 10 minuten en alleen tot jij hem ophaalt. De **feedbackknop** stuurt alleen wat je zelf ziet in het voorbeeld.
+
 ## Bediening
 
 | Toets | Wat het doet |
