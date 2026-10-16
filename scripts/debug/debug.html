@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="feedback.css" />
   <link rel="stylesheet" href="veilig.css" />
   <link rel="stylesheet" href="rivaal.css" />
+  <link rel="stylesheet" href="jaar.css" />
   <script src="debug-nep.js"></script>
   <script src="embed.js"></script>
 </head>
@@ -215,17 +216,18 @@
     </section>
 
     <section class="blok" id="s-spel">
-      <h2>Arcade en Kaartspel</h2>
+      <h2>Arcade, Snelspel en Kaartspel</h2>
       <p class="klein" id="sp-status">Status laden...</p>
       <div class="rij">
         <input id="sp-getal" type="number" min="0" step="1" value="50" aria-label="Munten" />
         <button type="button" class="knop goud" id="sp-munten">Geef munten</button>
         <button type="button" class="knop" id="sp-arcade">Arcade-limiet resetten (10 per dag)</button>
+        <button type="button" class="knop" id="sp-snelspel">Snelspel-limiet resetten (15 per dag)</button>
         <button type="button" class="knop" id="sp-kaartspel">Kaartspel-limiet resetten (5 per dag)</button>
         <button type="button" class="knop" id="sp-alles">Alle limieten van vandaag resetten</button>
       </div>
       <div class="rij">
-        <a class="knop" href="hub.html#arcade" data-ga="arcade">Naar Arcade</a>
+        <a class="knop" href="hub.html#arcade" data-ga="arcade">Naar Arcade (en Snelspel)</a>
         <a class="knop" href="hub.html#kaartspel" data-ga="kaartspel">Naar Kaartspel</a>
       </div>
       <p class="klein">Een kaartspel-potje dat al is uitbetaald (<code>ksw:...</code>) blijft uitbetaald; alleen de dagteller gaat terug. Zonder de dagteller geeft een nieuw potje weer munten.</p>
@@ -239,6 +241,101 @@
         <a class="knop" href="hub.html#speler" data-ga="speler">Naar Speler</a>
       </div>
       <p class="klein" id="vb-status"></p>
+    </section>
+
+    <section class="blok" id="s-campagne">
+      <h2>Campagne</h2>
+      <p class="klein" id="ca-status">Status laden...</p>
+      <div class="rij">
+        <label>Wereld <select id="ca-wereld"></select></label>
+        <label>Niveau <select id="ca-niveau"></select></label>
+      </div>
+      <div class="rij">
+        <button type="button" class="knop goud" id="ca-win">Win dit niveau (3 sterren)</button>
+        <button type="button" class="knop" id="ca-ontgrendel">Wereld ontgrendelen (niveau 1 t/m 4 klaar, de baas is open)</button>
+        <button type="button" class="knop" id="ca-alle">Alle werelden ontgrendelen</button>
+      </div>
+      <div class="rij">
+        <button type="button" class="knop" id="ca-limiet">Dagelijkse beloningslimiet resetten (3 herhalingen)</button>
+        <button type="button" class="knop gevaar" id="ca-sterren">Alleen de sterren wissen</button>
+        <button type="button" class="knop gevaar" id="ca-reset">Alles terug naar nul (sterren, beloningen, titels, kaartkleuren)</button>
+        <a class="knop" href="hub.html#campagne" data-ga="campagne">Naar Campagne</a>
+      </div>
+      <p class="klein" id="ca-uitslag"></p>
+      <p class="klein">&ldquo;Win dit niveau&rdquo; zet alle niveaus ervoor op 3 sterren (zonder munten) en betaalt het gekozen niveau uit zoals in het echt: de eerste keer de eenmalige munten (bij de baas ook de titel en de kaartkleuren), daarna een herhaling met de dagelijkse limiet. Om zelf te spelen heb je 5 kaarten nodig: geef jezelf eerst &ldquo;Eén kaart per vak (12)&rdquo; hierboven.</p>
+    </section>
+
+    <section class="blok" id="s-jaar">
+      <h2>Jaaroverzicht (&ldquo;Jouw jaar&rdquo;)</h2>
+      <p class="klein">Alles hier gaat naar de <b>nep-server</b>: er gaat niets naar een echte server of naar Groq. De nep-AI-tekst gaat door precies dezelfde filter en weergave als echte tekst.</p>
+      <div class="rij">
+        <button type="button" class="knop goud" id="ja-nu">Jaar bekijken nu</button>
+        <button type="button" class="knop" id="ja-data">Testgegevens voor mijn jaar</button>
+        <button type="button" class="knop gevaar" id="ja-wis">Testgegevens weghalen</button>
+      </div>
+      <p class="klein" id="ja-status"></p>
+      <h3>Jaar met nep-AI</h3>
+      <div class="rij">
+        <label>Wat staat er in de nep-AI-tekst?
+          <select id="ja-tekst">
+            <option value="goed">Gewone tekst</option>
+            <option value="rommel">Rommel (tags, link, opmaak): moet worden schoongemaakt</option>
+            <option value="afgekeurd">Telefoonnummer: moet worden geweigerd</option>
+          </select>
+        </label>
+        <label>Wachtrij begint bij plek <input id="ja-plek" type="number" min="1" max="20" step="1" value="4" /></label>
+        <label class="vink"><input type="checkbox" id="ja-auto" checked /> Zet het toestemmingsvinkje en klik de AI-knop zelf</label>
+      </div>
+      <div class="rij">
+        <button type="button" class="knop goud" id="ja-ai">Jaar met nep-AI</button>
+        <button type="button" class="knop" id="ja-limiet">Nep-limiet bereikt</button>
+        <button type="button" class="knop" id="ja-tijd">Nep-time-out</button>
+        <button type="button" class="knop" id="ja-hangt">Nep-server hangt (app geeft zelf op na 12 s)</button>
+        <button type="button" class="knop" id="ja-503">Nep-fout 503</button>
+      </div>
+      <pre id="ja-log">Nog niets (nep) verstuurd.</pre>
+      <p class="klein">&ldquo;Jaar bekijken nu&rdquo; opent de terugblik met alle kaarten en prestaties die er nu zijn, ongeacht de datum en het juli-aanbod, en zet het schooljaar niet op &lsquo;gezien&rsquo;. &ldquo;Testgegevens&rdquo; maakt ongeveer 60 debugkaarten verspreid over de laatste 12 maanden en alle vier de vakgroepen, zodat alle 8 schermen gevuld zijn (beste kaart, stijging, zwaarste week, ladder met alle 5 treden, favoriete animatie, prestaties, terugblik). Het venster staat in dit menu; de AI-knoppen zetten zelf de nep-account aan zodat het AI-blok beschikbaar is.</p>
+    </section>
+
+    <section class="blok" id="s-duel">
+      <h2>Duel en tweelingkaart (nep-vriend)</h2>
+      <label class="vink"><input type="checkbox" id="nv-aan" /> Nep-vriend-modus aan</label>
+      <p class="klein" id="nv-status"></p>
+      <p class="klein">Met de modus aan gebruiken de pagina&rsquo;s <b>Team</b> en <b>Vrienden</b> (na opnieuw openen of laden) een <b>nep-account</b> met &eacute;&eacute;n vriend, de Nep-vriend. Je echte vriendenaccount wordt dan niet gelezen of veranderd, en er gaat niets over het netwerk. Zet je de modus uit, dan is alles weer zoals het was.</p>
+      <h3>Duel</h3>
+      <div class="rij">
+        <button type="button" class="knop goud" id="du-comp">Duel tegen de computer starten</button>
+        <button type="button" class="knop" id="du-team">Maak een team van mijn kaarten</button>
+        <button type="button" class="knop" id="du-uitdaag">Nep-vriend daagt jou uit</button>
+        <a class="knop" href="hub.html#team" data-ga="team">Naar Team</a>
+      </div>
+      <div class="rij">
+        <label class="vink"><input type="checkbox" id="nv-kijkt" checked /> De Nep-vriend kijkt mee als toeschouwer</label>
+        <span class="klein">Toeschouwer-emoji:</span>
+        <button type="button" class="knop" data-nv-emoji="&#128293;" aria-label="Vuur">&#128293;</button>
+        <button type="button" class="knop" data-nv-emoji="&#128558;" aria-label="Verbazing">&#128558;</button>
+        <button type="button" class="knop" data-nv-emoji="&#128079;" aria-label="Applaus">&#128079;</button>
+        <button type="button" class="knop" data-nv-emoji="&#128514;" aria-label="Lachen">&#128514;</button>
+        <button type="button" class="knop" id="du-limiet">Daglimiet duelbeloning resetten (5 per dag)</button>
+      </div>
+      <p class="klein" id="du-status"></p>
+      <p class="klein">Duel met de nep-vriend: open Team, klik bij de Nep-vriend op &ldquo;Uitdagen&rdquo; (of accepteer zijn uitdaging na &ldquo;Nep-vriend daagt jou uit&rdquo;; binnen 4 minuten, het bericht staat dan in Team). De Nep-vriend speelt als de computer, maar via het nep-kanaal: met vastlegging, schot en onthulling. Start je een duel (tegen de computer of de Nep-vriend) met de modus aan en &ldquo;De Nep-vriend kijkt mee&rdquo;, dan doet hij na een paar seconden mee als toeschouwer; de emoji-knoppen laten dan een emoji over je scherm vliegen. &ldquo;Duel tegen de computer starten&rdquo; maakt zo nodig eerst een team en opent daarna Team, waar het duel vanzelf begint.</p>
+      <h3>Tweelingkaart</h3>
+      <div class="rij">
+        <label>Vakgroep <select id="tw-groep"><option value="exact">Exact (Wiskunde)</option><option value="talen">Talen (Engels)</option><option value="mens">Mens &amp; maatschappij (Geschiedenis)</option><option value="kunst">Kunst &amp; sport (Tekenen)</option></select></label>
+        <label>Cijfer <input id="tw-cijfer" type="number" min="1" max="10" step="0.1" value="7.5" /></label>
+        <label>Antwoord op jouw voorstel
+          <select id="tw-antwoord"><option value="ja">Nep-vriend zegt ja</option><option value="nee">Nep-vriend zegt nee</option><option value="geen">Nep-vriend antwoordt niet</option></select>
+        </label>
+      </div>
+      <div class="rij">
+        <button type="button" class="knop goud" id="tw-voorstel">Nep-vriend stelt een tweelingkaart voor</button>
+        <button type="button" class="knop" id="tw-kaart">Maak er een passende kaart bij</button>
+        <button type="button" class="knop gevaar" id="tw-wis">Alle tweelingkaarten en voorstellen wissen</button>
+        <a class="knop" href="hub.html#vrienden" data-ga="vrienden">Naar Vrienden</a>
+      </div>
+      <p class="klein" id="tw-status"></p>
+      <p class="klein">&ldquo;Stelt voor&rdquo; zet een voorstel (cijferband en vakgroep van hierboven, zonder vaknaam of exact cijfer) in je Vrienden-pagina. &ldquo;Passende kaart&rdquo; geeft een debugkaart in die band en groep, zodat je kunt accepteren. Weigeren en accepteren kun je dan op Vrienden testen. Een voorstel van jou aan de Nep-vriend krijgt het antwoord hierboven (ja geeft een actieve tweelingkaart met de badge; de 25 munten komen na &ldquo;Synchroniseren&rdquo; op Vrienden of binnen een minuut).</p>
     </section>
 
     <section class="blok" id="s-rivaal">
@@ -408,6 +505,9 @@
   <script src="voetbal.js"></script>
   <script src="economie.js"></script>
   <script src="gevecht.js"></script>
+  <script src="duellib.js"></script>
+  <script src="campagnelib.js"></script>
+  <script src="tweeling.js"></script>
   <script src="prestatieslib.js"></script>
   <script src="huisdier.js"></script>
   <script src="heel.js"></script>
@@ -415,6 +515,8 @@
   <script src="weekoverzicht.js"></script>
   <script src="capsule.js"></script>
   <script src="vriendenlib.js"></script>
+  <script src="debug-vriend.js"></script>
+  <script src="jaar.js"></script>
   <script src="veilig.js"></script>
   <script src="rivaal.js"></script>
   <script src="uitnodiging.js"></script>

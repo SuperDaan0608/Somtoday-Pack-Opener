@@ -13,7 +13,7 @@ VERSIE="${1:-v$MANIFEST_VERSIE}"
 NAAM="somtoday-pack-opener"
 UIT="$ROOT/dist"
 DBG="$ROOT/scripts/debug"
-for f in debug.html debug.css debug.js debug-somtoday.js debug-nep.js; do [ -f "$DBG/$f" ] || { echo "$f ontbreekt in scripts/debug/" >&2; exit 1; }; done
+for f in debug.html debug.css debug.js debug-somtoday.js debug-nep.js debug-vriend.js; do [ -f "$DBG/$f" ] || { echo "$f ontbreekt in scripts/debug/" >&2; exit 1; }; done
 
 WERK="$(mktemp -d)"
 trap 'rm -rf "$WERK"' EXIT
@@ -27,7 +27,7 @@ bouw() {
   rm -f "$D/motor/openingen/proef.js" "$D/motor/openingen/LEESMIJ.md"
   sed -i '/openingen\/proef\.js/d' "$D/stage.html"
   find "$D" -name '.DS_Store' -delete
-  cp "$DBG/debug.html" "$DBG/debug.css" "$DBG/debug.js" "$DBG/debug-somtoday.js" "$DBG/debug-nep.js" "$D/"
+  cp "$DBG/debug.html" "$DBG/debug.css" "$DBG/debug.js" "$DBG/debug-somtoday.js" "$DBG/debug-nep.js" "$DBG/debug-vriend.js" "$D/"
   python3 - "$D" "$DOEL" <<'PY'
 import sys, re, json
 d, doel = sys.argv[1], sys.argv[2]
@@ -56,6 +56,12 @@ vervang('drop.js', '      const d = st ? await L.dropTelling(st) : null;\n',
         '      let d = null;\n'
         "      { const dbg = (await (globalThis.browser || globalThis.chrome).storage.local.get('spo_debug')).spo_debug; if (dbg && Number.isInteger(dbg.dropTeller)) d = { aantal: dbg.dropTeller }; } // debug-build: lokale teller\n"
         '      if (!d) d = st ? await L.dropTelling(st) : null;\n')
+# Jaaroverzicht (v3.0): het testmenu opent de terugblik met alle gegevens die er nu zijn (opties.bereik) en zet het echte schooljaar dan niet op 'gezien'.
+vervang('jaar.js', 'schooljaar(nu));\n    const terug = document.activeElement;', 'o.bereik || schooljaar(nu)); /* debug-build */\n    const terug = document.activeElement;')
+vervang('jaar.js', "if (besteld || fase === 'scherm') markeerGezien(s.label)", "if (!o.bereik && (besteld || fase === 'scherm')) markeerGezien(s.label)")
+# Nep-vriend (alleen debug-build): Vrienden en Team laden debug-vriend.js direct na vriendenlib.js; met de modus uit doet het niets.
+for pagina in ('vrienden.html', 'team.html'):
+    vervang(pagina, '<script src="vriendenlib.js"></script>', '<script src="vriendenlib.js"></script>\n  <script src="debug-vriend.js"></script>')
 # Debugkaarten (id 'debug:...') gaan niet naar vrienden, tenzij het vinkje in het testmenu dat toestaat.
 vervang('vriendenlib.js', '  async function zetBlob(st, vriend, galerij) {\n',
         '  async function zetBlob(st, vriend, galerij) {\n'
@@ -112,7 +118,8 @@ Somtoday Pack Opener $VERSIE DEBUG-BUILD
 Alleen voor de eigenaar. Niet delen, niet uploaden, niet in een release zetten.
 Bevat het testmenu (tab "Testmenu" in de hub, of debug.html in een los tabblad).
 Debugkaarten krijgen het id "debug:..." en worden standaard niet met vrienden gedeeld.
-De veiligheids- en feedbackvensters in het testmenu sturen niets naar de server (nep-server in debug-nep.js).
+De veiligheids-, feedback- en jaaroverzicht-vensters in het testmenu sturen niets naar de server (nep-server in debug-nep.js).
+De nep-vriend (duel en tweelingkaart) werkt met een nep-account in Team en Vrienden (debug-vriend.js) en raakt je echte account niet aan.
 
 Installeren: chrome://extensions, Ontwikkelaarsmodus aan, "Uitgepakte extensie laden" en kies deze map.
 Haal de gewone versie eerst weg (zelfde opslag), of gebruik een apart Chrome-profiel.

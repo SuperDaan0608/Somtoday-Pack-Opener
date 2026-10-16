@@ -532,15 +532,17 @@
   // ───────── Arcade en kaartspel ─────────
   async function spelStatus() {
     const [a, k] = await Promise.all([Eco.arcadeStatus(), Eco.kaartspelStatus()]);
-    $('sp-status').textContent = `Arcade: ${a.gespeeld} van ${a.max} gespeeld vandaag (nog ${a.over}), inzet ${a.inzet}. Kaartspel: ${k.gespeeld} van ${k.max} potjes met munten vandaag (nog ${k.over}). Saldo: ${a.saldo}.`;
+    const m = await Eco.miniStatus();
+    $('sp-status').textContent = `Arcade: ${a.gespeeld} van ${a.max} gespeeld vandaag (nog ${a.over}), inzet ${a.inzet}. Snelspel: ${m.gespeeld} van ${m.max} potjes vandaag (nog ${m.over}). Kaartspel: ${k.gespeeld} van ${k.max} potjes met munten vandaag (nog ${k.over}). Saldo: ${a.saldo}.`;
     const ids = (await get('spo_munten_ids')) || {};
     $('t-status').textContent = `Troostpakjes vandaag: ${telIds(ids, 'td:' + dagTekstNu() + ':')} van ${Eco.TROOST_PER_DAG}.`;
   }
   $('sp-munten').addEventListener('click', doe(() => muntenWijzig((x) => x + aantalSp(), 'Debug: munten voor arcade en kaartspel', true), (s) => `Saldo is nu ${s}.`));
   const aantalSp = () => Math.max(0, Math.floor(Number($('sp-getal').value) || 0));
   $('sp-arcade').addEventListener('click', doe(() => wisIds((k) => k.startsWith('ar:' + dagTekstNu() + ':') || k.startsWith('arw:' + dagTekstNu() + ':')), (n) => `Arcade-limiet van vandaag gereset (${n} sleutel(s)).`));
+  $('sp-snelspel').addEventListener('click', doe(() => wisIds((k) => k.startsWith('mn:' + dagTekstNu() + ':')), (n) => `Snelspel-limiet van vandaag gereset (${n} sleutel(s)).`));
   $('sp-kaartspel').addEventListener('click', doe(() => wisIds((k) => k.startsWith('ks:' + dagTekstNu() + ':')), (n) => `Kaartspel-limiet van vandaag gereset (${n} sleutel(s)).`));
-  $('sp-alles').addEventListener('click', doe(() => wisIds((k) => ['ar:', 'arw:', 'ks:', 'td:'].some((v) => k.startsWith(v + dagTekstNu() + ':'))), (n) => `Alle dag-limieten van vandaag gereset (${n} sleutel(s)): arcade, kaartspel en troostpakje.`));
+  $('sp-alles').addEventListener('click', doe(() => wisIds((k) => ['ar:', 'arw:', 'ks:', 'td:', 'mn:', 'ds:', 'cd:'].some((v) => k.startsWith(v + dagTekstNu() + ':'))), (n) => `Alle dag-limieten van vandaag gereset (${n} sleutel(s)): arcade, snelspel, kaartspel, duel, campagne en troostpakje.`));
 
   // ───────── Avatar en stadion ─────────
   const VB = globalThis.SPOVoetbal;
@@ -614,7 +616,10 @@
   const NEP_ST = { id: '0123456789abcdef0123456789abcdef', token: 'nep', server: 'nep', vrienden: [] };
   const VL = () => globalThis.SPOVeilig;
   function nepLog() {
-    $('vl-log').textContent = Nep.verstuurd.length ? Nep.verstuurd.map((v) => `${new Date(v.ts).toLocaleTimeString('nl-NL')}  ${v.actie}  ${JSON.stringify(v.body)}`).join('\n') + '\n(NEP: niets hiervan is echt verstuurd)' : 'Nog niets (nep) verstuurd.';
+    const regel = (v) => `${new Date(v.ts).toLocaleTimeString('nl-NL')}  ${v.actie}  ${JSON.stringify(v.body)}`;
+    const jaar = Nep.verstuurd.filter((v) => /^jaar/.test(v.actie)), rest = Nep.verstuurd.filter((v) => !/^jaar/.test(v.actie));
+    $('vl-log').textContent = rest.length ? rest.map(regel).join('\n') + '\n(NEP: niets hiervan is echt verstuurd)' : 'Nog niets (nep) verstuurd.';
+    if ($('ja-log')) $('ja-log').textContent = jaar.length ? jaar.map(regel).join('\n') + '\n(NEP: niets hiervan is echt verstuurd; dit zijn alleen getallen)' : 'Nog niets (nep) verstuurd.';
   }
   Nep.luister = nepLog;
   const koppelUitkomst = (sel, soort) => $(sel).addEventListener('change', () => { Nep.uitkomst[soort] = $(sel).value; });
@@ -691,6 +696,186 @@
   $('sf-wis').addEventListener('click', doe(() => { for (const k of ['spo_strafschop_poging', 'spo_strafschop_licht', 'spo_strafschop_licht_ts']) localStorage.removeItem(k); }, 'Strafschop-geheugen gewist: de volgende keer begint hij weer met de volle variant.'));
   strafTeken();
 
+  // ───────── Campagne ─────────
+  const C = globalThis.SPOCampagne;
+  vul($('ca-wereld'), C.WERELDEN.map((w) => [w.id, `${w.naam} (${w.groep})`]), 'exact');
+  vul($('ca-niveau'), [1, 2, 3, 4, 5].map((n) => [String(n), n === 5 ? '5 (eindbaas)' : String(n)]), '1');
+  const campLees = async () => C.schoon(await get('spo_campagne'));
+  const campZet = async (s) => { s.ts = NU(); await set({ spo_campagne: C.schoon(s) }); };
+  async function campStatus() {
+    const s = await campLees(), k = await Eco.campagneStatus();
+    const rij = C.WERELDEN.map((w) => `${w.naam}: ${s.w[w.id].s.map((x) => (x ? '★'.repeat(x) : '-')).join(' ')}`).join(' · ');
+    $('ca-status').textContent = `${rij}. Beloonde herhalingen vandaag: ${k.gespeeld} van ${k.max}. Saldo: ${k.saldo}.`;
+  }
+  const ontgrendel = (s, id) => { for (let i = 0; i < 4; i++) s.w[id].s[i] = Math.max(s.w[id].s[i], 3); };
+  $('ca-ontgrendel').addEventListener('click', doe(async () => { const s = await campLees(), id = $('ca-wereld').value; ontgrendel(s, id); await campZet(s); return C.wereld(id).naam; }, (n) => `${n} ontgrendeld: niveau 1 t/m 4 staan op 3 sterren, de eindbaas is open.`));
+  $('ca-alle').addEventListener('click', doe(async () => { const s = await campLees(); for (const w of C.WERELDEN) ontgrendel(s, w.id); await campZet(s); }, 'Alle vier de werelden zijn ontgrendeld (de eindbazen zijn open).'));
+  $('ca-win').addEventListener('click', doe(async () => {
+    const id = $('ca-wereld').value, n = parseInt($('ca-niveau').value, 10), w = C.wereld(id);
+    const s = await campLees();
+    for (let i = 0; i < n - 1; i++) s.w[id].s[i] = Math.max(s.w[id].s[i], 3); // eerdere niveaus: vrijgespeeld, zonder munten
+    const nieuw = C.registreer(s, id, n, 3);
+    await campZet(nieuw);
+    const r = await Eco.campagneKlaar(id, n);
+    if (!r || !r.ok) throw new Error('de beloning is niet uitgekeerd');
+    const delen = [`${w.naam}, niveau ${n}${n === 5 ? ' (' + w.baas + ')' : ''}: gewonnen met 3 sterren.`];
+    if (r.munten > 0) delen.push(r.eerste ? `Eerste keer gewonnen: ${r.munten} munten.` : `Herhaling: ${r.munten} munten.`);
+    else if (r.dagmax) delen.push('Dagelijkse limiet voor herhalingen is bereikt: geen munten.');
+    if (r.wereldKlaar) delen.push(`Wereld voltooid: titel ${Eco.PER_ID.get(w.titel).naam} en kaartkleuren ${Eco.PER_ID.get(w.thema).naam}.`);
+    if (n < C.NIVEAUS) delen.push(`Niveau ${n + 1} is nu open.`);
+    $('ca-uitslag').textContent = delen.join(' ');
+    return delen[0];
+  }, (t) => t));
+  $('ca-limiet').addEventListener('click', doe(() => wisIds((k) => k.startsWith('cd:' + dagTekstNu() + ':')), (n) => `Beloningslimiet van vandaag gereset (${n} sleutel(s)): herhalingen geven weer munten.`));
+  $('ca-sterren').addEventListener('click', doe(async () => { const s = await campLees(); for (const w of C.WERELDEN) s.w[w.id].s = [0, 0, 0, 0, 0]; await campZet(s); }, 'Alle sterren gewist (de eenmalige beloningen en titels blijven).'));
+  $('ca-reset').addEventListener('click', doe(async () => {
+    const s = await campLees(); for (const w of C.WERELDEN) s.w[w.id].s = [0, 0, 0, 0, 0]; await campZet(s);
+    await wisIds((k) => k.startsWith('cf:') || k.startsWith('cw:') || k.startsWith('cd:'));
+    const camp = new Set(Eco.ITEMS.filter((i) => i.campagne).map((i) => i.id));
+    const wk = Eco.schoonWinkel(await get('spo_winkel')); wk.gekocht = wk.gekocht.filter((id) => !camp.has(id)); await set({ spo_winkel: Eco.schoonWinkel(wk) });
+    // economie.js zet items terug uit de geschiedenis: de campagne-regels gaan dus ook weg
+    const log = (await get('spo_munten_log')) || [];
+    await set({ spo_munten_log: log.filter((e) => !(e && (String(e.id).startsWith('cf:') || String(e.id).startsWith('cw:')))) });
+  }, 'Campagne helemaal terug naar nul: sterren, eenmalige beloningen, titels en kaartkleuren. De munten die je al kreeg blijven staan.'));
+
+  // ───────── Jaaroverzicht ─────────
+  const J = globalThis.SPOJaar;
+  const JAAR_VAKKEN = { exact: ['Wiskunde', 'Natuurkunde'], talen: ['Engels', 'Nederlands'], mens: ['Geschiedenis', 'Aardrijkskunde'], kunst: ['Tekenen', 'Muziek'] };
+  const jaarBereik = () => ({ label: J.schooljaar(NU()).label, start: 0, eind: NU() + DAG }); // alles wat er nu is, ongeacht de datum
+  async function jaarStatus() {
+    if (!J) { $('ja-status').textContent = 'jaar.js niet geladen.'; return; }
+    const g = await get('spo_galerij'), p = await get('spo_prestaties');
+    const s = J.bereken(g, p, jaarBereik());
+    const dbg = (Array.isArray(g) ? g : []).filter((e) => e && String(e.id).startsWith('debug:')).length;
+    $('ja-status').textContent = `Nu: ${s.n} kaarten (waarvan ${dbg} debugkaarten), ${s.prestaties} prestaties. Ladder: ${s.lad.join(' / ')}. Het schooljaar van vandaag is ${J.schooljaar(NU()).label}.`;
+  }
+  async function jaarTestdata() {
+    const trend = { exact: 0.18, talen: 0, mens: -0.12, kunst: 0.1 }, basis = { exact: 6.2, talen: 7, mens: 7.6, kunst: 7.2 };
+    const groepen = Object.keys(JAAR_VAKKEN), lijst = [];
+    let i = 0;
+    const voeg = (vak, cijfer, ts, weging) => {
+      const c = Math.round(Math.max(1, Math.min(10, cijfer)) * 10) / 10, trede = tierVan(c);
+      lijst.push(maakEntry({ vak, cijfer: c, weging: weging || 1, onderwerp: 'Jaar-test (debug)', trede, vloek: false, opening: i % 3 === 0 ? 'kluis' : OPENINGEN[i % OPENINGEN.length] }, i, ts));
+      i++;
+    };
+    for (let m = 0; m < 12; m++) {
+      groepen.forEach((g, gi) => {
+        const ruis = (((m * 7 + gi * 3) % 5) - 2) * 0.15;
+        voeg(JAAR_VAKKEN[g][m % 2], basis[g] + trend[g] * m + ruis, NU() - (11 - m) * 30 * DAG - (4 - gi) * DAG - 2 * 3600e3);
+      });
+    }
+    // alle vijf treden, een hoogste en een laagste cijfer, en een zware week (twee lage kaarten kort na elkaar)
+    voeg('Wiskunde', 10, NU() - 20 * DAG); voeg('Engels', 9.4, NU() - 45 * DAG); voeg('Geschiedenis', 7.6, NU() - 70 * DAG); voeg('Tekenen', 6.1, NU() - 90 * DAG);
+    voeg('Biologie', 3.9, NU() - 130 * DAG); voeg('Biologie', 4.2, NU() - 130 * DAG + 3600e3);
+    lijst.sort((a, b) => a.ts - b.ts);
+    await bewaarKaarten(lijst, false);
+    // prestaties: een paar met een datum in dit jaar (alleen die je nog niet had)
+    const nu = Object.assign({}, await get('spo_prestaties'));
+    let nieuw = 0;
+    for (const b of Prest.BADGES.filter((x) => x.tier !== 5)) { if (nieuw >= 6) break; if (!nu[b.id]) { nu[b.id] = NU() - (nieuw + 1) * 35 * DAG; nieuw++; } }
+    if (nieuw) await set({ spo_prestaties: nu });
+    return { kaarten: lijst.length, prest: nieuw };
+  }
+  $('ja-data').addEventListener('click', doe(jaarTestdata, (r) => `${r.kaarten} debugkaarten verspreid over 12 maanden en 4 vakgroepen gegeven${r.prest ? ` en ${r.prest} prestaties met een datum dit jaar` : ''}. Klik nu op "Jaar bekijken nu".`));
+  $('ja-wis').addEventListener('click', doe(async () => { const n = await wisDebugKaarten(); return n; }, (n) => `${n} debugkaart(en) verwijderd. (Prestaties die de testgegevens erbij zetten blijven staan; haal ze weg bij Prestaties.)`));
+
+  const klikWanneer = (zoek, ms) => new Promise((ok) => {
+    const t0 = NU();
+    const iv = setInterval(() => { const e = zoek(); if (e || NU() - t0 > ms) { clearInterval(iv); ok(e); } }, 60);
+  });
+  async function jaarOpen(modus, metAI) {
+    if (!J) throw new Error('jaar.js niet geladen');
+    Nep.jaar.modus = modus || 'ok';
+    Nep.jaar.tekst = $('ja-tekst').value;
+    Nep.jaar.start = Math.max(1, Math.min(20, parseInt($('ja-plek').value, 10) || 4));
+    Nep.jaarAccount = !!metAI; // zonder deze vlag heeft het menu geen vriendenaccount en is het AI-blok uitgeschakeld (zoals zonder account)
+    J.CONFIG.pollMs = 1000; J.CONFIG.maxMs = 12000; // hier niet 3 s en 130 s wachten
+    const klaar = J.open({ bereik: jaarBereik() });
+    klaar.then(() => { Nep.jaarAccount = false; jaarStatus().catch(() => {}); });
+    if (metAI && $('ja-auto').checked) {
+      const vink = await klikWanneer(() => document.getElementById('jaar-toestemming'), 4000);
+      if (vink) {
+        vink.click();
+        const knop = [...document.querySelectorAll('.jaar-overlay .jaar-knop')].find((b) => /Schrijf mijn terugblik/.test(b.textContent));
+        if (knop && !knop.disabled) knop.click();
+      }
+    }
+    return modus;
+  }
+  const JAAR_UITLEG = { ok: 'Nep-AI: wachtrij die aftelt, daarna de nep-tekst.', limiet: 'Nep-limiet: je ziet de melding over de dagelijkse limiet.', tijd: 'Nep-time-out: de nep-server geeft op na de wachtrij; je krijgt de lokale terugblik.', hangt: 'Nep-server hangt: na 12 seconden geeft de app zelf op.', 503: 'Nep-fout 503: je krijgt de lokale terugblik.' };
+  $('ja-nu').addEventListener('click', doe(() => jaarOpen(null, false), 'Jaar bekijken nu: dit zijn alle kaarten die er nu zijn. (Het AI-blok is uitgeschakeld, want dit menu heeft geen account; gebruik "Jaar met nep-AI" voor de AI-kant.)'));
+  $('ja-ai').addEventListener('click', doe(() => jaarOpen('ok', true), JAAR_UITLEG.ok));
+  $('ja-limiet').addEventListener('click', doe(() => jaarOpen('limiet', true), JAAR_UITLEG.limiet));
+  $('ja-tijd').addEventListener('click', doe(() => jaarOpen('tijd', true), JAAR_UITLEG.tijd));
+  $('ja-hangt').addEventListener('click', doe(() => jaarOpen('hangt', true), JAAR_UITLEG.hangt));
+  $('ja-503').addEventListener('click', doe(() => jaarOpen('503', true), JAAR_UITLEG[503]));
+
+  // ───────── Nep-vriend: duel en tweelingkaart ─────────
+  const Z = globalThis.__spoDebugNepVriend;
+  const Tw = globalThis.SPOTweeling;
+  const hex = (n) => { const b = new Uint8Array(n); crypto.getRandomValues(b); return Array.from(b, (x) => x.toString(16).padStart(2, '0')).join(''); };
+  const eisNep = async () => { if (!((await get('spo_debug')) || {}).nepVriend) throw new Error('Zet eerst de nep-vriend-modus aan (bovenaan dit blok).'); };
+  async function nvStatus() {
+    const d = (await get('spo_debug')) || {};
+    $('nv-aan').checked = d.nepVriend === true;
+    $('nv-kijkt').checked = d.nepKijkt !== false;
+    if (d.nepTweeling) $('tw-antwoord').value = d.nepTweeling;
+    const tw = await get('spo_tweeling'), n = tw ? Object.keys(tw.kaarten || {}).length : 0, v = tw ? Object.keys(tw.verzoeken || {}).length : 0;
+    const team = await Vr.leesTeam();
+    $('nv-status').textContent = d.nepVriend === true ? 'De modus staat aan: Team en Vrienden gebruiken het nep-account met de Nep-vriend (laad die pagina’s opnieuw als ze al openstonden).' : 'De modus staat uit: Team en Vrienden gebruiken je echte account (of geen).';
+    $('du-status').textContent = `Je team: ${team ? team.ids.length : 0} kaart(en). Duelbeloning vandaag: ${(await Eco.duelStatus()).gespeeld} van ${DUEL_MAX}.`;
+    $('tw-status').textContent = `Tweelingkaarten: ${n}, openstaande voorstellen van vrienden: ${v}. Cijferband: ${Tw && Tw.band(Number($('tw-cijfer').value.replace(',', '.'))) >= 0 ? Tw.bandTekst(Tw.band(Number($('tw-cijfer').value.replace(',', '.')))).replace(/\./g, ',') : 'ongeldig cijfer'}.`;
+  }
+  const DUEL_MAX = Eco.DUEL_PER_DAG || 5;
+  $('nv-aan').addEventListener('change', doe(() => zetDebug({ nepVriend: $('nv-aan').checked }), () => ($('nv-aan').checked ? 'Nep-vriend-modus aan. Open (of laad opnieuw) Team of Vrienden.' : 'Nep-vriend-modus uit: Team en Vrienden gebruiken weer je echte account.')));
+  $('nv-kijkt').addEventListener('change', doe(() => zetDebug({ nepKijkt: $('nv-kijkt').checked }), () => ($('nv-kijkt').checked ? 'De Nep-vriend kijkt mee bij je volgende duel.' : 'De Nep-vriend kijkt niet meer mee.')));
+  $('tw-antwoord').addEventListener('change', doe(() => zetDebug({ nepTweeling: $('tw-antwoord').value }), 'Opgeslagen.'));
+  $('tw-cijfer').addEventListener('input', () => nvStatus().catch(() => {}));
+  async function zorgTeam(min) {
+    let g = await get('spo_galerij'); g = (Array.isArray(g) ? g : []).filter((e) => e && Number.isFinite(e.cijfer) && typeof e.id === 'string');
+    if (g.length < min) {
+      const proef = [['Wiskunde', 8.2], ['Engels', 7.1], ['Geschiedenis', 6.4], ['Natuurkunde', 9.1], ['Tekenen', 7.8], ['Nederlands', 5.9], ['Biologie', 8.6]];
+      const lijst = [];
+      for (let i = g.length; i < min; i++) { const [vak, cijfer] = proef[i % proef.length]; lijst.push(maakEntry({ vak, cijfer, weging: 1, onderwerp: 'Team-test (debug)', trede: tierVan(cijfer) >= 1 ? 1 : 0, vloek: false, opening: 'pak' }, i)); }
+      await bewaarKaarten(lijst, false);
+      g = (await get('spo_galerij')).filter((e) => e && Number.isFinite(e.cijfer));
+    }
+    const ids = g.slice().sort((a, b) => b.cijfer - a.cijfer).slice(0, 6).map((e) => e.id);
+    await Vr.bewaarTeam({ ids });
+    return ids.length;
+  }
+  $('du-team').addEventListener('click', doe(() => zorgTeam(6), (n) => `Je team is gemaakt van ${n} kaarten (de hoogste cijfers; ontbrekende kaarten zijn als debugkaart toegevoegd).`));
+  $('du-comp').addEventListener('click', doe(async () => {
+    await zorgTeam(6);
+    await stuur({ cmd: 'duel-start' });
+    if (ingebed) $('duel-link').click(); else window.open(chrome.runtime.getURL('hub.html#team'), '_blank');
+  }, 'Het duel tegen de computer wordt gestart in Team (kies zelf een hoek, of "Zonder timing").'));
+  $('du-uitdaag').addEventListener('click', doe(async () => {
+    await eisNep();
+    await zorgTeam(6);
+    await Z.zendNaarMij({ t: 'sd_uit', mid: hex(8), nonce: hex(8), team: Z.nepTeam() }, { uitdaging: true });
+  }, 'De Nep-vriend daagt je uit. Open Team (of laad het opnieuw): binnen een seconde staat de uitnodiging er, met Accepteren en Weigeren.'));
+  document.querySelectorAll('[data-nv-emoji]').forEach((b) => b.addEventListener('click', doe(async () => { await eisNep(); await stuur({ cmd: 'nep-emoji', e: b.dataset.nvEmoji }); }, 'Emoji verstuurd als toeschouwer. Alleen zichtbaar in Team tijdens een duel waar de Nep-vriend meekijkt.')));
+  $('du-limiet').addEventListener('click', doe(() => wisIds((k) => k.startsWith('ds:' + dagTekstNu() + ':')), (n) => `Daglimiet duelbeloning van vandaag gereset (${n} sleutel(s)).`));
+
+  const TW_VAK = { exact: 'Wiskunde', talen: 'Engels', mens: 'Geschiedenis', kunst: 'Tekenen' };
+  const twCijfer = () => Math.round(parseFloat($('tw-cijfer').value.replace(',', '.')) * 10) / 10;
+  $('tw-voorstel').addEventListener('click', doe(async () => {
+    await eisNep();
+    const b = Tw.band(twCijfer());
+    if (b < 0) throw new Error('Het cijfer moet tussen 1 en 10 liggen.');
+    await Z.zendNaarMij({ t: 'tw-vraag', id: hex(8), b, g: $('tw-groep').value });
+    return Tw.bandTekst(b).replace(/\./g, ',');
+  }, (t) => `Voorstel verstuurd (cijferband ${t}). Open Vrienden (of laad het opnieuw): binnen een seconde staat het voorstel er. Maak zo nodig eerst een passende kaart.`));
+  $('tw-kaart').addEventListener('click', doe(async () => {
+    const c = twCijfer(), g = $('tw-groep').value;
+    if (!(c >= 1 && c <= 10)) throw new Error('Het cijfer moet tussen 1 en 10 liggen.');
+    const e = maakEntry({ vak: TW_VAK[g], cijfer: c, weging: 1, onderwerp: 'Tweeling-test (debug)', trede: tierVan(c) >= 1 ? 1 : 0, vloek: false, opening: 'pak' }, 0);
+    await bewaarKaarten([e], false);
+    return `${TW_VAK[g]} ${String(c).replace('.', ',')}`;
+  }, (t) => `Passende debugkaart gegeven: ${t}.`));
+  $('tw-wis').addEventListener('click', doe(() => S.remove('spo_tweeling'), 'Alle tweelingkaarten en voorstellen gewist. (De Vrienden-pagina toont dit na opnieuw laden.)'));
+
   // ───────── Alle debugdata van v3.0 opruimen ─────────
   const isDbg = (x) => String(x == null ? '' : x).includes('debug:');
   $('rm-alles').addEventListener('click', doe(async () => {
@@ -704,11 +889,12 @@
     const log = (await get('spo_munten_log')) || [];
     await set({ spo_munten_log: log.filter((e) => !(e && isDbg(e.id))) });
     await zetDebug({ dropTeller: null });
+    await S.remove(['spo_debug_nep', 'spo_debug_nep_st']);
     return `${kaarten} kaart(en), ${l.length - (await caps()).length} capsule(s), ${ids} sleutel(s)`;
   }, (t) => `Opgeruimd: ${t}.`));
 
   async function v3Status() {
-    await Promise.all([geheimLijst(), weekStatus(), capsuleStatus(), spelStatus(), voetbalStatus(), dropToon(), nieuwStatus(), feedbackInfo()]);
+    await Promise.all([geheimLijst(), weekStatus(), capsuleStatus(), spelStatus(), voetbalStatus(), dropToon(), nieuwStatus(), feedbackInfo(), campStatus(), jaarStatus(), nvStatus()]);
   }
 
   // ───────── Start ─────────
